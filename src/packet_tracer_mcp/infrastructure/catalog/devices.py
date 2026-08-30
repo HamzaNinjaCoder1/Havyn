@@ -45,6 +45,12 @@ def _serial(slot: str) -> PortSpec:
 def _eth(slot: str) -> PortSpec:
     return PortSpec(PortSpeed.ETHERNET, slot)
 
+def _modem(slot: str) -> PortSpec:
+    return PortSpec(PortSpeed.MODEM, slot)
+
+def _coax(slot: str) -> PortSpec:
+    return PortSpec(PortSpeed.COAXIAL, slot)
+
 
 # =====================================================================
 # ROUTERS (verified — no serial ports without HWIC modules)
@@ -205,11 +211,28 @@ EMBEDDED_SERVER_PT = DeviceModel(
 )
 
 # =====================================================================
-# CLOUD / WAN (verified: Ethernet6 is the usable Ethernet port)
+# CLOUD / WAN
+#
+# Los ocho puertos salen de leer `getPorts()` sobre una Cloud-PT viva en
+# PT 9.0.1:
+#   Serial0, Serial1, Serial2, Serial3, Modem4, Modem5, Ethernet6, Coaxial7
+#
+# El catalogo declaraba SOLO Ethernet6, asi que `pt_add_link` y `validate_plan`
+# rechazaban los otros siete -- puertos que el dispositivo si tiene -- antes de
+# que la peticion llegara a PT.
+#
+# Ethernet6 ademas estaba declarado como FastEthernet con el nombre forzado a
+# mano; salia bien por el override, no por la velocidad. Con la velocidad real
+# el nombre se deriva solo, que es como funcionan los demas modelos.
 # =====================================================================
 CLOUD_PT = DeviceModel(
     pt_type="Cloud-PT", category="cloud", display_name="Cloud",
-    ports=(PortSpec(PortSpeed.FAST_ETHERNET, "6", full_name="Ethernet6"),),
+    ports=(
+        _serial("0"), _serial("1"), _serial("2"), _serial("3"),
+        _modem("4"), _modem("5"),
+        _eth("6"),
+        _coax("7"),
+    ),
 )
 CLOUD_PT_EMPTY = DeviceModel(
     pt_type="Cloud-PT-Empty", category="cloud", display_name="Cloud (Empty)",

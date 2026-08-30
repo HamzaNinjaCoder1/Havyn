@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased (4)
+
+**440 -> 449 tests.**
+
+### Fixed
+
+- **El catalogo declaraba un solo puerto para `Cloud-PT`.** Leyendo `getPorts()`
+  sobre una nube viva en PT 9.0.1 salen ocho:
+
+      Serial0, Serial1, Serial2, Serial3, Modem4, Modem5, Ethernet6, Coaxial7
+
+  El catalogo tenia solo `Ethernet6`, asi que `pt_add_link` rechazaba los otros
+  siete y `validate_plan` marcaba el plan invalido antes de que la peticion
+  llegara a PT -- por puertos que el dispositivo si tiene. Una nube quedaba
+  reducida a un stub de un enlace, cuando en los laboratorios grandes se la usa
+  con sus seriales.
+
+- **`Ethernet6` estaba declarado como FastEthernet** con el `full_name` forzado
+  a mano. Salia bien por el override, no por la velocidad. Ahora lleva
+  `PortSpeed.ETHERNET` y el nombre se deriva solo, como en el resto de los
+  modelos. El orquestador buscaba ese puerto con `_fast(...)`, asi que se agrego
+  `_ether(...)`: sin eso el enlace router-nube desaparecia en silencio, que es
+  justo el tipo de fallo mudo que arreglamos en la tanda anterior. Hay tres
+  tests que lo cubren.
+
+### Added
+
+- `PortSpeed.MODEM`, que faltaba para poder nombrar `Modem4` y `Modem5`.
+
+
 ## Unreleased (3)
 
 Cinco defectos encontrados revisando el MCP contra Packet Tracer 9.0.1 sobre una

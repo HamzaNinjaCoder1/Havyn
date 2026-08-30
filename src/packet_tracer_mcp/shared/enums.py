@@ -97,5 +97,6 @@ class PortSpeed(str, Enum):
     CONSOLE = "Console"
     ETHERNET = "Ethernet"
     COAXIAL = "Coaxial"
+    MODEM = "Modem"
     USB = "USB"
     WIRELESS = "Wireless"
