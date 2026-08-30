@@ -8,6 +8,33 @@ from __future__ import annotations
 
 from ..models.plans import TopologyPlan
 
+# Categorias cuyos puertos NUNCA llevan IP: son de capa 2 o transparentes. Un
+# puerto de acceso de un 2960, los de un AP y el Ethernet6 de la nube salian
+# listados como "cableado sin IP" en cada barrido, y ese ruido tapaba el unico
+# caso que importa: el host al que el DHCP no le llego.
+#
+# Se resuelve por modelo contra el catalogo y no por getClassName(): PT clasifica
+# por comportamiento, asi que un 3560 responde "Router" y un 2960 "CiscoDevice"
+# -- ninguno dice nunca "switch".
+_L2_CATEGORIES = frozenset({
+    "switch", "accesspoint", "hub", "bridge", "repeater", "cloud",
+    "modem", "splitter", "patch_panel", "wall_mount", "cell_tower",
+    "power_dist", "sniffer",
+})
+
+
+def _carries_ip(model_name: str) -> bool:
+    """True si a un puerto de este modelo se le espera una IP.
+
+    Un modelo que no resuelve se reporta igual: mejor un falso positivo que
+    callarse un host sin direccion.
+    """
+    from ...infrastructure.catalog.devices import resolve_model
+    model = resolve_model(model_name or "")
+    if model is None:
+        return True
+    return model.category not in _L2_CATEGORIES
+
 
 def diff(plan: TopologyPlan, live: list[dict]) -> dict:
     """Compara el plan contra la topología viva. Reporta divergencias."""
@@ -50,6 +77,7 @@ def health_check(live: list[dict]) -> dict:
 
     for d in live:
         name = d.get("name", "?")
+        expects_ip = _carries_ip(d.get("model", ""))
         for p in d.get("ports", []):
             pname = p.get("name", "?")
             ip = p.get("ip") or ""
@@ -57,7 +85,7 @@ def health_check(live: list[dict]) -> dict:
             up = bool(p.get("up"))
             if linked and not up:
                 down_links.append({"device": name, "port": pname})
-            if linked and ip in ("", "0.0.0.0"):
+            if linked and ip in ("", "0.0.0.0") and expects_ip:
                 unconfigured.append({"device": name, "port": pname})
             if ip and ip != "0.0.0.0":
                 ip_owners.setdefault(ip, []).append(f"{name}:{pname}")

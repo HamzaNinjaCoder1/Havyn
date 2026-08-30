@@ -79,6 +79,7 @@ from ...infrastructure.catalog.modules import ALL_MODULES, resolve_module, ports
 from ...shared.enums import RoutingProtocol, TopologyTemplate
 from ...shared.utils import (
     js_escape, safe_name_component, resolve_within, interpret_ping as _interpret_ping,
+    classify_ping as _classify_ping,
 )
 from ...domain.services.canvas import (
     CanvasImageError, decode_pt_image, normalize_format, validate_color,
@@ -106,6 +107,68 @@ WORKSPACE_SETTERS: dict[str, tuple[str, bool]] = {
 WORKSPACE_EXTRA_ARG: dict[str, str] = {
     "setHideDevLabel": "true",
 }
+
+
+# --- Consola de dispositivo (ping real) --------------------------------------
+#
+# `getCommandPrompt()` SOLO existe en hosts (PC/Server/Laptop). Contra un router
+# revienta con `TypeError: Property 'getCommandPrompt' of object is not a
+# function`, asi que el ping desde IOS nunca funciono pese a estar documentado.
+# Verificado contra PT 9.0.1: los routers exponen `getCommandLine()` y los PCs
+# exponen las DOS, asi que getCommandLine sirve para ambos mundos.
+#
+# Ademas hay que cebar la consola. Un router recien desplegado por el MCP nunca
+# fue tocado por consola, asi que sigue parado en "Would you like to enter the
+# initial configuration dialog? [yes/no]:". Ahi el `ping` se consume como
+# respuesta al yes/no y no se ejecuta nunca.
+_CONSOLE_PRIME_JS = (
+    "var p=String(cl.getPrompt()||'');"
+    "if(p.indexOf('[yes/no]')>=0){cl.enterCommand('no');}"
+    "cl.enterCommand('');"
+)
+
+# Marcadores de bloque de estadistica, en los dos formatos de PT.
+_PING_STAT_MARKERS = "/Packets: Sent|Success rate/g"
+
+
+def console_ping_arm_js(device: str, target: str) -> str:
+    """JS que deja la consola usable, cuenta los bloques previos y dispara el ping.
+
+    Devuelve 'BASE:<n>' con cuantos bloques de estadistica ya habia: la consola
+    conserva historico, asi que se cuentan marcadores en vez de fiarse del largo.
+    """
+    dev = json.dumps(device)
+    cmd = json.dumps("ping " + target.strip())
+    return (
+        f"var cl=ipc.network().getDevice({dev}).getCommandLine();"
+        "if(!cl){reportResult('ERR:device sin consola');}"
+        "else{"
+        f"{_CONSOLE_PRIME_JS}"
+        "var o=String(cl.getOutput());"
+        f"var m=o.match({_PING_STAT_MARKERS});"
+        "var base=m?m.length:0;"
+        f"cl.enterCommand({cmd});"
+        "reportResult('BASE:'+base);}"
+    )
+
+
+def console_ping_poll_js(device: str, base: int) -> str:
+    """JS que sondea la consola hasta ver un bloque de estadistica NUEVO."""
+    dev = json.dumps(device)
+    return (
+        f"var cl=ipc.network().getDevice({dev}).getCommandLine();"
+        "if(!cl){reportResult('ERR:device sin consola');}"
+        "else{"
+        "var o=String(cl.getOutput());"
+        f"var m=o.match({_PING_STAT_MARKERS});"
+        "var cur=m?m.length:0;"
+        f"if(cur>{int(base)}){{"
+        # raw: los \d y el \n pertenecen al regex de JS, no son escapes de Python.
+        r"var stat=o.match(/Packets: Sent = \d+, Received = (\d+), Lost = (\d+)[^\n]*"
+        r"|Success rate is (\d+) percent \((\d+)\/(\d+)\)/g);"
+        "reportResult('DONE:'+(stat?stat[stat.length-1]:'sin stats'));"
+        "}else{reportResult('WAIT');}}"
+    )
 
 
 def workspace_setter_call(flag: str, value: int) -> tuple[str, str]:
@@ -1172,60 +1235,40 @@ def register_tools(mcp: FastMCP) -> None:
         if err:
             return err
 
-        dev = json.dumps(from_device)
-        target = json.dumps(to_ip.strip())
-
-        # 1) Baseline: cuántos bloques de estadística hay ya en la consola, y
-        #    disparar el ping. La consola conserva histórico, así que contamos
-        #    marcadores en vez de fiarnos del largo (que se trunca/reemplaza).
-        # Un `ping IP` pelado funciona en ambos mundos: el PC manda 4 paquetes y el
-        # IOS 5. Meter "-n N" rompería en IOS, así que se deja el default de cada
-        # uno; `count` queda para uso futuro si se agrega selección por tipo.
-        arm = (
-            f"var cp=ipc.network().getDevice({dev}).getCommandPrompt();"
-            "if(!cp){reportResult('ERR:device sin consola');}"
-            "else{var o=String(cp.getOutput());"
-            "var m=o.match(/Packets: Sent|Success rate/g);"
-            "var base=m?m.length:0;"
-            f"cp.enterCommand('ping {json.loads(target)}');"
-            "reportResult('BASE:'+base);}"
+        # El JS vive en `console_ping_arm_js` / `console_ping_poll_js` (nivel de
+        # modulo) para poder testear sin bridge que no vuelva a colarse
+        # `getCommandPrompt`, que solo existe en hosts y rompia todo ping IOS.
+        armed = _bridge_send_and_wait(
+            console_ping_arm_js(from_device, to_ip), timeout=8.0
         )
-        armed = _bridge_send_and_wait(arm, timeout=8.0)
         if armed is None:
             return "Sin respuesta de PT (timeout) al iniciar el ping."
         if not armed.startswith("BASE:"):
             return f"No se pudo iniciar el ping: {armed}"
         base = int(armed[5:])
 
-        # 2) Sondear la consola hasta que aparezca un bloque de estadística nuevo.
-        poll = (
-            f"var cp=ipc.network().getDevice({dev}).getCommandPrompt();"
-            "var o=String(cp.getOutput());"
-            "var m=o.match(/Packets: Sent|Success rate/g);"
-            "var cur=m?m.length:0;"
-            f"if(cur> {base}){{"
-            "var stat=o.match(/Packets: Sent = \\d+, Received = (\\d+), Lost = (\\d+)[^\\n]*|Success rate is (\\d+) percent \\((\\d+)\\/(\\d+)\\)/g);"
-            "reportResult('DONE:'+(stat?stat[stat.length-1]:'sin stats'));"
-            "}else{reportResult('WAIT');}"
-        )
+        poll = console_ping_poll_js(from_device, base)
 
         deadline = time.time() + timeout_s
-        last = "WAIT"
         while time.time() < deadline:
             time.sleep(0.6)
             r = _bridge_send_and_wait(poll, timeout=5.0)
             if r is None:
                 continue
-            last = r
             if r.startswith("DONE:"):
                 stat = r[5:]
-                ok = _interpret_ping(stat)
-                verdict = "CONECTIVIDAD OK" if ok else "SIN CONECTIVIDAD"
+                verdict = {
+                    "ok": "CONECTIVIDAD OK",
+                    # Perdida parcial: antes se reportaba como OK, asi que
+                    # 1 de 4 paquetes se veia igual que 4 de 4.
+                    "partial": "CONECTIVIDAD PARCIAL (hay perdida de paquetes)",
+                    "none": "SIN CONECTIVIDAD",
+                }[_classify_ping(stat)]
                 return f"{from_device} → {to_ip}: {verdict}\n{stat}"
 
         return (
             f"{from_device} → {to_ip}: sin resultado tras {timeout_s:.0f}s. "
-            "El ping puede seguir corriendo; reintentá o subí timeout_s."
+            "El ping puede seguir corriendo; reintenta o subi timeout_s."
         )
 
     @mcp.tool()

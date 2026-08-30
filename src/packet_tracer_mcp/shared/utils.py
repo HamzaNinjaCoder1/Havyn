@@ -58,25 +58,58 @@ def js_escape(s: str) -> str:
     )
 
 
-def interpret_ping(stat_line: str) -> bool:
-    """True si una línea de estadística de ping indica al menos un paquete recibido.
+def classify_ping(stat_line: str) -> str:
+    """Clasifica una línea de estadística de ping en "ok" | "partial" | "none".
+
+    `interpret_ping` solo dice "llegó al menos uno", así que 1 de 4 paquetes se
+    reportaba como CONECTIVIDAD OK igual que 4 de 4 — un enlace agonizante se
+    veía idéntico a uno sano. La pérdida parcial es información distinta y
+    merece un veredicto distinto.
 
     Cubre los dos formatos que produce Packet Tracer:
       - Host (PC/Server): "Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)"
       - IOS (router/switch): "Success rate is 100 percent (4/5)"
     """
     if not stat_line:
-        return False
-    m = re.search(r"Received\s*=\s*(\d+)", stat_line)
-    if m:
-        return int(m.group(1)) > 0
-    m = re.search(r"Success rate is (\d+) percent", stat_line)
-    if m:
-        return int(m.group(1)) > 0
-    m = re.search(r"\((\d+)/(\d+)\)", stat_line)
-    if m:
-        return int(m.group(1)) > 0
-    return False
+        return "none"
+
+    received = re.search(r"Received\s*=\s*(\d+)", stat_line)
+    if received:
+        got = int(received.group(1))
+        sent_m = re.search(r"Sent\s*=\s*(\d+)", stat_line)
+        if sent_m:
+            sent = int(sent_m.group(1))
+        else:
+            lost_m = re.search(r"Lost\s*=\s*(\d+)", stat_line)
+            sent = got + (int(lost_m.group(1)) if lost_m else 0)
+        if got <= 0:
+            return "none"
+        return "ok" if got >= sent else "partial"
+
+    rate = re.search(r"Success rate is (\d+) percent", stat_line)
+    if rate:
+        pct = int(rate.group(1))
+        if pct <= 0:
+            return "none"
+        return "ok" if pct >= 100 else "partial"
+
+    ratio = re.search(r"\((\d+)/(\d+)\)", stat_line)
+    if ratio:
+        got, sent = int(ratio.group(1)), int(ratio.group(2))
+        if got <= 0:
+            return "none"
+        return "ok" if got >= sent else "partial"
+
+    return "none"
+
+
+def interpret_ping(stat_line: str) -> bool:
+    """True si una línea de estadística de ping indica al menos un paquete recibido.
+
+    Se mantiene por compatibilidad con quien ya dependía del booleano; el
+    veredicto con grados vive en `classify_ping`.
+    """
+    return classify_ping(stat_line) != "none"
 
 
 def resolve_within(base: Path, *parts: str) -> Path:

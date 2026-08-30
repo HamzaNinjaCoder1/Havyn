@@ -86,9 +86,54 @@ def _normalize_laptops(req: TopologyRequest) -> list[int]:
     return laptops
 
 
+def _wifi_lan_indices(req: TopologyRequest, laptops_list: list[int]) -> list[int]:
+    """LANs que necesitan AP propio: las que tienen laptops inalambricas.
+
+    Antes se creaba UN solo AP para toda la topologia, cableado al switch de la
+    primera LAN. Como en la vista logica el alcance RF es global, las laptops de
+    TODAS las LANs se asociaban a ese AP y terminaban con IP del pool DHCP de la
+    LAN 1 -- verificado contra PT 9.0.1: LT9, planificada en la LAN 5, recibia
+    192.168.0.5/24. Un AP por LAN deja a cada laptop en la subred que le toca.
+    """
+    if not req.wireless_laptops or req.access_points:
+        return []
+    return [i for i in range(req.routers) if laptops_list[i] > 0]
+
+
+def _layout_metrics(req: TopologyRequest, pcs_list: list[int],
+                    laptops_list: list[int]) -> tuple[int, int]:
+    """(x inicial, ancho de columna) para que ninguna LAN se salga ni se pise.
+
+    El ancho fijo de 250 px alcanzaba para 3 hosts por LAN. Con 4 el cluster
+    (4 x 80 = 320) desbordaba su columna y se metia en la LAN vecina, y como el
+    cluster se centra, el primer host caia en x=-60: fuera del canvas.
+    """
+    per_lan = [max(p, l) for p, l in zip(pcs_list, laptops_list)]
+    widest = max(per_lan) if per_lan else 0
+    column_width = max(LAYOUT_X_SPACING, widest * LAYOUT_PC_X_SPACING)
+    # El cluster se centra en su columna, asi que se extiende media anchura hacia
+    # la izquierda: el origen tiene que dejar ese margen. Los servidores comparten
+    # la columna de la LAN 1, asi que tambien cuentan.
+    left_reach = max(widest, req.servers) * LAYOUT_PC_X_SPACING // 2
+    return max(LAYOUT_X_START, left_reach), column_width
+
+
 def _create_devices(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int], laptops_list: list[int]):
     router_model = req.router_model or DEFAULT_ROUTER
     switch_model = req.switch_model or DEFAULT_SWITCH
+    x_start, column_width = _layout_metrics(req, pcs_list, laptops_list)
+
+    def _column_x(lan_index: int) -> int:
+        """Centro de la columna de la LAN `lan_index`."""
+        return x_start + lan_index * column_width
+
+    def _row_x(centre: int, count: int, index: int) -> int:
+        """x del host `index` de una fila de `count`, centrada en `centre`."""
+        return centre - (count * LAYOUT_PC_X_SPACING // 2) + index * LAYOUT_PC_X_SPACING
+
+    # Fila propia para los AP: colgados del switch pero sin pisarlo ni pisar los
+    # switches secundarios, que se desplazan de a 120 px sobre la misma fila.
+    ap_y = LAYOUT_Y_SWITCH + 70
 
     # Routers
     for i in range(req.routers):
@@ -98,7 +143,7 @@ def _create_devices(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int
         plan.devices.append(DevicePlan(
             name=f"R{i + 1}", model=router_model, category="router",
             role=role,
-            x=LAYOUT_X_START + i * LAYOUT_X_SPACING, y=LAYOUT_Y_ROUTER,
+            x=_column_x(i), y=LAYOUT_Y_ROUTER,
         ))
 
     # Switches + PCs + Laptops
@@ -111,7 +156,7 @@ def _create_devices(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int
             plan.devices.append(DevicePlan(
                 name=f"SW{switch_idx}", model=switch_model, category="switch",
                 role=DeviceRole.ACCESS_SWITCH,
-                x=LAYOUT_X_START + i * LAYOUT_X_SPACING + s * 120, y=LAYOUT_Y_SWITCH,
+                x=_column_x(i) + s * 120, y=LAYOUT_Y_SWITCH,
             ))
             if s == 0:
                 n_pcs = pcs_list[i]
@@ -120,7 +165,7 @@ def _create_devices(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int
                     plan.devices.append(DevicePlan(
                         name=f"PC{pc_idx}", model="PC-PT", category="pc",
                         role=DeviceRole.END_HOST,
-                        x=LAYOUT_X_START + i * LAYOUT_X_SPACING - (n_pcs * LAYOUT_PC_X_SPACING // 2) + p * LAYOUT_PC_X_SPACING,
+                        x=_row_x(_column_x(i), n_pcs, p),
                         y=LAYOUT_Y_PC,
                     ))
                 n_laptops = laptops_list[i]
@@ -130,48 +175,37 @@ def _create_devices(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int
                         name=f"LT{laptop_idx}", model="Laptop-PT", category="laptop",
                         role=DeviceRole.END_HOST,
                         wireless=req.wireless_laptops,
-                        x=LAYOUT_X_START + i * LAYOUT_X_SPACING - (n_laptops * LAYOUT_PC_X_SPACING // 2) + l * LAYOUT_PC_X_SPACING,
+                        x=_row_x(_column_x(i), n_laptops, l),
                         y=LAYOUT_Y_PC + 80,
                     ))
 
-    # WiFi: si hay laptops wireless y aún no se pidió ningún AP, agregamos uno (un AP
-    # basta en la vista lógica — el rango RF es global y las laptops auto-asocian por
-    # SSID default). Lo cableamos al primer switch en _create_links.
-    if req.wireless_laptops and not req.access_points:
-        laptops = plan.devices_by_category("laptop")
-        switches0 = plan.devices_by_category("switch")
-        if laptops and switches0:
-            sw0 = switches0[0]
+    # WiFi: un AP por LAN que tenga laptops inalambricas. Cada uno se cablea al
+    # switch de SU LAN en _create_links, que es lo que pone a esas laptops en la
+    # subred correcta.
+    for k, lan in enumerate(_wifi_lan_indices(req, laptops_list)):
+        plan.devices.append(DevicePlan(
+            name=f"WAP{k + 1}", model="AccessPoint-PT", category="accesspoint",
+            role=DeviceRole.END_HOST, x=_column_x(lan), y=ap_y,
+        ))
+
+    # Access Points pedidos explicitamente — uno por switch primario de cada router
+    if req.access_points > 0:
+        for i in range(min(req.access_points, req.routers)):
             plan.devices.append(DevicePlan(
-                name="WAP1", model="AccessPoint-PT", category="accesspoint",
-                role=DeviceRole.END_HOST, x=sw0.x + 140, y=LAYOUT_Y_SWITCH,
+                name=f"AP{i + 1}", model="AccessPoint-PT", category="accesspoint",
+                role=DeviceRole.END_HOST,
+                x=_column_x(i), y=ap_y,
             ))
 
-    # Access Points — uno por switch primario de cada router
-    if req.access_points > 0:
-        switches = plan.devices_by_category("switch")
-        spr = req.switches_per_router
-        ap_idx = 0
-        for i in range(req.routers):
-            if ap_idx >= req.access_points:
-                break
-            primary_sw = switches[i * spr] if i * spr < len(switches) else None
-            if primary_sw:
-                ap_idx += 1
-                plan.devices.append(DevicePlan(
-                    name=f"AP{ap_idx}", model="AccessPoint-PT", category="accesspoint",
-                    role=DeviceRole.END_HOST,
-                    x=primary_sw.x + 120,
-                    y=LAYOUT_Y_SWITCH,
-                ))
-
-    # Servers
+    # Servers — en la columna del switch al que se cablean (el primero) y en su
+    # propia fila. Antes se los mandaba al extremo derecho del diagrama mientras
+    # el cable seguia yendo a SW1, dibujando diagonales de punta a punta.
     for i in range(req.servers):
         plan.devices.append(DevicePlan(
             name=f"SRV{i + 1}", model="Server-PT", category="server",
             role=DeviceRole.SERVER_HOST,
-            x=LAYOUT_X_START + (req.routers + 1) * LAYOUT_X_SPACING,
-            y=LAYOUT_Y_PC + i * 80,
+            x=_row_x(_column_x(0), req.servers, i),
+            y=LAYOUT_Y_PC + 240,
         ))
 
     # Cloud / WAN
@@ -179,7 +213,7 @@ def _create_devices(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int
         plan.devices.append(DevicePlan(
             name="WAN", model="Cloud-PT", category="cloud",
             role=DeviceRole.WAN_CLOUD,
-            x=LAYOUT_X_START + req.routers * LAYOUT_X_SPACING + LAYOUT_CLOUD_X_OFFSET,
+            x=x_start + req.routers * column_width + LAYOUT_CLOUD_X_OFFSET,
             y=LAYOUT_Y_ROUTER,
         ))
 
@@ -294,11 +328,22 @@ def _create_links(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int],
                     cable=infer_cable("switch", "pc"),
                 ))
 
-    # Switch ↔ Access Points
-    ap_idx = 0
-    for i in range(req.routers):
-        primary_sw = switches[i * spr] if i * spr < len(switches) else None
-        if not primary_sw or ap_idx >= len(aps):
+    # Switch ↔ Access Points — cada AP al switch de SU LAN.
+    #
+    # Con el AP unico esto no importaba: iba al primer switch y listo. Ahora los
+    # AP automaticos existen solo para las LANs que tienen laptops WiFi, asi que
+    # el indice del AP no coincide con el de la LAN y hay que mapearlo.
+    wifi_lans = _wifi_lan_indices(req, laptops_list)
+    if wifi_lans:
+        ap_to_lan = list(enumerate(wifi_lans))
+    else:
+        ap_to_lan = [(k, k) for k in range(min(req.access_points, req.routers))]
+
+    for ap_idx, lan in ap_to_lan:
+        if ap_idx >= len(aps):
+            break
+        primary_sw = switches[lan * spr] if lan * spr < len(switches) else None
+        if not primary_sw:
             continue
         ap = aps[ap_idx]
         sp, ap_port = _fast(primary_sw.name, primary_sw.model), _fast(ap.name, ap.model)
@@ -308,7 +353,6 @@ def _create_links(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int],
                 device_b=ap.name, port_b=ap_port,
                 cable=infer_cable("switch", "pc"),
             ))
-        ap_idx += 1
 
     # Switch ↔ Servers
     if servers and switches:
