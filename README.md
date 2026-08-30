@@ -4,7 +4,7 @@
 
 **Tell your AI _"create a network with 3 routers, OSPF and DHCP"_ — it plans, validates, generates, and deploys the topology directly into Cisco Packet Tracer in real time.**
 
-[![Version](https://img.shields.io/badge/version-0.8.0-blue?style=flat-square)](https://github.com/Mats2208/MCP-Packet-Tracer/releases)
+[![PyPI](https://img.shields.io/pypi/v/packet-tracer-mcp?style=flat-square&logo=pypi&logoColor=white&color=blue&label=pypi)](https://pypi.org/project/packet-tracer-mcp/)
 [![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Pydantic v2](https://img.shields.io/badge/pydantic-v2-E92063?style=flat-square&logo=pydantic&logoColor=white)](https://docs.pydantic.dev)
 [![MCP](https://img.shields.io/badge/protocol-MCP-00B4D8?style=flat-square)](https://modelcontextprotocol.io)
@@ -91,6 +91,12 @@ A **Model Context Protocol (MCP) server** that gives any LLM (Claude, GitHub Cop
 **1. Install the server**
 
 ```bash
+pip install packet-tracer-mcp
+```
+
+Or from source, if you want to modify it:
+
+```bash
 git clone https://github.com/Mats2208/MCP-Packet-Tracer
 cd MCP-Packet-Tracer
 pip install -e .
@@ -114,7 +120,7 @@ Verify with `claude mcp list` (look for `packet-tracer … ✓ Connected`).
 
 **3. Install the live-deploy extension** — _only if you want real-time deploy into a running Packet Tracer_
 
-Download **`V5.pts`** from [**Releases**](https://github.com/Mats2208/MCP-Packet-Tracer/releases/latest), then in Packet Tracer go to **Extensions → Scripting → Configure PT Script Modules → Add…** and select it. Full walkthrough in [Live deploy](#live-deploy) below.
+Download **`V5.2.pts`** from [**Releases**](https://github.com/Mats2208/MCP-Packet-Tracer/releases/latest), then in Packet Tracer go to **Extensions → Scripting → Configure PT Script Modules → Add…** and select it. Full walkthrough in [Live deploy](#live-deploy) below.
 
 > **v0.6.0+ requires V5.** The bridge now authenticates with a per-machine token that the V5 extension reads automatically; builds before V5 can't authenticate.
 
@@ -251,11 +257,17 @@ not a public issue. [SECURITY.md](https://github.com/Mats2208/MCP-Packet-Tracer/
 
 ## What's new
 
-**v0.8.0** — the agent can now **show** the network, not just describe it: canvas screenshots plus notes and drawings, for topologies that document themselves. v0.7.0 made the server read a live topology, not just build one:
-security auditing, per-port inspection, packet tracing with Packet Tracer's own
-per-layer decision log, NetFlow, and config backup. It also fixes
-`pt_full_build(deploy=True)`, which used to report success while leaving the
-canvas empty. Full list in the **[Changelog](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/CHANGELOG.md)**.
+**v0.9.0** — the first release you can `pip install`, and the one that went hunting
+for **silent false OKs**: a topology split into islands that validation approved
+with `error_count: 0`, a bridge handing back the previous operation's result, a
+`"CONECTIVIDAD OK"` reported with 75% packet loss. None of them crashed; all of
+them lied. The server also reports its own version during the MCP handshake now —
+it used to announce the version of the `mcp` SDK. v0.8.0 let the agent **show** the
+network instead of only describing it: canvas screenshots plus notes and drawings,
+for topologies that document themselves. v0.7.0 made the server read a live
+topology, not just build one: security auditing, per-port inspection, packet
+tracing with Packet Tracer's own per-layer decision log, NetFlow, and config
+backup. Full list in the **[Changelog](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/CHANGELOG.md)**.
 
 ## Contributing
 

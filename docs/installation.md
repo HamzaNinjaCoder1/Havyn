@@ -18,14 +18,28 @@
 ## Install the server
 
 ```bash
+pip install packet-tracer-mcp
+```
+
+Or from source, if you want to modify it:
+
+```bash
 git clone https://github.com/Mats2208/MCP-Packet-Tracer
 cd MCP-Packet-Tracer
 pip install -e .
 ```
 
-After `pip install -e .`, the `packet_tracer_mcp` module is importable from any
-directory, so `python -m packet_tracer_mcp --stdio` works from anywhere — no need
-to `cd` into the repo or keep a server running.
+Either way the `packet_tracer_mcp` module becomes importable from any directory,
+so `python -m packet_tracer_mcp --stdio` works from anywhere — no need to `cd`
+into the repo or keep a server running.
+
+!!! note "The extension is not part of the package"
+    `pip install` gives you the server, and nothing else. The `.pts` extension is
+    a module compiled by Packet Tracer itself, so it ships as a
+    [release asset](https://github.com/Mats2208/MCP-Packet-Tracer/releases/latest)
+    rather than inside the wheel — and Packet Tracer only accepts it through its
+    own Extensions menu anyway. You need it **only for live deploy**; planning,
+    validation and config generation work without it.
 
 ## Connect your MCP client
 
@@ -95,10 +109,10 @@ to `cd` into the repo or keep a server running.
 To stream topologies into a **running** Packet Tracer, also install this project's own
 **MCP Control Center** extension:
 
-1. Download **`V5.pts`** from
+1. Download **`V5.2.pts`** from
    **[Releases (latest)](https://github.com/Mats2208/MCP-Packet-Tracer/releases/latest)**.
 2. In Packet Tracer: **Extensions → Scripting → Configure PT Script Modules → Add…**,
-   select `V5.pts`, and confirm.
+   select `V5.2.pts`, and confirm.
 3. Open **Extensions → MCP BUILDER** — it auto-connects to the bridge.
 
 Full walkthrough → **[Live Deploy Setup](live-deploy.md)**.
