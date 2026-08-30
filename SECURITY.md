@@ -81,7 +81,13 @@ What actually protects it is a shared secret:
   client could claim it.
 - `Host` is validated against loopback, which blocks DNS rebinding.
 
-You can override the token with `PT_MCP_BRIDGE_TOKEN` for tests and CI.
+You can override the token with `PT_MCP_BRIDGE_TOKEN` for tests and CI. The
+value goes through the **same validation as the token file** — at least 32
+characters from `[A-Za-z0-9_-]` — and the server refuses to start with
+`BridgeTokenError` if it does not. That is deliberate: a corrupt token file is an
+accident and gets rotated, but a bad environment variable is an explicit choice
+by whoever starts the server, and starting anyway would serve the bridge with its
+only real defence disabled.
 
 ## Supported versions
 
