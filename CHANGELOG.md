@@ -1,10 +1,26 @@
 # Changelog
 
-## Unreleased (7)
+## 0.9.0
+
+Varias pasadas manejando el MCP contra Packet Tracer 9.0.1, sobre topologías de
+36 y 47 dispositivos. Lo que volvió no fueron crashes: fueron **falsos OK**. Una
+topología partida en islas que `pt_validate_plan` aprobaba con `error_count: 0`.
+Un bridge que entregaba el resultado de la operación anterior — datos reales, del
+dispositivo de al lado. Un "CONECTIVIDAD OK" con 75% de pérdida. Un cable cruzado
+en todo router↔switch, en un simulador que existe justamente para enseñar cuál
+va. Ninguno se veía desde afuera, y esa es la clase de defecto que esta versión
+fue a buscar.
+
+También es la primera que se instala con `pip install packet-tracer-mcp`, y la
+primera que dice su propia versión cuando un cliente se la pregunta.
+
+**61 tools · 349 → 473 tests.** Verificado contra Packet Tracer 9.0.1.
+
+### Empaquetado: el servidor entra a PyPI
 
 **El servidor se puede instalar con `pip install packet-tracer-mcp`.**
 
-### Added
+#### Added
 
 - **Metadata de publicacion en `pyproject.toml`.** Hasta ahora el paquete se
   construia, pero no se podia publicar de forma decente: sin `readme`, la pagina
@@ -26,7 +42,7 @@
   queda con 0.8.0 para siempre y ese numero ya no se puede volver a usar.
   `workflow_dispatch` construye y valida, pero no publica.
 
-### Changed
+#### Changed
 
 - **El sdist pesaba 10.2 MB para 219 KB de codigo.** El resto eran los GIFs y
   PNGs de `demo/`, que hatchling se llevaba por no estar en `.gitignore`. Nadie
@@ -40,11 +56,11 @@
   companiia. Apuntan a `raw.githubusercontent.com` y a `blob/main`, que se ven
   igual en GitHub y ademas se ven en PyPI.
 
-## Unreleased (6)
+### La version que el servidor anunciaba de si mismo
 
 **469 -> 473 tests.**
 
-### Fixed
+#### Fixed
 
 - **El servidor se presentaba con la version de la libreria `mcp`.** Un
   handshake real por stdio contra PT 9.0.1 devolvia:
@@ -65,7 +81,7 @@
   renombra: en ese caso se vuelve al comportamiento anterior en vez de romper
   el arranque.
 
-### Added
+#### Added
 
 - **`__version__` en el paquete**, leido de la metadata instalada con
   `importlib.metadata`. La version se sigue declarando una sola vez en
@@ -78,11 +94,11 @@
   regresion), que el nombre del servidor no se haya movido, y que
   `__version__` coincida con `pyproject.toml`.
 
-## Unreleased (5)
+### El token del bridge, y sus primeros tests
 
 **449 -> 469 tests.**
 
-### Fixed
+#### Fixed
 
 - **`PT_MCP_BRIDGE_TOKEN` saltaba la validacion.** El token de disco pasa por
   `_is_valid` (>=32 caracteres de `[A-Za-z0-9_-]`); la variable de entorno no
@@ -97,7 +113,7 @@
   archivo corrupto es un accidente y rotarlo no pierde nada, pero una variable
   mal puesta es una decision explicita de quien arranca el servidor.
 
-### Added
+#### Added
 
 - **`bridge_token.py` tiene tests por primera vez** — 20, siendo el ancla de
   seguridad de todo el bridge HTTP. Cubren el aprovisionamiento completo: la
@@ -111,7 +127,7 @@
   variable y redirige `token_dir()` a un tmp, de modo que el camino real corre
   tambien en CI y sin tocar el token del usuario que ejecute la suite.
 
-### Changed
+#### Changed
 
 - **`skill/SKILL.md` al dia con todo el repo** (301 -> 395 lineas). Se agrego:
   la tabla de codigos de validacion con que hacer ante cada uno; el patron para
@@ -127,11 +143,11 @@
   con cada spoke, sin mencionar que el hub se queda sin puertos.
 
 
-## Unreleased (4)
+### El catalogo mentia sobre la nube
 
 **440 -> 449 tests.**
 
-### Fixed
+#### Fixed
 
 - **El catalogo declaraba un solo puerto para `Cloud-PT`.** Leyendo `getPorts()`
   sobre una nube viva en PT 9.0.1 salen ocho:
@@ -152,12 +168,12 @@
   justo el tipo de fallo mudo que arreglamos en la tanda anterior. Hay tres
   tests que lo cubren.
 
-### Added
+#### Added
 
 - `PortSpeed.MODEM`, que faltaba para poder nombrar `Modem4` y `Modem5`.
 
 
-## Unreleased (3)
+### Tercera pasada contra PT 9.0.1 — 47 dispositivos
 
 Cinco defectos encontrados revisando el MCP contra Packet Tracer 9.0.1 sobre una
 topologia de 47 dispositivos (6 routers en cadena, OSPF area 0, dual-stack, WiFi).
@@ -165,7 +181,7 @@ El peor no era un crash: era un **falso OK**.
 
 **392 -> 436 tests.**
 
-### Fixed
+#### Fixed
 
 - **El validador aprobaba topologias partidas en islas.** `hub_spoke` pide que el
   hub se enlace con cada spoke, pero un 2911 tiene tres puertos Gigabit. Con seis
@@ -195,7 +211,7 @@ El peor no era un crash: era un **falso OK**.
   `192.168.0.5/24` — del pool DHCP de la LAN 1. Ahora se crea un AP por LAN que
   tenga laptops inalambricas, cada uno cableado al switch de SU LAN.
 
-### Added
+#### Added
 
 - **`WIRELESS_AMBIGUOUS_ASSOCIATION`: el AP por LAN no alcanza, y hay que decirlo.**
   Un AP por LAN hace POSIBLE el direccionamiento correcto pero **no lo garantiza**.
@@ -230,7 +246,7 @@ El peor no era un crash: era un **falso OK**.
   "CiscoDevice"). Un modelo que no resuelve se sigue reportando.
 
 
-## Unreleased (2)
+### Segunda pasada contra PT 9.0.1 — 36 dispositivos
 
 Seis defectos encontrados manejando el MCP contra Packet Tracer 9.0.1 sobre una
 topología de 36 dispositivos. Cuatro salieron de la primera pasada; dos más
@@ -239,7 +255,7 @@ al reporte de la tool.
 
 **369 → 392 tests.**
 
-### Fixed
+#### Fixed
 
 - **`pt_install_modules_batch` informaba puertos que nunca se crearon.** Dos cosas
   a la vez: los nombres no llevaban el slot (dos HWIC-2T en `"0/0"` y `"0/1"`
@@ -273,7 +289,7 @@ al reporte de la tool.
   el enlace pero no en `device.interfaces`, así que la IP se quedaba en una interfaz
   que ya no usaba ningún enlace. Ahora la migra, IPv4 e IPv6.
 
-### Changed
+#### Changed
 
 - Documentación de slots corregida: el **1941 tiene 2 slots HWIC** (`"0/0"`,`"0/1"`),
   no 4. El 2911 sí acepta `"0/0".."0/3"`. Medido contra PT 9.0.1; decía `0/0..0/3`
@@ -283,7 +299,7 @@ al reporte de la tool.
   regla que un refactor puede invertir sin que ningún `assert "..." in src` se
   entere, así que sus tests ahora ejecutan la lógica en vez de leer el fuente.
 
-## Unreleased
+### El bridge entregaba el resultado de otra operacion
 
 El bridge HTTP entregaba resultados a la operación equivocada. No fallaba: devolvía
 datos reales de Packet Tracer, del dispositivo de al lado.
@@ -297,7 +313,7 @@ y `Serial0/0/1`), o sea que el resultado llegó tarde y quedó huérfano; la lla
 siguiente, un `pt_query_topology`, devolvió **su** topología y no ese resultado. Es
 el cruce que antes ocurría, esta vez con PT de verdad.
 
-### Fixed
+#### Fixed
 
 - **Los resultados del bridge HTTP se correlacionan por `rid`.** Eran una cola FIFO
   global: quien pedía un resultado se llevaba el primero que hubiera, fuera suyo o no.
@@ -321,7 +337,7 @@ el cruce que antes ocurría, esta vez con PT de verdad.
   LANs pida la topología, y por eso no se sabe hasta el planner— dice cuántas caben y
   qué prefijo usar.
 
-### Removed
+#### Removed
 
 - `PTCommandBridge.send()` y `.send_and_wait()`, que nadie llamaba: el adaptador habla
   con el bridge por HTTP, no por métodos de la instancia. Llevaban una segunda copia
