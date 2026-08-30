@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased (6)
+
+**469 -> 473 tests.**
+
+### Fixed
+
+- **El servidor se presentaba con la version de la libreria `mcp`.** Un
+  handshake real por stdio contra PT 9.0.1 devolvia:
+
+      {"name": "Packet Tracer MCP", "version": "1.28.1"}
+
+  1.28.1 es el SDK; el servidor estaba en 0.8.0. El numero sale de
+  `create_initialization_options()`, que lo resuelve con
+  `self.version if self.version else pkg_version("mcp")`, y FastMCP no expone
+  `version` en su `__init__` ni una propiedad para llegar al server lowlevel,
+  asi que el fallback ganaba siempre.
+
+  No es cosmetico: ese es el numero que muestran Claude Desktop, Cursor y
+  PacketSmith en su panel de servidores, y el que alguien copia en un issue.
+  Peor todavia, cambiaba solo al actualizar la dependencia — dos usuarios con
+  el mismo codigo podian reportar versiones distintas, y ninguna era la del
+  codigo. Ahora se fija sobre `_mcp_server`, con guardia por si el SDK lo
+  renombra: en ese caso se vuelve al comportamiento anterior en vez de romper
+  el arranque.
+
+### Added
+
+- **`__version__` en el paquete**, leido de la metadata instalada con
+  `importlib.metadata`. La version se sigue declarando una sola vez en
+  `pyproject.toml`; copiarla como literal es la forma clasica de que un release
+  salga anunciando el numero anterior. Sin instalar, cae a `0.0.0+source`, que
+  es un marcador honesto en vez de una mentira plausible.
+
+- **`tests/test_server_version.py`** — 4 tests que fijan lo de arriba: que el
+  handshake diga nuestra version, que NO diga la del SDK (el guard de la
+  regresion), que el nombre del servidor no se haya movido, y que
+  `__version__` coincida con `pyproject.toml`.
+
 ## Unreleased (5)
 
 **449 -> 469 tests.**
