@@ -251,6 +251,10 @@ def _create_links(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int],
     def _fast(name: str, model: str) -> str | None:
         return _next_port(name, model, PortSpeed.FAST_ETHERNET)
 
+    def _ether(name: str, model: str) -> str | None:
+        """Puerto Ethernet "pelado" — el de la nube es Ethernet6, no FastEthernet."""
+        return _next_port(name, model, PortSpeed.ETHERNET)
+
     # Router ↔ Router — la FORMA depende del template (antes siempre era cadena, lo
     # que hacía que three_router_triangle quedara sin el cierre R3↔R1 = sin redundancia).
     def _link_routers(ra, rb):
@@ -369,7 +373,7 @@ def _create_links(plan: TopologyPlan, req: TopologyRequest, pcs_list: list[int],
     # Router ↔ Cloud
     if cloud and routers:
         last = routers[-1]
-        rp, cp = _gig(last.name, last.model), _fast(cloud.name, cloud.model)
+        rp, cp = _gig(last.name, last.model), _ether(cloud.name, cloud.model)
         if rp and cp:
             plan.links.append(LinkPlan(
                 device_a=last.name, port_a=rp,
