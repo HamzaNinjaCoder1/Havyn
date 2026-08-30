@@ -10,6 +10,9 @@ from ..models.errors import ValidationResult
 from ..rules.device_rules import validate_devices
 from ..rules.ip_rules import validate_ips, validate_dhcp
 from ..rules.cable_rules import validate_links
+from ..rules.topology_rules import (
+    validate_connectivity, validate_routing, validate_wireless,
+)
 
 
 def validate_plan(plan: TopologyPlan) -> ValidationResult:
@@ -39,6 +42,13 @@ def validate_plan(plan: TopologyPlan) -> ValidationResult:
             result.warnings.append(issue)
         else:
             result.errors.append(issue)
+
+    # Forma del grafo: islas y routing incoherente. Va al final porque asume
+    # que dispositivos y enlaces ya se validaron de a uno.
+    result.errors.extend(validate_connectivity(plan))
+    result.errors.extend(validate_routing(plan))
+    # Warning: es una limitacion de PT, no un error del plan.
+    result.warnings.extend(validate_wireless(plan))
 
     # Sync con plan.errors/warnings para compatibilidad
     plan.errors = result.error_messages()

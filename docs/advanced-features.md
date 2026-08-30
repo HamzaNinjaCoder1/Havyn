@@ -68,7 +68,10 @@ pt_full_build(laptops_per_lan=2, wireless_laptops=True)
 
 - Each laptop's wired NIC is swapped for a **wireless card** (`PT-LAPTOP-NM-1W` → `Wireless0`).
 - An **Access Point** is added and wired to the switch; laptops **auto-associate** on the
-  default SSID (PT's logical view has global RF range, so one AP serves all wireless clients).
+  default SSID. One AP is created **per LAN**, wired to that LAN's switch. PT's logical view
+  has global RF range and exposes no SSID API, so association is not proximity-based: a
+  wireless host may associate to any AP and get a lease from another LAN's pool. The plan
+  warns with `WIRELESS_AMBIGUOUS_ASSOCIATION`; verify with `pt_inspect_ports`.
 - Wireless hosts pull a DHCP lease over the air, landing on the same LAN as the wired PCs.
 
 !!! note "AP SSID / WPA2 is GUI-only"

@@ -1,5 +1,78 @@
 # Changelog
 
+## Unreleased (3)
+
+Cinco defectos encontrados revisando el MCP contra Packet Tracer 9.0.1 sobre una
+topologia de 47 dispositivos (6 routers en cadena, OSPF area 0, dual-stack, WiFi).
+El peor no era un crash: era un **falso OK**.
+
+**392 -> 436 tests.**
+
+### Fixed
+
+- **El validador aprobaba topologias partidas en islas.** `hub_spoke` pide que el
+  hub se enlace con cada spoke, pero un 2911 tiene tres puertos Gigabit. Con seis
+  routers `_link_routers` se quedaba sin puertos en el cuarto y simplemente no
+  creaba el enlace, sin avisar. Quedaban dos routers sueltos, sin interfaces, sin
+  enlaces y con un OSPF de `router-id 0.0.0.0` y cero redes — y `pt_validate_plan`
+  devolvia `valid: true`, `error_count: 0`. Una topologia rota se veia idéntica a
+  una sana porque todos los chequeos eran por-dispositivo: cada uno existia, cada
+  puerto era valido, ninguna IP chocaba. Lo unico que la delata es recorrer el
+  grafo. Nuevo `domain/rules/topology_rules.py` con `validate_connectivity`
+  (componentes conexas, excluyendo hosts WiFi que no llevan cable a proposito) y
+  `validate_routing` (OSPF sin redes, router-id 0.0.0.0).
+
+- **`pt_verify_connectivity` nunca funciono desde un router.** El JS pedia
+  `getCommandPrompt()`, que SOLO existe en hosts; contra IOS tira `TypeError:
+  Property 'getCommandPrompt' of object is not a function`. Justo la tool para
+  verificar routing, inutil en el unico dispositivo que enruta. Verificado contra
+  PT 9.0.1: los routers exponen `getCommandLine()` y los PCs exponen las dos, asi
+  que ahora se usa esa para ambos. Ademas hay que **cebar la consola**: un router
+  recien desplegado por el MCP nunca fue tocado por consola y sigue parado en
+  `Would you like to enter the initial configuration dialog? [yes/no]:`, donde el
+  `ping` se consume como respuesta al yes/no y no se ejecuta nunca.
+
+- **Un solo AP para toda la topologia.** Con `wireless_laptops=True` se creaba un
+  unico `AccessPoint-PT` cableado al switch de la LAN 1, sin importar cuantas LANs
+  hubiera. Verificado contra PT 9.0.1: LT9, planificada en la LAN 5, recibia
+  `192.168.0.5/24` — del pool DHCP de la LAN 1. Ahora se crea un AP por LAN que
+  tenga laptops inalambricas, cada uno cableado al switch de SU LAN.
+
+### Added
+
+- **`WIRELESS_AMBIGUOUS_ASSOCIATION`: el AP por LAN no alcanza, y hay que decirlo.**
+  Un AP por LAN hace POSIBLE el direccionamiento correcto pero **no lo garantiza**.
+  Medido contra PT 9.0.1 agregando un AP en la LAN 5 junto a dos laptops de esa
+  LAN: LT10 hizo asociacion y DHCP nuevos —paso por `0.0.0.0`— y aun asi eligio el
+  AP de la LAN 1 y tomo `192.168.0.13`. Recien con ese AP apagado, LT9 tomo
+  `192.168.4.25`, la que le correspondia. O sea que PT **no elige el AP mas
+  cercano**: entre APs que comparten el SSID por defecto la asociacion es
+  arbitraria, y no hay como desambiguarla porque **PT no expone API de SSID**
+  (verificado: ni el AP ni su puerto tienen `setSsid`). El plan ahora emite un
+  warning en vez de prometer un direccionamiento que no controla.
+
+- **"CONECTIVIDAD OK" con 75% de perdida.** `interpret_ping` solo decia "llego al
+  menos uno", asi que 1 de 4 paquetes se reportaba igual que 4 de 4 y un enlace
+  agonizante se veia sano. Nuevo `classify_ping` con tres grados
+  (`ok`/`partial`/`none`); `interpret_ping` se mantiene por compatibilidad.
+
+- **El layout se salia del canvas y se pisaba.** El ancho de columna era fijo en
+  250 px y el cluster de hosts se centra en el, asi que con 4 PCs por LAN
+  (4 x 80 = 320) el cluster desbordaba hacia la LAN vecina y el primer host caia
+  en **x = -60**, fuera del canvas. Los servidores, ademas, se colocaban en el
+  extremo derecho mientras su cable seguia yendo al PRIMER switch, dibujando
+  diagonales de punta a punta. Ahora el ancho de columna se deriva de la LAN mas
+  poblada, el origen deja el margen que el centrado necesita, y los servidores van
+  en la columna del switch al que se cablean.
+
+- **`pt_health_check` listaba puertos de capa 2 como "cableado sin IP".** Los
+  puertos de acceso de cada 2960, los del AP y el Ethernet6 de la nube no llevan
+  IP por definicion; ese ruido tapaba el unico caso que importa, el host al que no
+  le llego el DHCP. Se filtra por categoria del catalogo (no por `getClassName()`,
+  que clasifica por comportamiento: un 3560 responde "Router" y un 2960
+  "CiscoDevice"). Un modelo que no resuelve se sigue reportando.
+
+
 ## Unreleased (2)
 
 Seis defectos encontrados manejando el MCP contra Packet Tracer 9.0.1 sobre una
