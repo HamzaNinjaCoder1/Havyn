@@ -1,5 +1,54 @@
 # Changelog
 
+## Unreleased (5)
+
+**449 -> 469 tests.**
+
+### Fixed
+
+- **`PT_MCP_BRIDGE_TOKEN` saltaba la validacion.** El token de disco pasa por
+  `_is_valid` (>=32 caracteres de `[A-Za-z0-9_-]`); la variable de entorno no
+  pasaba por nada, asi que `PT_MCP_BRIDGE_TOKEN=x` dejaba un token de UN
+  caracter. Es adivinable, y con el token adivinado se cae toda la defensa
+  contra la pagina web atacante que este modulo existe para sostener: la
+  variable pensada para los tests podia desactivar justo lo que protege.
+  Ahora pasa por el mismo gate y, si no sirve, se lanza `BridgeTokenError`
+  (que estaba definido y no se usaba en ningun lado).
+
+  Se falla fuerte aca, al reves que con el archivo, y no es incoherente: un
+  archivo corrupto es un accidente y rotarlo no pierde nada, pero una variable
+  mal puesta es una decision explicita de quien arranca el servidor.
+
+### Added
+
+- **`bridge_token.py` tiene tests por primera vez** — 20, siendo el ancla de
+  seguridad de todo el bridge HTTP. Cubren el aprovisionamiento completo: la
+  carrera con `O_EXCL`, la rotacion ante archivo corrupto (vacio, truncado,
+  editado a mano), la tolerancia a BOM y espacios, el fallback efimero cuando el
+  directorio no se puede escribir, y que la huella no filtre el token.
+
+  El detalle que los hacia imposibles: el CI setea `PT_MCP_BRIDGE_TOKEN` para
+  todo el job y `get_bridge_token()` lo devuelve en su PRIMERA linea, asi que el
+  camino de archivo no se habria ejecutado ahi nunca. La fixture quita esa
+  variable y redirige `token_dir()` a un tmp, de modo que el camino real corre
+  tambien en CI y sin tocar el token del usuario que ejecute la suite.
+
+### Changed
+
+- **`skill/SKILL.md` al dia con todo el repo** (301 -> 395 lineas). Se agrego:
+  la tabla de codigos de validacion con que hacer ante cada uno; el patron para
+  topologias grandes, cuando el plan no entra por un parametro de tool y hay que
+  generarlo local y empujarlo por el buzon; los ocho puertos de la `Cloud-PT` con
+  la advertencia de frame relay; `d.moveToLocation(x, y)`; los tres niveles del
+  veredicto de ping; y una ronda 3 de hallazgos verificados contra PT 9.0.1 --
+  la consola parada en el wizard inicial, la interfaz sin IP que queda en
+  shutdown, la asociacion WiFi que no es por proximidad, y el arranque que ahora
+  falla si el token del entorno no sirve.
+
+  Tambien se corrigio el limite de `hub_spoke`: la skill decia que enlaza el hub
+  con cada spoke, sin mencionar que el hub se queda sin puertos.
+
+
 ## Unreleased (4)
 
 **440 -> 449 tests.**

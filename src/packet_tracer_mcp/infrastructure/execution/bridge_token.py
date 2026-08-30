@@ -110,6 +110,25 @@ def get_bridge_token(refresh: bool = False) -> str:
     env = os.environ.get(_ENV_VAR, "").strip()
     if env:
         # Override explícito: tests, CI y escenarios multi-cliente.
+        #
+        # Pasa por el MISMO gate que el archivo. Antes no lo hacía, así que
+        # `PT_MCP_BRIDGE_TOKEN=x` dejaba un token de un carácter — adivinable, y
+        # con el token adivinado toda la defensa contra la página web atacante
+        # se cae; es decir, la variable pensada para los tests podía desactivar
+        # justo lo que este módulo existe para sostener.
+        #
+        # Acá se falla fuerte, al revés que con el archivo. No es incoherente:
+        # un archivo corrupto es un accidente y rotarlo no pierde nada, pero una
+        # variable mal puesta es una decisión explícita de quien arranca el
+        # servidor. Arrancar igual sería servir con la puerta abierta y sin
+        # decírselo a nadie.
+        if not _is_valid(env):
+            raise BridgeTokenError(
+                f"{_ENV_VAR} no sirve como token: hacen falta al menos "
+                f"{_MIN_LEN} caracteres de [A-Za-z0-9_-], y llegaron {len(env)}. "
+                "Corregilo, o quitá la variable para que el servidor use el "
+                "token de disco."
+            )
         return env
 
     if _cached is not None and not refresh:
