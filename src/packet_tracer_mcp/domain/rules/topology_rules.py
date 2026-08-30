@@ -124,3 +124,41 @@ def validate_routing(plan: TopologyPlan) -> list[PlanError]:
             ))
 
     return errors
+
+
+def validate_wireless(plan: TopologyPlan) -> list[PlanError]:
+    """Avisa cuando la asociacion WiFi no se puede predecir. Devuelve WARNINGS.
+
+    Un AP por LAN hace POSIBLE que cada laptop tome direccion de su propia
+    subred, pero no lo garantiza. Medido contra PT 9.0.1 sobre 6 LANs: con el AP
+    de la LAN 1 encendido, una laptop que tenia el AP de SU LAN al lado siguio
+    con 192.168.0.5 — del pool de la LAN 1. Apagando el otro AP y reiniciandola,
+    tomo 192.168.4.25, la que le correspondia.
+
+    O sea que PT no elige el AP mas cercano: la asociacion es pegajosa y, entre
+    APs que comparten el SSID por defecto, arbitraria. Y no hay como
+    desambiguarla, porque PT no expone API de SSID (verificado: ni el AP ni su
+    puerto tienen setSsid). Lo unico honesto es que el plan lo diga en vez de
+    prometer un direccionamiento que no controla.
+    """
+    aps = plan.devices_by_category("accesspoint")
+    wireless_hosts = [d for d in plan.devices if d.wireless]
+    if len(aps) < 2 or not wireless_hosts:
+        return []
+
+    return [PlanError(
+        code=ErrorCode.WIRELESS_AMBIGUOUS_ASSOCIATION,
+        device=wireless_hosts[0].name,
+        message=(
+            f"Hay {len(aps)} access points compartiendo el SSID por defecto y "
+            f"{len(wireless_hosts)} host(s) inalambrico(s). En la vista logica de "
+            "PT el alcance RF es global, asi que cada host puede asociarse a "
+            "CUALQUIERA de ellos y recibir direccion del pool DHCP de otra LAN."
+        ),
+        suggestion=(
+            "PT no expone API de SSID, asi que esto no se puede fijar desde el "
+            "plan. Comproba con pt_inspect_ports en que subred quedo cada host "
+            "inalambrico; si necesitas direccionamiento determinista, usa "
+            "wireless_laptops=False y cablea las laptops a su switch."
+        ),
+    )]

@@ -113,8 +113,14 @@ There is **no `pt_send_pdu`**: PT does not let an extension originate a packet t
   `ipv6 unicast-routing`; hosts use **SLAAC** (`configurePcIpv6` = enable + auto-config). Static host
   IPv6 is NOT settable via the PT API (`addIpv6Address` fails on HostPort) — SLAAC is the path.
 - **WiFi laptops:** `wireless_laptops=True` swaps each Laptop-PT NIC to `PT-LAPTOP-NM-1W` (slot `"0"`)
-  → `Wireless0`, adds one `AccessPoint-PT` wired to the switch; laptops auto-associate on the default
-  SSID (no SSID API). Logical-view RF range is global, so one AP serves all wireless laptops.
+  → `Wireless0`, and adds **one `AccessPoint-PT` per LAN**, each wired to that LAN's own switch.
+  ⚠️ **Wireless addressing is NOT deterministic.** Laptops auto-associate on the default SSID and
+  PT exposes **no SSID API** (verified: neither the AP nor its port has `setSsid`), so with more
+  than one AP a laptop can associate to *any* of them and take a DHCP lease from **another LAN's
+  pool**. Measured on PT 9.0.1: LT10, sitting right next to its own LAN's AP, still associated to
+  the LAN-1 AP and got `192.168.0.13`; only with that AP powered off did it take `192.168.4.25`.
+  The planner now emits a `WIRELESS_AMBIGUOUS_ASSOCIATION` **warning** when ≥2 APs coexist.
+  Always confirm with `pt_inspect_ports`; for deterministic addressing use `wireless_laptops=False`.
 
 ## ⚠️ Verified PT Script-Engine API (for `pt_send_raw` / raw JS)
 
@@ -122,7 +128,10 @@ These are the **real** signatures (verified against the MCP's runtime patches an
 If a method is not here, do **not** assume it exists.
 
 **Globals**
-- `getDevices(filter)` → **Array** (filter `""` = all, `"router"` = routers). ← the plural form
+- `getDevices(filter)` → **Array of NAME STRINGS**, not device objects (filter `""` = all,
+  `"router"` = routers). Calling `.getName()` / `.getPorts()` on an element throws
+  `TypeError: Property 'getName' of object R1 is not a function` — the element *is* `"R1"`.
+  To get the object, feed each name to `ipc.network().getDevice(name)`.
 - `allModuleTypes[name]` → module-type handle (passed to `addModule`)
 - `reportResult(data)` → exists **only when `wait_result=True`**; POSTs the result back
 - ❌ there is **no global `getDevice(...)`**; ❌ no `XMLHttpRequest` in the Script Engine
@@ -135,6 +144,13 @@ If a method is not here, do **not** assume it exists.
 - `d.getPort(name)` → Port | null · `d.getPower()/setPower(bool)/skipBoot()/setName(name)`
 - `d.addModule(slot, allModuleTypes[model], modelName)` → bool  (**slot is a STRING**)
 - `d.getProcess("AclProcess")` → AclProcess | null (routers) · `d.enterCommand(cmd, mode)`
+- `d.getCommandLine()` → console handle with `getOutput()`, `enterCommand(cmd)`, `getPrompt()`.
+  Use **this** for console work: `getCommandPrompt()` exists ONLY on hosts and throws
+  `TypeError` on any router. PCs expose both, so `getCommandLine()` covers both worlds.
+  ⚠️ A router deployed by the MCP was never touched by console, so it sits at
+  `Would you like to enter the initial configuration dialog? [yes/no]:` — a `ping` sent
+  there is eaten as the yes/no answer. Prime it first: answer `no`, then send an empty
+  command to clear `Press RETURN to get started.`
 - `d.setDhcpFlag(bool)`, `d.setDefaultGateway(ip)`
 
 **Port** — `var p = d.getPort("GigabitEthernet0/0");`

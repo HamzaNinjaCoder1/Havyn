@@ -36,9 +36,20 @@ El peor no era un crash: era un **falso OK**.
   unico `AccessPoint-PT` cableado al switch de la LAN 1, sin importar cuantas LANs
   hubiera. Verificado contra PT 9.0.1: LT9, planificada en la LAN 5, recibia
   `192.168.0.5/24` — del pool DHCP de la LAN 1. Ahora se crea un AP por LAN que
-  tenga laptops inalambricas, cada uno cableado al switch de SU LAN y ubicado en
-  su columna. PT no expone API de SSID (verificado: ni el AP ni su puerto tienen
-  `setSsid`), asi que la asociacion sigue siendo por proximidad RF.
+  tenga laptops inalambricas, cada uno cableado al switch de SU LAN.
+
+### Added
+
+- **`WIRELESS_AMBIGUOUS_ASSOCIATION`: el AP por LAN no alcanza, y hay que decirlo.**
+  Un AP por LAN hace POSIBLE el direccionamiento correcto pero **no lo garantiza**.
+  Medido contra PT 9.0.1 agregando un AP en la LAN 5 junto a dos laptops de esa
+  LAN: LT10 hizo asociacion y DHCP nuevos —paso por `0.0.0.0`— y aun asi eligio el
+  AP de la LAN 1 y tomo `192.168.0.13`. Recien con ese AP apagado, LT9 tomo
+  `192.168.4.25`, la que le correspondia. O sea que PT **no elige el AP mas
+  cercano**: entre APs que comparten el SSID por defecto la asociacion es
+  arbitraria, y no hay como desambiguarla porque **PT no expone API de SSID**
+  (verificado: ni el AP ni su puerto tienen `setSsid`). El plan ahora emite un
+  warning en vez de prometer un direccionamiento que no controla.
 
 - **"CONECTIVIDAD OK" con 75% de perdida.** `interpret_ping` solo decia "llego al
   menos uno", asi que 1 de 4 paquetes se reportaba igual que 4 de 4 y un enlace
