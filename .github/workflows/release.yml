@@ -1,0 +1,72 @@
+# Publica en PyPI con Trusted Publishing: PyPI confía en este workflow por su
+# identidad OIDC, así que no hay ningún token guardado en los secrets del repo.
+# Un token filtrado publica cualquier version desde cualquier lado; una
+# identidad OIDC solo vale para este repo, este workflow y este environment.
+#
+# El disparador es un release PUBLICADO, no un push de tag. Un tag se empuja sin
+# querer; publicar un release es un acto deliberado con un botón de por medio.
+name: release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Construir y validar sin publicar"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Build
+        run: python -m build
+
+      # El tag manda sobre lo que diga el archivo: si `pyproject.toml` quedó en
+      # 0.8.0 y el release se llama v0.9.0, PyPI se queda con 0.8.0 para
+      # siempre y esa version ya no se puede volver a subir. Mejor fallar acá.
+      - name: Tag matches version
+        if: github.event_name == 'release'
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VER=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "tag=$TAG  pyproject=$VER"
+          test "$TAG" = "$VER" || { echo "::error::el tag $TAG no coincide con la version $VER de pyproject.toml"; exit 1; }
+
+      - name: Check metadata
+        run: python -m twine check dist/*
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # Lo único que hace falta para Trusted Publishing. Sin secrets.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
