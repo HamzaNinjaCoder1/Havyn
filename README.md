@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="demo/banner.png" alt="Packet Tracer MCP — AI-powered Cisco Packet Tracer automation: generate, validate and deploy network topologies from natural-language prompts" width="100%"/>
+<img src="https://raw.githubusercontent.com/Mats2208/MCP-Packet-Tracer/main/demo/banner.png" alt="Packet Tracer MCP — AI-powered Cisco Packet Tracer automation: generate, validate and deploy network topologies from natural-language prompts" width="100%"/>
 
 **Tell your AI _"create a network with 3 routers, OSPF and DHCP"_ — it plans, validates, generates, and deploys the topology directly into Cisco Packet Tracer in real time.**
 
@@ -35,25 +35,25 @@
 ## Showcase
 
 <p align="center">
-  <img src="demo/topology-screenshot.png" alt="3-router OSPF topology deployed to Packet Tracer" width="720"/>
+  <img src="https://raw.githubusercontent.com/Mats2208/MCP-Packet-Tracer/main/demo/topology-screenshot.png" alt="3-router OSPF topology deployed to Packet Tracer" width="720"/>
 </p>
 <p align="center"><sub>3-router linear topology with OSPF, DHCP, and 6 PCs — planned and deployed via MCP tools</sub></p>
 
 <table>
 <tr>
 <td width="50%">
-<p align="center"><img src="demo/mcp-client.png" alt="MCP tools executing in VS Code" width="100%"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Mats2208/MCP-Packet-Tracer/main/demo/mcp-client.png" alt="MCP tools executing in VS Code" width="100%"/></p>
 <p align="center"><sub>Full build + live deploy pipeline in VS Code</sub></p>
 </td>
 <td width="50%">
-<p align="center"><img src="demo/cli-config.png" alt="Generated IOS CLI configs" width="100%"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Mats2208/MCP-Packet-Tracer/main/demo/cli-config.png" alt="Generated IOS CLI configs" width="100%"/></p>
 <p align="center"><sub>Auto-generated IOS CLI configs with OSPF & DHCP</sub></p>
 </td>
 </tr>
 </table>
 
 <p align="center">
-  <img src="demo/live-deploy.gif" alt="Live deploy demo — from prompt to Packet Tracer in real time" width="720"/>
+  <img src="https://raw.githubusercontent.com/Mats2208/MCP-Packet-Tracer/main/demo/live-deploy.gif" alt="Live deploy demo — from prompt to Packet Tracer in real time" width="720"/>
 </p>
 <p align="center"><sub>Live deploy — from a natural-language prompt to a running topology in Packet Tracer</sub></p>
 
@@ -120,7 +120,7 @@ Download **`V5.pts`** from [**Releases**](https://github.com/Mats2208/MCP-Packet
 
 **4. Install the Claude Code Skill** — _recommended; makes the AI use the MCP correctly instead of guessing_
 
-The repo ships a companion **[Agent Skill](skill/SKILL.md)** that teaches the model the exact tool
+The repo ships a companion **[Agent Skill](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/skill/SKILL.md)** that teaches the model the exact tool
 catalog, the discover→plan→validate→deploy workflow, and the precise Script-Engine API (so it never
 invents method/model/port names). Install it **globally** from the repo root:
 
@@ -159,7 +159,7 @@ own **MCP Control Center** extension once — the `.pts` from
 **Extensions → Scripting → Configure PT Script Modules → Add…**, then open
 **Extensions → MCP BUILDER**. It auto-connects to the bridge — no snippet to paste.
 
-<p align="center"><img src="demo/install-demo.gif" alt="Installing the MCP Control Center extension in Packet Tracer" width="760"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Mats2208/MCP-Packet-Tracer/main/demo/install-demo.gif" alt="Installing the MCP Control Center extension in Packet Tracer" width="760"/></p>
 <p align="center"><sub>Installing the MCP Control Center extension (V5) in Packet Tracer</sub></p>
 
 📖 Full steps → **[Live Deploy Setup](https://mats2208.github.io/MCP-Packet-Tracer/live-deploy/)**.
@@ -232,8 +232,8 @@ What actually closes it is a secret the attacking page cannot guess:
 | **Silent failures** | Error responses carry no CORS headers, so a hostile page cannot even distinguish *why* it failed. |
 | **Tamper visibility** | Unauthorized attempts are counted and surfaced by `pt_bridge_status`, so a stale or rogue client is diagnosable instead of silent. |
 
-Regression coverage lives in [`tests/test_bridge_security.py`](tests/test_bridge_security.py)
-and [`tests/test_injection_regressions.py`](tests/test_injection_regressions.py);
+Regression coverage lives in [`tests/test_bridge_security.py`](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/tests/test_bridge_security.py)
+and [`tests/test_injection_regressions.py`](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/tests/test_injection_regressions.py);
 the full suite runs offline with `python -m pytest` — no Packet Tracer required.
 
 > **v0.6.0+ requires the V5 extension.** Versions before v0.6.0 shipped an
@@ -247,7 +247,7 @@ authenticated bridge. That is a capability, not a vulnerability.
 
 Found a vulnerability? Report it privately via
 [GitHub Security Advisories](https://github.com/Mats2208/MCP-Packet-Tracer/security/advisories/new),
-not a public issue. [SECURITY.md](SECURITY.md) documents the full threat model.
+not a public issue. [SECURITY.md](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/SECURITY.md) documents the full threat model.
 
 ## What's new
 
@@ -255,16 +255,16 @@ not a public issue. [SECURITY.md](SECURITY.md) documents the full threat model.
 security auditing, per-port inspection, packet tracing with Packet Tracer's own
 per-layer decision log, NetFlow, and config backup. It also fixes
 `pt_full_build(deploy=True)`, which used to report success while leaving the
-canvas empty. Full list in the **[Changelog](CHANGELOG.md)**.
+canvas empty. Full list in the **[Changelog](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/CHANGELOG.md)**.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Tests run offline with
+See [CONTRIBUTING.md](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/CONTRIBUTING.md). Tests run offline with
 `python -m pytest`; no Packet Tracer needed.
 
 ## License
 
-Released under the **[MIT License](LICENSE)** — © 2026 Mateo ([@Mats2208](https://github.com/Mats2208)).
+Released under the **[MIT License](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/LICENSE)** — © 2026 Mateo ([@Mats2208](https://github.com/Mats2208)).
 
 <div align="center">
 

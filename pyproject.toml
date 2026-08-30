@@ -1,12 +1,45 @@
 [build-system]
-requires = ["hatchling"]
+# PEP 639 (`license` como expresion SPDX + `license-files`) necesita hatchling
+# >=1.27. Sin el piso, un entorno con una hatchling vieja construye una rueda
+# sin licencia declarada y PyPI la rechaza al subirla, no al construirla.
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
 name = "packet-tracer-mcp"
 version = "0.8.0"
 description = "MCP server for Cisco Packet Tracer - topology planning, validation, auto-fix, generation, and configuration"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
+authors = [{ name = "Mats2208", email = "a2024111556@estudiantes.upsa.edu.bo" }]
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "cisco",
+    "packet-tracer",
+    "networking",
+    "network-automation",
+    "topology",
+    "ccna",
+    "ospf",
+    "vlan",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: System Administrators",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education",
+    "Topic :: System :: Networking",
+    "Typing :: Typed",
+]
 dependencies = [
     # mcp >=1.13 builds tool output schemas from return annotations, which requires
     # pydantic >=2.11. Pinning pydantic too low (e.g. 2.8) makes the server crash on
@@ -17,6 +50,13 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://www.mcpnetwork.top"
+Documentation = "https://mats2208.github.io/MCP-Packet-Tracer/"
+Repository = "https://github.com/Mats2208/MCP-Packet-Tracer"
+Changelog = "https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Mats2208/MCP-Packet-Tracer/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -31,3 +71,15 @@ pt-mcp = "packet_tracer_mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/packet_tracer_mcp"]
+
+[tool.hatch.build.targets.sdist]
+# El sdist por defecto se lleva TODO lo que no esté en .gitignore: los GIFs y
+# PNGs de `demo/` son 9.7 de los 10.2 MB del tarball, para un paquete cuyo
+# código pesa 219 KB. Nadie que haga `pip install` necesita el banner.
+exclude = [
+    "demo/",
+    "docs/",
+    "data/",
+    "mkdocs.yml",
+    ".github/",
+]

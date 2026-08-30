@@ -1,5 +1,45 @@
 # Changelog
 
+## Unreleased (7)
+
+**El servidor se puede instalar con `pip install packet-tracer-mcp`.**
+
+### Added
+
+- **Metadata de publicacion en `pyproject.toml`.** Hasta ahora el paquete se
+  construia, pero no se podia publicar de forma decente: sin `readme`, la pagina
+  de PyPI sale en blanco; sin `classifiers` ni `keywords`, no aparece en ninguna
+  busqueda; sin `project.urls`, no hay como volver al repo desde el paquete. Se
+  agrego todo eso mas `license = "MIT"` como expresion SPDX (PEP 639), con el
+  piso `hatchling>=1.27` en `build-system` porque es donde esa forma empieza a
+  existir. `twine check` pasa ahora sin un solo warning.
+
+- **`release.yml`: publicar sin guardar un token.** Trusted Publishing, o sea
+  que PyPI confia en la identidad OIDC del workflow en vez de en un secret. Un
+  token filtrado publica cualquier version desde cualquier lado; la identidad
+  solo vale para este repo, este workflow y el environment `pypi`.
+
+  Dispara con un release **publicado**, no con un push de tag: un tag se empuja
+  sin querer, publicar un release lleva un boton de por medio. Antes de subir
+  nada compara el tag contra la version de `pyproject.toml` y falla si no
+  coinciden — si el release se llama v0.9.0 y el archivo quedo en 0.8.0, PyPI se
+  queda con 0.8.0 para siempre y ese numero ya no se puede volver a usar.
+  `workflow_dispatch` construye y valida, pero no publica.
+
+### Changed
+
+- **El sdist pesaba 10.2 MB para 219 KB de codigo.** El resto eran los GIFs y
+  PNGs de `demo/`, que hatchling se llevaba por no estar en `.gitignore`. Nadie
+  que haga `pip install` necesita el banner del README. Con `demo/`, `docs/`,
+  `data/`, `mkdocs.yml` y `.github/` fuera del sdist, el tarball queda en 312 KB
+  — 33 veces mas chico.
+
+- **Los links del README son absolutos.** PyPI renderiza el README fuera del
+  repo, asi que `src="demo/banner.png"` le queda como una imagen rota, y lo
+  mismo las seis referencias a `CHANGELOG.md`, `LICENSE`, `SECURITY.md` y
+  companiia. Apuntan a `raw.githubusercontent.com` y a `blob/main`, que se ven
+  igual en GitHub y ademas se ven en PyPI.
+
 ## Unreleased (6)
 
 **469 -> 473 tests.**
