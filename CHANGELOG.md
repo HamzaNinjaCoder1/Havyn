@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.10.0 — Phase 3: Port/Media/Module solver, Preflight gate, Per-criterion verification
+
+202 → 202 tests, all passing. 7 live contract tests against real Packet Tracer 9.0.1.
+
+### Added
+
+- **Port/Media/Module solver (§9)** — `solve_ports()` resolves every link endpoint to a
+  concrete port + media + module using the upstream catalog (device models, module
+  specs, cable rules). Validates port existence, media compatibility, and module
+  requirements before execution.
+- **Port reservation system (§9)** — `PortReservationSystem` prevents two operations
+  from consuming the same physical/interface resource. A failed reservation blocks
+  dependent operations. The executor checks reservations before link creation.
+- **Preflight hard gate (§G)** — `PreflightValidator.run_preflight()` is now a HARD
+  execution gate in `net_build()`. If preflight fails, execution is blocked
+  immediately with a structured failure. The pipeline never continues into real
+  execution after a hard preflight failure: request → IPAM → compile →
+  preflight → safety gate → execution.
+- **Per-criterion verification (§H)** — `PerCriterionVerifier` generates its own
+  verification operation/evidence chain for every acceptance criterion. Each
+  criterion is independently traceable with its own PASS/FAIL/UNKNOWN verdict.
+  UNKNOWN is never converted to PASS. The `VerificationReport` now includes a
+  `per_criterion` field.
+- **New test files**: `test_port_solver.py` (20 tests), `test_per_criterion.py` (10
+  tests), `test_interpret_and_resolver.py` (6 tests), `test_js_wrapper_statements.py` (5 tests).
+
+### Changed
+
+- `CompileResult` now includes `port_plan` and `preflight` fields.
+- `DagExecutor` accepts an optional `reservation_system` parameter and checks
+  port reservations before link operations.
+- `Orchestrator.build()` uses `net_build()` instead of `compile_spec()` directly,
+  ensuring preflight blocks execution.
+- `VerificationReport` includes `per_criterion` verification data.
+
 ## 0.9.0
 
 Varias pasadas manejando el MCP contra Packet Tracer 9.0.1, sobre topologías de
