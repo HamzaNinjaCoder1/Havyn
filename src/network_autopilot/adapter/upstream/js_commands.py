@@ -15,6 +15,7 @@ generators. No PTBuilder-derived code is used here.
 from __future__ import annotations
 
 import json
+import re
 
 # PT IpcAPI enum values (verified against the extension runtime and the
 # upstream device-type/connect-type constants).
@@ -73,11 +74,15 @@ def js_add_device(name: str, device_type_code: int, model: str, x: int, y: int) 
 
 
 def js_add_link(
-    device_a: str, port_a: str, device_b: str, port_b: str, cable_code: int
+    device_a: str, port_a: str, device_b: str, port_b: str, cable: str
 ) -> str:
+    """Global addLink with a cable NAME — the upstream-verified signature
+    (tool_registry `addLink("d1","p1","d2","p2","straight")` + explicit
+    getLink() read-back). Found live: lwAddLink(..., 8107) answers `false`
+    for PC FastEthernet ports, so it is not used here."""
     return (
-        f"lwAddLink({_q(device_a)}, {_q(port_a)}, {_q(device_b)}, {_q(port_b)}, "
-        f"{_int(cable_code, 'cable_code')});"
+        f"addLink({_q(device_a)}, {_q(port_a)}, {_q(device_b)}, {_q(port_b)}, "
+        f"{_q(cable)});"
     )
 
 
@@ -139,17 +144,21 @@ def js_both_ports_linked_expr(
 
     Uses only the verified Port surface (getPortCount/getPortAt/getName/
     getLink) behind guards, mirroring the upstream port-reader pattern.
+
+    The inner helper takes the device/port NAMES as its own JS parameters;
+    the Python values are interpolated only at the two call sites (found
+    live: interpolating inside the helper referenced undefined names).
     """
     return (
         "(function(){"
         "function linked(dn,pn){"
-        "var d=ipc.network().getDevice(" + _q(dn) + ");"
+        "var d=ipc.network().getDevice(dn);"
         "if(!d){return false;}"
         "var n=d.getPortCount();"
         "for(var i=0;i<n;i++){"
         "var p=d.getPortAt(i);"
         "if(!p){continue;}"
-        "if(String(p.getName())===" + _q(pn) + "){"
+        "if(String(p.getName())===pn){"
         "return (typeof p.getLink==='function') ? !!p.getLink() : false;}"
         "}return false;}"
         "return (linked(" + _q(a_device) + "," + _q(a_port) + ") && "
@@ -258,6 +267,143 @@ def js_console_poll_expr(device: str, base: int) -> str:
     )
 
 
+# -- console show-command read-back (routing / VLAN control plane) -------------
+#
+# Verified live on PT 9.0.1: only getCommandLine() exposes the routing table
+# and VLAN database, so read-back is an arm/poll console exchange. The primed
+# console (initial-config dialog + `enable`) and the prompt shape
+# (`<hostname>#`) were observed on a 2911 and a Switch-PT.
+
+def js_console_command_arm_statements(device: str, command: str) -> tuple[list[str], str]:
+    """Prime the console, enter `enable`, run `command`; final = 'BASE:<len>'.
+
+    Statements/final split (not an IIFE) because `enterCommand` must run as a
+    statement — found live, appending statements after a `return` inside
+    String(...) is a parse error.
+    """
+    statements = [
+        "var cl=ipc.network().getDevice(" + _q(device) + ").getCommandLine();",
+        "if(!cl){return 'ERR:device without console';}",
+        "var p=String(cl.getPrompt()||'');",
+        "if(p.indexOf('[yes/no]')>=0){cl.enterCommand('no');}",
+        "cl.enterCommand('');",
+        "var base=String(cl.getOutput()).length;",
+        "cl.enterCommand('enable');",
+        "cl.enterCommand(" + _q(command.strip()) + ");",
+    ]
+    return statements, "'BASE:' + base"
+
+
+def js_console_collect_expr(device: str, base: int) -> str:
+    """Poll for the show-command tail.
+
+    The command is considered finished when the last non-empty console line
+    ends with `#` (the privileged prompt, verified live). Returns
+    'DONE:<tail>' or 'WAIT'; 'ERR:...' when there is no console.
+    """
+    return (
+        "(function(){"
+        "var cl=ipc.network().getDevice(" + _q(device) + ").getCommandLine();"
+        "if(!cl){return 'ERR:device without console';}"
+        "var o=String(cl.getOutput());"
+        "if(o.length>" + str(int(base)) + "){"
+        "var tail=o.slice(" + str(int(base)) + ");"
+        "var lines=tail.split('\\n').filter(function(l){return l.trim().length>0;});"
+        "var last=lines.length?lines[lines.length-1].trim():'';"
+        "if(last.charAt(last.length-1)==='#'){return 'DONE:'+tail;}"
+        "}return 'WAIT';"
+        "})()"
+    )
+
+
+# -- parsers for console output -------------------------------------------------
+#
+# Deterministic regex parsing of REAL captured output (see the golden fixtures
+# in tests/autopilot/test_control_plane_readback.py). Anything unparseable is
+# reported as UNKNOWN by the caller — never guessed.
+
+_IF_ABBREV = {
+    "Fa": "FastEthernet",
+    "Gi": "GigabitEthernet",
+    "Te": "TenGigabitEthernet",
+    "Eth": "Ethernet",
+    "Se": "Serial",
+    "Vlan": "VLAN",
+}
+
+
+def expand_if_name(name: str) -> str:
+    """Fa0/1 -> FastEthernet0/1 (PT abbreviates port names in console output)."""
+    for abbrev, full in _IF_ABBREV.items():
+        if name.startswith(abbrev) and not name.startswith(full):
+            return full + name[len(abbrev):]
+    return name
+
+
+def parse_show_ip_route(output: str) -> list[dict]:
+    """Parse a real `show ip route` table into structured route records."""
+    routes: list[dict] = []
+    for raw in output.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("Codes:") or line.startswith("Gateway of"):
+            continue
+        # static/default: 'S    10.9.0.0/24 [1/0] via 192.168.77.11, GigabitEthernet0/0'
+        m = re.match(r"^S\*?\s+(\d+\.\d+\.\d+\.\d+)/(\d+)\s+\[[^\]]+\]\s+via\s+(\d+\.\d+\.\d+\.\d+)(?:,\s*(\S+))?$", line)
+        if m:
+            routes.append(
+                {
+                    "kind": "default" if line.startswith("S*") else "static",
+                    "network": m.group(1),
+                    "prefix": int(m.group(2)),
+                    "next_hop": m.group(3),
+                    "interface": expand_if_name(m.group(4) or "") or None,
+                }
+            )
+            continue
+        # connected/local: 'C    10.0.1.0/24 is directly connected, GigabitEthernet0/0'
+        m = re.match(r"^([CL])\s+(\d+\.\d+\.\d+\.\d+)/(\d+)\s+is directly connected,\s*(\S+)$", line)
+        if m:
+            routes.append(
+                {
+                    "kind": "connected" if m.group(1) == "C" else "local",
+                    "network": m.group(2),
+                    "prefix": int(m.group(3)),
+                    "next_hop": None,
+                    "interface": expand_if_name(m.group(4)),
+                }
+            )
+    return routes
+
+
+def parse_show_vlan_brief(output: str) -> list[dict]:
+    """Parse a real `show vlan brief` table into structured VLAN records.
+
+    Multi-line port lists (continuation rows) are folded into their VLAN.
+    """
+    vlans: list[dict] = []
+    current: dict | None = None
+    row = re.compile(r"^(\d{1,4})\s+(\S+)\s+(\S+)\s*(.*)$")
+    for raw in output.splitlines():
+        line = raw.rstrip()
+        if not line.strip() or line.strip().startswith("VLAN Name") or line.strip().startswith("----"):
+            continue
+        m = row.match(line.strip())
+        if m and int(m.group(1)) <= 4094:
+            current = {
+                "id": int(m.group(1)),
+                "name": m.group(2),
+                "status": m.group(3),
+                "ports": [expand_if_name(p) for p in m.group(4).split(",") if p.strip()],
+            }
+            vlans.append(current)
+        elif current is not None and line.startswith(" " * 20):
+            # continuation of the port list for the previous VLAN row
+            current["ports"].extend(
+                expand_if_name(p) for p in line.strip().split(",") if p.strip()
+            )
+    return vlans
+
+
 def wrap_with_report(
     expression: str, report_fn_js: str, statements: list[str] | None = None
 ) -> str:
@@ -267,7 +413,13 @@ def wrap_with_report(
     the answer back to /result?rid=...). The try/catch matters: an uncaught
     error inside runCode opens a modal that freezes the webview and kills the
     polling loop.
+
+    The expression goes inside String(...), so it must be an EXPRESSION: some
+    js_* builders return statements with a trailing `;` (found live — PT
+    answered `SyntaxError: Parse error`), so a trailing semicolon is stripped
+    here at the single choke point every channel shares.
     """
+    expression = expression.strip().rstrip(";").strip()
     body = "".join(statements or [])
     return (
         report_fn_js
@@ -284,6 +436,30 @@ def cable_code_for(media: str) -> int:
     if code is None:
         raise ValueError(f"unknown cable/media type: {media!r}")
     return code
+
+
+# Cable NAMES accepted by the global addLink (upstream CABLE_TYPES keys).
+CABLE_NAMES: dict[str, str] = {
+    "straight": "straight",
+    "cross": "cross",
+    "crossover": "cross",
+    "roll": "roll",
+    "fiber": "fiber",
+    "phone": "phone",
+    "cable": "cable",
+    "coaxial": "coaxial",
+    "auto": "auto",
+    "console": "console",
+    "serial": "serial",
+    "wireless": "wireless",
+}
+
+
+def cable_name_for(media: str) -> str:
+    name = CABLE_NAMES.get(media.lower())
+    if name is None:
+        raise ValueError(f"unknown cable/media type: {media!r}")
+    return name
 
 
 def device_type_code_for(role: str) -> int:

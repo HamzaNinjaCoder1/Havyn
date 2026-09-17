@@ -59,6 +59,8 @@ try:  # PROVENANCE: the single sanctioned import of the upstream package.
     )
     from packet_tracer_mcp.infrastructure.execution.file_bridge import FileBridge
     from packet_tracer_mcp.shared.utils import classify_ping
+    from packet_tracer_mcp.infrastructure.catalog.cables import infer_cable
+    from packet_tracer_mcp.infrastructure.catalog.devices import category_of_model
 except ImportError as exc:  # pragma: no cover - repo checkout without install
     raise ImportError(
         "network_autopilot.adapter.upstream needs the packet_tracer_mcp package: "
@@ -458,8 +460,12 @@ class BridgeAdapter(PacketTracerAdapter):
                 "existence could not be verified before mutation (fail-closed)",
             )
 
-        default_model = {"router": "Router-PT", "switch": "Switch-PT"}.get(role, "PC")
-        model = model_hint or default_model
+        # Endpoint default follows the upstream catalog's pt_type ("PC-PT"):
+        # found live, plain "PC" makes lw.addDevice fail silently and the
+        # addDevice fallback answer "Invalid arguments" — no device, no error.
+        model_aliases = {"PC": "PC-PT"}
+        default_model = {"router": "Router-PT", "switch": "Switch-PT"}.get(role, "PC-PT")
+        model = model_aliases.get(model_hint, model_hint) if model_hint else default_model
         x, y = position or (100, 100)
         answer = self.send_expression(
             js.js_add_device(name, js.device_type_code_for(role), model, x, y)
@@ -581,15 +587,43 @@ class BridgeAdapter(PacketTracerAdapter):
                 "endpoint existence could not be verified (fail-closed)",
             )
         try:
-            cable = js.cable_code_for(media)
+            cable = js.cable_name_for(media)
         except ValueError as exc:
             return self._precondition_receipt(
                 "create_link", requested, operation_id, pre, str(exc)
             )
+        if cable == "auto":
+            # PT rejects addLink('auto') for some pairs (found live: PC↔PC
+            # answers false while 'cross' works), so 'auto' is resolved from
+            # the upstream wiring rules using the OBSERVED models; endpoint
+            # pairs have no rule in that table and take a cross-over cable.
+            devices = self._live_devices()
+            models: list[str] = []
+            for dev in (a_device, b_device):
+                match = (
+                    next(
+                        (d for d in devices.value if str(d.get("name") or "") == dev),
+                        None,
+                    )
+                    if devices.is_known
+                    else None
+                )
+                models.append(str(match.get("model") or "") if match else "")
+            cat_a = category_of_model(models[0]) or "pc"
+            cat_b = category_of_model(models[1]) or "pc"
+            cable = infer_cable(cat_a, cat_b)
+            endpoints = ("pc", "laptop", "server")
+            if cat_a in endpoints and cat_b in endpoints:
+                cable = "cross"
         answer = self.send_expression(
             js.js_add_link(a_device, a_port or "", b_device, b_port or "", cable)
         )
         result, executed, error = self._interpret(answer)
+        postconditions: list[CheckResult] = []
+        if result is OperationResult.SUCCESS:
+            # read-back: the link exists only if BOTH endpoints report one
+            linked = self.link_exists(a_device, a_port or "", b_device, b_port or "")
+            postconditions.append(CheckResult.of("link_present", "True", linked))
         return OperationReceipt(
             operation_id=operation_id or new_id("op"),
             operation="create_link",
@@ -597,11 +631,14 @@ class BridgeAdapter(PacketTracerAdapter):
             executed=executed,
             result=result,
             preconditions=pre,
+            postconditions=postconditions,
             evidence={
-                "postcondition": (
-                    "link/peer read-back not yet implemented; receipt stays "
-                    "unconfirmed until Phase-2 link inspection lands"
-                )
+                **(executed or {}),
+                **(
+                    {"postcondition": "both endpoints report a link (read-back)"}
+                    if result is OperationResult.SUCCESS
+                    else {}
+                ),
             },
             started_at=utc_now_iso(),
             finished_at=utc_now_iso(),
@@ -674,6 +711,20 @@ class BridgeAdapter(PacketTracerAdapter):
             js.js_configure_pc_ip(device, dhcp, ip or "", mask or "", gateway or "", dns or "")
         )
         result, executed, error = self._interpret(answer)
+        postconditions: list[CheckResult] = []
+        if result is OperationResult.SUCCESS and not dhcp and ip:
+            # read-back: the configured IP must be observable on the device
+            obs = self.inspect_device(device)
+            port = next(
+                (p for p in obs.ports.values() if p.ip.is_known and p.ip.value == ip),
+                None,
+            )
+            check = Observable.known(True) if port else (
+                Observable[bool].unknown(
+                    f"configured ip {ip!r} not observed on {device!r}"
+                )
+            )
+            postconditions.append(CheckResult.of("ip_observed", ip, check))
         return OperationReceipt(
             operation_id=operation_id or new_id("op"),
             operation="configure_host",
@@ -681,8 +732,14 @@ class BridgeAdapter(PacketTracerAdapter):
             executed=executed,
             result=result,
             preconditions=pre,
+            postconditions=postconditions,
             evidence={
-                "postcondition": "host IP read-back not yet implemented; verify via flow tests"
+                **(executed or {}),
+                **(
+                    {"postcondition": "ip observed on device read-back"}
+                    if postconditions
+                    else {"postcondition": "dhcp/no-ip: no read-back check"}
+                ),
             },
             started_at=utc_now_iso(),
             finished_at=utc_now_iso(),
@@ -759,6 +816,7 @@ class BridgeAdapter(PacketTracerAdapter):
             str(p.get("ip"))
             for p in match.get("ports") or []
             if str(p.get("ip") or "").strip()
+            and str(p.get("ip")) != "0.0.0.0"  # placeholder (e.g. Bluetooth NIC)
         }
         if not ips:
             return Observable[str].unknown(
@@ -855,16 +913,90 @@ class BridgeAdapter(PacketTracerAdapter):
             ),
         )
 
+    # -- control-plane read-back (console) -----------------------------------
+
+    def _console_show(self, device: str, command: str, *, timeout: float = 12.0) -> Observable[str]:
+        """Run one `show ...` command on the device console and return the tail.
+
+        Verified live: PT exposes the routing table / VLAN database ONLY
+        through getCommandLine(), so this is an arm/poll exchange like the
+        ping path. UNKNOWN on any failure — the raw console evidence is kept.
+        """
+        statements, final = js.js_console_command_arm_statements(device, command)
+        armed = self.send_expression(final, statements=statements, wait=10.0)
+        if not armed.is_known:
+            return Observable[str].unknown(
+                f"console arm failed: {armed.detail or armed.status.value}"
+            )
+        value = str(armed.value)
+        if value.startswith(("PT_ERROR", "ERR:")):
+            return Observable[str].unknown(f"console unavailable: {value}")
+        if not value.startswith("BASE:"):
+            return Observable[str].unknown(f"console arm answered: {value!r}")
+        base = int(value[5:])
+        collect = js.js_console_collect_expr(device, base)
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            time.sleep(0.5)
+            answer = self.send_expression(collect, wait=5.0)
+            if not answer.is_known:
+                continue
+            text = str(answer.value)
+            if text.startswith("DONE:"):
+                return Observable.known(text[5:], source=f"console:{device}")
+            if text.startswith(("ERR:", "PT_ERROR")):
+                return Observable[str].unknown(f"console error: {text}")
+        return Observable[str].unknown(
+            f"{command!r} produced no prompt on {device!r} within {timeout:.0f}s"
+        )
+
+    def read_routing_table(self, device: str) -> Observable[list]:
+        """Structured `show ip route` read-back; empty table is KNOWN []."""
+        tail = self._console_show(device, "show ip route")
+        if not tail.is_known:
+            return Observable[list].unknown(tail.detail or tail.status.value)
+        try:
+            routes = js.parse_show_ip_route(tail.value)
+        except Exception as exc:  # unparseable output stays honest
+            return Observable[list].unknown(f"unparseable route table: {exc}: {tail.value[:200]!r}")
+        known = Observable.known(routes, source=tail.source)
+        known.metadata = {"console": tail.value}
+        return known
+
+    def read_vlans(self, device: str) -> Observable[list]:
+        """Structured `show vlan brief` read-back (switches)."""
+        tail = self._console_show(device, "show vlan brief")
+        if not tail.is_known:
+            return Observable[list].unknown(tail.detail or tail.status.value)
+        try:
+            vlans = js.parse_show_vlan_brief(tail.value)
+        except Exception as exc:
+            return Observable[list].unknown(f"unparseable vlan table: {exc}: {tail.value[:200]!r}")
+        known = Observable.known(vlans, source=tail.source)
+        known.metadata = {"console": tail.value}
+        return known
+
     # -- helpers ------------------------------------------------------------
 
     @staticmethod
     def _interpret(
         answer: Observable[str],
     ) -> tuple[OperationResult, dict | None, str | None]:
-        """Map PT's reported string to an OperationResult. Timeout → UNKNOWN."""
+        """Map PT's reported string to an OperationResult. Timeout → UNKNOWN.
+
+        JS literal `false` (and an empty answer) are FAILED: found live —
+        lwAddLink answers `false` when the cable could not be established,
+        and mapping that to success would make the receipt lie.
+        """
         if not answer.is_known:
             return OperationResult.UNKNOWN, None, answer.detail
         value = str(answer.value)
         if value.startswith("PT_ERROR"):
             return OperationResult.FAILED, {"pt_result": value}, value
+        if value.strip() in ("false", ""):
+            return (
+                OperationResult.FAILED,
+                {"pt_result": value or "<empty>"},
+                f"PT reported {value.strip() or '<empty>'!r} for the mutation",
+            )
         return OperationResult.SUCCESS, {"pt_result": value}, None
