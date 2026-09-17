@@ -28,6 +28,7 @@ from ..core.requirements import (
     Verdict,
 )
 from ..ipam.planner import AddressPlan
+from .per_criterion import PerCriterionVerifier, PerCriterionVerificationReport
 
 _EMPTY_READ = "runtime returned an empty value"
 
@@ -72,6 +73,7 @@ class VerificationReport:
     summary: dict[str, int]
     acceptance: AcceptanceReport
     observations_complete: bool
+    per_criterion: PerCriterionVerificationReport | None = None
 
     def by_level(self, level: str) -> tuple[VerificationTest, ...]:
         return tuple(t for t in self.tests if t.level == level)
@@ -148,6 +150,11 @@ class VerificationEngine:
             result = flow_results.get((test.source, test.destination))
             if result is not None:
                 keyed_flows[(test.source, test.destination, test.transport, test.port)] = result
+
+        # Per-criterion verification (§H)
+        per_criterion = PerCriterionVerifier()
+        pc_report = per_criterion.verify(spec, state, keyed_flows)
+
         acceptance = evaluate_spec(
             spec, state, keyed_flows, observations_complete=observations_complete
         )
@@ -157,6 +164,7 @@ class VerificationEngine:
             summary=summary,
             acceptance=acceptance,
             observations_complete=observations_complete,
+            per_criterion=pc_report,
         )
 
     # -- levels ---------------------------------------------------------------

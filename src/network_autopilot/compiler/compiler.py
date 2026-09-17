@@ -20,6 +20,8 @@ from ..core.network_spec import DeviceRole, NetworkSpec
 from ..ipam.planner import AddressPlan
 from .dag import OperationDag
 from .operations import Check, MutationClassification, NetworkOperation, Risk, key_for
+from .port_solver import PortPlan, solve_ports
+from .preflight import PreflightResult, run_preflight
 
 COMPILER_VERSION = "2.0.0"
 
@@ -57,6 +59,8 @@ class CompileResult:
     unsupported_features: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     fingerprint: dict[str, str] = field(default_factory=dict)
+    port_plan: PortPlan | None = None
+    preflight: PreflightResult | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -367,6 +371,11 @@ def compile_spec(
     )
 
     dag.validate()
+
+    # -- port solving + preflight (§9 + §G) --------------------------------
+    port_plan = solve_ports(spec, plan)
+    preflight_result = run_preflight(spec, plan, port_plan)
+
     return CompileResult(
         dag=dag,
         unsupported_features=[],
@@ -383,7 +392,45 @@ def compile_spec(
             },
             layout_seed=spec.layout_seed,
         ),
+        port_plan=port_plan,
+        preflight=preflight_result,
     )
+
+
+def net_build(
+    spec: NetworkSpec,
+    plan: AddressPlan,
+    gate: "SafetyGate | None" = None,
+    adapter: "PacketTracerAdapter | None" = None,
+) -> tuple[CompileResult | None, str | None]:
+    """Compile with preflight as a HARD execution gate (§G).
+
+    Flow: request → IPAM → compile → port/media/module preflight →
+    safety gate → execution. If preflight fails, execution is blocked
+    and a structured failure is returned immediately.
+    """
+    from .compiler import compile_spec
+
+    result = compile_spec(spec, plan)
+
+    # Preflight is a HARD gate: if it fails, DO NOT execute
+    if result.preflight is not None and not result.preflight.can_execute:
+        error_parts = result.preflight.errors
+        if result.port_plan:
+            for key, res in result.port_plan.resolutions.items():
+                if res.constraint.name != "COMPATIBLE":
+                    error_parts.append(f"{key}: {res.constraint.value}")
+        return None, (
+            "preflight blocked execution: "
+            + "; ".join(error_parts)
+        )
+
+    # If preflight has warnings, still proceed but record them
+    if result.preflight is not None and result.preflight.warnings:
+        # Warnings don't block, but they're evidence
+        pass
+
+    return result, None
 
 
 def _link_op_for_port(dag: OperationDag, device: str, interface: str) -> str | None:

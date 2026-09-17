@@ -116,14 +116,18 @@ def test_live_end_to_end_pc_to_pc_ping():
         assert r.result is OperationResult.SUCCESS, r.error
     link = adapter.create_link(a, "FastEthernet0", b, "FastEthernet0")
     assert link.executed_ok, link.error
+    assert link.confirmed, link.to_dict()  # both endpoints read back a link
     for name, ip in ((a, "192.168.77.10"), (b, "192.168.77.11")):
         r = adapter.configure_host(name, dhcp=False, ip=ip, mask="255.255.255.0")
         assert r.executed_ok, r.error
     # give the addressing a moment to settle, then REALLY ping
     time.sleep(1.0)
     flow = adapter.run_flow_test(a, b, timeout=30.0)
-    assert flow.outcome is FlowOutcome.REACHABLE, flow.to_dict()
-    assert "100 percent" in (flow.evidence.get("ping_stat") or "")
+    assert flow.outcome is FlowOutcome.REACHABLE, (
+        flow.outcome.value, flow.detail, flow.evidence
+    )
+    # real PC console stat format: 'Packets: Sent = 4, Received = 4, ...'
+    assert "Received = 4" in flow.evidence.get("ping_stat", "")
 
 
 def test_live_save_project_lands_on_disk(tmp_path):

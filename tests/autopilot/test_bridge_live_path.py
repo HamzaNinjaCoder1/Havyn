@@ -216,9 +216,13 @@ def test_flow_test_quiet_console_times_out_as_unknown(monkeypatch):
 # -- channel routing ------------------------------------------------------------
 
 
-def test_send_expression_without_any_channel_is_unknown():
+def test_send_expression_without_any_channel_is_unknown(tmp_path):
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
-    # no HTTP bridge on 59999, and the file heartbeat is untouched/stale
+    # hermetic: a temp mailbox with no heartbeat, so the ambient machine's
+    # live extension cannot turn this into a file-channel success
+    from src.network_autopilot.adapter.upstream.bridge_adapter import FileBridge
+
+    adapter._file_bridge = FileBridge(directory=tmp_path / "mailbox")
     answer = adapter.send_expression("'x'")
     assert not answer.is_known
     assert "no live channel" in (answer.detail or "")

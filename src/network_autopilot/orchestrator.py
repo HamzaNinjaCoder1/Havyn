@@ -268,12 +268,18 @@ class Autopilot:
         if evidence is not None:
             evidence.record("addressing_planned", plan.to_dict(), component="orchestrator")
 
-        # 2. Compile
-        info = self.adapter.ping()
+        # 2. Compile + preflight (preflight is a HARD gate — §G)
+        from .compiler import net_build
         try:
-            compiled = compile_spec(spec, plan, packet_tracer_version="unknown")
+            compiled, compile_error = net_build(spec, plan)
         except Exception as exc:
             return None, f"compilation refused: {exc}"
+        if compile_error:
+            if evidence is not None:
+                evidence.record("preflight_failed", {"error": compile_error}, component="orchestrator")
+            return None, f"preflight blocked execution: {compile_error}"
+        if compiled is None:
+            return None, "compilation returned no result"
         if evidence is not None:
             evidence.record(
                 "compiled",
@@ -281,6 +287,7 @@ class Autopilot:
                     "fingerprint": compiled.fingerprint,
                     "notes": compiled.notes,
                     "operations": len(compiled.dag.nodes),
+                    "preflight_passed": compiled.preflight.passed if compiled.preflight else True,
                 },
                 component="orchestrator",
             )

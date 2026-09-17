@@ -27,6 +27,7 @@ from ..core.safety import SafetyGate
 from ..evidence.store import EvidenceStore
 from .dag import OpStatus, OperationDag
 from .operations import MutationClassification
+from .port_reservation import PortReservationSystem
 
 _FLOW_TYPES = ("verify_flow",)
 
@@ -40,6 +41,7 @@ class ExecutionResult:
     blocked: list[str] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)
     reused: list[str] = field(default_factory=list)
+    preflight_blocked: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -56,6 +58,7 @@ class ExecutionResult:
             "blocked": list(self.blocked),
             "failed": list(self.failed),
             "reused": list(self.reused),
+            "preflight_blocked": list(self.preflight_blocked),
             "state_devices": sorted(self.state.devices),
         }
 
@@ -66,10 +69,12 @@ class DagExecutor:
         adapter: PacketTracerAdapter,
         gate: SafetyGate,
         evidence: EvidenceStore | None = None,
+        reservation_system: PortReservationSystem | None = None,
     ):
         self.adapter = adapter
         self.gate = gate
         self.evidence = evidence
+        self.reservation_system = reservation_system or PortReservationSystem()
         self.state = ActualNetworkState(
             source=f"executor:{adapter.name}", observed_at=utc_now_iso()
         )
@@ -129,10 +134,24 @@ class DagExecutor:
         handler(op, node, result)
 
     def _authorize(self, op) -> bool:
-        """Pass the operation through the safety gate. Returns execute?"""
+        """Pass the operation through the safety gate. Returns execute?
+
+        For link operations, also check port reservations (§9).
+        """
         permission = self.gate.authorize([op.to_dict()])
         if not permission.execute:
             return False
+        # Port reservation check for links (§9)
+        if op.operation_type == "create_link":
+            a_dev = op.inputs.get("a_device", "")
+            a_port = op.inputs.get("a_port", "")
+            b_dev = op.inputs.get("b_device", "")
+            b_port = op.inputs.get("b_port", "")
+            for dev, iface in ((a_dev, a_port), (b_dev, b_port)):
+                if iface and self.reservation_system.is_reserved(dev, iface):
+                    existing = self.reservation_system.get_reservation(dev, iface)
+                    if existing and existing.operation_id != op.operation_id:
+                        return False
         return True
 
     def _record(self, receipt: OperationReceipt) -> None:

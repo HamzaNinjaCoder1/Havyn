@@ -70,6 +70,10 @@ class DeviceObservation:
     model: Observable[str] = field(default_factory=Observable.not_observed)
     role: Observable[str] = field(default_factory=Observable.not_observed)
     ports: dict[str, PortObservation] = field(default_factory=dict)
+    # Control-plane read-back (Phase 3). Parsed structures carry their raw
+    # console evidence; UNKNOWN/UNSUPPORTED is preserved, never collapsed.
+    routes: Observable[list] = field(default_factory=Observable.not_observed)
+    vlans: Observable[list] = field(default_factory=Observable.not_observed)
     notes: list[str] = field(default_factory=list)
 
     def port(self, name: str) -> PortObservation:
@@ -85,6 +89,8 @@ class DeviceObservation:
             "model": self.model.to_dict(),
             "role": self.role.to_dict(),
             "ports": {n: p.to_dict() for n, p in sorted(self.ports.items())},
+            "routes": self.routes.to_dict(),
+            "vlans": self.vlans.to_dict(),
             "notes": list(self.notes),
         }
 
@@ -99,6 +105,8 @@ class DeviceObservation:
                 n: PortObservation.from_dict(p)
                 for n, p in (data.get("ports") or {}).items()
             },
+            routes=Observable.from_dict(data.get("routes", {})),
+            vlans=Observable.from_dict(data.get("vlans", {})),
             notes=list(data.get("notes", [])),
         )
 

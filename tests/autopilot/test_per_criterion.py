@@ -1,0 +1,229 @@
+"""Per-criterion verification tests (§H).
+
+Tests that every acceptance criterion generates its own
+verification operation/evidence chain.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from src.network_autopilot.verification.per_criterion import (
+    CriterionVerification,
+    PerCriterionVerifier,
+    PerCriterionVerificationReport,
+    VerificationKind,
+)
+from src.network_autopilot.core.network_spec import (
+    NetworkSpec,
+    DeviceSpec,
+    DeviceRole,
+    AcceptanceCriterionSpec,
+    FlowTestSpec,
+    StructuralTestSpec,
+    ConfigTestSpec,
+    RequirementSpec,
+)
+from src.network_autopilot.core.actual_state import ActualNetworkState, DeviceObservation, PortObservation
+from src.network_autopilot.core.observability import Observable
+
+
+def _make_spec() -> NetworkSpec:
+    spec = NetworkSpec(
+        name="per-criterion-test",
+        requirements=[
+            RequirementSpec(id="R-1", statement="PCs can ping each other")
+        ],
+        devices=[
+            DeviceSpec(id="pc1", role=DeviceRole.PC),
+            DeviceSpec(id="pc2", role=DeviceRole.PC),
+        ],
+        acceptance_criteria=[
+            AcceptanceCriterionSpec(
+                id="A-1",
+                requirement_ids=["R-1"],
+                test=FlowTestSpec(
+                    kind="flow",
+                    source="pc1",
+                    destination="pc2",
+                    expect="reachable",
+                ),
+            ),
+            AcceptanceCriterionSpec(
+                id="A-2",
+                requirement_ids=["R-1"],
+                test=StructuralTestSpec(
+                    kind="structural",
+                    check="device_exists",
+                    target="pc1",
+                ),
+            ),
+            AcceptanceCriterionSpec(
+                id="A-3",
+                requirement_ids=[],
+                test=StructuralTestSpec(
+                    kind="structural",
+                    check="link_exists",
+                    target="link1",
+                ),
+            ),
+        ],
+    )
+    return spec
+
+
+class TestPerCriterionVerifier:
+    """Per-criterion verifier tests."""
+
+    def test_verify_generates_criterion_verifications(self):
+        spec = _make_spec()
+        state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00")
+        verifier = PerCriterionVerifier()
+        report = verifier.verify(spec, state, {})
+        assert isinstance(report, PerCriterionVerificationReport)
+        assert len(report.verifications) == 3
+
+    def test_each_verification_is_traceable(self):
+        spec = _make_spec()
+        state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00")
+        verifier = PerCriterionVerifier()
+        report = verifier.verify(spec, state, {})
+        for v in report.verifications:
+            assert v.is_traceable, f"{v.criterion_id} not traceable"
+
+    def test_flow_criterion_unknown_without_result(self):
+        spec = _make_spec()
+        state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00")
+        verifier = PerCriterionVerifier()
+        report = verifier.verify(spec, state, {})
+        # A-1 (flow) has no flow results -> UNKNOWN
+        a1 = next(v for v in report.verifications if v.criterion_id == "A-1")
+        assert a1.verdict.value == "unknown"
+
+    def test_structural_criterion_unknown_without_observation(self):
+        spec = _make_spec()
+        state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00")
+        verifier = PerCriterionVerifier()
+        report = verifier.verify(spec, state, {})
+        # A-2 (device_exists) has no device observed -> UNKNOWN
+        a2 = next(v for v in report.verifications if v.criterion_id == "A-2")
+        assert a2.verdict.value == "unknown"
+
+    def test_summary_counts(self):
+        spec = _make_spec()
+        state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00")
+        verifier = PerCriterionVerifier()
+        report = verifier.verify(spec, state, {})
+        assert isinstance(report.pass_count, int)
+        assert isinstance(report.fail_count, int)
+        assert isinstance(report.unknown_count, int)
+
+    def test_criterion_verification_structure(self):
+        spec = _make_spec()
+        state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00")
+        verifier = PerCriterionVerifier()
+        report = verifier.verify(spec, state, {})
+        for v in report.verifications:
+            d = v.to_dict()
+            assert "criterion_id" in d
+            assert "verification_id" in d
+            assert "verdict" in d
+            assert "evidence" in d
+            assert d["verification_id"].startswith("CV-")
+
+
+class TestCriterionVerification:
+    """CriterionVerification model tests."""
+
+    def test_never_converts_unknown_to_pass(self):
+        """The core invariant: UNKNOWN is never converted to PASS."""
+        from src.network_autopilot.core.requirements import Verdict
+        v = CriterionVerification(
+            criterion_id="A-99",
+            requirement_ids=(),
+            test_kind="unknown",
+            verification_id="CV-A-99",
+            kind=VerificationKind.STRUCTURAL,
+            target="unknown",
+            expected="test",
+            observed=None,
+            verdict=Verdict.UNKNOWN,
+            evidence=("no evidence",),
+            timestamp="2026-01-01T00:00:00",
+        )
+        assert v.verdict.value == "unknown"
+
+    def test_to_dict_roundtrip(self):
+        from src.network_autopilot.core.requirements import Verdict
+        v = CriterionVerification(
+            criterion_id="A-1",
+            requirement_ids=("R-1",),
+            test_kind="flow",
+            verification_id="CV-A-1",
+            kind=VerificationKind.CONNECTIVITY,
+            target="pc1->pc2",
+            expected="reachable",
+            observed="reachable",
+            verdict=Verdict.PASS,
+            evidence=("flow observed",),
+            timestamp="2026-01-01T00:00:00",
+        )
+        d = v.to_dict()
+        assert d["criterion_id"] == "A-1"
+        assert d["verdict"] == "pass"
+        assert len(d["evidence"]) == 1
+
+
+class TestPerCriterionReport:
+    """PerCriterionVerificationReport tests."""
+
+    def test_all_pass_property(self):
+        report = PerCriterionVerificationReport(
+            verifications=(
+                CriterionVerification(
+                    criterion_id="A-1",
+                    requirement_ids=(),
+                    test_kind="flow",
+                    verification_id="CV-A-1",
+                    kind=VerificationKind.CONNECTIVITY,
+                    target="t",
+                    expected="reachable",
+                    observed="reachable",
+                    verdict="pass",
+                    evidence=("ok",),
+                    timestamp="2026-01-01T00:00:00",
+                ),
+            ),
+            summary={"pass": 1, "fail": 0, "unknown": 0},
+            all_traceable=True,
+            unknown_count=0,
+            fail_count=0,
+            pass_count=1,
+        )
+        assert report.all_pass is True
+
+    def test_all_pass_false_with_unknown(self):
+        from src.network_autopilot.core.requirements import Verdict
+        report = PerCriterionVerificationReport(
+            verifications=(
+                CriterionVerification(
+                    criterion_id="A-1",
+                    requirement_ids=(),
+                    test_kind="flow",
+                    verification_id="CV-A-1",
+                    kind=VerificationKind.CONNECTIVITY,
+                    target="t",
+                    expected="reachable",
+                    observed=None,
+                    verdict=Verdict.UNKNOWN,
+                    evidence=("no data",),
+                    timestamp="2026-01-01T00:00:00",
+                ),
+            ),
+            summary={"pass": 0, "fail": 0, "unknown": 1},
+            all_traceable=True,
+            unknown_count=1,
+            fail_count=0,
+            pass_count=0,
+        )
+        assert report.all_pass is False
