@@ -1,0 +1,106 @@
+{
+  "spec_version": "1",
+  "name": "three-floor-office",
+  "description": "3-floor office network: one user VLAN per floor, a server VLAN, router-on-a-stick inter-VLAN routing and DHCP for user devices.",
+  "provenance": {
+    "author": "user",
+    "generator": "network_autopilot",
+    "source_prompt": "3-floor office network: analyze requirements, design topology, size VLANs/subnets, choose routing, validate device/interface compatibility, deploy to Packet Tracer, configure, test all inter-VLAN and routed paths, verify packet flow, diagnose and repair failures, deliver final .pkt + configuration + evidence report.",
+    "notes": "Golden Phase-2 demo scenario. Hand-authored typed spec: every acceptance criterion traces to a requirement, negative flows included."
+  },
+  "requirements": [
+    { "id": "R-001", "statement": "Every user PC must reach Server1.", "kind": "connectivity" },
+    { "id": "R-002", "statement": "User PCs on different floors must communicate (inter-VLAN routing).", "kind": "connectivity" },
+    { "id": "R-003", "statement": "Each floor must be its own broadcast domain (one VLAN per floor).", "kind": "isolation" },
+    { "id": "R-004", "statement": "User PCs must not reach Server1 over telnet (TCP/23).", "kind": "isolation" },
+    { "id": "R-005", "statement": "User PCs receive their addressing via DHCP.", "kind": "addressing" }
+  ],
+  "acceptance_criteria": [
+    { "id": "A-001", "requirement_ids": ["R-001"], "title": "Floor-1 PC reaches Server1", "test": { "kind": "flow", "source": "pc-f1-a", "destination": "srv-1", "expect": "reachable", "transport": "icmp" } },
+    { "id": "A-002", "requirement_ids": ["R-001"], "title": "Floor-2 PC reaches Server1", "test": { "kind": "flow", "source": "pc-f2-a", "destination": "srv-1", "expect": "reachable", "transport": "icmp" } },
+    { "id": "A-003", "requirement_ids": ["R-001"], "title": "Floor-3 PC reaches Server1", "test": { "kind": "flow", "source": "pc-f3-a", "destination": "srv-1", "expect": "reachable", "transport": "icmp" } },
+    { "id": "A-004", "requirement_ids": ["R-002"], "title": "Floor-1 PC reaches Floor-3 PC", "test": { "kind": "flow", "source": "pc-f1-a", "destination": "pc-f3-a", "expect": "reachable", "transport": "icmp" } },
+    { "id": "A-005", "requirement_ids": ["R-003"], "title": "Floor-1 VLAN defined", "test": { "kind": "structural", "check": "vlan_defined", "target": "10" } },
+    { "id": "A-006", "requirement_ids": ["R-003"], "title": "Router floor-1 trunk configured", "test": { "kind": "structural", "check": "trunk_configured", "target": "r1", "detail": "GigabitEthernet0/0" } },
+    { "id": "A-007", "requirement_ids": ["R-004"], "title": "Telnet to Server1 is blocked", "test": { "kind": "flow", "source": "pc-f1-a", "destination": "srv-1", "expect": "blocked", "transport": "tcp", "port": 23 } },
+    { "id": "A-008", "requirement_ids": ["R-005"], "title": "Floor-1 PC obtained addressing", "test": { "kind": "structural", "check": "ip_assigned", "target": "pc-f1-a", "detail": "FastEthernet0" } }
+  ],
+  "devices": [
+    { "id": "r1", "role": "router", "model_hint": "2911", "description": "Core router, router-on-a-stick" },
+    { "id": "sw-f1", "role": "switch", "model_hint": "2960-24TT", "floor": "1" },
+    { "id": "sw-f2", "role": "switch", "model_hint": "2960-24TT", "floor": "2" },
+    { "id": "sw-f3", "role": "switch", "model_hint": "2960-24TT", "floor": "3" },
+    { "id": "pc-f1-a", "role": "pc", "floor": "1" },
+    { "id": "pc-f1-b", "role": "pc", "floor": "1" },
+    { "id": "pc-f2-a", "role": "pc", "floor": "2" },
+    { "id": "pc-f2-b", "role": "pc", "floor": "2" },
+    { "id": "pc-f3-a", "role": "pc", "floor": "3" },
+    { "id": "pc-f3-b", "role": "pc", "floor": "3" },
+    { "id": "srv-1", "role": "server", "floor": "1", "description": "Server1" }
+  ],
+  "links": [
+    { "id": "lnk-r1-swf1", "a": { "device": "r1", "interface_hint": "GigabitEthernet0/0" }, "b": { "device": "sw-f1", "interface_hint": "GigabitEthernet0/1" }, "trunk": true },
+    { "id": "lnk-r1-swf2", "a": { "device": "r1", "interface_hint": "GigabitEthernet0/1" }, "b": { "device": "sw-f2", "interface_hint": "GigabitEthernet0/1" }, "trunk": true },
+    { "id": "lnk-r1-swf3", "a": { "device": "r1", "interface_hint": "GigabitEthernet0/2" }, "b": { "device": "sw-f3", "interface_hint": "GigabitEthernet0/1" }, "trunk": true },
+    { "id": "lnk-swf1-pcf1a", "a": { "device": "sw-f1", "interface_hint": "FastEthernet0/1" }, "b": { "device": "pc-f1-a", "interface_hint": "FastEthernet0" } },
+    { "id": "lnk-swf1-pcf1b", "a": { "device": "sw-f1", "interface_hint": "FastEthernet0/2" }, "b": { "device": "pc-f1-b", "interface_hint": "FastEthernet0" } },
+    { "id": "lnk-swf1-srv1", "a": { "device": "sw-f1", "interface_hint": "FastEthernet0/3" }, "b": { "device": "srv-1", "interface_hint": "FastEthernet0" } },
+    { "id": "lnk-swf2-pcf2a", "a": { "device": "sw-f2", "interface_hint": "FastEthernet0/1" }, "b": { "device": "pc-f2-a", "interface_hint": "FastEthernet0" } },
+    { "id": "lnk-swf2-pcf2b", "a": { "device": "sw-f2", "interface_hint": "FastEthernet0/2" }, "b": { "device": "pc-f2-b", "interface_hint": "FastEthernet0" } },
+    { "id": "lnk-swf3-pcf3a", "a": { "device": "sw-f3", "interface_hint": "FastEthernet0/1" }, "b": { "device": "pc-f3-a", "interface_hint": "FastEthernet0" } },
+    { "id": "lnk-swf3-pcf3b", "a": { "device": "sw-f3", "interface_hint": "FastEthernet0/2" }, "b": { "device": "pc-f3-b", "interface_hint": "FastEthernet0" } }
+  ],
+  "vlans": [
+    { "vlan_id": 10, "name": "FLOOR1", "purpose": "Floor 1 users" },
+    { "vlan_id": 20, "name": "FLOOR2", "purpose": "Floor 2 users" },
+    { "vlan_id": 30, "name": "FLOOR3", "purpose": "Floor 3 users" },
+    { "vlan_id": 100, "name": "SERVERS", "purpose": "Server farm" }
+  ],
+  "subnets": [
+    { "id": "net-floor1", "vlan_id": 10, "purpose": "Floor 1 users", "cidr": "192.168.10.0/24", "gateway": "192.168.10.1", "dhcp": true },
+    { "id": "net-floor2", "vlan_id": 20, "purpose": "Floor 2 users", "cidr": "192.168.20.0/24", "gateway": "192.168.20.1", "dhcp": true },
+    { "id": "net-floor3", "vlan_id": 30, "purpose": "Floor 3 users", "cidr": "192.168.30.0/24", "gateway": "192.168.30.1", "dhcp": true },
+    { "id": "net-servers", "vlan_id": 100, "purpose": "Server farm", "cidr": "192.168.100.0/24", "gateway": "192.168.100.1", "dhcp": false }
+  ],
+  "ip_assignments": [
+    { "device": "r1", "interface_hint": "GigabitEthernet0/0.10", "subnet": "net-floor1", "ip": "192.168.10.1/24" },
+    { "device": "r1", "interface_hint": "GigabitEthernet0/0.100", "subnet": "net-servers", "ip": "192.168.100.1/24" },
+    { "device": "r1", "interface_hint": "GigabitEthernet0/1.20", "subnet": "net-floor2", "ip": "192.168.20.1/24" },
+    { "device": "r1", "interface_hint": "GigabitEthernet0/2.30", "subnet": "net-floor3", "ip": "192.168.30.1/24" },
+    { "device": "srv-1", "interface_hint": "FastEthernet0", "subnet": "net-servers", "ip": "192.168.100.10/24" },
+    { "device": "pc-f1-a", "interface_hint": "FastEthernet0", "subnet": "net-floor1" },
+    { "device": "pc-f1-b", "interface_hint": "FastEthernet0", "subnet": "net-floor1" },
+    { "device": "pc-f2-a", "interface_hint": "FastEthernet0", "subnet": "net-floor2" },
+    { "device": "pc-f2-b", "interface_hint": "FastEthernet0", "subnet": "net-floor2" },
+    { "device": "pc-f3-a", "interface_hint": "FastEthernet0", "subnet": "net-floor3" },
+    { "device": "pc-f3-b", "interface_hint": "FastEthernet0", "subnet": "net-floor3" }
+  ],
+  "routing": { "mode": "connected" },
+  "policies": [
+    {
+      "id": "acl-srv-mgmt",
+      "kind": "acl",
+      "enforcement": "planned",
+      "apply_to": ["r1"],
+      "rules": [
+        { "action": "deny", "protocol": "tcp", "source": "any", "destination": "192.168.100.10", "dest_port": 23, "description": "No telnet to Server1 from user VLANs" },
+        { "action": "permit", "protocol": "ip", "source": "any", "destination": "192.168.100.0/24", "description": "Everything else to the server VLAN is permitted" }
+      ]
+    }
+  ],
+  "assumptions": [
+    "No wireless or telephony is required.",
+    "One server is sufficient for this office."
+  ],
+  "design_decisions": [
+    { "id": "D-001", "statement": "Router-on-a-stick with a 2911: one Gigabit trunk per floor.", "rationale": "A dedicated L3 switch is not justified at this scale; the 2911 provides three routed trunks.", "source": "engine" },
+    { "id": "D-002", "statement": "A /24 per user VLAN.", "rationale": "Per-floor growth headroom without VLSM pressure.", "source": "engine" },
+    { "id": "D-003", "statement": "DHCP on user VLANs; static addressing for Server1 and router subinterfaces.", "source": "engine" },
+    { "id": "D-004", "statement": "Server VLAN rides the floor-1 trunk and Server1 hangs off sw-f1.", "rationale": "Avoids an extra distribution switch in this topology.", "source": "engine" }
+  ],
+  "constraints": [
+    "No wireless.",
+    "Server1 must be reachable from every floor."
+  ],
+  "layout_seed": 42
+}

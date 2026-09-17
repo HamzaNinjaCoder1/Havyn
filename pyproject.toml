@@ -64,13 +64,15 @@ testpaths = ["tests"]
 # inserción implícita de rootdir y garantiza una sola identidad del módulo.
 # Además, un par de tests leen archivos por ruta relativa al repo, así que la
 # suite debe correrse desde la raíz.
-pythonpath = ["."]
+# "src" extra: `network_autopilot` importa `packet_tracer_mcp` top-level, así los
+# tests no dependen de que el paquete esté instalado.
+pythonpath = [".", "src"]
 
 [project.scripts]
 pt-mcp = "packet_tracer_mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/packet_tracer_mcp"]
+packages = ["src/packet_tracer_mcp", "src/network_autopilot"]
 
 [tool.hatch.build.targets.sdist]
 # El sdist por defecto se lleva TODO lo que no esté en .gitignore: los GIFs y

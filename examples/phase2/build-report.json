@@ -1,0 +1,628 @@
+{
+  "build_id": "build-ded1b8959418",
+  "spec_name": "two-routers-lab",
+  "spec_hash": "274b497a2c48bfc37471a4867398205cf636ea831110773aa2195b2fdd0e0ce7",
+  "fingerprint": {
+    "fingerprint": "069bdd3357d9f1094edb66e69ce2dd32",
+    "spec_hash": "274b497a2c48bfc37471a4867398205cf636ea831110773aa2195b2fdd0e0ce7",
+    "components": {
+      "adapter": "adapter-agnostic",
+      "compiler": "2.0.0",
+      "packet_tracer": "unknown"
+    },
+    "layout_seed": "0"
+  },
+  "compile_unsupported": [],
+  "compile_notes": [
+    "Phase-2 compiler: devices, links, static IPv4, static routes, flow verification, save. VLANs/ACL/DHCP/OSPF are refused by name."
+  ],
+  "execution": {
+    "dag_summary": {
+      "pending": 0,
+      "succeeded": 24,
+      "failed": 0,
+      "blocked": 0,
+      "skipped": 0
+    },
+    "flow_results": {
+      "pc1->pc4": {
+        "outcome": "unknown",
+        "detail": "null adapter has no data plane; flow outcomes require the real runtime",
+        "evidence": {}
+      }
+    },
+    "receipts": [],
+    "blocked": [],
+    "failed": [],
+    "reused": [],
+    "state_devices": [
+      "pc1",
+      "pc2",
+      "pc3",
+      "pc4",
+      "r1",
+      "r2",
+      "s1",
+      "s2"
+    ]
+  },
+  "verification": {
+    "tests": [
+      {
+        "test_id": "VT-struct-device-r1",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "r1",
+        "target": "r1",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=2911"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-device-r2",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "r2",
+        "target": "r2",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=2911"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-device-s1",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "s1",
+        "target": "s1",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=2960-24TT"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-device-s2",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "s2",
+        "target": "s2",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=2960-24TT"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-device-pc1",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc1",
+        "target": "pc1",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=PC"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-device-pc2",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc2",
+        "target": "pc2",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=PC"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-device-pc3",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc3",
+        "target": "pc3",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=PC"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-device-pc4",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc4",
+        "target": "pc4",
+        "expected_result": "device present",
+        "observed_result": "present",
+        "evidence": [
+          "device observed in workspace state",
+          "model=PC"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-link-l-r1-r2",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": null,
+        "target": "l-r1-r2",
+        "expected_result": "link present",
+        "observed_result": "r1:GigabitEthernet0/0 <-> r2:GigabitEthernet0/0",
+        "evidence": [
+          "both ports report an attached link"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-link-l-r1-s1",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": null,
+        "target": "l-r1-s1",
+        "expected_result": "link present",
+        "observed_result": "r1:GigabitEthernet0/1 <-> s1:FastEthernet0/1",
+        "evidence": [
+          "both ports report an attached link"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-link-l-r2-s2",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": null,
+        "target": "l-r2-s2",
+        "expected_result": "link present",
+        "observed_result": "r2:GigabitEthernet0/1 <-> s2:FastEthernet0/1",
+        "evidence": [
+          "both ports report an attached link"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-link-l-s1-pc1",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": null,
+        "target": "l-s1-pc1",
+        "expected_result": "link present",
+        "observed_result": "s1:FastEthernet0/2 <-> pc1:FastEthernet0",
+        "evidence": [
+          "both ports report an attached link"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-link-l-s1-pc2",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": null,
+        "target": "l-s1-pc2",
+        "expected_result": "link present",
+        "observed_result": "s1:FastEthernet0/3 <-> pc2:FastEthernet0",
+        "evidence": [
+          "both ports report an attached link"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-link-l-s2-pc3",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": null,
+        "target": "l-s2-pc3",
+        "expected_result": "link present",
+        "observed_result": "s2:FastEthernet0/2 <-> pc3:FastEthernet0",
+        "evidence": [
+          "both ports report an attached link"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-struct-link-l-s2-pc4",
+        "level": "structural",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": null,
+        "target": "l-s2-pc4",
+        "expected_result": "link present",
+        "observed_result": "s2:FastEthernet0/3 <-> pc4:FastEthernet0",
+        "evidence": [
+          "both ports report an attached link"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-r1-GigabitEthernet0/0",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "r1",
+        "target": "r1:GigabitEthernet0/0",
+        "expected_result": "10.0.0.1/255.255.255.252",
+        "observed_result": "10.0.0.1/255.255.255.252",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-r2-GigabitEthernet0/0",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "r2",
+        "target": "r2:GigabitEthernet0/0",
+        "expected_result": "10.0.0.2/255.255.255.252",
+        "observed_result": "10.0.0.2/255.255.255.252",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-r1-GigabitEthernet0/1",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "r1",
+        "target": "r1:GigabitEthernet0/1",
+        "expected_result": "10.0.1.1/255.255.255.0",
+        "observed_result": "10.0.1.1/255.255.255.0",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-r2-GigabitEthernet0/1",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "r2",
+        "target": "r2:GigabitEthernet0/1",
+        "expected_result": "10.0.2.1/255.255.255.0",
+        "observed_result": "10.0.2.1/255.255.255.0",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-pc1-FastEthernet0",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc1",
+        "target": "pc1:FastEthernet0",
+        "expected_result": "10.0.1.2/255.255.255.0",
+        "observed_result": "10.0.1.2/255.255.255.0",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-pc2-FastEthernet0",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc2",
+        "target": "pc2:FastEthernet0",
+        "expected_result": "10.0.1.3/255.255.255.0",
+        "observed_result": "10.0.1.3/255.255.255.0",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-pc3-FastEthernet0",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc3",
+        "target": "pc3:FastEthernet0",
+        "expected_result": "10.0.2.2/255.255.255.0",
+        "observed_result": "10.0.2.2/255.255.255.0",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-addr-pc4-FastEthernet0",
+        "level": "addressing",
+        "source_requirement": null,
+        "source_acceptance_criterion": null,
+        "source": "pc4",
+        "target": "pc4:FastEthernet0",
+        "expected_result": "10.0.2.3/255.255.255.0",
+        "observed_result": "10.0.2.3/255.255.255.0",
+        "evidence": [
+          "ip and mask read back from the device"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "pass"
+      },
+      {
+        "test_id": "VT-flow-A-1",
+        "level": "connectivity",
+        "source_requirement": "R-1",
+        "source_acceptance_criterion": "A-1",
+        "source": "pc1",
+        "target": "pc4",
+        "expected_result": "reachable (icmp)",
+        "observed_result": "unknown",
+        "evidence": [
+          "null adapter has no data plane; flow outcomes require the real runtime"
+        ],
+        "timestamp": "2026-09-17T19:35:30+00:00",
+        "verdict": "unknown"
+      }
+    ],
+    "summary": {
+      "pass": 23,
+      "fail": 0,
+      "unknown": 1,
+      "not_run": 0
+    },
+    "acceptance": {
+      "results": [
+        {
+          "criterion_id": "A-1",
+          "requirement_ids": [
+            "R-1"
+          ],
+          "verdict": "unknown",
+          "evidence": [
+            "observed outcome: unknown (null adapter has no data plane; flow outcomes require the real runtime)"
+          ]
+        }
+      ],
+      "requirement_results": [
+        {
+          "requirement_id": "R-1",
+          "verdict": "unknown"
+        }
+      ],
+      "summary": {
+        "pass": 0,
+        "fail": 0,
+        "unknown": 1,
+        "not_run": 0
+      },
+      "satisfied": null
+    },
+    "observations_complete": true
+  },
+  "diff": {
+    "entries": [
+      {
+        "path": "device(r1)",
+        "kind": "match",
+        "expected": "2911",
+        "actual": "2911",
+        "detail": null
+      },
+      {
+        "path": "device(r2)",
+        "kind": "match",
+        "expected": "2911",
+        "actual": "2911",
+        "detail": null
+      },
+      {
+        "path": "device(s1)",
+        "kind": "match",
+        "expected": "2960-24TT",
+        "actual": "2960-24TT",
+        "detail": null
+      },
+      {
+        "path": "device(s2)",
+        "kind": "match",
+        "expected": "2960-24TT",
+        "actual": "2960-24TT",
+        "detail": null
+      },
+      {
+        "path": "device(pc1)",
+        "kind": "match",
+        "expected": "PC",
+        "actual": "PC",
+        "detail": null
+      },
+      {
+        "path": "device(pc2)",
+        "kind": "match",
+        "expected": "PC",
+        "actual": "PC",
+        "detail": null
+      },
+      {
+        "path": "device(pc3)",
+        "kind": "match",
+        "expected": "PC",
+        "actual": "PC",
+        "detail": null
+      },
+      {
+        "path": "device(pc4)",
+        "kind": "match",
+        "expected": "PC",
+        "actual": "PC",
+        "detail": null
+      },
+      {
+        "path": "device(r1).port(GigabitEthernet0/0).ip",
+        "kind": "match",
+        "expected": "10.0.0.1/255.255.255.252",
+        "actual": "10.0.0.1/255.255.255.252",
+        "detail": null
+      },
+      {
+        "path": "device(r2).port(GigabitEthernet0/0).ip",
+        "kind": "match",
+        "expected": "10.0.0.2/255.255.255.252",
+        "actual": "10.0.0.2/255.255.255.252",
+        "detail": null
+      },
+      {
+        "path": "device(r1).port(GigabitEthernet0/1).ip",
+        "kind": "match",
+        "expected": "10.0.1.1/255.255.255.0",
+        "actual": "10.0.1.1/255.255.255.0",
+        "detail": null
+      },
+      {
+        "path": "device(r2).port(GigabitEthernet0/1).ip",
+        "kind": "match",
+        "expected": "10.0.2.1/255.255.255.0",
+        "actual": "10.0.2.1/255.255.255.0",
+        "detail": null
+      },
+      {
+        "path": "device(pc1).port(FastEthernet0).ip",
+        "kind": "match",
+        "expected": "10.0.1.2/255.255.255.0",
+        "actual": "10.0.1.2/255.255.255.0",
+        "detail": null
+      },
+      {
+        "path": "device(pc2).port(FastEthernet0).ip",
+        "kind": "match",
+        "expected": "10.0.1.3/255.255.255.0",
+        "actual": "10.0.1.3/255.255.255.0",
+        "detail": null
+      },
+      {
+        "path": "device(pc3).port(FastEthernet0).ip",
+        "kind": "match",
+        "expected": "10.0.2.2/255.255.255.0",
+        "actual": "10.0.2.2/255.255.255.0",
+        "detail": null
+      },
+      {
+        "path": "device(pc4).port(FastEthernet0).ip",
+        "kind": "match",
+        "expected": "10.0.2.3/255.255.255.0",
+        "actual": "10.0.2.3/255.255.255.0",
+        "detail": null
+      },
+      {
+        "path": "link(l-r1-r2)",
+        "kind": "match",
+        "expected": "present",
+        "actual": "r1:GigabitEthernet0/0 <-> r2:GigabitEthernet0/0",
+        "detail": null
+      },
+      {
+        "path": "link(l-r1-s1)",
+        "kind": "match",
+        "expected": "present",
+        "actual": "r1:GigabitEthernet0/1 <-> s1:FastEthernet0/1",
+        "detail": null
+      },
+      {
+        "path": "link(l-r2-s2)",
+        "kind": "match",
+        "expected": "present",
+        "actual": "r2:GigabitEthernet0/1 <-> s2:FastEthernet0/1",
+        "detail": null
+      },
+      {
+        "path": "link(l-s1-pc1)",
+        "kind": "match",
+        "expected": "present",
+        "actual": "s1:FastEthernet0/2 <-> pc1:FastEthernet0",
+        "detail": null
+      },
+      {
+        "path": "link(l-s1-pc2)",
+        "kind": "match",
+        "expected": "present",
+        "actual": "s1:FastEthernet0/3 <-> pc2:FastEthernet0",
+        "detail": null
+      },
+      {
+        "path": "link(l-s2-pc3)",
+        "kind": "match",
+        "expected": "present",
+        "actual": "s2:FastEthernet0/2 <-> pc3:FastEthernet0",
+        "detail": null
+      },
+      {
+        "path": "link(l-s2-pc4)",
+        "kind": "match",
+        "expected": "present",
+        "actual": "s2:FastEthernet0/3 <-> pc4:FastEthernet0",
+        "detail": null
+      }
+    ],
+    "drift_count": 0,
+    "unknown_count": 0,
+    "clean": true
+  },
+  "repairs": [],
+  "reused": [],
+  "project_file": "two-routers-lab.pkt",
+  "evidence_path": "D:\\Agent\\MCP-Packet-Tracer\\examples\\phase2\\evidence\\build-ded1b8959418\\evidence.jsonl",
+  "success": false
+}
