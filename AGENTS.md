@@ -31,10 +31,61 @@ comments in Spanish or English following whatever the file already uses.
 | `src/packet_tracer_mcp/adapters/mcp/` | `tool_registry.py` — the 61 MCP tools |
 | `EXTENSION/script-engine/` | Script-engine side of the extension. `main.js` is ours (tracked); the rest are PTBuilder reference copies (gitignored) |
 | `EXTENSION/webview/` | The MCP Control Center webview (`index.html` + `interface.js`) |
+| `src/network_autopilot/` | The autopilot engine: compiler, DAG, executor, verification, repair, IPAM |
 
 `tool_registry.py` is ~3000 lines and every tool is a closure inside
 `register_tools()`. That means helpers defined there **cannot be imported by
 tests**. If you write a helper worth testing, put it in `shared/utils.py`.
+
+### Network Autopilot (Phase 1-3)
+
+The `src/network_autopilot/` package implements the closed-loop engine:
+
+- **Compiler** (`compiler/`): `compile_spec()` produces an `OperationDag`.
+  `net_build()` adds preflight as a HARD gate. `solve_ports()` resolves
+  ports/media/modules. `PortReservationSystem` prevents double-use of ports.
+- **Executor** (`compiler/executor.py`): `DagExecutor` runs the DAG through
+  the `SafetyGate`, checks port reservations before link operations, and
+  produces receipts with read-back postconditions.
+- **Preflight** (`compiler/preflight.py`): `PreflightValidator` checks port
+  compatibility, module availability, and cable rules before execution.
+  If preflight fails, `net_build()` blocks execution immediately.
+- **Per-criterion verification** (`verification/per_criterion.py`): Every
+  acceptance criterion gets its own `CriterionVerification` with its own
+  evidence chain. UNKNOWN is never converted to PASS.
+- **Port/Media/Module solver** (`compiler/port_solver.py`): Resolves every
+  link endpoint to a concrete port + media + module using the upstream
+  catalog. Checks compatibility, module requirements, and cable rules.
+- **Port reservation** (`compiler/port_reservation.py`): Prevents two
+  operations from consuming the same physical/interface resource.
+
+## Phase 3 Implementation
+
+### Port/Media/Module solver (§9)
+- `solve_ports(spec, plan)` returns a `PortPlan` with `PortResolution` for each endpoint
+- Checks port existence, media compatibility, module requirements
+- `infer_cable()` uses `CABLE_RULES` from the upstream catalog
+- `ModuleRequirement` tracks modules that must be installed before links
+
+### Preflight hard gate (§G)
+- `PreflightValidator.run_preflight()` checks all pre-execution conditions
+- `net_build()` calls `compile_spec()` then checks `preflight.can_execute`
+- If preflight fails: returns `(None, error_string)` — never executes
+- `PreflightCheck` has categories: port, module, reservation, link, device
+
+### Per-criterion verification (§H)
+- `PerCriterionVerifier.verify()` generates `CriterionVerification` per criterion
+- Each has its own `verification_id` (CV- prefix), evidence, and verdict
+- Flow criteria: REACHABLE→PASS, PARTIAL→FAIL, BLOCKED→FAIL, UNKNOWN→UNKNOWN
+- Structural/config/VLAN criteria: PASS only if observed, UNKNOWN if not observable
+- `VerificationReport` includes `per_criterion` field
+
+### Safety/idempotency/repair (§I)
+- `SafetyGate` enforces READ_ONLY/DRY_RUN/APPROVAL_REQUIRED/AUTONOMOUS modes
+- `MutationBudget` caps mutations (25 default) and repair attempts (3 default)
+- `RepairEngine` does bounded repair: diagnose → plan → gate → execute → re-verify
+- `DagExecutor` reuses existing devices (idempotent), blocks dependents on failure
+- Receipts require read-back postconditions for confirmation
 
 ## Rules that are not negotiable
 
