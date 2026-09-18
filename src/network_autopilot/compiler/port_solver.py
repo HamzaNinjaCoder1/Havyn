@@ -94,6 +94,7 @@ class PortPlan:
     incompatible: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     used_ports: dict[str, set[str]] = field(default_factory=dict)
+    link_endpoints: dict[str, tuple[str, str, str, str]] = field(default_factory=dict)
 
     def add_resolution(self, key: str, resolution: PortResolution) -> None:
         self.resolutions[key] = resolution
@@ -203,6 +204,17 @@ def solve_ports(
         a_iface = link.a.interface_hint or _default_port_for_role(a_role, used.get(link.a.device, set()))
         b_iface = link.b.interface_hint or _default_port_for_role(b_role, used.get(link.b.device, set()))
 
+        if a_iface in used.get(link.a.device, set()):
+            plan_out.incompatible.append(
+                f"link {link.id} {link.a.device}:{a_iface} â€” already_used: "
+                "interface is reserved by another link"
+            )
+        if b_iface in used.get(link.b.device, set()):
+            plan_out.incompatible.append(
+                f"link {link.id} {link.b.device}:{b_iface} â€” already_used: "
+                "interface is reserved by another link"
+            )
+
         # Check module requirements for serial/wan interfaces
         a_module = _module_for_interface(a_model, a_iface, link.a.device)
         b_module = _module_for_interface(b_model, b_iface, link.b.device)
@@ -255,6 +267,9 @@ def solve_ports(
 
         plan_out.add_resolution(f"{link.a.device}:{a_iface}", a_res)
         plan_out.add_resolution(f"{link.b.device}:{b_iface}", b_res)
+        plan_out.link_endpoints[link.id] = (
+            link.a.device, a_iface, link.b.device, b_iface
+        )
 
         # Track module requirements
         if a_module:

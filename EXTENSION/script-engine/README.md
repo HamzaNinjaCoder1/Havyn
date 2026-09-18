@@ -1,8 +1,7 @@
 # script-engine — Packet Tracer script-engine side of the extension
 
 This folder is the **script-engine half** of the *MCP Control Center* Packet
-Tracer extension (the `.pts` distributed via
-[Releases](https://github.com/Mats2208/MCP-Packet-Tracer/releases/latest)). The
+Tracer extension. The
 other half is the webview UI in [`../webview/`](../webview/).
 
 ## What's tracked here, and why only `main.js`
@@ -14,7 +13,7 @@ other half is the webview UI in [`../webview/`](../webview/).
 
 PTBuilder is credited as the starting point in the
 [main README](../../README.md#credits--acknowledgements) and
-[docs/credits](https://mats2208.github.io/MCP-Packet-Tracer/credits/). Its
+project credits. Its
 repository carries **no license**, so those files are not redistributed from this
 repository. They are `.gitignore`d on purpose (`EXTENSION/script-engine/*.js`
 except `main.js`).

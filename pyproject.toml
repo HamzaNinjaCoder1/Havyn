@@ -53,10 +53,6 @@ test = ["pytest>=8"]
 
 [project.urls]
 Homepage = "https://www.mcpnetwork.top"
-Documentation = "https://mats2208.github.io/MCP-Packet-Tracer/"
-Repository = "https://github.com/Mats2208/MCP-Packet-Tracer"
-Changelog = "https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/CHANGELOG.md"
-Issues = "https://github.com/Mats2208/MCP-Packet-Tracer/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

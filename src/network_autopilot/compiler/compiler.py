@@ -20,6 +20,7 @@ from ..core.network_spec import DeviceRole, NetworkSpec
 from ..ipam.planner import AddressPlan
 from .dag import OperationDag
 from .operations import Check, MutationClassification, NetworkOperation, Risk, key_for
+from .layout import build_layout
 from .port_solver import PortPlan, solve_ports
 from .preflight import PreflightResult, run_preflight
 
@@ -71,13 +72,6 @@ class CompileResult:
         }
 
 
-def _default_port(role: str, used: set[str]) -> str:
-    for candidate in _PORT_TEMPLATES.get(role, _PORT_TEMPLATES["other"]):
-        if candidate not in used:
-            return candidate
-    raise CompileError(f"device ran out of default ports for a link (used: {sorted(used)})")
-
-
 def _model_for(spec: NetworkSpec, device_id: str, role: DeviceRole) -> str:
     device = spec.device_by_id(device_id)
     if device and device.model_hint:
@@ -90,14 +84,6 @@ def _model_for(spec: NetworkSpec, device_id: str, role: DeviceRole) -> str:
         DeviceRole.SERVER: "Server-PT",
         DeviceRole.LAPTOP: "Laptop-PT",
     }.get(role, "Generic")
-
-
-def _position_for(index: int, layout_seed: int) -> tuple[int, int]:
-    """Deterministic canvas grid; the seed offsets both axes (coprime steps,
-    so distinct seeds produce distinct layouts for any fixed index)."""
-    x = 120 + (index % 4) * 140 + (layout_seed % 13) * 15
-    y = 100 + (index // 4) * 120 + ((layout_seed // 13) % 9) * 40
-    return x, y
 
 
 def _check_phase2_support(spec: NetworkSpec) -> None:
@@ -136,14 +122,35 @@ def compile_spec(
 
     dag = OperationDag()
     device_ops: dict[str, str] = {}
-    used_ports: dict[str, set[str]] = {d.id: set() for d in spec.devices}
-    device_index: dict[str, int] = {}
+    port_plan = solve_ports(spec, plan)
+    if port_plan.incompatible:
+        raise CompileError("port preflight failed: " + "; ".join(port_plan.incompatible))
+    layout = build_layout(spec)
+    if not layout.valid:
+        raise CompileError(
+            "layout validation failed: "
+            + "; ".join(issue.detail for issue in layout.issues)
+        )
 
     # -- devices ------------------------------------------------------------
-    for index, device in enumerate(spec.devices):
-        device_index[device.id] = index
+    assignment_ports: dict[tuple[str, int], str] = {}
+    assignment_index: dict[str, int] = {}
+    for assignment in plan.assignments:
+        if assignment.interface_hint:
+            continue
+        candidates = sorted(
+            resolution.interface
+            for resolution in port_plan.resolutions.values()
+            if resolution.device == assignment.device
+        )
+        index = assignment_index.get(assignment.device, 0)
+        if index < len(candidates):
+            assignment_ports[(assignment.device, index)] = candidates[index]
+        assignment_index[assignment.device] = index + 1
+
+    for device in spec.devices:
         model = _model_for(spec, device.id, device.role)
-        x, y = _position_for(index, spec.layout_seed)
+        x, y = layout.positions[device.id]
         op = NetworkOperation(
             operation_id=f"op-create-{device.id}",
             operation_type="create_device",
@@ -169,22 +176,18 @@ def compile_spec(
 
     # -- links --------------------------------------------------------------
     for link in spec.links:
-        a_role = spec.device_by_id(link.a.device).role.value if spec.device_by_id(link.a.device) else "other"
-        b_role = spec.device_by_id(link.b.device).role.value if spec.device_by_id(link.b.device) else "other"
-        a_port = link.a.interface_hint or _default_port(a_role, used_ports[link.a.device])
-        b_port = link.b.interface_hint or _default_port(b_role, used_ports[link.b.device])
-        used_ports[link.a.device].add(a_port)
-        used_ports[link.b.device].add(b_port)
+        a_device, a_port, b_device, b_port = port_plan.link_endpoints[link.id]
+        media = port_plan.resolutions[f"{a_device}:{a_port}"].media
         op = NetworkOperation(
             operation_id=f"op-link-{link.id}",
             operation_type="create_link",
             inputs={
                 "link_id": link.id,
-                "a_device": link.a.device,
+                "a_device": a_device,
                 "a_port": a_port,
-                "b_device": link.b.device,
+                "b_device": b_device,
                 "b_port": b_port,
-                "media": link.media,
+                "media": media,
             },
             dependencies=(device_ops[link.a.device], device_ops[link.b.device]),
             preconditions=(
@@ -213,10 +216,18 @@ def compile_spec(
             continue
         commands: list[str] = [f"hostname {device.id}"]
         interface_commands: list[str] = []
+        device_assignment_index = 0
         for assignment in plan.assignments:
             if assignment.device != device.id or assignment.ip is None:
                 continue
-            iface = assignment.interface_hint or _default_port("router", used_ports[device.id])
+            iface = assignment.interface_hint or assignment_ports.get(
+                (device.id, device_assignment_index)
+            )
+            if not iface:
+                raise CompileError(
+                    f"no resolved interface for address assignment on {device.id}"
+                )
+            device_assignment_index += 1
             mask = plan.allocation_by_subnet(assignment.subnet_id)
             if mask is None:  # pragma: no cover - plan/spec consistency
                 raise CompileError(f"assignment {assignment.device} has no allocation")

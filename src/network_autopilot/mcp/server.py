@@ -51,7 +51,7 @@ def _make_autopilot(
     if adapter == "null":
         return Autopilot(NullAdapter(), gate, evidence), None
     if adapter == "bridge":
-        from ..adapter.upstream.bridge_adapter import BridgeAdapter
+        from ..adapter.packet_tracer.bridge_adapter import BridgeAdapter
 
         bridge = BridgeAdapter(host_bridge=True, evidence=evidence)
         return Autopilot(bridge, gate, evidence), None
@@ -88,7 +88,7 @@ def autopilot_status() -> dict:
         },
     }
     try:
-        from ..adapter.upstream.bridge_adapter import BridgeAdapter
+        from ..adapter.packet_tracer.bridge_adapter import BridgeAdapter
 
         adapter = BridgeAdapter(host_bridge=False)  # pure client: a status tool binds nothing
         probe = adapter.ping(timeout=2.0)
@@ -99,7 +99,7 @@ def autopilot_status() -> dict:
         }
     except Exception as exc:  # status must never crash the session
         info["bridge"] = {
-            "adapter": "upstream-bridge",
+            "adapter": "packet-tracer-bridge",
             "reachable": False,
             "detail": f"unavailable: {exc}",
         }
@@ -237,7 +237,7 @@ def net_observe(names_json: str = "[]", adapter: str = "bridge") -> dict:
     """
     names = json.loads(names_json) if names_json else []
     if adapter == "bridge":
-        from ..adapter.upstream.bridge_adapter import BridgeAdapter
+        from ..adapter.packet_tracer.bridge_adapter import BridgeAdapter
 
         bridge = BridgeAdapter(host_bridge=False)
         probe = bridge.ping(timeout=3.0)

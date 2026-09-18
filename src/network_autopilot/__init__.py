@@ -5,7 +5,7 @@ observed Packet Tracer state and verification evidence, never LLM prose.
 
 Provenance: everything in this package is engineered independently for this
 product; the low-level Packet Tracer transport it optionally rides on lives in
-the upstream `packet_tracer_mcp` package and is reachable only through
+the local Packet Tracer transport package and is reachable only through
 `network_autopilot.adapter` — see PROVENANCE.md and THIRD_PARTY_NOTICES.md.
 """
 

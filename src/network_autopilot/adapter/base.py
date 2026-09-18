@@ -1,10 +1,9 @@
 """PacketTracerAdapter — the only door between the Autopilot engine and Packet Tracer.
 
 Everything above this layer (spec handling, planning, verification, diagnosis,
-repair, evidence) depends on this abstraction, never on the upstream bridge
-implementation or on raw Packet Tracer IPC details. Concrete adapters: the
-deterministic offline `NullAdapter` and the upstream-bridge adapter in
-`adapter/upstream/`.
+repair, evidence) depends on this abstraction, never on raw Packet Tracer IPC
+details. Concrete adapters: the deterministic offline `NullAdapter` and the
+project-owned Packet Tracer adapter in `adapter/packet_tracer/`.
 """
 
 from __future__ import annotations

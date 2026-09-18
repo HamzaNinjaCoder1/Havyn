@@ -1,9 +1,8 @@
 # EXTENSION — MCP Control Center (Packet Tracer `.pts`)
 
-The Packet Tracer extension that pairs with the MCP server. Distributed as a
-compiled `.pts` script module via
-[Releases](https://github.com/Mats2208/MCP-Packet-Tracer/releases/latest) — this
-folder is its source.
+The Packet Tracer extension that pairs with this independent MCP server. This
+folder is its source; package the tracked files with your Packet Tracer Script
+Module tooling.
 
 ```
 EXTENSION/
