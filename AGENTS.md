@@ -96,31 +96,74 @@ The `src/network_autopilot/` package implements the closed-loop engine:
 - `DagExecutor` reuses existing devices (idempotent), blocks dependents on failure
 - Receipts require read-back postconditions for confirmation
 
-## Rules that are not negotiable
+## The 10 rules that do not bend
 
-1. **Never build JavaScript with raw f-strings.** Use `json.dumps` for each
-   field. PT runs it through `new Function()`, so an unescaped device name is
-   arbitrary code execution. `ptbuilder_generator.py` shows the correct pattern.
-2. **Never build a path by concatenation.** Use `safe_name_component()` then
-   `resolve_within()` from `shared/utils.py`.
+These are not style preferences. Each one exists because breaking it produced a
+specific, documented failure. If a change seems to need one of them broken, the
+change is wrong — not the rule.
+
+1. **Never build JavaScript with raw f-strings.** Use `json.dumps` for every
+   interpolated value. PT runs the result through `new Function()`, so one
+   unescaped device name is arbitrary code execution inside the user's PT.
+   `js_commands.py` is the reference pattern: `_q()` each field, then build.
+
+2. **Never build a filesystem path by concatenating user input.** Sanitise the
+   component first, then join. `EvidenceStore` derives its directory from a
+   generated `build_id`; anything that reaches a path from a spec or a device
+   name must be normalised (strip separators, reject `..`) before it is joined
+   to a root.
+
 3. **Never add an unauthenticated bridge endpoint.** Everything except `/ping`
-   requires the token; see `bridge_token.py` for why loopback alone is not a
-   control. (The file-bridge channel needs no token — the mailbox lives under a
-   user-ACL'd `%LOCALAPPDATA%` dir a browser page can't reach.)
-4. **Don't validate in the models.** Validation belongs in `domain/rules/` and
-   returns `ValidationResult`, so the use case decides whether to proceed.
-5. **A bug fix needs a test that fails without it.** Write the failing test
-   first; if it passes before your change, it isn't testing the bug.
-6. **Never guess a PT API signature.** If a method isn't already used somewhere
-   in this repo, confirm it against Cisco's reference before writing code on top
-   of it — PT answers a wrong call with a bare `Invalid arguments for IPC call
-   "X"`, so a guess fails without telling you why.
+   requires the per-machine token; see `pt/token.py` for why loopback alone is
+   not an access control. The file-mailbox channel needs no token because the
+   mailbox lives under a user-ACL'd `%LOCALAPPDATA%` directory a browser page
+   cannot write to — that is the whole argument, so do not move it somewhere a
+   page can reach.
+
+4. **Never validate inside a model.** A Pydantic model describes shape, not
+   policy. Semantic checks belong in `compiler/spec_lint.py` or
+   `compiler/preflight.py` and return a structured result, so the caller decides
+   whether to proceed. A model that raises on a policy question makes the policy
+   unoverridable and untestable.
+
+5. **A bug fix needs a test that fails without it.** Write the test first. If it
+   passes on the unfixed code, it is not testing the bug — prove it by mutating
+   the fix back out and watching it go red.
+
+6. **Never guess a PT API or CLI signature.** If a method is not already used
+   somewhere in this repo, confirm it against Cisco's reference *or* a live
+   probe before building on it. PT answers a wrong call with a bare
+   `Invalid arguments for IPC call "X"` and no hint of what was expected.
+
+7. **UNKNOWN is never PASS.** Not on a config criterion, not on a flow, not in a
+   report. If a property could not be observed, the verdict is `UNKNOWN` with
+   the reason. This is the product's core claim: "configured" does not mean
+   "verified", and a green build that lied about an unobservable property is
+   worse than a build that reports the gap.
+
+8. **A receipt without read-back is not a confirmation.** `OperationReceipt`
+   distinguishes executed from confirmed for exactly this reason. PT reports
+   `true` for a script it aborted on, so acceptance of a push proves nothing —
+   push, then read the state back, and fail the operation if it is not there.
+
+9. **Refuse by name, never half-configure.** If PT cannot do what the spec asks
+   (a static route on a Linksys, an address-scoped ASA rule, a feature with no
+   API), the compiler raises with the reason *before* any mutation. A build that
+   quietly skips half a requirement is the failure mode this project exists to
+   prevent; a refusal is a feature, not a gap.
+
+10. **Never claim more verification than you ran.** Live tests skip
+    themselves when PT is unreachable, and anything touching PT's webview (CORS,
+    the `this-sm:` origin, whether the Script Engine can reach an API) cannot be
+    verified from a test at all. Say "this half is unverified and here is why".
+    An offline green suite proves internal consistency, not live correctness.
 
 ## Working with the bridge
 
 The bridge only really works with Packet Tracer open, so most verification is
-offline. `tests/test_bridge_security.py` drives a real `PTCommandBridge` on an
-ephemeral port — follow that pattern rather than mocking HTTP.
+offline. `tests/test_bridge_results.py` and `tests/test_bridge_token.py` drive
+the real bridge on an ephemeral port — follow that pattern rather than mocking
+HTTP.
 
 Set `PT_MCP_BRIDGE_TOKEN` to avoid touching the user's real token file.
 

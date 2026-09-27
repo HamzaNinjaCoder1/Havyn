@@ -60,3 +60,6 @@ pt_union.txt
 ISSUES.md
 QA_REPORT.md
 *.docx
+# The blueprint is committed at docs/roadmap/havyn-production-blueprint.html;
+# this is the untracked working copy of the same file.
+Havyn_Production_Tracking.html

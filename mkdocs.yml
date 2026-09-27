@@ -85,7 +85,9 @@ nav:
       - Routing Protocols: routing.md
       - Switching, IPv6 & Wireless: advanced-features.md
       - Topology Templates: templates.md
-  - Internals:
-      - Architecture: architecture.md
-      - Testing: testing.md
-  - Credits & Attribution: credits.md
+    - Internals:
+        - Architecture: architecture.md
+        - Testing: testing.md
+    - Roadmap:
+        - Blueprint & plan: roadmap/README.md
+    - Credits & Attribution: credits.md
