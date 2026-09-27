@@ -111,11 +111,62 @@ class PacketTracerAdapter(ABC):
     ) -> OperationReceipt: ...
 
     @abstractmethod
+    def delete_device(
+        self, name: str, operation_id: str | None = None
+    ) -> OperationReceipt:
+        """Remove a device from the workspace.
+
+        Idempotent: a device that is already absent is a SUCCESS+confirmed
+        receipt, not an error. Used by rollback, test cleanup and the delete
+        controller — never deletes a device this run did not own.
+        """
+
+    @abstractmethod
+    def delete_link(
+        self,
+        a_device: str,
+        a_port: str,
+        b_device: str,
+        b_port: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Remove the physical link on endpoint A. Idempotent (absent = OK)."""
+
+    @abstractmethod
+    def install_module(
+        self,
+        device: str,
+        slot: str,
+        module: str,
+        expected_port: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Install an expansion module into a device slot.
+
+        Idempotent: a module already providing `expected_port` is a CONFIRMED
+        success without a second install. The receipt is confirmed only when
+        the port the module is supposed to expose is actually visible on the
+        device — never on `addModule` answering true alone.
+        """
+
+    @abstractmethod
     def configure_ios(
         self, device: str, commands: list[str], operation_id: str | None = None
     ) -> OperationReceipt:
         """Push an IOS CLI block. Acceptance by IOS may be unobservable — the
         receipt must say so instead of implying the config took effect."""
+
+    @abstractmethod
+    def configure_gateway_lan(
+        self, device: str, ip: str, mask: str, operation_id: str | None = None
+    ) -> OperationReceipt:
+        """Set a Linksys-family gateway's LAN address on its Vlan1 SVI (#10).
+
+        PT's Linksys-WRT300N answers `configureIosDevice` with `true` and
+        applies nothing (live probe); the port API (`setIpSubnetMask`) is the
+        only push that moves the address. The receipt is confirmed only when
+        the read-back shows the address — a push that does not land is FAILED.
+        """
 
     @abstractmethod
     def configure_host(
@@ -139,9 +190,23 @@ class PacketTracerAdapter(ABC):
     # -- verification -------------------------------------------------------
 
     @abstractmethod
-    def run_flow_test(self, source: str, destination: str) -> FlowResult:
-        """One traffic flow, actually executed and observed. NEVER fabricated:
-        an adapter that cannot run flows returns outcome UNKNOWN."""
+    def run_flow_test(
+        self,
+        source: str,
+        destination: str,
+        *,
+        transport: str = "icmp",
+        port: int | None = None,
+        destination_ip: str | None = None,
+    ) -> FlowResult:
+        """One traffic flow, actually executed and observed. NEVER fabricated.
+
+        `transport`/`port` are the criterion's declared protocol (tcp/udp/icmp
+        and the target port). An adapter that can only drive ICMP must return
+        UNKNOWN for any other transport — proving a TCP:443 criterion with an
+        echo reply is exactly the false positive this contract exists to
+        prevent (P1-5).
+        """
 
     # -- convenience --------------------------------------------------------
 

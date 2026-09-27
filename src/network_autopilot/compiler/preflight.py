@@ -112,7 +112,7 @@ class PreflightValidator:
 
             # Module requirements
             for mod_req in port_plan.module_requirements:
-                from ...packet_tracer_mcp.infrastructure.catalog.modules import resolve_module
+                from ..pt.catalog import resolve_module
                 if not resolve_module(mod_req.module_name):
                     checks.append(PreflightCheck(
                         name=f"module_{mod_req.device}_{mod_req.module_name}",

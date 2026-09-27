@@ -38,10 +38,31 @@ class BudgetExceeded(RuntimeError):
 
 @dataclass
 class MutationBudget:
+    """How many mutations a run may make.
+
+    The default is deliberately generous-but-finite; callers that know the DAG
+    size must use `for_operations()` so the budget scales with the work and is
+    never an arbitrary ceiling that aborts a legitimate build.
+    """
     max_mutations: int = 25
     max_repair_attempts: int = 3
     max_repair_mutations: int = 5
     consumed: int = 0
+
+    # A global ceiling so a runaway or adversarial spec cannot mutate forever,
+    # no matter how big the DAG is. Well above any realistic lab.
+    GLOBAL_CEILING: int = 4000
+
+    @classmethod
+    def for_operations(cls, op_count: int, *, base: int = 40, headroom: int = 3) -> "MutationBudget":
+        """Budget sized by the actual compiled plan.
+
+        base + (ops * headroom): enough for the build itself, for bounded
+        repair, and for re-execution after a re-verify, but still capped by
+        GLOBAL_CEILING. Replaces the hardcoded 25 that aborted 12-device labs.
+        """
+        needed = base + max(0, op_count) * headroom
+        return cls(max_mutations=min(needed, cls.GLOBAL_CEILING))
 
     def can_consume(self, count: int = 1) -> bool:
         return self.consumed + count <= self.max_mutations
@@ -53,6 +74,15 @@ class MutationBudget:
                 f"{count} more requested"
             )
         self.consumed += count
+
+    def refund(self, count: int = 1) -> None:
+        """Return budget for an operation that did not mutate after all.
+
+        Authorization is optimistic: budget is reserved before execution, so a
+        rejected or skipped op must give it back or a large build slowly
+        starves on reuse.
+        """
+        self.consumed = max(0, self.consumed - max(0, count))
 
 
 @dataclass(frozen=True)
@@ -117,14 +147,25 @@ class SafetyGate:
         self.approver = approver
 
     def authorize(self, operations: Iterable[dict]) -> ExecutionPermission:
-        """Decide what may happen to `operations` (list of requested-op dicts)."""
+        """Decide what may happen to `operations` (list of requested-op dicts).
+
+        A denial is a DECISION, never an exception: raising here would make
+        the executor's blanket `except` record the operation as FAILED and
+        consume budget for a mutation that never happened (P1-10). Denials
+        return execute=False so the DAG records the op as BLOCKED and the
+        caller can refund any reserved budget.
+        """
         ops = [dict(op) for op in operations]
         if not ops:
             return ExecutionPermission(execute=True)
 
         if self.mode is SafetyMode.READ_ONLY:
-            raise SafetyRejection(
-                f"READ_ONLY mode: {len(ops)} mutation(s) rejected before execution"
+            return ExecutionPermission(
+                execute=False,
+                planned_receipts=[
+                    self._denied_receipt(op, "READ_ONLY mode rejects every mutation")
+                    for op in ops
+                ],
             )
 
         if self.mode is SafetyMode.DRY_RUN:
@@ -150,12 +191,28 @@ class SafetyGate:
 
         if self.mode is SafetyMode.APPROVAL_REQUIRED:
             if self.approver is None or not self.approver(preview):
-                raise SafetyRejection(
-                    "APPROVAL_REQUIRED mode: no approver accepted the mutation preview"
+                return ExecutionPermission(
+                    execute=False,
+                    planned_receipts=[
+                        self._denied_receipt(
+                            op, "APPROVAL_REQUIRED mode: no approver accepted the preview"
+                        )
+                        for op in ops
+                    ],
                 )
 
         self.budget.consume(len(ops))
         return ExecutionPermission(execute=True)
+
+    @staticmethod
+    def _denied_receipt(op: dict, reason: str) -> OperationReceipt:
+        return OperationReceipt(
+            operation_id=op.get("operation_id", "denied"),
+            operation=str(op.get("operation", "unknown")),
+            requested=op,
+            result=OperationResult.NOT_EXECUTED,
+            evidence={"decision": "denied by safety gate", "reason": reason},
+        )
 
     @staticmethod
     def _planned_receipt(op: dict) -> OperationReceipt:

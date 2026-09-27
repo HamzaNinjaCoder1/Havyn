@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from src.network_autopilot.adapter.upstream import js_commands as js
+from src.network_autopilot.adapter.packet_tracer import js_commands as js
 
 
 def test_statement_expression_is_normalized_in_wrapper():
@@ -46,3 +46,13 @@ def test_cable_name_for_maps_aliases_and_rejects_unknown():
         assert "unobtanium" in str(exc)
     else:
         raise AssertionError("unknown media must raise ValueError")
+
+
+def test_js_set_port_ip_quotes_every_interpolation():
+    """#10: the gateway push interpolates device/port/ip into JS that PT runs
+    through `new Function()` — every value must be JSON-quoted, never spliced."""
+    expr = js.js_set_port_ip('wr";evil()', "Vlan1", "10.40.0.1", "255.255.255.0")
+    assert '"wr\\";evil()"' in expr, expr
+    assert "setIpSubnetMask" in expr
+    assert expr.strip().startswith("(function(){")
+    assert expr.strip().endswith("})();")

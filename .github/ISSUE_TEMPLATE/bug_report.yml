@@ -32,7 +32,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: "`pip show packet-tracer-mcp`, and the extension version if relevant"
+      description: "`pip show havyn`, and the extension version if relevant"
       placeholder: "0.6.0, extension V5.0"
     validations:
       required: true

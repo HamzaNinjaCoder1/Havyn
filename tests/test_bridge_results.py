@@ -18,7 +18,7 @@ import urllib.request
 
 import pytest
 
-from src.packet_tracer_mcp.infrastructure.execution.live_bridge import (
+from src.network_autopilot.pt.http_bridge import (
     PTCommandBridge,
     report_result_js,
 )
@@ -142,7 +142,7 @@ def test_slow_operation_is_not_cut_off_at_nine_seconds(bridge):
 
 def test_wait_is_capped_so_a_client_cannot_pin_a_thread(bridge):
     """Un `wait` absurdo no puede atar un thread del ThreadingHTTPServer."""
-    from src.packet_tracer_mcp.infrastructure.execution.live_bridge import (
+    from src.network_autopilot.pt.http_bridge import (
         MAX_RESULT_WAIT_SECONDS,
     )
 
@@ -172,7 +172,7 @@ def test_unclaimed_results_are_purged(bridge):
 
 def test_result_table_is_bounded(bridge):
     """Aunque el TTL no haya vencido, la tabla tiene techo duro."""
-    from src.packet_tracer_mcp.infrastructure.execution.live_bridge import (
+    from src.network_autopilot.pt.http_bridge import (
         MAX_RESULT_ITEMS,
     )
 

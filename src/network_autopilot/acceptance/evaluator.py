@@ -22,6 +22,7 @@ from ..core.network_spec import (
     FlowTestSpec,
     NetworkSpec,
     StructuralTestSpec,
+    WirelessTestSpec,
 )
 from ..core.requirements import (
     AcceptanceReport,
@@ -94,6 +95,13 @@ def evaluate_criterion(
         verdict = _evaluate_structural(test, state, evidence, observations_complete)
     elif isinstance(test, ConfigTestSpec):
         verdict = _evaluate_config(test, state, evidence, observations_complete)
+    elif isinstance(test, WirelessTestSpec):
+        # #22: this dispatcher used to have no wireless arm, so a wireless
+        # criterion fell into `else` and reported UNKNOWN however clear the
+        # antenna link was. `evaluate_wireless` is the one implementation of
+        # the association verdict, shared with the per-criterion verifier.
+        verdict, _observed, wireless_evidence = evaluate_wireless(test, state)
+        evidence.extend(wireless_evidence)
     else:  # pragma: no cover - discriminated union prevents this
         verdict = Verdict.UNKNOWN
         evidence.append("unknown test kind")
@@ -228,6 +236,53 @@ def _evaluate_config(
         return Verdict.FAIL
     evidence.append(f"{test.field} not determinable: {observed.detail or observed.status.value}")
     return Verdict.UNKNOWN
+
+
+def evaluate_wireless(
+    test: WirelessTestSpec, state: ActualNetworkState
+) -> tuple[Verdict, str | None, tuple[str, ...]]:
+    """Verdict, observed text and evidence for a wireless association criterion.
+
+    Association is real only when PT shows an `Antenna` link on the client's
+    radio to the named access point: a Wireless0 that merely exists, or an
+    access point that merely exists, is not an association. One function, so
+    `evaluate_spec` and `PerCriterionVerifier.verify` cannot disagree about
+    the same observation (#22).
+    """
+    evidence: list[str] = []
+    client = state.devices.get(test.client)
+    if client is None:
+        evidence.append("client absent from the observed workspace")
+        return Verdict.FAIL, "client not observed", tuple(evidence)
+    port = client.ports.get(test.interface)
+    if port is None:
+        evidence.append(
+            f"{test.client} has no {test.interface} interface; a host "
+            "without a wireless NIC cannot associate"
+        )
+        return Verdict.FAIL, f"{test.interface} not present", tuple(evidence)
+    link_class = port.link_class
+    peers = port.peers.value if port.peers.is_known else None
+    if not link_class.is_known:
+        evidence.append("PT did not report the link type on the radio")
+        return Verdict.UNKNOWN, None, tuple(evidence)
+    associated = link_class.value == "Antenna" and bool(peers)
+    peer_names = [str(p) for p in (peers or [])]
+    matches = associated and test.access_point in peer_names
+    observed = (
+        f"{test.interface} linked to {peer_names[0]} via {link_class.value}"
+        if associated
+        else f"{test.interface} has no antenna link"
+    )
+    evidence.extend(
+        [
+            f"antenna link class={link_class.value}",
+            f"peers={peer_names}",
+            f"port state={port.state.value if port.state.is_known else 'unknown'}",
+        ]
+    )
+    passed = matches if test.expect == "associated" else not matches
+    return Verdict.PASS if passed else Verdict.FAIL, observed, tuple(evidence)
 
 
 def _find_port(

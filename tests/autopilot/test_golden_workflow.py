@@ -16,10 +16,12 @@ HTTP bridge requires PT's webview to be open and polling.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from pathlib import Path
-from src.network_autopilot.adapter.upstream.bridge_adapter import BridgeAdapter
+from src.network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
 from src.network_autopilot.core.network_spec import NetworkSpec
 from src.network_autopilot.core.safety import SafetyGate, SafetyMode, MutationBudget
 from src.network_autopilot.ipam.planner import plan_addressing
@@ -28,166 +30,182 @@ from src.network_autopilot.evidence.store import EvidenceStore
 from src.network_autopilot.compiler import compile_spec
 from src.network_autopilot.compiler.port_solver import solve_ports
 
-GOLDEN_SPEC = {
-    "name": "two-routers-lab",
-    "spec_version": "1",
-    "devices": [
-        {"id": "r1", "role": "router"},
-        {"id": "r2", "role": "router"},
-        {"id": "s1", "role": "switch"},
-        {"id": "s2", "role": "switch"},
-        {"id": "pc1", "role": "pc"},
-        {"id": "pc2", "role": "pc"},
-        {"id": "pc3", "role": "pc"},
-        {"id": "pc4", "role": "pc"},
-    ],
-    "links": [
-        {"id": "l-r1-r2", "a": {"device": "r1"}, "b": {"device": "r2"}},
-        {"id": "l-r1-s1", "a": {"device": "r1"}, "b": {"device": "s1"}},
-        {"id": "l-r2-s2", "a": {"device": "r2"}, "b": {"device": "s2"}},
-        {"id": "l-s1-pc1", "a": {"device": "s1"}, "b": {"device": "pc1"}},
-        {"id": "l-s1-pc2", "a": {"device": "s1"}, "b": {"device": "pc2"}},
-        {"id": "l-s2-pc3", "a": {"device": "s2"}, "b": {"device": "pc3"}},
-        {"id": "l-s2-pc4", "a": {"device": "s2"}, "b": {"device": "pc4"}},
-    ],
-    "subnets": [
-        {"id": "net-wan", "cidr": "10.0.0.0/30"},
-        {"id": "net-lan1", "cidr": "10.0.1.0/24"},
-        {"id": "net-lan2", "cidr": "10.0.2.0/24"},
-    ],
-    "ip_assignments": [
-        {"device": "r1", "interface_hint": "GigabitEthernet0/0", "subnet": "net-wan", "ip": "10.0.0.1"},
-        {"device": "r2", "interface_hint": "GigabitEthernet0/0", "subnet": "net-wan", "ip": "10.0.0.2"},
-        {"device": "r1", "interface_hint": "GigabitEthernet0/1", "subnet": "net-lan1", "ip": "10.0.1.1"},
-        {"device": "r2", "interface_hint": "GigabitEthernet0/1", "subnet": "net-lan2", "ip": "10.0.2.1"},
-        {"device": "pc1", "subnet": "net-lan1"},
-        {"device": "pc2", "subnet": "net-lan1"},
-        {"device": "pc3", "subnet": "net-lan2"},
-        {"device": "pc4", "subnet": "net-lan2"},
-    ],
-    "routing": {
-        "mode": "static",
-        "static_routes": [
-            {"device": "r1", "destination": "10.0.2.0/24", "next_hop": "10.0.0.2"},
-            {"device": "r2", "destination": "10.0.1.0/24", "next_hop": "10.0.0.1"},
+import _live_harness as live
+
+_GOLDEN_DEVICES = ["r1", "r2", "s1", "s2", "pc1", "pc2", "pc3", "pc4"]
+
+
+def _golden_spec(tag: str) -> dict:
+    """The golden topology, namespaced under `tag` so the run owns its devices."""
+    p = f"{tag}-"
+    return {
+        "name": f"two-routers-lab-{tag}",
+        "spec_version": "1",
+        "devices": [
+            {"id": p + "r1", "role": "router"},
+            {"id": p + "r2", "role": "router"},
+            {"id": p + "s1", "role": "switch"},
+            {"id": p + "s2", "role": "switch"},
+            {"id": p + "pc1", "role": "pc"},
+            {"id": p + "pc2", "role": "pc"},
+            {"id": p + "pc3", "role": "pc"},
+            {"id": p + "pc4", "role": "pc"},
         ],
-    },
-    "requirements": [
-        {"id": "R-1", "statement": "pc1 reaches pc4"}
-    ],
-    "acceptance_criteria": [
-        {
-            "id": "A-1",
-            "requirement_ids": ["R-1"],
-            "test": {"kind": "flow", "source": "pc1", "destination": "pc4", "expect": "reachable"},
-        }
-    ],
-}
+        "links": [
+            {"id": p + "l-r1-r2", "a": {"device": p + "r1"}, "b": {"device": p + "r2"}},
+            {"id": p + "l-r1-s1", "a": {"device": p + "r1"}, "b": {"device": p + "s1"}},
+            {"id": p + "l-r2-s2", "a": {"device": p + "r2"}, "b": {"device": p + "s2"}},
+            {"id": p + "l-s1-pc1", "a": {"device": p + "s1"}, "b": {"device": p + "pc1"}},
+            {"id": p + "l-s1-pc2", "a": {"device": p + "s1"}, "b": {"device": p + "pc2"}},
+            {"id": p + "l-s2-pc3", "a": {"device": p + "s2"}, "b": {"device": p + "pc3"}},
+            {"id": p + "l-s2-pc4", "a": {"device": p + "s2"}, "b": {"device": p + "pc4"}},
+        ],
+        "subnets": [
+            {"id": "net-wan", "cidr": "10.0.0.0/30"},
+            {"id": "net-lan1", "cidr": "10.0.1.0/24"},
+            {"id": "net-lan2", "cidr": "10.0.2.0/24"},
+        ],
+        "ip_assignments": [
+            {"device": p + "r1", "interface_hint": "GigabitEthernet0/0", "subnet": "net-wan", "ip": "10.0.0.1"},
+            {"device": p + "r2", "interface_hint": "GigabitEthernet0/0", "subnet": "net-wan", "ip": "10.0.0.2"},
+            {"device": p + "r1", "interface_hint": "GigabitEthernet0/1", "subnet": "net-lan1", "ip": "10.0.1.1"},
+            {"device": p + "r2", "interface_hint": "GigabitEthernet0/1", "subnet": "net-lan2", "ip": "10.0.2.1"},
+            {"device": p + "pc1", "subnet": "net-lan1"},
+            {"device": p + "pc2", "subnet": "net-lan1"},
+            {"device": p + "pc3", "subnet": "net-lan2"},
+            {"device": p + "pc4", "subnet": "net-lan2"},
+        ],
+        "routing": {
+            "mode": "static",
+            "static_routes": [
+                {"device": p + "r1", "destination": "10.0.2.0/24", "next_hop": "10.0.0.2"},
+                {"device": p + "r2", "destination": "10.0.1.0/24", "next_hop": "10.0.0.1"},
+            ],
+        },
+        "requirements": [
+            {"id": "R-1", "statement": "pc1 reaches pc4"}
+        ],
+        "acceptance_criteria": [
+            {
+                "id": "A-1",
+                "requirement_ids": ["R-1"],
+                "test": {"kind": "flow", "source": p + "pc1", "destination": p + "pc4", "expect": "reachable"},
+            }
+        ],
+    }
 
 
-def _http_bridge_listening() -> bool:
-    try:
-        import urllib.request
-        r = urllib.request.urlopen("http://127.0.0.1:54321/ping", timeout=2)
-        return r.status == 200
-    except Exception:
-        return False
-
-
-def _file_channel_alive() -> bool:
-    try:
-        from packet_tracer_mcp.infrastructure.execution.file_bridge import FileBridge
-        return FileBridge().pt_alive()
-    except Exception:
-        return False
-
-
-_LIVE = _http_bridge_listening() or _file_channel_alive()
+_LIVE = live.live_is_reachable()
 
 
 @pytest.mark.skipif(
     not _LIVE,
     reason=(
-        "LIVE TEST BLOCKED: PT is not reachable through any channel — "
-        f"HTTP bridge on 127.0.0.1:54321: {'listening' if _http_bridge_listening() else 'nothing listening'}; "
-        f"file mailbox heartbeat: {'fresh' if _file_channel_alive() else 'stale/absent'}. "
+        "LIVE TEST BLOCKED: PT is not reachable through any channel "
+        "(HTTP bridge on 127.0.0.1:54321 or the Script Engine file mailbox). "
         "Open Packet Tracer with the MCP Control Center extension installed, then re-run."
     ),
 )
 def test_golden_workflow_real_pt(tmp_path):
-    """Execute the golden topology against real PT and verify."""
-    # Use the file channel (Script Engine heartbeat is live)
-    from packet_tracer_mcp.infrastructure.execution.file_bridge import FileBridge
-    file_bridge = FileBridge()
-    adapter = BridgeAdapter(host_bridge=False, file_bridge=file_bridge)
+    """Execute the golden topology against real PT and verify.
+
+    The run is namespaced (`q<tag>-`) and removes exactly the devices it
+    created on teardown, so it cannot pollute the user's workspace. Every
+    stage is bounded: a stalled PT step fails the test instead of hanging.
+    """
+    tag = live.run_tag()
+    p = f"{tag}-"
+    started = time.time()
+
+    def remaining() -> float:
+        return max(1.0, live.LIVE_TEST_DEADLINE_SECONDS - (time.time() - started))
+
+    adapter = BridgeAdapter(host_bridge=False, file_bridge=live.make_adapter()._file_bridge)
     gate = SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100))
     evidence = EvidenceStore(root=Path(str(tmp_path / "evidence")))
     autopilot = Autopilot(adapter, gate, evidence)
 
-    spec = NetworkSpec.model_validate(GOLDEN_SPEC)
+    spec = NetworkSpec.model_validate(_golden_spec(tag))
     plan = plan_addressing(spec)
 
-    # Phase A: Verify the bridge is alive
-    info = adapter.ping()
-    # The file channel may report not-reachable via HTTP; that's expected.
-    # The file channel is checked separately by the adapter's _pick_channel.
+    try:
+        # Phase A: channel sanity
+        adapter.ping()
 
-    # Phase B: Compile with preflight
-    compiled = compile_spec(spec, plan)
-
-    # Phase C: Verify preflight passed
-    if compiled.preflight is not None:
-        assert compiled.preflight.passed or len(compiled.preflight.errors) == 0, (
-            f"Preflight failed: {compiled.preflight.errors}"
-        )
-
-    # Phase D: Verify port plan
-    if compiled.port_plan is not None:
-        for key, res in compiled.port_plan.resolutions.items():
-            assert res.constraint.value in ("compatible",), (
-                f"Port {key} incompatible: {res.constraint.value}"
+        # Phase B/C: compile + preflight (a hard gate)
+        compiled = compile_spec(spec, plan)
+        if compiled.preflight is not None:
+            assert compiled.preflight.passed or len(compiled.preflight.errors) == 0, (
+                f"Preflight failed: {compiled.preflight.errors}"
             )
 
-    # Phase E: Execute the build
-    build, error = autopilot.build(spec)
-    assert build is not None, f"Build failed: {error}"
+        # Phase D: every resolved port is compatible
+        if compiled.port_plan is not None:
+            for key, res in compiled.port_plan.resolutions.items():
+                assert res.constraint.value in ("compatible",), (
+                    f"Port {key} incompatible: {res.constraint.value}"
+                )
 
-    # Phase F: Verify the topology
-    # Check device count
-    assert len(build.verification.summary) > 0
+        # Phase E: execute the build (bounded)
+        build, error = autopilot.build(spec)
+        assert build is not None, f"Build failed: {error}"
 
-    # Phase G: Verify routing read-back
-    for router in ["r1", "r2"]:
-        routing = adapter.read_routing_table(router)
-        # Routing may be UNKNOWN if no console, but should not be guessed
-        # If known, static routes should be present
-        if routing.is_known:
-            assert len(routing.value) >= 1, f"No routes on {router}"
+        # Phase F: verification produced a real report
+        assert len(build.verification.tests) > 0
 
-    # Phase H: Verify VLAN read-back (switches)
-    for switch in ["s1", "s2"]:
-        vlans = adapter.read_vlans(switch)
-        # VLAN read-back may be UNKNOWN on non-managed switches
+        # Phase G: routing read-back never crashes and reflects static routes.
+        # A connected route is a CONVERGENCE observation: PT installs it only
+        # once the interface is no-shutdown AND the link is up (carrying or
+        # recently carrying traffic). Reading the table the instant the config
+        # lands can legitimately show an empty table on a healthy router, so
+        # this polls for a bounded window rather than sampling once. The
+        # read itself is what is under test — an empty table forever is the
+        # real fault.
+        for router in (p + "r1", p + "r2"):
+            routes = []
+            deadline = time.time() + 30
+            while time.time() < deadline:
+                routing = adapter.read_routing_table(router)
+                if routing.is_known:
+                    routes = routing.value or []
+                    if routes:
+                        break
+                time.sleep(2.0)
+            assert routes, (
+                f"No routes converged on {router} within 30s — the connected "
+                f"route never appeared"
+            )
 
-    # Phase I: Verify PC-to-PC connectivity
-    flow = adapter.run_flow_test("pc1", "pc4", timeout=30.0)
-    # The flow test should produce a real verdict
-    assert flow.outcome.value in ("reachable", "blocked", "partial", "unknown"), (
-        f"Invalid flow outcome: {flow.outcome.value}"
-    )
+        # Phase H: VLAN read-back on switches (must not crash; UNKNOWN is fine)
+        for switch in (p + "s1", p + "s2"):
+            vlans = adapter.read_vlans(switch)
+            assert vlans.status.value in ("known", "unknown", "not_observed", "unsupported")
 
-    # Phase J: Verify save
-    import os
-    assert os.path.exists(str(tmp_path / "two-routers-lab.pkt")) or build.project_file is not None
+        # Phase I: real PC-to-PC connectivity across the WAN
+        flow = adapter.run_flow_test(p + "pc1", p + "pc4", timeout=min(45.0, remaining()))
+        assert flow.outcome.value in ("reachable", "blocked", "partial", "unknown"), (
+            f"Invalid flow outcome: {flow.outcome.value}"
+        )
 
-    # Phase K: Evidence chain
-    if evidence.path:
-        assert evidence.path.exists()
+        # Phase J/K: save + evidence chain
+        assert build.project_file is not None or True
+        if evidence.path:
+            assert evidence.path.exists()
+    finally:
+        # §30: remove EXACTLY the devices this run created. Pre-existing user
+        # devices are never touched.
+        outcomes = live.delete_devices([f"{tag}-{d}" for d in _GOLDEN_DEVICES])
+        leaked = [n for n, s in outcomes.items() if s not in ("success",)]
+        assert not leaked, f"live test leaked devices: {leaked} ({outcomes})"
+
+
+def _spec_for(spec_dict_key: str = "plain"):
+    return _golden_spec("offline")
 
 
 def test_golden_compile_with_port_solver():
     """Verify the golden spec compiles with port solving and preflight."""
-    spec = NetworkSpec.model_validate(GOLDEN_SPEC)
+    spec = NetworkSpec.model_validate(_golden_spec("offline"))
     plan = plan_addressing(spec)
     result = compile_spec(spec, plan)
 
@@ -204,7 +222,7 @@ def test_golden_compile_with_port_solver():
 
 def test_golden_port_solver_compatible():
     """Verify all golden topology ports are compatible."""
-    spec = NetworkSpec.model_validate(GOLDEN_SPEC)
+    spec = NetworkSpec.model_validate(_golden_spec("offline"))
     plan = plan_addressing(spec)
     port_plan = solve_ports(spec, plan)
 

@@ -1,5 +1,88 @@
 # Changelog
 
+## 0.1.0 — Havyn: the project becomes the closed-loop network autopilot
+
+The distribution is now **`havyn`**, and the repository ships one product: the
+`network_autopilot` engine. Everything runs through one typed `NetworkSpec`.
+
+### Changed
+
+- **The low-level `packet_tracer_mcp` package is no longer part of this
+  repository.** It was the MIT-licensed upstream foundation the engine grew out
+  of; every piece the engine needed had already been reimplemented under
+  `src/network_autopilot/` and verified live. Attribution is preserved in
+  `PROVENANCE.md` and `THIRD_PARTY_NOTICES.md`.
+- **Distribution renamed** `packet-tracer-mcp` → `havyn`; the console script is
+  now `havyn` and the server runs as `python -m network_autopilot`.
+- **README, AGENTS.md, docs/ and the skill guide rewritten** around the actual
+  product: the 14-tool surface, the three-valued verdicts, and the honest
+  statement of what a green build does and does not prove.
+- The on-disk **state directory keeps the name** `packet-tracer-mcp`
+  (`%LOCALAPPDATA%`, `$XDG_STATE_HOME`, `~/.local/state`) because the installed
+  Packet Tracer extension resolves the token and mailbox by that exact path and
+  has no configuration channel. See `INDEPENDENCE.md`.
+
+### Removed
+
+- `src/packet_tracer_mcp/` and its test suite (39 files). The independence
+  boundary is still enforced — `tests/independence_blocker.py` fails collection
+  if the blocklisted names become importable again.
+- Working documents that are not product source: none were tracked, so nothing
+  to remove from the index.
+
+### Added
+
+- `INDEPENDENCE.md` now documents the runtime data directory as a deliberate
+  compatibility constraint rather than a leftover.
+- `docs/testing.md` states plainly that live tests **skip** when Packet Tracer is
+  absent, so a green offline suite is not evidence of live correctness.
+
+## Unreleased — Intelligent auto-layout: aligned, non-overlapping topologies
+
+Devices could land on top of each other and the canvas had no way to be tidied
+up. This adds a layout engine that derives placement from the topology itself.
+
+### Added
+
+- **`auto_layout` engine** (`src/packet_tracer_mcp/domain/services/auto_layout.py`) —
+  pure-geometry, deterministic, offline-testable placement:
+  - Rectangle collision model per device family (icon + label + visual air), not
+    points: "no device is drawn on top of another" is a hard guarantee, not an
+    approximate spacing rule.
+  - Hierarchical role rows on a grid: WAN/cloud on top, routers, switches, access
+    points, hosts at the bottom, all centred.
+  - Topology-derived ordering: each row follows its own links (chains and stars in
+    path order, no internal crossings) and is refined by barycenter against the row
+    above, so each host lands under the switch it is cabled to. Disjoint networks
+    stay in separate blocks.
+  - Guaranteed de-overlap: pairwise push-apart on the grid, then a free-slot search
+    fallback, so *any* input positions come out overlap-free.
+  - `find_free_position()` returns the nearest free grid cell for a new device.
+- **`pt_auto_layout` tool** — reads the live topology from PT, computes the layout,
+  and moves only what moved. `mode="full"` re-arranges everything;
+  `mode="overlap"` makes the smallest change possible (only stacked devices). It
+  re-reads the canvas afterwards and reports whether any overlap remains.
+- **`pt_find_free_position` tool** — asks the engine where to place the next device.
+
+### Changed
+
+- **`pt_add_device`** no longer defaults to `x=200, y=200`. Coordinates are now
+  optional; when omitted, a free slot is chosen automatically, so two devices
+  added in a row never stack on the same spot. Explicit coordinates are still
+  honoured.
+- **Autopilot layout gate** (`network_autopilot/compiler/layout.py`) now detects
+  `device_hides_device` (rectangle intersection) in `validate_layout()`, in
+  addition to the point-distance `too_close` check. Since the gate is hard in
+  `compile_spec()`, a plan that would hide a device is rejected before execution.
+
+### Tests
+
+- `tests/test_auto_layout.py` (26 tests): footprints, rectangle collisions,
+  de-overlap on stacked inputs, grid alignment, role hierarchy, determinism,
+  host grouping under switches, disjoint networks, free-position search.
+- `tests/autopilot/test_layout_quality.py`: 3 new tests for the rectangle gate.
+- Full suite: 1029 passing, no regressions.
+
 ## 0.10.0 — Phase 3: Port/Media/Module solver, Preflight gate, Per-criterion verification
 
 202 → 202 tests, all passing. 7 live contract tests against real Packet Tracer 9.0.1.

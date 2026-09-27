@@ -6,7 +6,7 @@ Once your [MCP client is connected](installation.md), just talk to your AI.
 
 > *"Build a network with 2 routers, 2 switches, 4 PCs, DHCP and static routing."*
 
-The LLM calls `pt_full_build`, which runs the whole pipeline — plan → validate →
+The LLM calls `net_build`, which runs the whole pipeline - plan, validate,
 generate → explain → estimate — and returns a complete summary:
 
 ```text
@@ -28,19 +28,19 @@ Routes: Bidirectional static routes
 For a **new topology**:
 
 ```text
-pt_list_devices → pt_plan_topology → pt_validate_plan → pt_live_deploy
+net_spec_validate  ->  net_plan  ->  net_preflight  ->  net_build
 ```
 
 …or the one-shot shortcut:
 
 ```text
-pt_full_build        # plan + validate + generate + (optional) deploy
+python build_havyn.py my-network.spec.json autonomous
 ```
 
 To **edit a topology already open in PT**:
 
 ```text
-pt_bridge_status → pt_query_topology → pt_add_device / pt_add_link /
+pt_status  ->  net_observe  ->  net_diff  ->  net_build
                                         pt_rename_device / pt_move_device /
                                         pt_delete_link / pt_delete_device
 ```
@@ -48,21 +48,21 @@ pt_bridge_status → pt_query_topology → pt_add_device / pt_add_link /
 To **check that it actually works** after deploying:
 
 ```text
-pt_verify_connectivity(from_device, to_ip)   # real ping, parsed result
-pt_health_check                              # down links, duplicate IPs
-pt_save_project(filename)                    # persist the running .pkt
+net_verify              # real pings, per-criterion verdicts
+net_diff                 # spec vs observed
+build.human_text()       # functional-layer report
 ```
 
-!!! tip "Always discover before you build"
-    The server instructs the LLM to call `pt_list_devices` (and `pt_list_modules`
-    for expansion cards) first, so it uses **real** model names, ports and cables
+!!! tip "Preflight before you build"
+    `net_preflight` refuses a bad port, cable, module or address **by name**,
+    so the engine uses **real** model names, ports and cables
     from the catalog instead of guessing. See the [Tool reference](tools.md).
 
 ## Three ways to get a topology into Packet Tracer
 
-1. **Live deploy** (`pt_live_deploy`) — streams commands straight into a running
+1. **`net_build`** - compiles the spec, gates it, and executes it against a
    PT via the bridge. See [Live Deploy Setup](live-deploy.md). *(Best experience.)*
-2. **Clipboard** (`pt_full_build` / `pt_deploy`) — copies a PTBuilder script to your
+2. **`dry_run` first** - `net_build` with `safety_mode="dry_run"` prints the whole
    clipboard; paste it into PT's Builder Code Editor and click Run.
 3. **Export to disk** (`pt_export`) — writes the PTBuilder script, per-device IOS
    configs and the plan JSON to `projects/<name>/` for reuse.

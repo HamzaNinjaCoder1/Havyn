@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import json
 
-from src.network_autopilot.adapter.upstream import js_commands as js
-from src.network_autopilot.adapter.upstream.bridge_adapter import BridgeAdapter
+from src.network_autopilot.adapter.packet_tracer import js_commands as js
+from src.network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
 from src.network_autopilot.core.observability import Observable
-from src.network_autopilot.core.requirements import FlowOutcome
+from src.network_autopilot.core.requirements import FlowOutcome, FlowResult
 
 TEST_TOKEN = "test-token-long-enough-0123456789abcdef"
 
@@ -205,12 +205,125 @@ def test_flow_test_quiet_console_times_out_as_unknown(monkeypatch):
         return Observable.known("WAIT")
 
     monkeypatch.setattr(adapter, "send_expression", sequenced, raising=False)
-    import src.network_autopilot.adapter.upstream.bridge_adapter as ba
+    import src.network_autopilot.adapter.packet_tracer.bridge_adapter as ba
 
     monkeypatch.setattr(ba.time, "sleep", lambda *_: None)
     result = adapter.run_flow_test("r1", "pc1", timeout=1.5)
     assert result.outcome is FlowOutcome.UNKNOWN
     assert "no new ping statistics" in (result.detail or "")
+
+
+# -- ARP-convergence retry ------------------------------------------------------
+#
+# PT (like real IOS) drops the FIRST pings across a multi-hop path while ARP
+# resolves hop by hop. A freshly built transit network therefore answers
+# blocked -> partial -> reachable across successive pings even though the path
+# is perfectly healthy. A single-shot flow test misreads that as a broken
+# network; run_flow_test must retry and report the converged truth.
+
+
+def test_best_flow_of_prefers_reachable_over_earlier_loss():
+    from src.network_autopilot.core.requirements import (
+        FlowResult,
+        best_flow_of,
+    )
+
+    attempts = [
+        FlowResult(source="a", destination="b", outcome=FlowOutcome.BLOCKED),
+        FlowResult(source="a", destination="b", outcome=FlowOutcome.PARTIAL),
+        FlowResult(source="a", destination="b", outcome=FlowOutcome.REACHABLE),
+    ]
+    best = best_flow_of(attempts)
+    assert best.outcome is FlowOutcome.REACHABLE
+
+
+def test_best_flow_of_reports_partial_when_never_reachable():
+    from src.network_autopilot.core.requirements import (
+        FlowResult,
+        best_flow_of,
+    )
+
+    attempts = [
+        FlowResult(source="a", destination="b", outcome=FlowOutcome.BLOCKED),
+        FlowResult(source="a", destination="b", outcome=FlowOutcome.PARTIAL),
+    ]
+    best = best_flow_of(attempts)
+    assert best.outcome is FlowOutcome.PARTIAL
+
+
+def test_best_flow_of_stays_blocked_when_always_blocked():
+    from src.network_autopilot.core.requirements import (
+        FlowResult,
+        best_flow_of,
+    )
+
+    attempts = [
+        FlowResult(source="a", destination="b", outcome=FlowOutcome.BLOCKED),
+        FlowResult(source="a", destination="b", outcome=FlowOutcome.BLOCKED),
+    ]
+    best = best_flow_of(attempts)
+    assert best.outcome is FlowOutcome.BLOCKED
+
+
+def test_flow_test_retries_past_arp_convergence(monkeypatch):
+    import src.network_autopilot.adapter.packet_tracer.bridge_adapter as ba
+
+    adapter = _adapter_with_answers(
+        _TOPOLOGY,
+        "BASE:0", "DONE:Success rate is 0 percent (0/4)",
+        "BASE:1", "DONE:Success rate is 25 percent (1/4)",
+        "BASE:2", "DONE:Success rate is 100 percent (4/4)",
+    )
+    monkeypatch.setattr(ba.time, "sleep", lambda *_: None)
+    result = adapter.run_flow_test("r1", "pc1", timeout=3.0)
+    assert result.outcome is FlowOutcome.REACHABLE
+    assert "100 percent" in result.evidence["ping_stat"]
+    # The earlier, worse attempts are kept as evidence of the convergence.
+    assert len(result.evidence.get("attempts", [])) == 3
+
+
+def test_flow_is_retryable_classifies_each_outcome():
+    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import (
+        _flow_is_retryable,
+    )
+
+    def res(outcome, detail=""):
+        return FlowResult(
+            source="a", destination="b", outcome=outcome, detail=detail
+        )
+
+    assert _flow_is_retryable(res(FlowOutcome.BLOCKED))
+    assert _flow_is_retryable(res(FlowOutcome.PARTIAL))
+    # A ping still in flight past its poll deadline: retry it.
+    assert _flow_is_retryable(
+        res(FlowOutcome.UNKNOWN, "no new ping statistics appeared within 25s")
+    )
+    # Terminal failures: retrying cannot help.
+    assert not _flow_is_retryable(
+        res(FlowOutcome.UNKNOWN, "console unavailable: ERR:device without console")
+    )
+    assert not _flow_is_retryable(
+        res(FlowOutcome.UNKNOWN, "ping could not be armed: channel dead")
+    )
+    assert not _flow_is_retryable(res(FlowOutcome.REACHABLE))
+
+
+def test_flow_test_does_not_retry_a_dead_console(monkeypatch):
+    """An arm/console failure is terminal: retrying cannot revive a console."""
+    import src.network_autopilot.adapter.packet_tracer.bridge_adapter as ba
+
+    adapter = _adapter_with_answers(
+        _TOPOLOGY,
+        "ERR:device without console",
+        "ERR:device without console",
+        "ERR:device without console",
+    )
+    monkeypatch.setattr(ba.time, "sleep", lambda *_: None)
+    result = adapter.run_flow_test("r1", "pc1", timeout=3.0)
+    assert result.outcome is FlowOutcome.UNKNOWN
+    assert "console" in (result.detail or "")
+    # Only the single terminal attempt was spent.
+    assert len(result.evidence.get("attempts", [])) == 0
 
 
 # -- channel routing ------------------------------------------------------------
@@ -220,7 +333,7 @@ def test_send_expression_without_any_channel_is_unknown(tmp_path):
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
     # hermetic: a temp mailbox with no heartbeat, so the ambient machine's
     # live extension cannot turn this into a file-channel success
-    from src.network_autopilot.adapter.upstream.bridge_adapter import FileBridge
+    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import FileBridge
 
     adapter._file_bridge = FileBridge(directory=tmp_path / "mailbox")
     answer = adapter.send_expression("'x'")
@@ -229,36 +342,51 @@ def test_send_expression_without_any_channel_is_unknown(tmp_path):
 
 
 def test_channel_routing_prefers_http_and_falls_back_to_file(tmp_path, monkeypatch):
-    import src.network_autopilot.adapter.upstream.bridge_adapter as ba
+    import src.network_autopilot.adapter.packet_tracer.bridge_adapter as ba
     from src.network_autopilot.adapter.base import AdapterInfo
     from src.network_autopilot.core.observability import Observable as Obs
 
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
 
+    # Hermetic from the start: a temp mailbox with no heartbeat, so the
+    # ambient machine's live extension cannot turn a scenario into a
+    # file-channel success (the sibling test above does the same).
+    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import FileBridge
+
+    mailbox = tmp_path / "mailbox"
+    mailbox.mkdir()
+    adapter._file_bridge = FileBridge(directory=mailbox)
+
+    def _clear_channel_cache():
+        # _pick_channel caches the choice for a few seconds (it costs two HTTP
+        # round trips and a build sends one command per operation). Between
+        # scenarios it has to be invalidated by hand so the new probe
+        # actually decides.
+        adapter._channel = None
+        adapter._channel_cached_at = None
+
+    # The channel probe consults _http_ping(), NOT ping(): ping() falls back
+    # to the file channel and would route every send at a dead HTTP port.
     # 1. HTTP alive -> http
     monkeypatch.setattr(
-        adapter, "ping",
-        lambda timeout=5.0: AdapterInfo("x", "0", True, Obs.known("ok")),
+        adapter, "_http_ping",
+        lambda timeout=5.0: AdapterInfo("x", "0", True, Obs.known("http bridge authenticated")),
         raising=False,
     )
     assert adapter._pick_channel() == "http"
 
     # 2. HTTP dead, file heartbeat fresh -> file
+    _clear_channel_cache()
     monkeypatch.setattr(
-        adapter, "ping",
+        adapter, "_http_ping",
         lambda timeout=5.0: AdapterInfo("x", "0", False, Obs.known("no")),
         raising=False,
     )
-    from src.network_autopilot.adapter.upstream.bridge_adapter import FileBridge
-
-    mailbox = tmp_path / "mailbox"
-    mailbox.mkdir()
     (mailbox / "alive.txt").write_text("fresh", encoding="utf-8")
-    fb = FileBridge(directory=mailbox)
-    adapter._file_bridge = fb
     assert adapter._pick_channel() == "file"
 
     # 3. both dead -> ''
+    _clear_channel_cache()
     stale = mailbox / "alive.txt"
     stale.write_text("", encoding="utf-8")
     import os

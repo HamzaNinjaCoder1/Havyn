@@ -1,6 +1,6 @@
 # Routing Protocols
 
-Set `routing` on `pt_plan_topology` / `pt_full_build`. Valid values:
+Set `routing` in the spec's `routing` block. Valid values:
 `static`, `ospf`, `eigrp`, `rip`, `none`.
 
 ## Static (default)

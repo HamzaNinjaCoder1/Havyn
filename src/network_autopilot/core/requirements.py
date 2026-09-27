@@ -45,6 +45,37 @@ class FlowResult:
     evidence: dict[str, Any] = field(default_factory=dict)
 
 
+# Ranking used to pick the honest verdict out of repeated flow attempts. PT
+# (like real IOS) drops the first pings across a multi-hop path while ARP
+# resolves hop by hop, so a healthy transit network answers blocked -> partial
+# -> reachable on successive attempts; the converged attempt is the truthful
+# one. UNKNOWN/ERROR rank below everything: a test that could not run is never
+# promoted over a real observation.
+_FLOW_RANK: dict[FlowOutcome, int] = {
+    FlowOutcome.REACHABLE: 3,
+    FlowOutcome.PARTIAL: 2,
+    FlowOutcome.BLOCKED: 1,
+    FlowOutcome.ERROR: 0,
+    FlowOutcome.UNKNOWN: 0,
+}
+
+
+def best_flow_of(attempts: list[FlowResult]) -> FlowResult:
+    """The most favourable honest outcome across repeated flow attempts.
+
+    Returns the best-ranked attempt, preferring the LAST one among equal ranks
+    (the most recent observation wins a tie, which is what matters when the
+    network is still converging). An empty list is a programming error.
+    """
+    if not attempts:
+        raise ValueError("best_flow_of needs at least one attempt")
+    best = attempts[0]
+    for attempt in attempts[1:]:
+        if _FLOW_RANK[attempt.outcome] >= _FLOW_RANK[best.outcome]:
+            best = attempt
+    return best
+
+
 @dataclass(frozen=True)
 class AcceptanceResult:
     """Verdict of one acceptance criterion."""

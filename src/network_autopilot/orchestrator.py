@@ -19,10 +19,11 @@ from .acceptance.evaluator import evaluate_spec
 from .compiler.compiler import compile_spec
 from .compiler.dag import OperationDag
 from .compiler.executor import DagExecutor
-from .core.network_spec import NetworkSpec
+from .core.network_spec import FlowTestSpec, NetworkSpec
 from .core.observability import Observable
 from .core.actual_state import LinkObservation
-from .core.safety import SafetyGate
+from .core.requirements import FlowOutcome, FlowResult
+from .core.safety import MutationBudget, SafetyGate, SafetyMode
 from .diff.engine import diff_expected_vs_actual
 from .evidence.store import EvidenceStore
 from .ipam.planner import plan_addressing
@@ -55,6 +56,65 @@ def _populate_link_observations(
             )
 
 
+#: Functional layers, in report order (#23). `structural` device/link
+#: existence is deliberately absent: that is the headline this section exists
+#: to keep honest.
+LAYER_LABELS = {
+    "l2": "L2 (VLAN/trunk)",
+    "l3": "L3 (routing/DHCP)",
+    "security": "Security (ASA)",
+    "data_plane": "Data plane (flows)",
+}
+
+
+def _layer_of(test: Any, roles: dict[str, str]) -> str:
+    """Which functional layer one acceptance criterion actually exercises."""
+    kind = getattr(test, "kind", "")
+    if kind == "flow":
+        return "data_plane"
+    if kind == "wireless":
+        return "l2"
+    if kind == "config":
+        if getattr(test, "field", "") == "vlan":
+            return "l2"
+        role = roles.get(str(getattr(test, "device", "") or ""), "")
+        return "security" if role == "firewall" else "l3"
+    check = str(getattr(test, "check", "") or "")
+    if check in ("vlan_defined", "trunk_configured"):
+        return "l2"
+    if check in ("ip_assigned", "gateway_assigned"):
+        return "l3"
+    # device_exists / link_exists: the structural headline, already reported.
+    return ""
+
+
+def functional_layers(spec: Any, acceptance: Any) -> dict[str, dict[str, int]]:
+    """Split the acceptance criteria by the layer they test, with their verdicts.
+
+    `structural 87/87 PASS` only means the devices and cables are there. This
+    shows what the build actually proved: a spec with no flow criterion has
+    proved no data plane and one with no VLAN criterion has proved no L2,
+    whatever the structural total says (#23).
+    """
+    roles = {
+        str(d.id): str(getattr(d.role, "value", d.role)) for d in spec.devices
+    }
+    verdicts = {r.criterion_id: r.verdict.value for r in acceptance.results}
+    buckets: dict[str, list[str]] = {key: [] for key in LAYER_LABELS}
+    for criterion in spec.acceptance_criteria:
+        layer = _layer_of(criterion.test, roles)
+        if layer:
+            buckets[layer].append(str(criterion.id))
+    out: dict[str, dict[str, int]] = {}
+    for key, ids in buckets.items():
+        counts = {"total": len(ids), "pass": 0, "fail": 0, "unknown": 0, "not_run": 0}
+        for criterion_id in ids:
+            verdict = verdicts.get(criterion_id, "not_run")
+            counts[verdict] = counts.get(verdict, 0) + 1
+        out[key] = counts
+    return out
+
+
 @dataclass
 class BuildReport:
     build_id: str
@@ -71,10 +131,24 @@ class BuildReport:
     project_file: str | None
     evidence_path: str | None
     drift_unknown_count: int = 0
+    safety_mode: str = SafetyMode.AUTONOMOUS.value
+    layers: dict[str, dict[str, int]] = field(default_factory=dict)
+
+    @property
+    def planned_only(self) -> bool:
+        """True when the gate planned every mutation and executed none."""
+        return self.safety_mode == SafetyMode.DRY_RUN.value
 
     @property
     def success(self) -> bool:
-        """Success = the build ran clean AND every verification test passed."""
+        """Success = the build ran clean AND every verification test passed.
+
+        A dry run never succeeds: it changed nothing, so there is no build to
+        have succeeded (#28). Reads that happen to agree with the workspace
+        say nothing about a run that touched nothing.
+        """
+        if self.planned_only:
+            return False
         summary = self.verification.summary
         return (
             not self.compile_unsupported
@@ -85,6 +159,13 @@ class BuildReport:
             and summary.get("unknown", 0) == 0
             and self.diff.get("drift_count", 1) == 0
         )
+
+    def _overall_line(self) -> str:
+        if self.planned_only:
+            # "NOT SUCCESS" reads as a broken network and "SUCCESS" as a
+            # completed build; a dry run is neither.
+            return "PLAN OK (DRY_RUN \u2014 nothing was executed)"
+        return "SUCCESS" if self.success else "NOT SUCCESS"
 
     def human_text(self) -> str:
         v = self.verification.summary
@@ -102,6 +183,9 @@ class BuildReport:
             f"  TOTAL:        {v.get('pass', 0)}/{len(self.verification.tests)} PASS"
             + (f"  ({v.get('fail', 0)} FAIL, {v.get('unknown', 0)} UNKNOWN)" if v.get('fail') or v.get('unknown') else ""),
             "",
+            "",
+            *self._layer_lines(),
+            "",
             f"Acceptance:     {self._acceptance_line()}",
             f"Drift:          {self._drift_line()}",
             f"Repairs:        {self._repairs_line()}",
@@ -109,11 +193,37 @@ class BuildReport:
             f"Project:        {self.project_file or 'not saved'}",
             f"Evidence:       {self.evidence_path or 'n/a'}",
             "",
-            f"OVERALL:        {'SUCCESS' if self.success else 'NOT SUCCESS'}",
+            f"OVERALL:        {self._overall_line()}",
         ]
         if self.compile_unsupported:
             lines.append(f"Unsupported:    {', '.join(self.compile_unsupported)}")
         return "\n".join(lines)
+
+    def _layer_lines(self) -> list[str]:
+        """One line per functional layer, with an explicit zero (#23).
+
+        "0 criteria" is the point: it says the layer was not exercised at all,
+        which no PASS total can convey.
+        """
+        if not self.layers:
+            return ["Functional layers: not computed"]
+        lines = ["Functional layers:"]
+        for key, label in LAYER_LABELS.items():
+            lines.append(f"  {label + ':':<22}{self._layer_line(key)}")
+        return lines
+
+    def _layer_line(self, key: str) -> str:
+        counts = self.layers.get(key) or {}
+        total = counts.get("total", 0)
+        if not total:
+            return "0 criteria — not exercised"
+        passed = counts.get("pass", 0)
+        parts = [f"{passed}/{total} PASS"]
+        for verdict, label in (("fail", "FAIL"), ("unknown", "UNKNOWN"),
+                               ("not_run", "NOT_RUN")):
+            if counts.get(verdict):
+                parts.append(f"{counts[verdict]} {label}")
+        return "  ".join(parts)
 
     def _level_summary(self, level: str) -> str:
         tests = self.verification.by_level(level)
@@ -173,6 +283,7 @@ class BuildReport:
             "project_file": self.project_file,
             "evidence_path": self.evidence_path,
             "success": self.success,
+            "functional_layers": self.layers,
         }
 
 
@@ -202,17 +313,96 @@ class Autopilot:
                 )
         return endpoints
 
-    def _verify_and_diff(self, spec, plan, dag, state, flow_results):
+    def _verify_and_diff(self, spec, plan, dag, state, flow_results, compiled=None):
         link_endpoints = self._link_endpoints(dag)
         _populate_link_observations(self.adapter, link_endpoints, state)
+        # The real interface each address assignment was compiled onto.
+        # Without this map an assignment with no interface_hint is verified
+        # against a nonexistent interface and success becomes unreachable (P1-2).
+        assignment_ports = getattr(compiled, "assignment_ports", None) or {}
+        # Verification requires OBSERVED model evidence for a structural PASS
+        # (P1-4): a device present in state with an unknown model is UNKNOWN,
+        # never a pass.
+        verification_observations_complete = all(
+            state.devices.get(d.id) is not None
+            and state.devices[d.id].model.is_known
+            for d in spec.devices
+        )
+        # The DIFF has a different bar: absence is itself an observable fact.
+        # When the adapter enumerated the workspace and answered for every spec
+        # device (present in devices OR recorded as confirmed-absent in
+        # metadata), a missing device is a real REMOVE — drift — not UNKNOWN.
+        # Without this, an empty workspace reported zero drift and hid a
+        # completely missing topology.
+        diff_observations_complete = all(
+            d.id in state.devices
+            or f"absent:{d.id}" in state.metadata
+            for d in spec.devices
+        )
         engine = VerificationEngine(self.adapter)
         report = engine.verify(
             spec, plan, state, flow_results,
             link_endpoints=link_endpoints,
-            observations_complete=True,  # we observed exactly the spec device set
+            observations_complete=verification_observations_complete,
+            assignment_ports=assignment_ports,
         )
-        diff = diff_expected_vs_actual(spec, plan, state, observations_complete=True)
+        diff = diff_expected_vs_actual(
+            spec, plan, state, observations_complete=diff_observations_complete,
+            assignment_ports=assignment_ports,
+        )
         return report, diff
+
+    def _collect_flows(self, spec: NetworkSpec) -> dict[tuple[str, str], FlowResult]:
+        """Run one data-plane probe per distinct flow criterion.
+
+        A probe sends packets; it never edits the workspace, so it belongs on
+        the read-only drift check as well. Before this, `inspect()` passed an
+        empty flow_results (#19) and every connectivity criterion came back
+        UNKNOWN with "no flow result recorded" however healthy the network
+        was - the read-only path could never confirm that traffic forwards.
+
+        A probe that raises is recorded as UNKNOWN, not as a crash: the
+        structural and addressing half of the report is still worth returning.
+        """
+        flows: dict[tuple[str, str], FlowResult] = {}
+        for criterion in spec.acceptance_criteria:
+            test = criterion.test
+            if not isinstance(test, FlowTestSpec):
+                continue
+            key = (test.source, test.destination)
+            if key in flows:
+                continue
+            try:
+                flows[key] = self.adapter.run_flow_test(
+                    test.source,
+                    test.destination,
+                    transport=test.transport,
+                    port=test.port,
+                    destination_ip=getattr(test, "destination_ip", None),
+                )
+            except Exception as exc:  # a dead channel must not sink the report
+                flows[key] = FlowResult(
+                    source=test.source,
+                    destination=test.destination,
+                    transport=test.transport,
+                    port=test.port,
+                    outcome=FlowOutcome.UNKNOWN,
+                    detail=f"probe could not run: {exc}",
+                )
+            if self.evidence is not None:
+                self.evidence.record(
+                    "flow_result",
+                    {
+                        "criterion_id": criterion.id,
+                        "source": key[0],
+                        "destination": key[1],
+                        "transport": test.transport,
+                        "outcome": flows[key].outcome.value,
+                        "detail": flows[key].detail,
+                    },
+                    component="orchestrator",
+                )
+        return flows
 
     def inspect(
         self, spec: NetworkSpec
@@ -236,8 +426,11 @@ class Autopilot:
             compiled = compile_spec(spec, plan, packet_tracer_version="unknown")
         except Exception as exc:
             return None, None, f"compilation refused: {exc}"
+        # Probe first, then observe: the state should reflect whatever the
+        # probes did to link/ARP state, not the other way round.
+        flows = self._collect_flows(spec)
         state = self.adapter.observe_state([d.id for d in spec.devices])
-        report, diff = self._verify_and_diff(spec, plan, compiled.dag, state, {})
+        report, diff = self._verify_and_diff(spec, plan, compiled.dag, state, flows, compiled)
         if self.evidence is not None:
             self.evidence.record("verification", report.to_dict(), component="orchestrator")
             self.evidence.record("diff", diff.to_dict(), component="orchestrator")
@@ -293,6 +486,14 @@ class Autopilot:
             )
 
         # 3. Execute through the safety gate
+        # Size the budget to the actual plan. A hardcoded ceiling here would
+        # abort any non-trivial build (the old fixed 25 killed 12-device labs);
+        # for_operations() scales with the DAG while staying globally capped.
+        op_count = len(compiled.dag.nodes)
+        if self.gate.budget.max_mutations < op_count:
+            self.gate.budget.max_mutations = MutationBudget.for_operations(
+                op_count
+            ).max_mutations
         executor = DagExecutor(self.adapter, self.gate, evidence)
         execution = executor.execute(compiled.dag)
         if evidence is not None:
@@ -303,7 +504,7 @@ class Autopilot:
         merged_state = executor.state
         merged_state.merge(fresh)
         report, diff = self._verify_and_diff(
-            spec, plan, compiled.dag, merged_state, execution.flow_results
+            spec, plan, compiled.dag, merged_state, execution.flow_results, compiled
         )
 
         # 7. Diagnose + repair (bounded) when needed. Diagnosis is for
@@ -315,7 +516,7 @@ class Autopilot:
             from .diagnosis.engine import diagnose
 
             diagnoses = diagnose(spec, report, merged_state)
-            repair_engine = RepairEngine(self.adapter, self.gate, evidence)
+            repair_engine = RepairEngine(self.adapter, self.gate, evidence, spec=spec)
             for diagnosis in diagnoses:
                 repair_plan = repair_engine.plan_repair(diagnosis, plan)
                 outcome = repair_engine.execute(repair_plan)
@@ -332,11 +533,18 @@ class Autopilot:
                 fresh2 = self.adapter.observe_state([d.id for d in spec.devices])
                 merged_state.merge(fresh2)
                 report, diff = self._verify_and_diff(
-                    spec, plan, compiled.dag, merged_state, execution.flow_results
+                    spec, plan, compiled.dag, merged_state, execution.flow_results, compiled
                 )
                 for r in repairs:
                     if r["outcome"].get("executed"):
-                        r["re_verified"] = report.to_dict()["summary"]
+                        # #15: a repair is only re-verified when its function
+                        # check passed - an address that reads back while the
+                        # firewall still drops traffic is not a repair.
+                        r["re_verified"] = (
+                            report.to_dict()["summary"]
+                            if r["outcome"].get("repaired")
+                            else None
+                        )
 
         if evidence is not None:
             evidence.record("verification", report.to_dict(), component="orchestrator")
@@ -360,6 +568,8 @@ class Autopilot:
                 else None
             ),
             evidence_path=str(evidence.path) if evidence else None,
+            safety_mode=getattr(self.gate, "mode", SafetyMode.AUTONOMOUS).value,
+            layers=functional_layers(spec, report.acceptance),
         )
         build.drift_unknown_count = diff.unknown_count
         if evidence is not None:

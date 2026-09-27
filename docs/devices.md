@@ -1,13 +1,13 @@
 # Supported Devices
 
 The catalog has **74 device models** across many categories, each with its exact
-port names. Call `pt_list_devices` for the live list (with ~100 aliases), or fetch
-the `pt://catalog/devices` resource.
+port names. Every model resolves by its exact name or by a friendly alias, and an
+unknown name is refused rather than guessed.
 
 !!! tip "Use aliases"
     You can pass friendly aliases instead of exact model names — e.g. `router` →
     `2911`, `switch` → `2960-24TT`, `pc` → `PC-PT`, `firewall` → `5506-X`,
-    `ap` → `AccessPoint-PT`. See `pt_list_devices` for the full alias map.
+    `ap` -> `AccessPoint-PT`. The full alias map is `network_autopilot/pt/catalog/aliases.py`.
 
 ## Routers
 
@@ -53,5 +53,5 @@ Panel`, `Copper/Fiber Wall Mount`, `Sniffer`, `Meraki-MX65W`, `Meraki-Server`,
 `NetworkController`, `Power Distribution Device`.
 
 !!! note "Exact ports matter"
-    Always confirm a model's ports with `pt_get_device_details` before linking — the
+    Always confirm a model's ports in the catalog before linking - the
     server is instructed never to invent port names.

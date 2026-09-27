@@ -41,7 +41,43 @@ class DeviceRole(str, Enum):
     LAPTOP = "laptop"
     ACCESS_POINT = "access_point"
     CLOUD = "cloud"
+    # Roles the PT catalog needs but this enum never had: without
+    # them a firewall / wireless router / modem / IoT device could
+    # only be spelled `other`, which the compiler routes past every
+    # config path - an ASA silently left unconfigured (#14, #36).
+    FIREWALL = "firewall"
+    WIRELESS_ROUTER = "wireless_router"
+    MODEM = "modem"
+    IOT = "iot"
     OTHER = "other"
+
+
+# The single source of truth for "which PT model does this role build by
+# default". The compiler, the port solver and the semantic diff MUST all read
+# this map: when they each kept their own copy they drifted (diff expected
+# "PC" while the compiler creates "PC-PT", so every clean build reported
+# spurious model drift).
+DEFAULT_MODEL_FOR_ROLE: dict[str, str] = {
+    DeviceRole.ROUTER.value: "2911",
+    DeviceRole.SWITCH.value: "2960-24TT",
+    DeviceRole.L3_SWITCH.value: "3560-24PS",
+    DeviceRole.PC.value: "PC-PT",
+    DeviceRole.SERVER.value: "Server-PT",
+    DeviceRole.LAPTOP.value: "Laptop-PT",
+    DeviceRole.ACCESS_POINT.value: "AccessPoint-PT",
+    DeviceRole.CLOUD.value: "Cloud-PT",
+    DeviceRole.FIREWALL.value: "5506-X",
+    DeviceRole.WIRELESS_ROUTER.value: "Linksys-WRT300N",
+    DeviceRole.MODEM.value: "DSL-Modem-PT",
+    DeviceRole.IOT.value: "Smart LED",
+    DeviceRole.OTHER.value: "Router-PT",
+}
+
+
+def default_model_for_role(role: str | DeviceRole) -> str:
+    """The PT model a role defaults to (single source of truth)."""
+    key = role.value if isinstance(role, DeviceRole) else str(role)
+    return DEFAULT_MODEL_FOR_ROLE.get(key, "Router-PT")
 
 
 class ProvenanceSpec(SpecModel):
@@ -81,6 +117,11 @@ class FlowTestSpec(SpecModel):
     expect: Literal["reachable", "blocked"]
     transport: Literal["icmp", "tcp", "udp"] = "icmp"
     port: int | None = Field(default=None, ge=1, le=65535)
+    # #24: a router or an ASA answers on more than one address, and the
+    # adapter refuses to guess ("destination 'rbr' has several IPs"), so the
+    # probe must be told which one - or which interface to read it from.
+    destination_ip: str | None = None
+    destination_interface: str | None = None
 
 
 class StructuralTestSpec(SpecModel):
@@ -109,8 +150,26 @@ class ConfigTestSpec(SpecModel):
     expected: str
 
 
+class WirelessTestSpec(SpecModel):
+    """A wireless association expectation.
+
+    Passes only when Packet Tracer itself shows the antenna link between the
+    client's radio and that access point - the same `Antenna` object the
+    executor reads. A client that merely has a Wireless0, or an AP that
+    exists, is not an association.
+    """
+
+    kind: Literal["wireless"] = "wireless"
+    client: str
+    access_point: str
+    interface: str = "Wireless0"
+    expect: Literal["associated", "not_associated"] = "associated"
+
+
 AcceptanceTest = Annotated[
-    Union[FlowTestSpec, StructuralTestSpec, ConfigTestSpec],
+    Union[
+        FlowTestSpec, StructuralTestSpec, ConfigTestSpec, WirelessTestSpec,
+    ],
     Field(discriminator="kind"),
 ]
 
@@ -141,6 +200,21 @@ class InterfaceRequirement(SpecModel):
     hint: str | None = None
 
 
+class AsaInterfaceSpec(SpecModel):
+    """One ASA interface, as the spec wants it named and levelled (#37).
+
+    PT's ASA assigns `inside`/`security-level 100` to the first interface and
+    `outside`/`0` to the second, so a design that needs a third zone - a DMZ,
+    say - had nowhere to say so. Naming an interface here overrides the
+    derived nameif and level; the address still comes from `ip_assignments`,
+    because that is where the subnet lives.
+    """
+
+    interface: str = Field(min_length=1)
+    nameif: str = Field(pattern=r"^[a-z][a-z0-9_]*$", max_length=64)
+    security_level: int = Field(ge=0, le=100)
+
+
 class DeviceSpec(SpecModel):
     id: str
     role: DeviceRole
@@ -148,28 +222,60 @@ class DeviceSpec(SpecModel):
     interface_requirements: list[InterfaceRequirement] = Field(default_factory=list)
     floor: str | None = None
     description: str | None = None
+    # #37: ASA zones, stated rather than inferred. Ignored for every other
+    # role, so putting it on a router is a no-op rather than an error.
+    asa_interfaces: list[AsaInterfaceSpec] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check_id(self) -> "DeviceSpec":
         validate_id(self.id, "device id")
+        names = [a.interface for a in self.asa_interfaces]
+        if len(set(names)) != len(names):
+            raise ValueError(
+                f"device {self.id!r}: asa_interfaces lists "
+                f"{sorted(n for n in names if names.count(n) > 1)} twice"
+            )
         return self
 
 
 class EndpointSpec(SpecModel):
     device: str
     interface_hint: str | None = None
+    # #37: the VLAN this one port belongs in. The compiler can infer it from
+    # the endpoint's subnet, but a trunking host or a port in a VLAN with no
+    # address has no subnet to infer from, and stating it here is the only way
+    # to say it.
+    vlan: int | None = Field(default=None, ge=1, le=4094)
 
 
 class LinkSpec(SpecModel):
     id: str
     a: EndpointSpec
     b: EndpointSpec
-    media: Literal["auto", "straight", "crossover", "fiber", "serial"] = "auto"
+    media: Literal[
+        "auto", "straight", "crossover", "fiber", "serial", "wireless"
+    ] = "auto"
     trunk: bool = False
+    # #37: the trunk's native VLAN and the list it is allowed to carry. Both
+    # are inferred from the VLANs on each end when omitted; stating them is how
+    # a design that does not match the inference is expressed.
+    native_vlan: int | None = Field(default=None, ge=1, le=4094)
+    allowed_vlans: list[int] | None = None
 
     @model_validator(mode="after")
     def _check_id(self) -> "LinkSpec":
         validate_id(self.id, "link id")
+        if self.allowed_vlans is not None:
+            bad = [v for v in self.allowed_vlans if not 1 <= v <= 4094]
+            if bad:
+                raise ValueError(
+                    f"link {self.id!r}: allowed_vlans out of range: {bad}"
+                )
+            if len(set(self.allowed_vlans)) != len(self.allowed_vlans):
+                raise ValueError(
+                    f"link {self.id!r}: allowed_vlans has duplicates: "
+                    f"{self.allowed_vlans}"
+                )
         return self
 
 
@@ -232,10 +338,35 @@ class OspfSpec(SpecModel):
     area: str = "0"
 
 
+class NatSpec(SpecModel):
+    """NAT/PAT configuration for a router."""
+    router: str
+    mode: Literal["static", "dynamic", "pat"] = "pat"
+    inside_interface: str = ""
+    outside_interface: str = ""
+    inside_networks: list[str] = Field(default_factory=list)
+    pool_name: str = ""
+    start_ip: str = ""
+    end_ip: str = ""
+    netmask: str = ""
+    acl_number: str = "1"
+    use_interface_overload: bool = True
+    static_mappings: list[dict[str, str]] = Field(default_factory=list)
+
+
+class Ipv6Spec(SpecModel):
+    """IPv6 unicast-routing configuration."""
+    enabled: bool = False
+    addresses: dict[str, str] = Field(default_factory=dict)  # iface -> ipv6 cidr
+    global_eui_64: bool = False
+
+
 class RoutingSpec(SpecModel):
     mode: Literal["connected", "static", "ospf", "eigrp", "rip"] = "connected"
     static_routes: list[StaticRouteSpec] = Field(default_factory=list)
     ospf: OspfSpec | None = None
+    nat: list[NatSpec] = Field(default_factory=list)
+    ipv6: Ipv6Spec | None = None
 
 
 class AclRuleSpec(SpecModel):

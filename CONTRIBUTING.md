@@ -58,7 +58,7 @@ JS or IOS config, add a case with a quote, a newline and a `..` in it. See
 
 Don't open a public issue for a vulnerability — see [SECURITY.md](SECURITY.md).
 It also documents what is deliberate rather than broken, which is worth reading
-before reporting that `pt_send_raw` executes arbitrary JavaScript.
+before reporting that `net_build` executes arbitrary JavaScript.
 
 ## Commits
 

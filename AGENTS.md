@@ -5,10 +5,11 @@ under `src/`.
 
 ## What this is
 
-An MCP server that automates Cisco Packet Tracer. It plans network topologies,
-validates them, generates JavaScript for PT's script engine and IOS CLI config
-for the devices, and can push all of it into a running copy of Packet Tracer over
-a local HTTP bridge.
+Havyn: closed-loop network engineering for Cisco Packet Tracer. It takes a typed
+`NetworkSpec`, compiles it into a deterministic operation DAG, executes that DAG
+against a live Packet Tracer, and verifies the result with fresh read-back and
+real traffic. It ships its own MCP server, its own Packet Tracer transport and
+its own device catalog — the engine is self-contained.
 
 ## Build and test
 
@@ -17,25 +18,33 @@ pip install -e ".[test]"
 python -m pytest          # from the repo root, no PT required
 ```
 
-There is no linter or formatter configured. Match the surrounding style: type
-hints on public functions, `from __future__ import annotations` at the top,
-comments in Spanish or English following whatever the file already uses.
+Live tests under `tests/autopilot/test_live_*.py` skip themselves when Packet
+Tracer is not reachable. There is no linter or formatter configured. Match the
+surrounding style: type hints on public functions, `from __future__ import
+annotations` at the top, comments in Spanish or English following whatever the
+file already uses.
 
 ## Layout
 
 | Path | What lives there |
 | --- | --- |
-| `src/packet_tracer_mcp/domain/` | Pydantic models, validation rules, planning services |
-| `src/packet_tracer_mcp/application/` | Use cases: rules + generators, dependencies injected |
-| `src/packet_tracer_mcp/infrastructure/` | Generators, executors, the HTTP + file bridges, device catalog |
-| `src/packet_tracer_mcp/adapters/mcp/` | `tool_registry.py` — the 61 MCP tools |
+| `src/network_autopilot/core/` | `NetworkSpec`, `Observable`, receipts, safety, actual-state models |
+| `src/network_autopilot/compiler/` | Compiler, operation DAG, executor, port solver, preflight, layout, policy |
+| `src/network_autopilot/ipam/` | Deterministic addressing plan and validator |
+| `src/network_autopilot/adapter/` | Adapter contract, null adapter, `packet_tracer/` live adapter + JS builders |
+| `src/network_autopilot/pt/` | Transport (`http_bridge`, `mailbox`, `token`) and the device/module/cable catalog |
+| `src/network_autopilot/verification/`, `acceptance/`, `diagnosis/`, `diff/` | Verdicts, evidence-based diff and diagnosis |
+| `src/network_autopilot/repair/` | Bounded diagnose → plan → gate → execute → re-verify loop |
+| `src/network_autopilot/mcp/server.py` | The MCP tool surface (`python -m network_autopilot`) |
 | `EXTENSION/script-engine/` | Script-engine side of the extension. `main.js` is ours (tracked); the rest are PTBuilder reference copies (gitignored) |
 | `EXTENSION/webview/` | The MCP Control Center webview (`index.html` + `interface.js`) |
-| `src/network_autopilot/` | The autopilot engine: compiler, DAG, executor, verification, repair, IPAM |
+| `build_havyn.py` | One-shot build entry point: `python build_havyn.py <spec> <safety_mode>` |
 
-`tool_registry.py` is ~3000 lines and every tool is a closure inside
-`register_tools()`. That means helpers defined there **cannot be imported by
-tests**. If you write a helper worth testing, put it in `shared/utils.py`.
+`src/network_autopilot/mcp/server.py` keeps its handlers thin — every tool
+delegates to the engine. If you write a helper worth testing, put it in the
+module the engine already owns (for example `core/ids.py` or `shared` helpers
+inside the layer that uses them), never in a closure inside `register_tools`-style
+registration.
 
 ### Network Autopilot (Phase 1-3)
 

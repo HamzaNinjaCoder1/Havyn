@@ -9,40 +9,28 @@ this product exists to eliminate.
 
 from __future__ import annotations
 
+import json
 import threading
 
 from ..core.actual_state import DeviceObservation, PortObservation
 from ..core.ids import new_id, utc_now_iso
+from ..core.network_spec import default_model_for_role
 from ..core.observability import Observable
 from ..core.receipts import CheckResult, OperationReceipt, OperationResult
 from ..core.requirements import FlowOutcome, FlowResult
+from ..pt.catalog import resolve_model, resolve_module, ports_for_slot
 from .base import AdapterInfo, PacketTracerAdapter
 
-_DEFAULT_MODEL = {
-    "router": "2911",
-    "switch": "2960-24TT",
-    "l3_switch": "3560-24PS",
-    "pc": "PC",
-    "server": "Server-PT",
-    "laptop": "Laptop-PT",
-    "access_point": "AP-PT",
-    "cloud": "Cloud-PT",
-    "other": "Generic",
-}
 
-_PORT_TEMPLATES: dict[str, list[str]] = {
-    "router": ["GigabitEthernet0/0", "GigabitEthernet0/1", "GigabitEthernet0/2"],
-    "switch": [f"FastEthernet0/{i}" for i in range(1, 25)]
-    + ["GigabitEthernet0/1", "GigabitEthernet0/2"],
-    "l3_switch": [f"FastEthernet0/{i}" for i in range(1, 25)]
-    + ["GigabitEthernet0/1", "GigabitEthernet0/2"],
-    "pc": ["FastEthernet0"],
-    "server": ["FastEthernet0"],
-    "laptop": ["FastEthernet0"],
-    "access_point": ["FastEthernet0"],
-    "cloud": [],
-    "other": ["FastEthernet0"],
-}
+def _catalog_ports(model_name: str) -> list[str]:
+    """The model's ports as the catalog declares them - the same source of truth
+    the real solver and deploy use. The null adapter used to carry its own list
+    (router = 3 GE), which no longer matches a real 2911 (2 onboard + modules),
+    so an offline test did not reflect the topology the backend would build."""
+    model = resolve_model(model_name)
+    if model is None:
+        return ["FastEthernet0"]
+    return [p.full_name for p in model.ports]
 
 
 class NullAdapter(PacketTracerAdapter):
@@ -83,8 +71,8 @@ class NullAdapter(PacketTracerAdapter):
             error=error,
         )
 
-    def _ports_for(self, role: str) -> list[str]:
-        return list(_PORT_TEMPLATES.get(role, _PORT_TEMPLATES["other"]))
+    def _ports_for(self, role: str, model_hint: str | None = None) -> list[str]:
+        return _catalog_ports(model_hint or default_model_for_role(role))
 
     # -- probing ------------------------------------------------------------
 
@@ -112,14 +100,16 @@ class NullAdapter(PacketTracerAdapter):
     def link_exists(
         self, a_device: str, a_port: str, b_device: str, b_port: str
     ) -> Observable[bool]:
+        # Peer-aware (P1-3): both ports have to be connected TO EACH OTHER,
+        # not merely each have some cable.
         with self._lock:
             a = self._devices.get(a_device, {}).get("ports", {}).get(a_port)
             b = self._devices.get(b_device, {}).get("ports", {}).get(b_port)
             linked = (
                 a is not None
                 and b is not None
-                and a["connected_to"] is not None
-                and b["connected_to"] is not None
+                and a["connected_to"] == (b_device, b_port)
+                and b["connected_to"] == (a_device, a_port)
             )
             return Observable.known(linked, source="null-adapter")
 
@@ -199,8 +189,8 @@ class NullAdapter(PacketTracerAdapter):
                 preconditions=pre, error="existence could not be determined (fail-closed)",
             )
 
-        model = model_hint or _DEFAULT_MODEL.get(role, _DEFAULT_MODEL["other"])
-        ports = {p: {"config": {}, "connected_to": None} for p in self._ports_for(role)}
+        model = model_hint or default_model_for_role(role)
+        ports = {p: {"config": {}, "connected_to": None} for p in self._ports_for(role, model)}
         with self._lock:
             self._devices[name] = {
                 "role": role, "model": model, "position": position or (0, 0), "ports": ports,
@@ -328,6 +318,119 @@ class NullAdapter(PacketTracerAdapter):
             executed={"ports_reserved": [f"{a_device}:{final_a}", f"{b_device}:{final_b}"]},
         )
 
+    def delete_device(
+        self, name: str, operation_id: str | None = None
+    ) -> OperationReceipt:
+        requested = {"name": name}
+        with self._lock:
+            present = name in self._devices
+            if not present:
+                # Idempotent: already absent is a CONFIRMED success.
+                obs = Observable.known(False, source="null-adapter")
+                return self._receipt(
+                    "delete_device", requested, operation_id, OperationResult.SUCCESS,
+                    preconditions=[CheckResult.of("device_present", "False", obs)],
+                    postconditions=[CheckResult.of("device_absent", "True", obs)],
+                    executed={"decision": "already absent"},
+                )
+            # detach every link touching the device first
+            self._links = [
+                lnk for lnk in self._links
+                if lnk["a"][0] != name and lnk["b"][0] != name
+            ]
+            del self._devices[name]
+            gone = Observable.known(name not in self._devices, source="null-adapter")
+        return self._receipt(
+            "delete_device", requested, operation_id, OperationResult.SUCCESS,
+            postconditions=[CheckResult.of("device_absent", "True", gone)],
+        )
+
+    def delete_link(
+        self,
+        a_device: str,
+        a_port: str,
+        b_device: str,
+        b_port: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        requested = {
+            "a_device": a_device, "a_port": a_port,
+            "b_device": b_device, "b_port": b_port,
+        }
+        with self._lock:
+            before = any(
+                lnk["a"] == (a_device, a_port) or lnk["b"] == (b_device, b_port)
+                for lnk in self._links
+            )
+            self._links = [
+                lnk for lnk in self._links
+                if not (lnk["a"] == (a_device, a_port) or lnk["b"] == (b_device, b_port))
+            ]
+            for dev, port in ((a_device, a_port), (b_device, b_port)):
+                ports = self._devices.get(dev, {}).get("ports", {})
+                if port in ports and ports[port]["connected_to"] is not None:
+                    ports[port]["connected_to"] = None
+            after = Observable.known(not before, source="null-adapter")
+        return self._receipt(
+            "delete_link", requested, operation_id, OperationResult.SUCCESS,
+            postconditions=[CheckResult.of("link_absent", "True", after)],
+            executed={"had_link": before},
+        )
+
+    def install_module(
+        self,
+        device: str,
+        slot: str,
+        module: str,
+        expected_port: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        requested = {
+            "device": device, "slot": slot, "module": module,
+            "expected_port": expected_port,
+        }
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._receipt(
+                "install_module", requested, operation_id, OperationResult.REJECTED,
+                preconditions=pre, error="device missing",
+            )
+        spec = resolve_module(module)
+        if spec is None:
+            return self._receipt(
+                "install_module", requested, operation_id, OperationResult.FAILED,
+                preconditions=pre, error=f"unknown module {module!r}",
+            )
+        with self._lock:
+            info = self._devices[device]
+            ports = info["ports"]
+            if expected_port in ports:
+                # Idempotent: the module is already installed and its port exists.
+                # That is a CONFIRMED success, not a second install.
+                already = Observable.known(expected_port, source="null-adapter")
+                return self._receipt(
+                    "install_module", requested, operation_id, OperationResult.SUCCESS,
+                    preconditions=pre,
+                    postconditions=[CheckResult.of("module_port_visible", expected_port, already)],
+                    executed={"decision": "module already installed"},
+                )
+            for name in ports_for_slot(spec, slot):
+                ports.setdefault(name, {"config": {}, "connected_to": None})
+            visible = Observable.known(
+                expected_port if expected_port in ports else None,
+                source="null-adapter",
+            )
+            installed = expected_port in ports
+        return self._receipt(
+            "install_module", requested, operation_id,
+            OperationResult.SUCCESS if installed else OperationResult.FAILED,
+            preconditions=pre,
+            postconditions=[CheckResult.of("module_port_visible", expected_port, visible)],
+            executed={"ports_added": list(ports_for_slot(spec, slot))},
+            error=None if installed else f"port {expected_port!r} not visible after install",
+        )
+
     def configure_ios(
         self, device: str, commands: list[str], operation_id: str | None = None
     ) -> OperationReceipt:
@@ -358,6 +461,48 @@ class NullAdapter(PacketTracerAdapter):
             "configure_ios", requested, operation_id, OperationResult.SUCCESS,
             preconditions=pre, postconditions=post,
             executed={"recorded": len(commands)},
+            error=None,
+        )
+
+    def configure_gateway_lan(
+        self,
+        device: str,
+        ip: str,
+        mask: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        requested = {"device": device, "ip": ip, "mask": mask}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._receipt(
+                "configure_gateway_lan", requested, operation_id,
+                OperationResult.REJECTED,
+                preconditions=pre, error="device missing",
+            )
+        with self._lock:
+            config = self._devices[device].setdefault("config", {})
+            config["ip"] = ip
+            config["mask"] = mask
+        # Honest structural postcondition: the address is recorded in the
+        # double, but a real PT gateway's read-back is not observable here —
+        # so the check stays unknown and the receipt stays unconfirmed.
+        post = [
+            CheckResult(
+                name="configured_addresses_present",
+                expected=json.dumps({"Vlan1": ip}, sort_keys=True),
+                actual=Observable.unknown(
+                    "structural adapter records the LAN address but cannot "
+                    "read a gateway's Vlan1 back"
+                ),
+                passed=None,
+            )
+        ]
+        return self._receipt(
+            "configure_gateway_lan", requested, operation_id,
+            OperationResult.SUCCESS,
+            preconditions=pre, postconditions=post,
+            executed={"recorded": ip},
             error=None,
         )
 
@@ -439,10 +584,20 @@ class NullAdapter(PacketTracerAdapter):
 
     # -- verification -------------------------------------------------------
 
-    def run_flow_test(self, source: str, destination: str) -> FlowResult:
+    def run_flow_test(
+        self,
+        source: str,
+        destination: str,
+        *,
+        transport: str = "icmp",
+        port: int | None = None,
+        destination_ip: str | None = None,
+    ) -> FlowResult:
         return FlowResult(
             source=source,
             destination=destination,
+            transport=transport,
+            port=port,
             outcome=FlowOutcome.UNKNOWN,
             detail="null adapter has no data plane; flow outcomes require the real runtime",
         )

@@ -27,6 +27,10 @@ class PortObservation:
     trunk: Observable[bool] = field(default_factory=Observable.not_observed)
     description: Observable[str] = field(default_factory=Observable.not_observed)
     peers: Observable[list[str]] = field(default_factory=Observable.not_observed)
+    # Class of whatever the port is linked to: "Cable" for a copper/fiber
+    # link, "Antenna" for a wireless association. This is the difference
+    # between "a cable exists" and "the client actually joined the AP".
+    link_class: Observable[str] = field(default_factory=Observable.not_observed)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +43,7 @@ class PortObservation:
             "trunk": self.trunk.to_dict(),
             "description": self.description.to_dict(),
             "peers": self.peers.to_dict(),
+            "link_class": self.link_class.to_dict(),
         }
 
     @classmethod
@@ -53,6 +58,7 @@ class PortObservation:
             trunk=Observable.from_dict(data.get("trunk", {})),
             description=Observable.from_dict(data.get("description", {})),
             peers=Observable.from_dict(data.get("peers", {})),
+            link_class=Observable.from_dict(data.get("link_class", {})),
         )
 
 

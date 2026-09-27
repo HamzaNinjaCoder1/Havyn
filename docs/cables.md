@@ -1,7 +1,6 @@
 # Cable Types
 
-**15 cable types** are supported. Pass one as the last argument of `pt_add_link`
-(or in a plan link's `cable`), or omit it to let the server infer it from the
+**15 cable types** are supported. Set it in the link's `media` field, or omit it to let the compiler infer it from the
 device categories.
 
 | Cable | When to use |
@@ -23,10 +22,10 @@ device categories.
 | `custom_io` | Custom I/O (IoT). |
 
 !!! tip "Aliases & inference"
-    `pt_add_link` accepts `crossover` (→ `cross`) and `rollover` (→ `roll`). If you
+    The link's `media` field accepts `crossover` (= `cross`) and `rollover` (= `roll`). If you
     omit the cable type, it infers from device categories — verified on PT 9.0.0
     (e.g. router↔router → `cross`, switch↔server → `straight`).
 
 !!! warning "Don't use `crossover` as a raw value"
     For direct `addLink` calls the valid value is `cross`, not `crossover`. The
-    `pt_add_link` tool accepts the alias and normalizes it for you.
+    The compiler accepts the alias and normalizes it for you.

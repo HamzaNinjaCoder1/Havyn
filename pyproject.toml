@@ -6,14 +6,14 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "packet-tracer-mcp"
-version = "0.9.0"
-description = "MCP server for Cisco Packet Tracer - topology planning, validation, auto-fix, generation, and configuration"
+name = "havyn"
+version = "0.1.0"
+description = "Havyn - closed-loop network engineering for Cisco Packet Tracer: typed topology specs, a deterministic compiler, a gated executor, honest verification and bounded repair over the Packet Tracer Script Engine"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-authors = [{ name = "Mats2208", email = "a2024111556@estudiantes.upsa.edu.bo" }]
+authors = [{ name = "HamzaNinjaCoder1" }]
 keywords = [
     "mcp",
     "model-context-protocol",
@@ -25,6 +25,7 @@ keywords = [
     "ccna",
     "ospf",
     "vlan",
+    "network-verification",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -52,23 +53,23 @@ dependencies = [
 test = ["pytest>=8"]
 
 [project.urls]
-Homepage = "https://www.mcpnetwork.top"
+Homepage = "https://github.com/HamzaNinjaCoder1/Havyn"
+Repository = "https://github.com/HamzaNinjaCoder1/Havyn"
+Issues = "https://github.com/HamzaNinjaCoder1/Havyn/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Los tests importan `src.packet_tracer_mcp`. Fijarlo acá evita depender de la
-# inserción implícita de rootdir y garantiza una sola identidad del módulo.
-# Además, un par de tests leen archivos por ruta relativa al repo, así que la
-# suite debe correrse desde la raíz.
-# "src" extra: `network_autopilot` importa `packet_tracer_mcp` top-level, así los
-# tests no dependen de que el paquete esté instalado.
+# Tests import `src.network_autopilot`. Pinning both entries here removes the
+# dependence on pytest's implicit rootdir insertion and guarantees a single
+# module identity. A few tests read files relative to the repo root, so the
+# suite has to be run from the root.
 pythonpath = [".", "src"]
 
 [project.scripts]
-pt-mcp = "packet_tracer_mcp.server:main"
+havyn = "network_autopilot.mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/packet_tracer_mcp", "src/network_autopilot"]
+packages = ["src/network_autopilot"]
 
 [tool.hatch.build.targets.sdist]
 # El sdist por defecto se lleva TODO lo que no esté en .gitignore: los GIFs y

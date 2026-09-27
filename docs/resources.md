@@ -14,4 +14,4 @@ client) can fetch directly for context. All return JSON.
 !!! tip "Resources vs tools"
     Resources are great for **context** (let the model read the whole catalog once).
     For dynamic queries against a *running* topology, use the tools
-    `pt_query_topology` / `pt_export_topology` instead.
+    `net_observe` / `net_verify` instead.

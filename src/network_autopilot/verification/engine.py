@@ -105,6 +105,9 @@ class VerificationReport:
                 "satisfied": self.acceptance.satisfied,
             },
             "observations_complete": self.observations_complete,
+            "per_criterion": (
+                self.per_criterion.to_dict() if self.per_criterion is not None else None
+            ),
         }
 
 
@@ -121,19 +124,32 @@ class VerificationEngine:
         *,
         link_endpoints: dict[str, tuple[str, str, str, str]] | None = None,
         observations_complete: bool = False,
+        assignment_ports: dict[tuple[str, str], str] | None = None,
     ) -> VerificationReport:
         """Run all levels and assemble the report.
 
         `link_endpoints` maps link_id -> (a_dev, a_port, b_dev, b_port); the
         executor derives it from the compiled DAG.
+
+        `assignment_ports` is the same map the compiler used to place each
+        address assignment onto a real interface, keyed by
+        (device, subnet_id). Without it, an assignment lacking an
+        interface_hint would be checked against a hardcoded "FastEthernet0"
+        that does not exist on a 2911/2960 and read UNKNOWN forever — making
+        BuildReport.success unreachable for ordinary labs.
         """
         now = utc_now_iso()
+        resolved = dict(assignment_ports or {})
         tests: list[VerificationTest] = []
         tests.extend(self._structural_tests(spec, state, now, observations_complete))
         tests.extend(
             self._link_tests(spec, link_endpoints or {}, now, observations_complete)
         )
-        tests.extend(self._addressing_tests(spec, plan, state, now, observations_complete))
+        tests.extend(
+            self._addressing_tests(
+                spec, plan, state, now, observations_complete, resolved
+            )
+        )
         tests.extend(
             self._connectivity_tests(spec, flow_results, now, observations_complete)
         )
@@ -180,24 +196,45 @@ class VerificationEngine:
         for device in spec.devices:
             observed = state.devices.get(device.id)
             if observed is not None:
-                evidence = [f"device observed in workspace state"]
-                if observed.model.is_known:
-                    evidence.append(f"model={observed.model.value}")
-                tests.append(
-                    VerificationTest(
-                        test_id=f"VT-struct-device-{device.id}",
-                        level="structural",
-                        source_requirement=None,
-                        source_acceptance_criterion=None,
-                        source=device.id,
-                        target=device.id,
-                        expected_result="device present",
-                        observed_result="present",
-                        evidence=tuple(evidence),
-                        timestamp=now,
-                        verdict=Verdict.PASS,
+                if not observed.model.is_known:
+                    tests.append(
+                        VerificationTest(
+                            test_id=f"VT-struct-device-{device.id}",
+                            level="structural",
+                            source_requirement=None,
+                            source_acceptance_criterion=None,
+                            source=device.id,
+                            target=device.id,
+                            expected_result="device present",
+                            observed_result="device present but model is not observed",
+                            evidence=(
+                                "device observed in workspace state but model is unknown; "
+                                f"observation completeness unknown"
+                            ),
+                            timestamp=now,
+                            verdict=Verdict.UNKNOWN,
+                        )
                     )
-                )
+                else:
+                    evidence = [
+                        f"device observed in workspace state",
+                        f"model={observed.model.value}",
+                    ]
+                    tests.append(
+                        VerificationTest(
+                            test_id=f"VT-struct-device-{device.id}",
+                            level="structural",
+                            source_requirement=None,
+                            source_acceptance_criterion=None,
+                            source=device.id,
+                            target=device.id,
+                            expected_result="device present",
+                            observed_result="present",
+                            evidence=tuple(evidence),
+                            timestamp=now,
+                            verdict=Verdict.PASS,
+                        )
+                    )
             elif complete:
                 tests.append(
                     VerificationTest(
@@ -232,6 +269,89 @@ class VerificationEngine:
                 )
         return tests
 
+    def _wireless_link_test(self, spec: NetworkSpec, link, now: str) -> VerificationTest:
+        """Structural check for an RF link: PT's own antenna link."""
+        from ..wireless import module_for_model
+
+        def device_of(device_id: str):
+            return next((d for d in spec.devices if d.id == device_id), None)
+
+        client = None
+        for device_id in (link.a.device, link.b.device):
+            device = device_of(device_id)
+            if device is None:
+                continue
+            if device.model_hint and module_for_model(device.model_hint) is not None:
+                client = device_id
+                break
+        if client is None:
+            for device_id in (link.a.device, link.b.device):
+                if self._device_has_radio(device_id):
+                    client = device_id
+                    break
+        if client is None:
+            return VerificationTest(
+                test_id=f"VT-struct-link-{link.id}",
+                level="structural",
+                source_requirement=None,
+                source_acceptance_criterion=None,
+                source=None,
+                target=link.id,
+                expected_result="association present",
+                observed_result=None,
+                evidence=("neither end has a wireless radio",),
+                timestamp=now,
+                verdict=Verdict.FAIL,
+            )
+        reader = getattr(self.adapter, "wireless_association", None)
+        association = reader(client, "Wireless0") if reader else None
+        peer = link.b.device if client == link.a.device else link.a.device
+        if association is None:
+            return VerificationTest(
+                test_id=f"VT-struct-link-{link.id}",
+                level="structural",
+                source_requirement=None,
+                source_acceptance_criterion=None,
+                source=client,
+                target=link.id,
+                expected_result=f"associated to {peer}",
+                observed_result=None,
+                evidence=("PT shows no antenna link on the client radio",),
+                timestamp=now,
+                verdict=Verdict.FAIL,
+            )
+        matches = not association.access_point or association.access_point == peer
+        return VerificationTest(
+            test_id=f"VT-struct-link-{link.id}",
+            level="structural",
+            source_requirement=None,
+            source_acceptance_criterion=None,
+            source=client,
+            target=link.id,
+            expected_result=f"associated to {peer}",
+            observed_result=(
+                f"{association.client_interface} -> "
+                f"{association.access_point}:{association.ap_interface}"
+            ),
+            evidence=(
+                f"PT antenna link class={association.link_class}",
+                f"peer={association.access_point}",
+                f"port up={association.port_up}",
+            ),
+            timestamp=now,
+            verdict=Verdict.PASS if matches else Verdict.FAIL,
+        )
+
+    def _device_has_radio(self, device_id: str) -> bool:
+        try:
+            obs = self.adapter.inspect_device(device_id)
+        except Exception:
+            return False
+        return any(
+            name.lower().startswith(("wireless", "dot11", "wlan"))
+            for name in obs.ports
+        )
+
     def _link_tests(
         self,
         spec: NetworkSpec,
@@ -241,6 +361,13 @@ class VerificationEngine:
     ) -> list[VerificationTest]:
         tests: list[VerificationTest] = []
         for link in spec.links:
+            if link.media == "wireless":
+                # A wireless link has no cabling endpoints: what exists is the
+                # association, checked against PT's antenna link. Without this
+                # the structural test would report UNKNOWN for a link that is
+                # very much present.
+                tests.append(self._wireless_link_test(spec, link, now))
+                continue
             endpoints = link_endpoints.get(link.id)
             if endpoints is None:
                 tests.append(
@@ -318,13 +445,23 @@ class VerificationEngine:
         state: ActualNetworkState,
         now: str,
         complete: bool,
+        resolved: dict[tuple[str, str], str],
     ) -> list[VerificationTest]:
         tests: list[VerificationTest] = []
+        # The compiler maps (device, subnet_id) -> real interface for the
+        # assignments WITHOUT interface_hint (see compiler.py::_assign_router_ports);
+        # we reproduce that same key to recover the interface each one was
+        # compiled onto. Without this, an assignment with no hint is checked
+        # against "FastEthernet0", which does not exist on a 2911, and the
+        # addressing test reads UNKNOWN forever (P1-2).
         for assignment in plan.assignments:
             if assignment.ip is None:
                 continue  # DHCP clients: addressing verified via flows, not read-back
             allocation = plan.allocation_by_subnet(assignment.subnet_id)
-            iface = assignment.interface_hint or "FastEthernet0"
+            if assignment.interface_hint:
+                iface = assignment.interface_hint
+            else:
+                iface = resolved.get((assignment.device, assignment.subnet_id)) or "FastEthernet0"
             device = state.devices.get(assignment.device)
             expected = f"{assignment.ip}/{allocation.netmask}" if allocation else assignment.ip
             if device is None:

@@ -14,7 +14,7 @@ Build a one-armed router that routes between VLANs using `.1q` subinterfaces:
 The LLM calls:
 
 ```python
-pt_full_build(template="router_on_a_stick", vlans=3, pcs_per_lan=6, dhcp=True)
+a spec: role `router`, three VLAN subinterfaces, six PCs per LAN, DHCP on
 ```
 
 What you get:
@@ -47,7 +47,7 @@ pt_apply_vlan(
 Add IPv6 alongside IPv4 with one flag:
 
 ```python
-pt_full_build(routers=2, dual_stack=True)
+a spec: two routers, the `ipv6` block populated
 ```
 
 - **Routers** get `ipv6 unicast-routing` + `ipv6 address <prefix>::1/64` per interface (via CLI).
@@ -63,7 +63,7 @@ pt_full_build(routers=2, dual_stack=True)
 Connect Laptop-PTs over WiFi instead of a cable:
 
 ```python
-pt_full_build(laptops_per_lan=2, wireless_laptops=True)
+a spec with two laptops per LAN and `media: wireless` links
 ```
 
 - Each laptop's wired NIC is swapped for a **wireless card** (`PT-LAPTOP-NM-1W` → `Wireless0`).
@@ -94,9 +94,9 @@ All of these are config-driven and accept `dry_run=True` to preview the CLI:
 After a deploy, reconcile what the plan intended against what PT actually has:
 
 ```python
-pt_diff(plan_json=...)   # missing/extra devices, IP mismatches
-pt_health_check()        # down links, cabled-without-IP, duplicate IPs
+net_diff(spec_json)    # missing/extra devices, address mismatches
+net_verify            # flows, VLAN/trunk state, duplicate addresses
 ```
 
-`pt_live_deploy` also **auto-reconciles** — if PT silently drops a device (a known quirk with
+`net_build` also **auto-reconciles** — if PT silently drops a device (a known quirk with
 Laptop-PT), it re-adds the missing devices/links and re-verifies in the same call.

@@ -20,7 +20,9 @@ Honesty rules implemented here:
 - Read-back postconditions are separate sends; only their passage marks a
   receipt confirmed.
 - IOS acceptance is not observable through this channel, so `configure_ios`
-  receipts stay unconfirmed by construction.
+  receipts stay unconfirmed by construction - except where the effect IS
+  readable: interface addresses, and on switches the VLAN/trunk state the
+  script pushed (#5, read back with `show vlan brief`).
 - One channel per request, never both (upstream rule): HTTP when the
   authenticated bridge sees PT polling, otherwise the file mailbox when the
   Script Engine heartbeat is fresh — a late HTTP pickup plus a file retry
@@ -32,44 +34,270 @@ Honesty rules implemented here:
 
 from __future__ import annotations
 
+import http.client
 import json
+import re
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 
 from ...core.actual_state import ActualNetworkState, DeviceObservation
 from ...core.ids import new_id, utc_now_iso
-from ...core.observability import Observable
+from ...core.observability import Observable, ObservationStatus
 from ...core.receipts import CheckResult, OperationReceipt, OperationResult
-from ...core.requirements import FlowOutcome, FlowResult
+from ...core.requirements import FlowOutcome, FlowResult, best_flow_of
 from ...evidence.store import EvidenceStore
+from ...pt.catalog.devices import category_of_model
 from ..base import AdapterError, AdapterInfo, PacketTracerAdapter
 from . import js_commands as js
+from .pt_launcher import LaunchResult, ensure_packet_tracer, find_packet_tracer
 
-try:  # PROVENANCE: the single sanctioned import of the upstream package.
-    from packet_tracer_mcp.infrastructure.execution.live_bridge import (
+try:
+    from ...pt.http_bridge import (
         DEFAULT_PORT,
         PTCommandBridge,
         next_rid,
         report_result_js,
     )
-    from packet_tracer_mcp.infrastructure.execution.bridge_token import (
-        get_bridge_token,
-        token_fingerprint,
-    )
-    from packet_tracer_mcp.infrastructure.execution.file_bridge import FileBridge
-    from packet_tracer_mcp.shared.utils import classify_ping
-    from packet_tracer_mcp.infrastructure.catalog.cables import infer_cable
-    from packet_tracer_mcp.infrastructure.catalog.devices import category_of_model
+    from ...pt.token import get_bridge_token, token_fingerprint
+    from ...pt.mailbox import FileMailbox
+    # Re-exported: callers (and tests) reach for the mailbox transport through
+    # this module, so the name they already use keeps working.
+    from ...pt.mailbox import FileMailbox as FileBridge
+    from ...pt.ping import classify_ping
+    from ...pt.catalog import infer_cable, category_of_model
 except ImportError as exc:  # pragma: no cover - repo checkout without install
     raise ImportError(
-        "network_autopilot.adapter.packet_tracer needs the local transport package: "
-        "run `pip install -e .` or pytest from the repo root (pythonpath includes src/)"
+        "network_autopilot.adapter.packet_tracer needs its own transport "
+        "package (network_autopilot.pt): run `pip install -e .` or pytest "
+        "from the repo root (pythonpath includes src/)"
     ) from exc
 
 
 class BridgeUnreachable(AdapterError):
     """The bridge port could not be reached at all."""
+
+
+# A cross-subnet ping is retried because PT (like real IOS) drops the first
+# echoes while ARP resolves hop by hop. Three attempts was the observed
+# blocked -> partial -> reachable sequence on a freshly built transit path;
+# the settle between attempts gives the convergence room to happen.
+_FLOW_MAX_ATTEMPTS = 3
+_FLOW_CONVERGE_SETTLE_S = 1.0
+# A large build configures dozens of interfaces right up to the flow test; the
+# control plane needs this brief settle before the first echo or it loses the
+# first packets to ARP/CDP convergence rather than to a real fault.
+_FLOW_PRE_SETTLE_S = 1.5
+
+# IOS configuration is re-sent until the addresses show up on a read-back. A
+# router added moments earlier is still booting and swallows the CLI input
+# without reporting an error, so "the JS was delivered" is not evidence that
+# anything was configured. Three sends with a settle covers the boot window
+# without turning one device into a long stall.
+_IOS_CONFIG_ATTEMPTS = 3
+_IOS_SETTLE_SECONDS = 2.5
+
+# Existence is checked before and after every mutation, and an UNKNOWN answer
+# makes the caller fail closed. PT's script engine drops the occasional poll
+# while it is busy, so a single hiccup would reject a safe create. Two extra
+# reads turn that into a real answer without ever guessing: if the channel is
+# genuinely gone, all attempts come back UNKNOWN and the build still stops.
+_EXISTS_READ_ATTEMPTS = 3
+_EXISTS_READ_SETTLE_S = 0.4
+
+# A refused cable is retried with escalating waits. The budget is sized for a
+# LOADED PT, not an idle one: measured live, a 63-device build that followed
+# twenty minutes of other live tests lost roughly a third of its addLink calls
+# to publish lag, and the same build on a settled PT lost none. Nine seconds of
+# patience was not enough there; ~30s is. Only a refusal pays any of this.
+_LINK_RETRY_ATTEMPTS = 5
+_LINK_RETRY_BASE_S = 1.5
+
+_IOS_INTERFACE_RE = re.compile(r"^\s*interface\s+(\S+)", re.IGNORECASE)
+_IOS_ADDRESS_RE = re.compile(r"^\s*ip\s+address\s+(\d+\.\d+\.\d+\.\d+)", re.IGNORECASE)
+
+
+def _expected_ios_addresses(commands: list[str]) -> dict[str, str]:
+    """The interface -> address pairs a config script is asking IOS for.
+
+    Parsed from the commands themselves so every caller gets the read-back
+    check for free, whether it compiled the script or hand-wrote it.
+    """
+    expected: dict[str, str] = {}
+    iface: str | None = None
+    for command in commands:
+        entered = _IOS_INTERFACE_RE.match(command)
+        if entered:
+            iface = entered.group(1)
+            continue
+        addressed = _IOS_ADDRESS_RE.match(command)
+        if addressed and iface:
+            expected[iface] = addressed.group(1)
+    return expected
+
+
+def _command_statuses(
+    commands: list[str], expected: dict[str, str], missing: dict[str, str]
+) -> dict[str, str]:
+    """A per-command verdict, derived from what read-back could actually show.
+
+    PT's ``configureIosDevice`` answers ``true`` for a script it aborted on at
+    the first invalid line, and it does not echo into the console buffer
+    (measured live: a bogus line after a good config never appears in
+    ``getCommandLine().getOutput()``), so the error text cannot be read back.
+    What CAN be read back is the effect: an address we asked for and cannot
+    find means that line - and everything behind it - never applied. Commands
+    with no observable effect say so instead of claiming ``unknown``.
+    """
+    statuses: dict[str, str] = {}
+    iface: str | None = None
+    for command in commands:
+        entered = _IOS_INTERFACE_RE.match(command)
+        if entered:
+            iface = entered.group(1)
+            continue
+        addressed = _IOS_ADDRESS_RE.match(command)
+        if addressed and iface:
+            ip = addressed.group(1)
+            if expected.get(iface) == ip and iface in missing:
+                statuses[command] = f"not applied: {iface} never took {ip}"
+            elif iface in expected:
+                statuses[command] = f"applied: {iface} reads back {ip}"
+            else:
+                statuses[command] = "not applied"
+            continue
+        statuses[command] = "no read-back signal"
+    return statuses
+
+
+#: Categories whose ports carry VLAN membership. A router has no
+#: `show vlan brief` table, so asking one costs a round trip and learns
+#: nothing (#20). The same gate is what keeps a firewall's
+#: `switchport access vlan` lines out of the configure_ios read-back (#5):
+#: the compiler emits those lines for an ASA 5505 (`_build_firewall_commands`)
+#: but a firewall has no VLAN table to read them back from.
+_VLAN_CATEGORIES = ("switch",)
+
+_IOS_VLAN_ID_RE = re.compile(r"^\s*vlan\s+(\d{1,4})\s*$", re.IGNORECASE)
+_IOS_VLAN_NAME_RE = re.compile(r"^\s*name\s+(\S+)\s*$", re.IGNORECASE)
+_IOS_ACCESS_VLAN_RE = re.compile(
+    r"^\s*switchport\s+access\s+vlan\s+(\d{1,4})\b", re.IGNORECASE
+)
+_IOS_TRUNK_MODE_RE = re.compile(r"^\s*switchport\s+mode\s+trunk\b", re.IGNORECASE)
+_IOS_TRUNK_ALLOWED_RE = re.compile(
+    r"^\s*switchport\s+trunk\s+allowed\s+vlan\s+([0-9,\-\s]+)\s*$", re.IGNORECASE
+)
+_IOS_EXIT_RE = re.compile(r"^\s*(?:exit|end)\s*$", re.IGNORECASE)
+
+
+def _parse_vlan_list(text: str) -> list[int]:
+    """`10,20` -> [10, 20]; `10-12` -> [10, 11, 12]."""
+    ids: list[int] = []
+    for token in text.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if "-" in token:
+            low, _, high = token.partition("-")
+            try:
+                ids.extend(range(int(low), int(high) + 1))
+            except ValueError:
+                continue
+        else:
+            try:
+                ids.append(int(token))
+            except ValueError:
+                continue
+    return ids
+
+
+def _expected_ios_vlans(commands: list[str]) -> dict[str, dict] | None:
+    """The VLAN state an IOS script is asking for, parsed from the commands.
+
+    Same contract as `_expected_ios_addresses`: the expectation travels with
+    the script, so every caller gets the read-back check for free. Returns
+    None when the script defines no VLAN, assigns no access VLAN and sets no
+    trunk - the ordinary router case, which has no `show vlan brief` at all.
+
+    Observable through the existing read APIs (`read_vlans` ->
+    `parse_show_vlan_brief`) and therefore checked:
+
+    * ``vlan <id>`` - the id must be in the read-back table; a ``name <...>``
+      line inside that block must match the Name column (names containing a
+      space are skipped: the parser only takes the first token, so a mismatch
+      there would be a parsing artefact, not a config failure);
+    * ``switchport access vlan <id>`` - the interface must be listed as a
+      member of that VLAN;
+    * ``switchport mode trunk`` - the interface must read back as a trunk.
+
+    Deliberately NOT checked, because this repo has no read API that can see
+    it (inventing a PT call is worse than an unchecked line):
+
+    * DHCP - ``ip dhcp pool ...`` / ``network ...`` / ``default-router ...``
+      are pushed for routers and switches, but the only console reads that
+      exist here are `show vlan brief`, `show ip route` and
+      `show controllers serial`, plus the topology snapshot. None of them
+      reports DHCP pools, so a pool that silently did not apply stays
+      invisible to this receipt.
+    * ``switchport trunk native vlan ...`` and
+      ``switchport trunk encapsulation dot1q ...`` - `show vlan brief` carries
+      neither field; the per-port membership check below is the honest limit
+      of what that table can prove.
+    """
+    defined: dict[int, str | None] = {}
+    access: dict[str, int] = {}
+    trunk: dict[str, list[int] | None] = {}
+    iface: str | None = None
+    vlan_id: int | None = None
+    for command in commands:
+        entered = _IOS_INTERFACE_RE.match(command)
+        if entered:
+            iface, vlan_id = entered.group(1), None
+            continue
+        defined_vlan = _IOS_VLAN_ID_RE.match(command)
+        if defined_vlan:
+            iface, vlan_id = None, int(defined_vlan.group(1))
+            defined.setdefault(vlan_id, None)
+            continue
+        if _IOS_EXIT_RE.match(command):
+            iface, vlan_id = None, None
+            continue
+        named = _IOS_VLAN_NAME_RE.match(command)
+        if named and vlan_id is not None:
+            defined[vlan_id] = named.group(1)
+            continue
+        access_vlan = _IOS_ACCESS_VLAN_RE.match(command)
+        if access_vlan and iface:
+            access[iface] = int(access_vlan.group(1))
+            continue
+        if _IOS_TRUNK_MODE_RE.match(command) and iface:
+            trunk.setdefault(iface, None)
+            continue
+        allowed = _IOS_TRUNK_ALLOWED_RE.match(command)
+        if allowed and iface and iface in trunk:
+            trunk[iface] = _parse_vlan_list(allowed.group(1))
+    if not (defined or access or trunk):
+        return None
+    return {"defined": defined, "access": access, "trunk": trunk}
+
+
+def _flow_is_retryable(result: "FlowResult") -> bool:
+    """Should a lost/slow flow attempt be retried?
+
+    BLOCKED and PARTIAL are retryable: PT (like real IOS) drops the first
+    echoes across a multi-hop path while ARP resolves hop by hop. A poll that
+    saw no new statistics is also retryable -- under load a blocked ping can
+    still be in flight past its own deadline, and the next attempt often
+    catches it. Arm and console failures are terminal: retrying changes
+    nothing.
+    """
+    if result.outcome in (FlowOutcome.BLOCKED, FlowOutcome.PARTIAL):
+        return True
+    return (
+        result.outcome is FlowOutcome.UNKNOWN
+        and "no new ping statistics" in (result.detail or "")
+    )
 
 
 class BridgeAdapter(PacketTracerAdapter):
@@ -85,6 +313,9 @@ class BridgeAdapter(PacketTracerAdapter):
         evidence: EvidenceStore | None = None,
         max_result_wait: float = 45.0,
         file_bridge: FileBridge | None = None,
+        auto_launch: bool = False,
+        launch_timeout: float = 120.0,
+        observe_vlans: bool = True,
     ):
         self.port = port
         # Default (None) uses the real per-machine token via the upstream
@@ -99,6 +330,34 @@ class BridgeAdapter(PacketTracerAdapter):
         # Script Engine keeps running and drains the file mailbox. Tests can
         # inject a temp-directory FileBridge.
         self._file_bridge = file_bridge or FileBridge()
+        # On-demand launch: when PT is closed the live channel is unusable
+        # until someone opens the GUI. auto_launch lets this adapter open it
+        # itself (bounded by launch_timeout) instead of returning UNKNOWN.
+        self._auto_launch = auto_launch
+        self._launch_timeout = launch_timeout
+        # #20: one `show vlan brief` per switch. It is what makes the L2
+        # criteria decidable, and a caller whose spec asks for no VLAN can
+        # turn it off to save the round trip.
+        self._observe_vlans = observe_vlans
+        self.last_launch: LaunchResult | None = None
+        # Cached channel selection (see _pick_channel). Cleared on a failed
+        # send so a dead channel is re-probed instead of trusted.
+        self._channel: str | None = None
+        self._channel_cached_at: float | None = None
+        # Short-lived topology snapshot, shared by the burst of existence
+        # checks a build makes. Invalidated whenever a mutation runs, so a
+        # read after a create/link/config always sees the change.
+        self._snapshot_cache: Observable[list[dict]] | None = None
+        self._snapshot_at: float = 0.0
+        self._snapshot_ttl: float = 2.0
+
+    def _invalidate_snapshot(self) -> None:
+        """Drop the cached topology after a mutation.
+
+        Called after anything that changes PT's state, so the next existence
+        check re-reads instead of trusting a pre-mutation snapshot.
+        """
+        self._snapshot_cache = None
 
     # -- HTTP plumbing --------------------------------------------------
 
@@ -114,6 +373,13 @@ class BridgeAdapter(PacketTracerAdapter):
                 return resp.status, resp.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read().decode("utf-8", "replace")
+        except http.client.HTTPException as exc:
+            # A listener on the bridge port that does not speak HTTP answers
+            # with a bare status line; urlopen raises BadStatusLine (an
+            # HTTPException, not an OSError) straight out of getresponse().
+            # Without this the exception escaped _probe_channels and killed
+            # the whole command pipeline instead of just ruling HTTP out.
+            raise BridgeUnreachable(f"port held by a non-HTTP service: {exc}") from exc
         except urllib.error.URLError as exc:
             raise BridgeUnreachable(str(getattr(exc, "reason", exc))) from exc
         except OSError as exc:
@@ -137,6 +403,47 @@ class BridgeAdapter(PacketTracerAdapter):
             self._hosted.stop()
         self._hosted = None
 
+    # -- on-demand launch ---------------------------------------------------
+
+    def launch(self, timeout: float | None = None) -> LaunchResult:
+        """Open Packet Tracer and wait for the Script Engine heartbeat.
+
+        Idempotent and safe to call speculatively: when the heartbeat is
+        already fresh it returns ALIVE without spawning anything. This is the
+        hook an agent uses to remove 'PT must already be open' from the loop.
+
+        Never starts a GUI when the bridge is reachable. Never touches a PT
+        API — it spawns the documented executable and reads the existing
+        heartbeat, so no bridge endpoint or token is involved.
+        """
+        result = ensure_packet_tracer(
+            alive=self._file_bridge.pt_alive,
+            timeout=self._launch_timeout if timeout is None else timeout,
+        )
+        self.last_launch = result
+        if result.usable:
+            # The channel cache predates the launch; drop it so the next send
+            # re-probes and actually picks up the now-live file channel.
+            self._channel = None
+            self._channel_cached_at = None
+        return result
+
+    def _resolve_channel(self) -> str:
+        """Pick a channel, launching PT on demand when none is alive.
+
+        send() calls this instead of _pick_channel() directly so that an
+        adapter built with auto_launch=True can satisfy its own precondition
+        instead of answering every command with UNKNOWN while PT is closed.
+        """
+        channel = self._pick_channel()
+        if channel or not self._auto_launch:
+            return channel
+        # No live channel and launching is permitted: open PT, then re-probe
+        # exactly once. A launch that does not produce a heartbeat falls
+        # through to the same UNKNOWN the caller would have got anyway.
+        self.launch()
+        return self._pick_channel()
+
     # -- command pipeline -----------------------------------------------
 
     def _pick_channel(self) -> str:
@@ -145,8 +452,29 @@ class BridgeAdapter(PacketTracerAdapter):
         Mirrors the upstream routing: HTTP only when the authenticated bridge
         actually sees PT polling (ping() checks identity + /status); otherwise
         the file mailbox when the Script Engine heartbeat is fresh.
+
+        Cached briefly: the probe costs two HTTP round trips and a build sends
+        one command per operation. The cache is invalidated by a failed send
+        and by the TTL, so a channel that dies mid-run is re-probed.
         """
-        if self.ping().reachable:
+        now = time.time()
+        cached_at = self._channel_cached_at
+        if (
+            self._channel is not None
+            and cached_at is not None
+            and now - cached_at < self._CHANNEL_CACHE_TTL_SECONDS
+        ):
+            return self._channel
+        self._channel_cached_at = now
+        self._channel = self._probe_channels()
+        return self._channel
+
+    def _probe_channels(self) -> str:
+        # HTTP is only usable when the authenticated bridge actually answers
+        # — NOT when the file channel alone is alive. Using ping() here would
+        # pick "http" whenever the Script Engine heartbeat is fresh and then
+        # every send would hit a refused connection.
+        if self._http_ping().reachable:
             return "http"
         try:
             if self._file_bridge.pt_alive():
@@ -154,6 +482,52 @@ class BridgeAdapter(PacketTracerAdapter):
         except OSError:
             pass
         return ""
+
+    def _http_ping(self, timeout: float = 5.0) -> AdapterInfo:
+        """HTTP-bridge-only probe. Does NOT fall back to the file channel.
+
+        Used by _probe_channels to decide whether the HTTP channel is an
+        option at all. The public ping() does fall back, so it must not be
+        used for channel routing.
+        """
+        try:
+            status, body = self._http("GET", "/ping", timeout=timeout)
+        except BridgeUnreachable as exc:
+            return AdapterInfo(
+                self.name, self.version, False,
+                Observable.known(f"http bridge not reachable: {exc}"),
+            )
+        if status != 200 or not body:
+            return AdapterInfo(
+                self.name, self.version, False,
+                Observable.known(f"/ping answered HTTP {status}"),
+            )
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            return AdapterInfo(
+                self.name, self.version, False,
+                Observable.known("port held by an unidentified service"),
+            )
+        if data.get("service") != "pt-mcp-bridge":
+            return AdapterInfo(
+                self.name, self.version, False,
+                Observable.known("port held by a different service"),
+            )
+        if data.get("id") != self._fingerprint:
+            return AdapterInfo(
+                self.name, self.version, False,
+                Observable.known("a foreign bridge holds the port (token fingerprint mismatch)"),
+            )
+        return AdapterInfo(
+            self.name, self.version, True,
+            Observable.known("http bridge authenticated"),
+        )
+
+    def _invalidate_channel(self) -> None:
+        """Drop the cached channel so the next send re-probes."""
+        self._channel = None
+        self._channel_cached_at = None
 
     def _send_http(self, expression: str, statements: list[str] | None, wait: float) -> Observable[str]:
         rid = next_rid()
@@ -168,6 +542,7 @@ class BridgeAdapter(PacketTracerAdapter):
                 "POST", f"/queue?t={self.token}", body=payload, timeout=10.0
             )
         except BridgeUnreachable as exc:
+            self._invalidate_channel()
             return Observable.unknown(f"bridge unreachable while queueing: {exc}")
         if status != 200:
             return Observable.unknown(f"/queue answered {status}")
@@ -180,6 +555,7 @@ class BridgeAdapter(PacketTracerAdapter):
         except BridgeUnreachable as exc:
             return Observable.unknown(f"bridge unreachable while waiting for result: {exc}")
         if status != 200 or not body:
+            self._invalidate_channel()
             return Observable.unknown(f"no result for rid={rid} within {wait:.0f}s")
         if self._evidence is not None:
             # The payload embeds the bridge token inside the report URL; the
@@ -222,7 +598,7 @@ class BridgeAdapter(PacketTracerAdapter):
         a timeout is never mapped to success.
         """
         wait = wait or self._max_wait
-        channel = self._pick_channel()
+        channel = self._resolve_channel()
         if channel == "http":
             return self._send_http(expression, statements, wait)
         if channel == "file":
@@ -232,56 +608,71 @@ class BridgeAdapter(PacketTracerAdapter):
             "heartbeat is stale (is PT open with the extension installed?)"
         )
 
+    # Channel selection is cached for a few seconds. Probing costs two HTTP
+    # round trips and was re-issued before EVERY command, which dominated the
+    # wall clock of a multi-op build (§35). A channel that goes bad mid-run is
+    # still recovered: a failed send clears the cache and the next command
+    # re-probes.
+    _CHANNEL_CACHE_TTL_SECONDS: float = 4.0
+
     # -- probing ----------------------------------------------------------
 
     def ping(self, timeout: float = 5.0) -> AdapterInfo:
+        """Overall reachability: HTTP bridge OR Script Engine file channel.
+
+        Falls back to the file channel when HTTP is not hosted — PT is open
+        with the extension polling the mailbox, so it is perfectly reachable
+        even though no HTTP bridge is listening.
+        """
+        http = self._http_ping(timeout)
+        if http.reachable:
+            # Authenticated; is PT actually polling? /status carries that.
+            try:
+                status, body = self._http("GET", f"/status?t={self.token}", timeout=timeout)
+                connected = bool(json.loads(body).get("connected")) if status == 200 else False
+            except (BridgeUnreachable, json.JSONDecodeError):
+                connected = False
+            detail = (
+                "bridge authenticated; Packet Tracer extension is polling"
+                if connected
+                else "bridge authenticated; no Packet Tracer poll seen yet (is PT open with the extension?)"
+            )
+            return AdapterInfo(self.name, self.version, connected, Observable.known(detail))
+        # HTTP unavailable: try the file channel before declaring unreachable.
         try:
-            status, body = self._http("GET", "/ping", timeout=timeout)
-        except BridgeUnreachable as exc:
-            if self._host_bridge:
-                self._ensure_hosted()
-            return AdapterInfo(
-                self.name, self.version, False,
-                Observable.known(f"bridge not reachable: {exc}"),
-            )
-        if status != 200:
-            return AdapterInfo(
-                self.name, self.version, False,
-                Observable.known(f"/ping answered HTTP {status}"),
-            )
-        try:
-            data = json.loads(body)
-        except json.JSONDecodeError:
-            return AdapterInfo(
-                self.name, self.version, False,
-                Observable.known("port held by an unidentified service"),
-            )
-        if data.get("service") != "pt-mcp-bridge":
-            return AdapterInfo(
-                self.name, self.version, False,
-                Observable.known("port held by a different service"),
-            )
-        if data.get("id") != self._fingerprint:
-            return AdapterInfo(
-                self.name, self.version, False,
-                Observable.known("a foreign bridge holds the port (token fingerprint mismatch)"),
-            )
-        # Authenticated; is PT actually polling? /status carries that.
-        try:
-            status, body = self._http("GET", f"/status?t={self.token}", timeout=timeout)
-            connected = bool(json.loads(body).get("connected")) if status == 200 else False
-        except (BridgeUnreachable, json.JSONDecodeError):
-            connected = False
-        detail = (
-            "bridge authenticated; Packet Tracer extension is polling"
-            if connected
-            else "bridge authenticated; no Packet Tracer poll seen yet (is PT open with the extension?)"
+            if self._file_bridge.pt_alive():
+                return AdapterInfo(
+                    self.name, self.version, True,
+                    Observable.known(
+                        "reachable via Script Engine file channel "
+                        "(HTTP bridge not hosted)"
+                    ),
+                )
+        except OSError:
+            pass
+        return AdapterInfo(
+            self.name, self.version, False,
+            Observable.known(http.detail.value or "bridge unreachable"),
         )
-        return AdapterInfo(self.name, self.version, connected, Observable.known(detail))
 
     # -- inspection ---------------------------------------------------------
 
     def device_exists(self, name: str) -> Observable[bool]:
+        # Answered from the shared snapshot when one is warm: a build asks this
+        # before and after every mutation, and each fresh answer is a full
+        # topology read. Only fall back to the dedicated probe when the
+        # snapshot cannot be read at all.
+        for attempt in range(_EXISTS_READ_ATTEMPTS):
+            snapshot = self._live_devices(fresh=False)
+            if snapshot.is_known:
+                found = any(str(d.get("name")) == name for d in (snapshot.value or []))
+                return Observable.known(found, source=snapshot.source)
+            # UNKNOWN here means the channel hiccuped, not that the device is
+            # absent. Callers fail closed on UNKNOWN, so one dropped poll would
+            # reject a create that was perfectly safe - retry before concluding
+            # that existence really cannot be established.
+            if attempt + 1 < _EXISTS_READ_ATTEMPTS:
+                time.sleep(_EXISTS_READ_SETTLE_S)
         answer = self.send_expression(js.js_device_exists_expr(name), wait=10.0)
         if not answer.is_known:
             return Observable[bool].unknown(answer.detail or answer.status.value)
@@ -297,25 +688,62 @@ class BridgeAdapter(PacketTracerAdapter):
     def link_exists(
         self, a_device: str, a_port: str, b_device: str, b_port: str
     ) -> Observable[bool]:
+        # Peer-aware (P1-3): it is not enough for each port to have *some* link
+        # - they have to be connected to each other. The previous version
+        # validated R1:Fa0/1->R2 against R2:Fa0/2->R3: two wrong cables
+        # counted as one correct link.
+        snapshot = self._live_devices(fresh=False)
+        if snapshot.is_known:
+            for d in (snapshot.value or []):
+                if str(d.get("name")) != a_device:
+                    continue
+                for p in (d.get("ports") or []):
+                    if str(p.get("name")) != a_port or not p.get("linked"):
+                        continue
+                    if b_device in [str(x) for x in (p.get("peers") or [])]:
+                        return Observable.known(True, source=snapshot.source)
+            return Observable.known(False, source=snapshot.source)
+
         answer = self.send_expression(
-            js.js_both_ports_linked_expr(a_device, a_port, b_device, b_port), wait=10.0
+            js.js_link_peer_check_expr(a_device, a_port, b_device, b_port), wait=10.0
         )
         if not answer.is_known:
             return Observable[bool].unknown(answer.detail or answer.status.value)
         value = str(answer.value)
         if value == "yes":
             return Observable.known(True, source=answer.source)
-        if value == "no":
+        if value.startswith("yes:"):
+            return Observable.known(True, source=answer.source)
+        if value == "no" or value.startswith("no:"):
+            # 'no:different links' / 'no:an endpoint has no link' — carry the
+            # reason so diagnosis can tell a missing cable from a wrong peer.
             return Observable.known(False, source=answer.source)
+        if value.startswith("unknown"):
+            return Observable[bool].unknown(f"peer check could not answer: {value!r}")
         return Observable[bool].unknown(f"unexpected answer: {value!r}")
 
-    def _live_devices(self) -> Observable[list[dict]]:
+    def _live_devices(self, *, fresh: bool = True) -> Observable[list[dict]]:
         """One topology read-back: [{name, model, ports:[{name,ip,mask,up,linked}]}].
 
         Built on the upstream-verified live-devices JS. Anything that goes
         wrong (no channel, PT error, unparseable JSON) is UNKNOWN — never an
         empty list, which would read as "workspace is empty".
+
+        A short-lived cache absorbs the burst of existence checks a build makes
+        (idempotency, preconditions, postconditions). Those are asked in quick
+        succession and a fresh read per question is what made a twenty-link
+        topology pay for a full topology read per link. The window is small
+        enough that a deliberate re-read after a mutation still sees the
+        change, and callers that need ground truth pass ``fresh=True``.
         """
+        if not fresh:
+            cached = self._snapshot_cache
+            if cached is not None and (
+                self._snapshot_ttl <= 0
+                or time.time() - self._snapshot_at < self._snapshot_ttl
+            ):
+                return cached
+
         statements, final = js.js_live_devices_statements()
         answer = self.send_expression(final, statements=statements, wait=10.0)
         if not answer.is_known:
@@ -328,7 +756,12 @@ class BridgeAdapter(PacketTracerAdapter):
             devices = data.get("devices")
             if not isinstance(devices, list):
                 raise ValueError("devices is not a list")
-            return Observable.known(list(devices), source=answer.source)
+            result_obs: Observable[list[dict]] = Observable.known(
+                list(devices), source=answer.source
+            )
+            self._snapshot_cache = result_obs
+            self._snapshot_at = time.time()
+            return result_obs
         except (json.JSONDecodeError, ValueError, AttributeError) as exc:
             return Observable[list[dict]].unknown(
                 f"unparseable topology answer: {exc}: {value[:120]!r}"
@@ -342,17 +775,19 @@ class BridgeAdapter(PacketTracerAdapter):
         return Observable.known([n for n in names if n], source=devices.source)
 
     def _observation_from_live(self, match: dict) -> DeviceObservation:
-        name = str(match.get("name") or "")
+        name_raw = match.get("name")
+        name = str(name_raw) if name_raw else ""
         observation = DeviceObservation(name=name)
         source = f"live-readback:{name}"
-        model = str(match.get("model") or "")
+        model_raw = match.get("model")
         observation.model = (
-            Observable.known(model, source=source)
-            if model
+            Observable.known(str(model_raw), source=source)
+            if model_raw and isinstance(model_raw, str)
             else Observable[str].unknown("model not reported by read-back")
         )
         for p in match.get("ports") or []:
-            pname = str(p.get("name") or "")
+            pname_raw = p.get("name")
+            pname = str(pname_raw) if pname_raw else ""
             if not pname:
                 continue
             port = observation.port(pname)
@@ -363,19 +798,84 @@ class BridgeAdapter(PacketTracerAdapter):
                 port.state = Observable.known("down", source=source)
             else:
                 port.state = Observable[str].unknown("port up-state not reported")
-            ip = str(p.get("ip") or "")
-            mask = str(p.get("mask") or "")
+            ip_raw = p.get("ip")
+            mask_raw = p.get("mask")
             port.ip = (
-                Observable.known(ip, source=source)
-                if ip
+                Observable.known(str(ip_raw), source=source)
+                if ip_raw and isinstance(ip_raw, str) and ip_raw.strip()
                 else Observable[str].unknown("no ip on this port")
             )
             port.mask = (
-                Observable.known(mask, source=source)
-                if mask
+                Observable.known(str(mask_raw), source=source)
+                if mask_raw and isinstance(mask_raw, str) and mask_raw.strip()
                 else Observable[str].unknown("no mask on this port")
             )
+            link_class = p.get("linkClass")
+            port.link_class = (
+                Observable.known(str(link_class), source=source)
+                if link_class
+                else Observable[str].unknown("link type not reported")
+            )
+            peers = [
+                str(peer) for peer in (p.get("peers") or []) if str(peer).strip()
+            ]
+            port.peers = (
+                Observable.known(peers, source=source)
+                if peers
+                else Observable[list[str]].unknown("no peer device reported")
+            )
+        self._fill_vlan_state(observation)
         return observation
+
+    def _fill_vlan_state(self, observation: DeviceObservation) -> None:
+        """#20: put real VLAN membership on the ports, or the L2 criteria can
+        never pass.
+
+        `vlan_defined` and `trunk_configured` read `port.vlan`/`port.trunk`, and
+        the topology snapshot carries neither field, so both stayed
+        not-observed and every L2 criterion reported FAIL against a switch that
+        had been configured correctly. `show vlan brief` answers both from one
+        command: a port listed under a single VLAN is an access port, a port
+        listed under several is carrying a trunk.
+
+        A read that fails leaves the fields untouched - not-observed, which the
+        verifier reports as UNKNOWN rather than inventing a PASS.
+        """
+        if not self._observe_vlans or not observation.ports:
+            return
+        model = observation.model
+        if not model.is_known:
+            return
+        if category_of_model(str(model.value)) not in _VLAN_CATEGORIES:
+            return
+        table = self.read_vlans(observation.name)
+        if not table.is_known:
+            return
+        membership: dict[str, list[str]] = {}
+        for vlan in table.value or []:
+            vlan_id = str(vlan.get("id"))
+            for port_name in vlan.get("ports") or []:
+                # `show vlan brief` pads a multi-entry Ports column, so a
+                # parsed name can still carry leading spaces.
+                membership.setdefault(str(port_name).strip(), []).append(vlan_id)
+        for port_name, vlan_ids in membership.items():
+            port = observation.ports.get(port_name)
+            if port is None:
+                continue
+            if len(vlan_ids) == 1:
+                port.vlan = Observable[str].known(
+                    vlan_ids[0], source="show vlan brief"
+                )
+                port.trunk = Observable[bool].known(
+                    False, source="show vlan brief"
+                )
+            else:
+                port.vlan = Observable[str].known(
+                    ",".join(vlan_ids), source="show vlan brief"
+                )
+                port.trunk = Observable[bool].known(
+                    True, source="show vlan brief"
+                )
 
     def inspect_device(self, name: str) -> DeviceObservation:
         devices = self._live_devices()
@@ -467,10 +967,23 @@ class BridgeAdapter(PacketTracerAdapter):
         default_model = {"router": "Router-PT", "switch": "Switch-PT"}.get(role, "PC-PT")
         model = model_aliases.get(model_hint, model_hint) if model_hint else default_model
         x, y = position or (100, 100)
+        try:
+            type_code = js.device_type_code_for_model(model, role=role)
+        except ValueError as exc:
+            return self._precondition_receipt(
+                "create_device", requested, operation_id, pre, str(exc)
+            )
         answer = self.send_expression(
-            js.js_add_device(name, js.device_type_code_for(role), model, x, y)
+            js.js_add_device(name, type_code, model, x, y)
         )
+        self._invalidate_snapshot()  # the topology just changed
+        # PT publishes the device asynchronously; a link created immediately
+        # after can find it missing. Wait for the read-back to actually show it
+        # rather than sleeping a fixed fraction of a second - the same publish
+        # lag that breaks cabling is much larger on a busy PT.
         result, executed, error = self._interpret(answer)
+        if result is OperationResult.SUCCESS:
+            self._settle_until_published([name], timeout=20.0)
         post: list[CheckResult] = []
         if result is OperationResult.SUCCESS:
             after = self.device_exists(name)
@@ -488,6 +1001,132 @@ class BridgeAdapter(PacketTracerAdapter):
             finished_at=utc_now_iso(),
             error=error,
         )
+
+    def create_devices_bulk(
+        self, specs: list[dict], operation_id_prefix: str = "batch-create"
+    ) -> list[OperationReceipt]:
+        """Create many devices in ONE round-trip.
+
+        A single device needs a few PT calls, and each call costs a round-trip
+        through the script engine. When a topology wants twenty hosts, doing
+        that serially is the dominant cost of a build. This sends them as one
+        command and returns a receipt per device, so the DAG still sees one
+        operation per device and the per-device evidence is preserved.
+
+        Each device is still created independently inside PT (each wrapped in
+        its own try/catch), so a model that PT rejects is reported as its own
+        failed receipt instead of aborting the batch.
+        """
+        receipts: list[OperationReceipt] = []
+        if not specs:
+            return receipts
+
+        prepared: list[tuple[dict, tuple[str, int, str, int, int]]] = []
+        for spec in specs:
+            name = spec["name"]
+            role = spec.get("role", "pc")
+            # The executor hands us raw DAG op inputs, where the planned model
+            # lives under "model"; direct callers use "model_hint". Accepting
+            # only one of the two silently built a Router-PT for an op whose
+            # ports were solved against a 2911, and every addLink then came
+            # back as a bare "false" on a port the device did not have.
+            model_hint = spec.get("model_hint") or spec.get("model")
+            model_aliases = {"PC": "PC-PT"}
+            default_model = {"router": "Router-PT", "switch": "Switch-PT"}.get(role, "PC-PT")
+            model = (
+                model_aliases.get(model_hint, model_hint)
+                if model_hint else default_model
+            )
+            x, y = spec.get("position") or (100, 100)
+            try:
+                type_code = js.device_type_code_for_model(model, role=role)
+            except ValueError as exc:
+                receipts.append(OperationReceipt(
+                    operation_id=f"{operation_id_prefix}-{name}",
+                    operation="create_device",
+                    requested=spec,
+                    result=OperationResult.REJECTED,
+                    started_at=utc_now_iso(),
+                    finished_at=utc_now_iso(),
+                    error=str(exc),
+                ))
+                continue
+            prepared.append((spec, (name, type_code, model, int(x), int(y))))
+
+        if not prepared:
+            return receipts
+
+        # One command for every device whose model resolved to a PT type.
+        batch = [item for _, item in prepared]
+        stmts, final = js.js_batch_add_devices(batch)
+        answer = self.send_expression(final, statements=stmts, wait=max(15.0, 2.0 * len(batch)))
+        self._invalidate_snapshot()  # the topology just changed
+        # PT publishes a device to ipc.network() asynchronously, and a router
+        # registers its interfaces a beat after the device appears. A link
+        # created in the very next command can find the device missing, or find
+        # it without the ports yet, and PT answers 'false' with no error. This
+        # settle is what lets the link batch (or any immediate read) see a
+        # workspace that has caught up. Without it a build cables into a
+        # half-registered topology and reports phantom link failures.
+        #
+        # Poll for the devices instead of sleeping a flat interval: the delay
+        # grows with the batch AND with how busy PT already is, and a fixed
+        # sleep is either wasteful on a quiet PT or too short on a loaded one.
+        # Bounded, so a device PT genuinely refused cannot stall the build.
+        # prepared entries are (spec, (name, type_code, model, x, y)); only the
+        # names are needed to know when PT has caught up.
+        self._settle_until_published(
+            [entry[1][0] for entry in prepared], timeout=45.0
+        )
+        per_device: dict[str, dict] = {}
+        if answer.is_known:
+            try:
+                for row in json.loads(str(answer.value)):
+                    per_device[str(row.get("name"))] = row
+            except (json.JSONDecodeError, ValueError):
+                per_device = {}
+
+        # One workspace read confirms the whole batch. Reading each device
+        # separately is a round-trip per device, which is the cost the batch
+        # exists to remove.
+        snapshot = self._live_devices()
+        present = set()
+        if snapshot.is_known:
+            present = {
+                str(d.get("name")) for d in (snapshot.value or [])
+            }
+
+        for spec, (name, type_code, model, x, y) in prepared:
+            row = per_device.get(name, {})
+            ok = bool(row.get("ok"))
+            # Read-back decides, not the return string: PT can answer truthy
+            # for a device it did not actually place.
+            is_present = name in present
+            result = OperationResult.SUCCESS if (ok and is_present) else OperationResult.FAILED
+            post = []
+            if snapshot.is_known:
+                post = [CheckResult.of(
+                    "device_present", "True",
+                    Observable.known(True, source=snapshot.source)
+                    if is_present else
+                    Observable[bool].unknown(f"{name} absent from the workspace read"),
+                )]
+            receipts.append(OperationReceipt(
+                operation_id=f"{operation_id_prefix}-{name}",
+                operation="create_device",
+                requested=spec,
+                executed={"batched": True, "model": model, "js_ok": ok},
+                result=result,
+                postconditions=post,
+                evidence={"model": model, "batch": True,
+                          "js_error": row.get("error", "")},
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+                error=None if result is OperationResult.SUCCESS else (
+                    row.get("error") or "device not present after create"
+                ),
+            ))
+        return receipts
 
     def rename_device(
         self, old_name: str, new_name: str, operation_id: str | None = None
@@ -575,8 +1214,8 @@ class BridgeAdapter(PacketTracerAdapter):
             "a_device": a_device, "a_port": a_port,
             "b_device": b_device, "b_port": b_port, "media": media,
         }
-        a_exists = self.device_exists(a_device)
-        b_exists = self.device_exists(b_device)
+        a_exists = self._device_exists_settled(a_device)
+        b_exists = self._device_exists_settled(b_device)
         pre = [
             CheckResult.of("a_device_present", "True", a_exists),
             CheckResult.of("b_device_present", "True", b_exists),
@@ -618,7 +1257,32 @@ class BridgeAdapter(PacketTracerAdapter):
         answer = self.send_expression(
             js.js_add_link(a_device, a_port or "", b_device, b_port or "", cable)
         )
+        self._invalidate_snapshot()  # cabling changed the topology
         result, executed, error = self._interpret(answer)
+
+        # PT can refuse a cable it has not finished registering — usually an
+        # endpoint created moments ago, whose ports are not published yet. It
+        # answers a bare 'false' with no error, which is indistinguishable from
+        # a genuinely bad pairing. So a refusal earns escalating waits and
+        # retries: a real pairing still fails (after the waits), and a merely-
+        # too-early one succeeds. The escalation matters because PT's publish
+        # delay is not a fixed small number - it grows with the batch being
+        # published and with how much work PT already has queued, so the budget
+        # has to cover a loaded PT and not just an idle one. Only a refusal pays
+        # any of this, so the common path costs nothing.
+        attempts = 0
+        while result is OperationResult.FAILED and attempts < _LINK_RETRY_ATTEMPTS:
+            time.sleep(_LINK_RETRY_BASE_S * (attempts + 1))
+            self._invalidate_snapshot()
+            retry = self.send_expression(
+                js.js_add_link(a_device, a_port or "", b_device, b_port or "", cable)
+            )
+            retry_result, retry_executed, retry_error = self._interpret(retry)
+            attempts += 1
+            if retry_result is OperationResult.SUCCESS:
+                result, executed, error = retry_result, retry_executed, retry_error
+                self._invalidate_snapshot()
+
         postconditions: list[CheckResult] = []
         if result is OperationResult.SUCCESS:
             # read-back: the link exists only if BOTH endpoints report one
@@ -645,6 +1309,632 @@ class BridgeAdapter(PacketTracerAdapter):
             error=error,
         )
 
+    def _cable_for_media(
+        self, media: str, a_device: str, b_device: str, models: dict[str, str]
+    ) -> str:
+        """Resolve the cable name for one link, given already-read models.
+
+        Split out so a batch can read the workspace once and resolve every
+        link from that single snapshot, instead of a full topology read per
+        link.
+        """
+        try:
+            cable = js.cable_name_for(media)
+        except ValueError:
+            raise
+        if cable != "auto":
+            return cable
+        cat_a = category_of_model(models.get(a_device, "")) or "pc"
+        cat_b = category_of_model(models.get(b_device, "")) or "pc"
+        cable = infer_cable(cat_a, cat_b)
+        if cat_a in ("pc", "laptop", "server") and cat_b in ("pc", "laptop", "server"):
+            cable = "cross"
+        return cable
+
+    def create_links_bulk(
+        self, links: list[dict], operation_id_prefix: str = "batch-link"
+    ) -> list[OperationReceipt]:
+        """Create many links in ONE round-trip.
+
+        The per-link `auto` media path used to read the whole workspace to
+        learn two device models. For a forty-link topology that is forty full
+        topology reads before any cable is even placed. Here the workspace is
+        read once, every cable is resolved from that snapshot, and the links
+        go out together.
+        """
+        receipts: list[OperationReceipt] = []
+        if not links:
+            return receipts
+
+        devices = self._live_devices()
+        models = {
+            str(d.get("name")): str(d.get("model") or "")
+            for d in (devices.value or [])
+        } if devices.is_known else {}
+
+        prepared: list[tuple[dict, tuple[str, str, str, str, str]]] = []
+        for spec in links:
+            a = spec["a_device"]; ap = spec.get("a_port") or ""
+            b = spec["b_device"]; bp = spec.get("b_port") or ""
+            media = spec.get("media", "auto")
+            try:
+                cable = self._cable_for_media(media, a, b, models)
+            except ValueError as exc:
+                receipts.append(OperationReceipt(
+                    operation_id=f"{operation_id_prefix}-{spec.get('link_id','')}",
+                    operation="create_link", requested=spec,
+                    result=OperationResult.REJECTED,
+                    started_at=utc_now_iso(), finished_at=utc_now_iso(),
+                    error=str(exc),
+                ))
+                continue
+            prepared.append((spec, (a, ap, b, bp, cable)))
+
+        if not prepared:
+            return receipts
+
+        batch = [item for _, item in prepared]
+        stmts, final = js.js_batch_add_links(batch)
+        answer = self.send_expression(
+            final, statements=stmts, wait=max(20.0, 2.0 * len(batch))
+        )
+        self._invalidate_snapshot()  # cabling changed the topology
+        per_link: dict[str, dict] = {}
+        if answer.is_known:
+            try:
+                for row in json.loads(str(answer.value)):
+                    per_link[str(row.get("link"))] = row
+            except (json.JSONDecodeError, ValueError):
+                per_link = {}
+
+        # One workspace read confirms every link at once: a port with a
+        # `Cable`/`Antenna` object and the expected peer is a present link.
+        snapshot = self._live_devices()
+        wired: set[tuple[str, str, str, str]] = set()
+        if snapshot.is_known:
+            for d in (snapshot.value or []):
+                name = str(d.get("name"))
+                for p in (d.get("ports") or []):
+                    if not p.get("linked"):
+                        continue
+                    for peer in (p.get("peers") or []):
+                        peer = str(peer)
+                        # A link is symmetric; record both directions so the
+                        # lookup does not depend on argument order.
+                        wired.add((name, str(p.get("name")), peer, ""))
+                        wired.add((peer, "", name, str(p.get("name"))))
+
+        def _link_present(a: str, ap: str, b: str, bp: str) -> bool:
+            if (a, ap, b, bp) in wired:
+                return True
+            # The peer's port name is unknown from this side, so match on the
+            # (device, port) the local side sees plus the peer device.
+            return any(
+                w[0] == a and w[1] == ap and w[2] == b
+                for w in wired
+            ) or any(
+                w[0] == b and w[1] == bp and w[2] == a
+                for w in wired
+            )
+
+        for spec, (a, ap, b, bp, cable) in prepared:
+            key = f"{a}:{ap}-{b}:{bp}"
+            row = per_link.get(key, {})
+            ok = bool(row.get("ok"))
+            present = _link_present(a, ap, b, bp)
+            result = (
+                OperationResult.SUCCESS if (ok and present)
+                else OperationResult.FAILED
+            )
+            # A batch is a latency optimisation, never a correctness shortcut.
+            # If PT refused the cable inside the batch — usually a device it
+            # had not finished publishing, or a port not yet registered — that
+            # one link is redone the slow, reliable way. A build must not fail
+            # over a race the batch introduced.
+            if result is not OperationResult.SUCCESS:
+                retry = self.create_link(
+                    a, ap, b, bp, media=spec.get("media", "auto"),
+                    operation_id=f"{operation_id_prefix}-{spec.get('link_id', key)}-retry",
+                )
+                if retry.result is OperationResult.SUCCESS:
+                    result = OperationResult.SUCCESS
+                    ok, present = True, True
+            link_id = spec.get("link_id", key)
+            post = []
+            if snapshot.is_known:
+                post = [CheckResult.of(
+                    "link_present", "True",
+                    Observable.known(True, source=snapshot.source)
+                    if present else
+                    Observable[bool].unknown(f"link {key} absent from the workspace read"),
+                )]
+            receipts.append(OperationReceipt(
+                operation_id=f"{operation_id_prefix}-{link_id}",
+                operation="create_link",
+                requested=spec,
+                executed={"batched": True, "cable": cable, "js_ok": ok},
+                result=result,
+                postconditions=post,
+                evidence={"batch": True, "cable": cable,
+                          "js_error": row.get("error", "")},
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+                error=None if result is OperationResult.SUCCESS else (
+                    row.get("error") or "link not present after create"
+                ),
+            ))
+        return receipts
+
+    def _device_exists_settled(self, name: str, attempts: int = 3) -> Observable[bool]:
+        """device_exists with a settle for PT's asynchronous publication.
+
+        A device created through the logical workspace can take a moment to
+        show up in `ipc.network()`. A single immediate query turned that into
+        "endpoint existence could not be verified (fail-closed)" on the link
+        that follows its own create, so the question is asked again after a
+        short settle before it is treated as unanswerable.
+        """
+        exists = self.device_exists(name)
+        for _ in range(max(attempts, 1) - 1):
+            if exists.is_known:
+                break
+            time.sleep(1.0)
+            exists = self.device_exists(name)
+        return exists
+
+    def delete_device(
+        self, name: str, operation_id: str | None = None
+    ) -> OperationReceipt:
+        """Remove a device from the logical workspace. Idempotent.
+
+        An already-absent device is a CONFIRMED success: deletion is a
+        desired-state operation, and "it is not there" satisfies it.
+        """
+        requested = {"name": name}
+        before = self.device_exists(name)
+        if before.is_known and not before.value:
+            # Already absent: CONFIRMED success (absent is the desired state).
+            absent = Observable.known(True, source=before.source)
+            return OperationReceipt(
+                operation_id=operation_id or new_id("op"),
+                operation="delete_device",
+                requested=requested,
+                executed={"decision": "already absent"},
+                result=OperationResult.SUCCESS,
+                preconditions=[CheckResult.of("device_present", "False", before)],
+                postconditions=[CheckResult.of("device_absent", "True", absent)],
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+                evidence={"postcondition": "device already absent (idempotent)"},
+            )
+        if not before.is_known:
+            return self._precondition_receipt(
+                "delete_device", requested, operation_id,
+                [CheckResult.of("device_present", "True", before)],
+                "device existence could not be verified (fail-closed)",
+            )
+        _stmts, _final = js.js_delete_device_statements(name)
+        result, executed, error = self._interpret_delete(
+            self.send_expression(_final, statements=_stmts, wait=15.0)
+        )
+        self._invalidate_snapshot()  # the device list changed
+        post: list[CheckResult] = []
+        if result is OperationResult.SUCCESS:
+            # PT keeps the model and the logical workspace in sync
+            # asynchronously, so a device can still be visible right after a
+            # delete that PT reported as done. Settle, re-check, and run the
+            # delete again while it is still there: a delete that only works on
+            # the second look is a delete that leaves the workspace dirty.
+            after = self.device_exists(name)
+            for _ in range(3):
+                if not after.is_known or not after.value:
+                    break
+                time.sleep(1.0)
+                self.send_expression(_final, statements=_stmts, wait=15.0)
+                after = self.device_exists(name)
+            if after.is_known:
+                # "absent" is the boolean the check name promises, so a deleted
+                # device reads as passed=True rather than str(False)=="True".
+                absent = Observable.known(not after.value, source=after.source)
+                if after.value:
+                    result = OperationResult.FAILED
+                    error = error or "device still present after removeDevice"
+                post = [CheckResult.of("device_absent", "True", absent)]
+            else:
+                post = [CheckResult.of("device_absent", "True", after)]
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="delete_device",
+            requested=requested,
+            executed=executed,
+            result=result,
+            preconditions=[CheckResult.of("device_present", "True", before)],
+            postconditions=post,
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def _settle_until_published(
+        self, names: list[str], timeout: float = 45.0, interval: float = 1.0
+    ) -> bool:
+        """Wait until PT's read-back shows every named device WITH its ports.
+
+        Waiting for the device alone is not enough and the difference is the
+        whole bug: PT publishes a device to ipc.network() first and registers
+        its interfaces a beat later, so a link issued in between finds a device
+        that exists and a port that does not, and addLink answers a bare
+        'false'. Measured live on a loaded PT, a 63-device build lost a third
+        of its cables to exactly that window.
+
+        Bounded on purpose: a model PT refused never appears, and the caller has
+        to be told so rather than wait out the clock. Returns True when the
+        workspace caught up, False on timeout.
+        """
+        wanted = {n for n in names if n}
+        if not wanted:
+            return True
+        deadline = time.time() + timeout
+        while True:
+            self._invalidate_snapshot()
+            observed = self._live_devices(fresh=True)
+            if observed.is_known:
+                published = {
+                    str(d.get("name")): d.get("ports") or []
+                    for d in (observed.value or [])
+                }
+                if all(
+                    name in published and published[name]
+                    for name in wanted
+                ):
+                    return True
+            # Either the channel is struggling or PT has not caught up yet;
+            # back off and look again rather than trusting a fixed interval.
+            if time.time() >= deadline:
+                return False
+            time.sleep(interval)
+
+    def delete_devices_bulk(
+        self, names: list[str], operation_id_prefix: str = "batch-delete"
+    ) -> dict[str, str]:
+        """Remove many devices in ONE round-trip. Returns {name: outcome}.
+
+        Teardown is the one place a per-device round-trip does not scale: at
+        sixty-odd devices the serial version overran its budget and left half
+        the topology in the workspace, which then made every later PT run slow
+        enough that existence checks timed out and looked like build failures.
+
+        Each name is still verified by read-back afterwards, and anything the
+        batch reports as still present is retried through the single-device
+        path - the read-back, not the call, is what decides.
+        """
+        outcomes: dict[str, str] = {}
+        pending = [n for n in names if n]
+        if not pending:
+            return outcomes
+
+        statements, final = js.js_batch_delete_devices(pending)
+        answer = self.send_expression(final, statements=statements, wait=60.0)
+        self._invalidate_snapshot()
+        reported: dict[str, bool] = {}
+        if answer.is_known and not str(answer.value).startswith("PT_ERROR"):
+            try:
+                for row in json.loads(str(answer.value)) or []:
+                    reported[str(row.get("name"))] = bool(row.get("ok"))
+            except (ValueError, AttributeError, TypeError):
+                reported = {}
+        for name in pending:
+            outcomes[name] = "deleted" if reported.get(name) else "unknown"
+
+        # PT keeps the model and the logical workspace in sync asynchronously,
+        # so one settle-and-check catches the names the batch could not confirm.
+        if any(v != "deleted" for v in outcomes.values()):
+            time.sleep(1.5)
+            self._invalidate_snapshot()
+            for name, outcome in outcomes.items():
+                if outcome == "deleted":
+                    continue
+                try:
+                    receipt = self.delete_device(name, f"{operation_id_prefix}-{name}")
+                    outcomes[name] = receipt.result.value
+                except Exception as exc:  # teardown must never raise
+                    outcomes[name] = f"error:{type(exc).__name__}"
+        return outcomes
+
+    def delete_link(
+        self,
+        a_device: str,
+        a_port: str,
+        b_device: str,
+        b_port: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Remove the physical link on endpoint A. Idempotent (absent = OK).
+
+        Deleting one endpoint's cable removes the link; the receipt is
+        confirmed only when the port no longer reports a link.
+        """
+        requested = {
+            "a_device": a_device, "a_port": a_port,
+            "b_device": b_device, "b_port": b_port,
+        }
+        a_exists = self._device_exists_settled(a_device)
+        b_exists = self._device_exists_settled(b_device)
+        pre = [
+            CheckResult.of("a_device_present", "True", a_exists),
+            CheckResult.of("b_device_present", "True", b_exists),
+        ]
+        if not (a_exists.is_known and a_exists.value and b_exists.is_known and b_exists.value):
+            return self._precondition_receipt(
+                "delete_link", requested, operation_id, pre,
+                "endpoint existence could not be verified (fail-closed)",
+            )
+        _stmts, _final = js.js_delete_link_statements(a_device, a_port, b_device, b_port)
+        answer = self.send_expression(_final, statements=_stmts, wait=15.0)
+        self._invalidate_snapshot()  # uncabling changed the topology
+        result, executed, error = self._interpret_delete(answer)
+        post: list[CheckResult] = []
+        if result is OperationResult.SUCCESS:
+            linked = self.link_exists(a_device, a_port, b_device, b_port)
+            if linked.is_known:
+                absent = Observable.known(not linked.value, source=linked.source)
+                if linked.value:
+                    result = OperationResult.FAILED
+                    error = error or "link still present after deleteLink"
+                post = [CheckResult.of("link_absent", "True", absent)]
+            else:
+                post = [CheckResult.of("link_absent", "True", linked)]
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="delete_link",
+            requested=requested,
+            executed=executed,
+            result=result,
+            preconditions=pre,
+            postconditions=post,
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def install_module(
+        self,
+        device: str,
+        slot: str,
+        module: str,
+        expected_port: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Install an expansion module and confirm it by reading the port back.
+
+        Idempotent: if `expected_port` is already visible on the device the
+        module is already installed and the receipt is a CONFIRMED no-op. The
+        receipt is confirmed only when the port actually appears in
+        `getPorts()` — `addModule` answering true alone is executed-but-
+        unconfirmed, so a module that silently failed surfaces at the link
+        that depends on it instead of as a false green here.
+        """
+        requested = {
+            "device": device, "slot": slot, "module": module,
+            "expected_port": expected_port,
+        }
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._precondition_receipt(
+                "install_module", requested, operation_id, pre, "device missing or unknown"
+            )
+        # Idempotency: the port already exists -> the module is already in.
+        already = self._port_visible(device, expected_port)
+        if already.is_known and already.value:
+            return OperationReceipt(
+                operation_id=operation_id or new_id("op"),
+                operation="install_module",
+                requested=requested,
+                executed={"decision": "module already installed"},
+                result=OperationResult.SUCCESS,
+                preconditions=pre,
+                postconditions=[CheckResult.of("module_port_visible", expected_port, already)],
+                evidence={"postcondition": "port visible before install (already installed)"},
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+            )
+        statements, final = js.js_install_module_statements(
+            device, slot, module, expected_port
+        )
+        answer = self.send_expression(final, statements=statements, wait=20.0)
+        self._invalidate_snapshot()  # a module changes the port list
+        result, executed, error = self._interpret_delete(answer)
+        # 'OK:installed:<port>' = confirmed; 'OK:installed:port-pending' =
+        # executed but not observable yet (PT can need the boot to finish).
+        value = str(answer.value or "")
+        confirmed = value.startswith("OK:installed:") and "port-pending" not in value
+        post: list[CheckResult] = []
+        if result is OperationResult.SUCCESS:
+            visible = self._port_visible(device, expected_port)
+            if visible.is_known:
+                post = [CheckResult.of("module_port_visible", expected_port, visible)]
+                if not visible.value:
+                    result = OperationResult.FAILED
+                    error = error or f"port {expected_port!r} not visible after install"
+            else:
+                post = [CheckResult.of("module_port_visible", expected_port, visible)]
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="install_module",
+            requested=requested,
+            executed=executed,
+            result=result,
+            preconditions=pre,
+            postconditions=post,
+            evidence={
+                **(executed or {}),
+                "read_back": "getPorts() after addModule",
+                "confirmed": confirmed,
+            },
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def _port_visible(self, device: str, port: str) -> Observable[bool]:
+        """Whether `port` currently appears on the device's port list."""
+        obs = self.inspect_device(device)
+        return Observable.known(port in obs.ports, source=f"inspect_device:{device}")
+
+    @staticmethod
+    def _interpret_delete(answer) -> tuple[OperationResult, dict | None, str | None]:
+        """Turn a delete's textual answer into (result, executed, error).
+
+        'ABSENT:*' is a successful idempotent no-op; 'ERROR:*' is a failure;
+        anything unparseable is UNKNOWN, never a silent success.
+        """
+        if not answer.is_known:
+            return OperationResult.UNKNOWN, None, answer.detail or "no answer from PT"
+        text = str(answer.value).strip()
+        executed = {"answer": text}
+        if text.startswith("ABSENT"):
+            return OperationResult.SUCCESS, executed, None
+        if text.startswith("OK"):
+            return OperationResult.SUCCESS, executed, None
+        if text.startswith("ERROR"):
+            return OperationResult.FAILED, executed, text[len("ERROR:"):]
+        return OperationResult.UNKNOWN, executed, f"uninterpretable delete answer: {text!r}"
+
+    def ensure_wireless_radio(
+        self,
+        device: str,
+        *,
+        module: str = "PT-LAPTOP-NM-1W",
+        slot: str = "0",
+        interface: str = "Wireless0",
+        operation_id: str | None = None,
+    ) -> dict:
+        """Install a wireless NIC on a host, replacing the wired one.
+
+        Idempotent by read-back: if the interface is already there the module
+        is left alone. PT refuses `addModule` while the wired NIC still owns
+        the slot, so the module is removed first - the sequence the extension's
+        swapLaptopToWireless uses, and the one verified live.
+        """
+        exists = self.device_exists(device)
+        if not (exists.is_known and exists.value):
+            return {
+                "installed": False,
+                "device": device,
+                "error": "device missing or unknown",
+            }
+        # Idempotent by read-back: the interface is the fact, not the answer.
+        if self._port_visible(device, interface).value:
+            return {
+                "installed": True,
+                "device": device,
+                "interface": interface,
+                "module": module,
+                "slot": slot,
+                "answer": "already present",
+            }
+        answer = self.send_expression(
+            js.js_install_wireless_radio(device, module, slot, interface)
+        )
+        text = str(answer.value) if answer.is_known else ""
+        marker = "MCPWIRELESSRADIO:"
+        payload = text[len(marker):] if text.startswith(marker) else text
+        # The module install mutates PT; the read-back decides. A build that
+        # trusts the return string alone reported failure for a radio that was
+        # demonstrably there, because the file channel can answer a different
+        # request under load.
+        visible = self._port_visible(device, interface)
+        installed = bool(visible.is_known and visible.value)
+        return {
+            "installed": installed,
+            "device": device,
+            "interface": interface if installed else None,
+            "module": module,
+            "slot": slot,
+            "answer": payload,
+        }
+
+    def wireless_association(
+        self, device: str, interface: str = "Wireless0"
+    ):
+        """What PT reports about this host's association, read from the port.
+
+        The `Antenna` link is the association: its peer port names the access
+        point. No link, or a link of another class, means not associated.
+        """
+        from ...wireless import WirelessAssociation
+
+        answer = self.send_expression(js.js_wireless_association(device, interface))
+        if not answer.is_known:
+            return None
+        text = str(answer.value)
+        marker = "MCPWIFIASSOC:"
+        if not text.startswith(marker):
+            return None
+        try:
+            data = json.loads(text[len(marker):])
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not data.get("associated"):
+            return None
+        return WirelessAssociation(
+            client=device,
+            access_point=str(data.get("peer_device") or ""),
+            client_interface=interface,
+            ap_interface=data.get("peer_interface"),
+            link_class=str(data.get("link_class") or "Antenna"),
+            port_up=bool(data.get("port_up")),
+            evidence=data,
+        )
+
+    def list_wireless_associations(self) -> list[str]:
+        """Every `device:interface` currently showing an antenna link."""
+        answer = self.send_expression(js.js_antenna_links())
+        if not answer.is_known:
+            return []
+        text = str(answer.value)
+        marker = "MCPWIFIANT:"
+        if not text.startswith(marker):
+            return []
+        try:
+            data = json.loads(text[len(marker):])
+        except (json.JSONDecodeError, ValueError):
+            return []
+        return [str(row) for row in data]
+
+    def set_wireless_channel(
+        self, device: str, port: str, channel: int
+    ) -> dict[str, Any]:
+        """Put a radio on an explicit channel (association determinism)."""
+        exists = self.device_exists(device)
+        if not (exists.is_known and exists.value):
+            return {"ok": False, "device": device, "error": "device missing or unknown"}
+        answer = self.send_expression(js.js_set_wireless_channel(device, port, channel))
+        text = str(answer.value) if answer.is_known else ""
+        marker = "MCPWIFI:"
+        payload = text[len(marker):] if text.startswith(marker) else text
+        return {
+            "ok": payload.startswith("channel="),
+            "device": device,
+            "port": port,
+            "channel": channel,
+            "answer": payload,
+        }
+
+    def power_cycle(self, device: str) -> dict[str, Any]:
+        """Power-cycle a device so its radio re-scans for an access point."""
+        exists = self.device_exists(device)
+        if not (exists.is_known and exists.value):
+            return {"ok": False, "device": device, "error": "device missing or unknown"}
+        answer = self.send_expression(js.js_power_cycle(device))
+        text = str(answer.value) if answer.is_known else ""
+        return {
+            "ok": "power-cycled" in text,
+            "device": device,
+            "answer": text,
+        }
+
     def configure_ios(
         self, device: str, commands: list[str], operation_id: str | None = None
     ) -> OperationReceipt:
@@ -655,13 +1945,95 @@ class BridgeAdapter(PacketTracerAdapter):
             return self._precondition_receipt(
                 "configure_ios", requested, operation_id, pre, "device missing or unknown"
             )
-        answer = self.send_expression(
-            js.js_configure_ios(device, "\n".join(commands))
+        expected = _expected_ios_addresses(commands)
+        answer: Observable[str] | None = None
+        result, executed, error = OperationResult.NOT_EXECUTED, None, None
+        missing: dict[str, str] = dict(expected)
+        read_back = False
+        attempts = 0
+        for attempts in range(1, _IOS_CONFIG_ATTEMPTS + 1):
+            answer = self.send_expression(
+                js.js_configure_ios(device, "\n".join(commands))
+            )
+            result, executed, error = self._interpret(answer)
+            if result is not OperationResult.SUCCESS or not expected:
+                break
+            # The JS was delivered, but a router that is still booting drops
+            # the CLI input without saying so - that is how a 63-device build
+            # ended with every op "succeeded" and not one address configured.
+            # Re-send until the addresses actually show up on the read-back.
+            self._invalidate_snapshot()  # interfaces now carry addresses
+            time.sleep(_IOS_SETTLE_SECONDS)
+            missing = self._missing_ios_addresses(device, expected)
+            read_back = True
+            if not missing:
+                break
+        # Captured before the address verdict below can flip `result`: the
+        # VLAN read-back still runs (and still reports) on a push PT accepted
+        # but whose addresses never landed.
+        pushed_ok = result is OperationResult.SUCCESS
+        if expected:
+            post = CheckResult(
+                name="configured_addresses_present",
+                expected=json.dumps(expected, sort_keys=True),
+                actual=Observable.known(
+                    {} if not missing else missing,
+                    source="file-bridge",
+                ),
+                passed=not missing,
+            )
+        else:
+            post = CheckResult(
+                name="ios_acceptance",
+                expected="commands accepted by IOS",
+                actual=Observable.unknown(
+                    "IOS result semantics are not observable through the bridge; "
+                    "verify by read-back/behavior, not by this receipt"
+                ),
+                passed=None,
+            )
+        # Bug #5: an address we asked for and cannot read back is a FAILED
+        # configuration, not a green op. PT reports `true` for a script it
+        # aborted on, so the DAG used to mark these SUCCEEDED and every later
+        # check (VLAN, trunk, routes) silently inherited the wrong config.
+        # A PT-level failure or timeout keeps its own verdict; it only gets the
+        # missing work named alongside it, because "we do not know" and "these
+        # addresses are absent" are both true there. Nothing is blamed on the
+        # script when no read-back ever ran - the channel failed, not IOS.
+        if missing and read_back:
+            absent = ", ".join(
+                f"{iface}={ip}" for iface, ip in sorted(missing.items())
+            )
+            detail = f"not observed after {attempts} attempt(s): {absent}"
+            if result is OperationResult.SUCCESS:
+                result = OperationResult.FAILED
+                error = f"configuration did not take effect - {detail}"
+            else:
+                error = f"{error or 'configuration failed'} - {detail}"
+        # Bug #5, VLAN half: the same silence hides a `switchport access vlan`
+        # or `vlan <id>` that PT accepted and never applied, and #20 made the
+        # table readable. The expectation is parsed from the pushed block and
+        # read back with `show vlan brief`; only a read that succeeded AND
+        # contradicts the push fails the op (see _verify_ios_vlans).
+        vlan_expected = _expected_ios_vlans(commands)
+        vlan_missing: list[str] = []
+        postconditions = [post]
+        if vlan_expected is not None and pushed_ok:
+            vlan_post, vlan_missing = self._verify_ios_vlans(device, vlan_expected)
+            if vlan_post is not None:
+                postconditions.append(vlan_post)
+        if vlan_missing:
+            detail = "vlan state not observed after the push: " + "; ".join(vlan_missing)
+            if result is OperationResult.SUCCESS:
+                result = OperationResult.FAILED
+                error = f"configuration did not take effect - {detail}"
+            else:
+                error = f"{error or 'configuration failed'} - {detail}"
+        statuses = (
+            _command_statuses(commands, expected, missing)
+            if read_back
+            else {command: "no read-back performed" for command in commands}
         )
-        result, executed, error = self._interpret(answer)
-        # IOS acceptance is not observable over this channel: per-command
-        # status is UNKNOWN and the receipt can never confirm. Saying so beats
-        # a green check that means "JS delivered".
         return OperationReceipt(
             operation_id=operation_id or new_id("op"),
             operation="configure_ios",
@@ -669,22 +2041,239 @@ class BridgeAdapter(PacketTracerAdapter):
             executed=executed,
             result=result,
             preconditions=pre,
-            postconditions=[
-                CheckResult(
-                    name="ios_acceptance",
-                    expected="commands accepted by IOS",
-                    actual=Observable.unknown(
-                        "IOS result semantics are not observable through the bridge; "
-                        "verify by read-back/behavior, not by this receipt"
-                    ),
-                    passed=None,
-                )
-            ],
-            evidence={"command_status": json.dumps({c: "unknown" for c in commands})},
+            postconditions=postconditions,
+            evidence={
+                "command_status": json.dumps(statuses, sort_keys=True),
+                "attempts": str(attempts),
+                **({"missing_addresses": json.dumps(missing, sort_keys=True)}
+                   if missing else {}),
+                **({"missing_vlans": json.dumps(vlan_missing, sort_keys=True)}
+                   if vlan_missing else {}),
+            },
             started_at=utc_now_iso(),
             finished_at=utc_now_iso(),
             error=error,
         )
+
+    def _missing_ios_addresses(
+        self, device: str, expected: dict[str, str]
+    ) -> dict[str, str]:
+        """Which of the addresses we asked IOS for are not on the device."""
+        obs = self.inspect_device(device)
+        missing: dict[str, str] = {}
+        for iface, ip in expected.items():
+            port = obs.ports.get(iface)
+            actual = port.ip.value if port is not None and port.ip.is_known else None
+            if actual != ip:
+                missing[iface] = ip
+        return missing
+
+    def configure_gateway_lan(
+        self,
+        device: str,
+        ip: str,
+        mask: str,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Set a Linksys-family gateway's LAN address through the port API (#10).
+
+        Live probes on a Linksys-WRT300N: `configureIosDevice` answers `true`
+        and changes nothing, while `port.setIpSubnetMask` on Vlan1 moves the
+        address and the topology read-back shows it. Same receipt discipline
+        as `configure_ios`: an address we pushed and cannot read back is a
+        FAILED configuration, not a green op (#5/#17).
+        """
+        requested = {"device": device, "ip": ip, "mask": mask}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._precondition_receipt(
+                "configure_gateway_lan",
+                requested,
+                operation_id,
+                pre,
+                "device missing or unknown",
+            )
+        answer = self.send_expression(js.js_set_port_ip(device, "Vlan1", ip, mask))
+        self._invalidate_snapshot()  # the SVI now carries the new address
+        result, executed, error = self._interpret(answer)
+        read_back = False
+        observed: dict[str, str] = {}
+        missing: dict[str, str] = {"Vlan1": ip}
+        if result is OperationResult.SUCCESS:
+            obs = self.inspect_device(device)
+            read_back = True
+            port = obs.ports.get("Vlan1")
+            actual_ip = port.ip.value if port is not None and port.ip.is_known else None
+            actual_mask = (
+                port.mask.value if port is not None and port.mask.is_known else None
+            )
+            observed = {
+                "Vlan1": " ".join(x for x in (actual_ip, actual_mask) if x)
+                or "<unobserved>"
+            }
+            # An unknown mask cannot contradict the push; a known wrong one can.
+            mask_ok = actual_mask is None or actual_mask == mask
+            if actual_ip == ip and mask_ok:
+                missing = {}
+        post = CheckResult(
+            name="configured_addresses_present",
+            expected=json.dumps({"Vlan1": ip}, sort_keys=True),
+            actual=Observable.known(observed, source="file-bridge"),
+            passed=(not missing) if read_back else None,
+        )
+        if missing and read_back and result is OperationResult.SUCCESS:
+            result = OperationResult.FAILED
+            error = (
+                "configuration did not take effect - not observed: "
+                + ", ".join(f"{iface}={want}" for iface, want in missing.items())
+            )
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="configure_gateway_lan",
+            requested=requested,
+            executed=executed,
+            result=result,
+            preconditions=pre,
+            postconditions=[post],
+            evidence={
+                **(executed or {}),
+                "postcondition": (
+                    "gateway LAN address read back on Vlan1"
+                    if read_back
+                    else "no read-back performed"
+                ),
+            },
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def _verify_ios_vlans(
+        self, device: str, expected: dict[str, dict]
+    ) -> tuple[CheckResult | None, list[str]]:
+        """Read back the VLAN state the pushed script asked for (#5).
+
+        Mirrors `_expected_ios_addresses` on every point that matters:
+
+        * a read we could not perform is `passed=None` - not a PASS, and never
+          a failure for a configuration PT may well have applied;
+        * only a table we DID read and that contradicts the push yields
+          problems, and only those fail the receipt;
+        * no round trip at all for a device that has no VLAN table
+          (`_VLAN_CATEGORIES`), decided from the same topology read-back the
+          address check already trusts.
+
+        Returns ``(postcondition, contradictions)``; the contradictions are
+        empty unless the read succeeded, so the caller can gate on them
+        directly. `observe_vlans=False` (#20) skips everything, including the
+        postcondition: a caller that asked for no VLAN observation gets the
+        receipt it had before this check existed.
+        """
+        if not self._observe_vlans:
+            return None, []
+
+        def unobserved(reason: str) -> tuple[CheckResult, list[str]]:
+            return (
+                CheckResult(
+                    name="configured_vlans_present",
+                    expected=json.dumps(expected, sort_keys=True),
+                    actual=Observable[list].unknown(reason),
+                    passed=None,
+                ),
+                [],
+            )
+
+        observed = self._live_devices()
+        if not observed.is_known:
+            return unobserved(
+                f"topology read-back unavailable: {observed.detail or observed.status.value}"
+            )
+        match = next(
+            (d for d in observed.value if str(d.get("name") or "") == device), None
+        )
+        if match is None:
+            return unobserved("device absent from topology read-back")
+        model = match.get("model")
+        if not isinstance(model, str) or not model:
+            return unobserved("model not reported by read-back")
+        if category_of_model(model) not in _VLAN_CATEGORIES:
+            # Router/firewall: there is no `show vlan brief` to read, so an
+            # expectation here can be neither confirmed nor contradicted and
+            # no postcondition is invented for it.
+            return None, []
+        table = self.read_vlans(device)
+        if not table.is_known:
+            return unobserved(
+                f"vlan read-back unavailable: {table.detail or table.status.value}"
+            )
+
+        by_id: dict[int, dict] = {}
+        membership: dict[str, list[int]] = {}
+        for record in table.value or []:
+            if not isinstance(record, dict):
+                continue
+            try:
+                vid = int(record.get("id"))
+            except (TypeError, ValueError):
+                continue
+            by_id[vid] = record
+            for port_name in record.get("ports") or []:
+                # `show vlan brief` abbreviates and pads port names; the pushed
+                # config spells them out, so both sides go through the same
+                # expansion before they are compared.
+                port = js.expand_if_name(str(port_name).strip())
+                membership.setdefault(port, []).append(vid)
+
+        problems: list[str] = []
+        for vid, name in sorted(expected["defined"].items()):
+            record = by_id.get(vid)
+            if record is None:
+                problems.append(f"vlan {vid} not in read-back")
+                continue
+            if name and " " not in name and str(record.get("name") or "") != name:
+                problems.append(
+                    f"vlan {vid} read back as {record.get('name')!r}, pushed {name!r}"
+                )
+        for iface, vid in sorted(expected["access"].items()):
+            port = js.expand_if_name(iface)
+            record = by_id.get(vid)
+            if record is None:
+                problems.append(f"{port}: access vlan {vid} not in read-back")
+                continue
+            members = {
+                js.expand_if_name(str(p).strip()) for p in record.get("ports") or []
+            }
+            if port not in members:
+                problems.append(f"{port} is not a member of vlan {vid}")
+        for iface, allowed in sorted(expected["trunk"].items()):
+            port = js.expand_if_name(iface)
+            member_of = sorted(set(membership.get(port, [])))
+            if allowed:
+                absent = [v for v in allowed if v not in member_of]
+                if absent:
+                    wanted = ",".join(str(v) for v in absent)
+                    problems.append(
+                        f"{port} does not carry vlan(s) {wanted} in read-back"
+                    )
+            elif len(member_of) < 2:
+                # `_fill_vlan_state` derives trunk from a port listed under
+                # more than one VLAN, so one (or zero) memberships is read-back
+                # evidence against the trunk. Only a push with NO allowed list
+                # lands here: the compiler names the allowed set whenever the
+                # trunk carries something, and a named set is checked above
+                # against membership instead of a bare count - a trunk allowed
+                # exactly one VLAN is indistinguishable from an access port in
+                # `show vlan brief`, so counting it would invent a failure.
+                seen = ", ".join(str(v) for v in member_of) or "none"
+                problems.append(f"{port} is not a trunk in read-back (vlan(s): {seen})")
+        post = CheckResult(
+            name="configured_vlans_present",
+            expected=json.dumps(expected, sort_keys=True),
+            actual=Observable.known(problems, source=f"show vlan brief:{device}"),
+            passed=not problems,
+        )
+        return post, problems
 
     def configure_host(
         self,
@@ -710,20 +2299,27 @@ class BridgeAdapter(PacketTracerAdapter):
         answer = self.send_expression(
             js.js_configure_pc_ip(device, dhcp, ip or "", mask or "", gateway or "", dns or "")
         )
+        self._invalidate_snapshot()  # the host now holds an address
         result, executed, error = self._interpret(answer)
         postconditions: list[CheckResult] = []
         if result is OperationResult.SUCCESS and not dhcp and ip:
-            # read-back: the configured IP must be observable on the device
+            # read-back: the configured IP must be observable on the device.
+            # The check compares str(actual) to `expected`, so the Observable
+            # must carry the IP (not a bare True) or the receipt is permanently
+            # unconfirmed even when the read-back succeeded.
             obs = self.inspect_device(device)
             port = next(
                 (p for p in obs.ports.values() if p.ip.is_known and p.ip.value == ip),
                 None,
             )
-            check = Observable.known(True) if port else (
-                Observable[bool].unknown(
+            if port is not None:
+                check: Observable = Observable.known(
+                    ip, source=f"inspect_device:{device}"
+                )
+            else:
+                check = Observable[bool].unknown(
                     f"configured ip {ip!r} not observed on {device!r}"
                 )
-            )
             postconditions.append(CheckResult.of("ip_observed", ip, check))
         return OperationReceipt(
             operation_id=operation_id or new_id("op"),
@@ -745,6 +2341,105 @@ class BridgeAdapter(PacketTracerAdapter):
             finished_at=utc_now_iso(),
             error=error,
         )
+
+    def configure_hosts_bulk(
+        self, specs: list[dict], operation_id_prefix: str = "batch-host"
+    ) -> list[OperationReceipt]:
+        """Set many host addresses in ONE round-trip.
+
+        Addressing twenty PCs one round-trip each is pure transport cost. The
+        calls are independent — each configures a different device — so they
+        travel together. The per-device read-back is preserved, because an
+        address PT accepted but did not apply is exactly the failure worth
+        catching.
+        """
+        receipts: list[OperationReceipt] = []
+        if not specs:
+            return receipts
+
+        stmts: list[str] = ["var __mcpHostResults=[];"]
+        order: list[str] = []
+        for spec in specs:
+            device = spec["device"]
+            order.append(device)
+            call = js.js_configure_pc_ip(
+                device,
+                bool(spec.get("dhcp")),
+                spec.get("ip") or "", spec.get("mask") or "",
+                spec.get("gateway") or "", spec.get("dns") or "",
+            )
+            stmts.append("try{")
+            stmts.append(
+                f"  __mcpHostResults.push({{device:{json.dumps(device)},"
+                f"ok:!!{call[:-1]}}});"
+            )
+            stmts.append("}catch(e){")
+            stmts.append(
+                f"  __mcpHostResults.push({{device:{json.dumps(device)},"
+                "ok:false,error:''+e});"
+            )
+            stmts.append("}")
+
+        answer = self.send_expression(
+            "JSON.stringify(__mcpHostResults)", statements=stmts,
+            wait=max(20.0, 2.0 * len(specs)),
+        )
+        self._invalidate_snapshot()  # the hosts now hold addresses
+        per_device: dict[str, dict] = {}
+        if answer.is_known:
+            try:
+                for row in json.loads(str(answer.value)):
+                    per_device[str(row.get("device"))] = row
+            except (json.JSONDecodeError, ValueError):
+                per_device = {}
+
+        # One workspace read verifies every address at once. A per-host
+        # inspect_device is a round-trip each, which is exactly what the batch
+        # removed from the write path.
+        snapshot = self._live_devices()
+        observed: dict[str, set[str]] = {}
+        if snapshot.is_known:
+            for d in (snapshot.value or []):
+                name = str(d.get("name"))
+                observed[name] = {
+                    str(p.get("ip") or "") for p in (d.get("ports") or [])
+                }
+
+        for spec in specs:
+            device = spec["device"]
+            row = per_device.get(device, {})
+            ok = bool(row.get("ok"))
+            postconditions: list[CheckResult] = []
+            ip = spec.get("ip")
+            if ok and not spec.get("dhcp") and ip:
+                seen = ip in observed.get(device, set())
+                postconditions.append(CheckResult.of(
+                    "ip_observed", ip,
+                    Observable.known(ip, source=f"inspect_device:{device}")
+                    if seen else Observable[bool].unknown(
+                        f"configured ip {ip!r} not observed on {device!r}"
+                    ),
+                ))
+            result = (
+                OperationResult.SUCCESS
+                if ok and all(c.passed for c in postconditions if hasattr(c, "passed"))
+                else OperationResult.FAILED
+            )
+            receipts.append(OperationReceipt(
+                operation_id=f"{operation_id_prefix}-{device}",
+                operation="configure_host",
+                requested=spec,
+                executed={"batched": True, "js_ok": ok},
+                result=result,
+                postconditions=postconditions,
+                evidence={"batch": True, "js_error": row.get("error", "")},
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+                error=None if result is OperationResult.SUCCESS else (
+                    row.get("error") or "address not observed after configure"
+                ),
+            ))
+        return receipts
 
     def save_project(
         self, filename: str, operation_id: str | None = None, directory: str = ""
@@ -830,7 +2525,14 @@ class BridgeAdapter(PacketTracerAdapter):
         return Observable.known(ips.pop(), source=devices.source)
 
     def run_flow_test(
-        self, source: str, destination: str, *, timeout: float = 25.0
+        self,
+        source: str,
+        destination: str,
+        *,
+        transport: str = "icmp",
+        port: int | None = None,
+        timeout: float = 25.0,
+        destination_ip: str | None = None,
     ) -> FlowResult:
         """A REAL console ping: arm on the source, poll for the new stat block.
 
@@ -838,8 +2540,38 @@ class BridgeAdapter(PacketTracerAdapter):
         REACHABLE, some loss is PARTIAL (never reported as healthy), no replies
         is BLOCKED. No console, no address, no channel, or a quiet console is
         UNKNOWN — a flow test that could not run is never PASS.
+
+        Transport-honest (P1-5): the only data-plane probe verified against PT
+        is ICMP echo. A criterion declaring tcp/udp cannot be proved by an echo
+        reply, so it comes back UNKNOWN with the reason instead of inheriting
+        an ICMP verdict — the caller decides, never the adapter.
         """
-        target = self._resolve_destination_ip(destination)
+        transport_norm = (transport or "icmp").strip().lower()
+        if transport_norm not in ("icmp", "", "ping"):
+            return FlowResult(
+                source=source,
+                destination=destination,
+                transport=transport_norm,
+                port=port,
+                outcome=FlowOutcome.UNKNOWN,
+                detail=(
+                    f"transport {transport_norm!r} has no verified PT probe: ICMP "
+                    "echo is real, but proving a TCP/UDP criterion with echo "
+                    "would be a false positive. Outcome stays UNKNOWN."
+                ),
+                evidence={"transport": transport_norm, "port": port, "icmp_only": True},
+            )
+        # A dual-homed device (a router with a WAN and a LAN address, a
+        # firewall with two sides) has no single "the" address. Guessing would
+        # probe a random interface, so the caller names the one it means. This
+        # is a deliberate capability, not a fallback: without it every
+        # WAN-to-LAN flow is UNKNOWN and silently undiagnosable.
+        if destination_ip:
+            target = Observable[str].known(
+                destination_ip, source="caller-specified destination"
+            )
+        else:
+            target = self._resolve_destination_ip(destination)
         if not target.is_known:
             return FlowResult(
                 source=source,
@@ -847,6 +2579,49 @@ class BridgeAdapter(PacketTracerAdapter):
                 outcome=FlowOutcome.UNKNOWN,
                 detail=target.detail or target.status.value,
             )
+        # PT (like real IOS) drops the first pings across a multi-hop path
+        # while ARP resolves hop by hop: a healthy transit network answers
+        # blocked -> partial -> reachable on successive attempts. A single
+        # shot would misread that convergence as a broken path, so the ping
+        # is retried and the converged verdict is the one reported.
+        attempts: list[FlowResult] = []
+        time.sleep(_FLOW_PRE_SETTLE_S)
+        for attempt_no in range(_FLOW_MAX_ATTEMPTS):
+            result = self._single_ping_flow(source, destination, target, timeout)
+            attempts.append(result)
+            if result.outcome is FlowOutcome.REACHABLE:
+                break
+            if not _flow_is_retryable(result):
+                # Arm/console failures cannot improve with a retry, unlike a
+                # BLOCKED/PARTIAL loss or a ping still in flight.
+                break
+            time.sleep(_FLOW_CONVERGE_SETTLE_S)
+        best = best_flow_of(attempts)
+        if len(attempts) > 1:
+            # Report the converged verdict but keep every attempt as evidence.
+            converged = best is not attempts[-1]
+            detail = best.detail or ""
+            if converged:
+                detail += " (after ARP convergence)"
+            best = FlowResult(
+                source=best.source,
+                destination=best.destination,
+                outcome=best.outcome,
+                transport=best.transport,
+                port=best.port,
+                detail=detail,
+                evidence={**best.evidence, "attempts": [
+                    {"attempt": i + 1, "outcome": a.outcome.value,
+                     "detail": a.detail}
+                    for i, a in enumerate(attempts)
+                ]},
+            )
+        return best
+
+    def _single_ping_flow(
+        self, source: str, destination: str, target: Observable, timeout: float
+    ) -> FlowResult:
+        """One arm/poll console ping exchange; the caller retries on loss."""
         armed = self.send_expression(
             js.js_console_ping_arm_expr(source, str(target.value)), wait=10.0
         )
@@ -915,12 +2690,22 @@ class BridgeAdapter(PacketTracerAdapter):
 
     # -- control-plane read-back (console) -----------------------------------
 
-    def _console_show(self, device: str, command: str, *, timeout: float = 12.0) -> Observable[str]:
+    def _console_show(
+        self,
+        device: str,
+        command: str,
+        *,
+        timeout: float = 12.0,
+        collect_expr: Callable[[], str] | None = None,
+    ) -> Observable[str]:
         """Run one `show ...` command on the device console and return the tail.
 
         Verified live: PT exposes the routing table / VLAN database ONLY
         through getCommandLine(), so this is an arm/poll exchange like the
         ping path. UNKNOWN on any failure — the raw console evidence is kept.
+        `collect_expr` lets a caller supply a completion rule other than
+        "output grew past the base" (the serial controller read-back needs to
+        survive a trimmed buffer).
         """
         statements, final = js.js_console_command_arm_statements(device, command)
         armed = self.send_expression(final, statements=statements, wait=10.0)
@@ -934,7 +2719,7 @@ class BridgeAdapter(PacketTracerAdapter):
         if not value.startswith("BASE:"):
             return Observable[str].unknown(f"console arm answered: {value!r}")
         base = int(value[5:])
-        collect = js.js_console_collect_expr(device, base)
+        collect = collect_expr() if collect_expr else js.js_console_collect_expr(device, base)
         deadline = time.time() + timeout
         while time.time() < deadline:
             time.sleep(0.5)
@@ -959,9 +2744,82 @@ class BridgeAdapter(PacketTracerAdapter):
             routes = js.parse_show_ip_route(tail.value)
         except Exception as exc:  # unparseable output stays honest
             return Observable[list].unknown(f"unparseable route table: {exc}: {tail.value[:200]!r}")
-        known = Observable.known(routes, source=tail.source)
-        known.metadata = {"console": tail.value}
-        return known
+        # Observable is frozen; the raw console output travels in `detail` so the
+        # evidence chain keeps the verbatim PT output without mutating the object.
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=routes,
+            detail=tail.value,
+            source=tail.source,
+            observed_at=None,
+        )
+
+    def read_serial_controllers(
+        self,
+        device: str,
+        interface: str,
+        *,
+        timeout: float = 12.0,
+        attempts: int = 1,
+        settle: float = 5.0,
+    ) -> Observable[dict]:
+        """Structured `show controllers serial` read-back for a DCE/DTE proof.
+
+        Verified live: PT names the clocking end `DCE V.35, clock rate 64000`
+        and the other end `DTE V.35 TX and RX clocks detected`, on Router-PT
+        and on a 2911's HWIC-2T port alike. UNKNOWN when the platform has no
+        such command - never a guessed role.
+
+        TWO MEASURED PT LIMITS, both honoured here rather than papered over:
+
+        1. PT answers `show controllers serial` for only ONE serial interface
+           per router - the first one cabled. A router with two serial links
+           answers for the first-cabled port and stays silent forever on the
+           second, in either cabling order (_probe_serial7.py). The answer it
+           does give is always correct, so this returns UNKNOWN - not a
+           guess - for the rest, and such a hop is proven by its traffic: a
+           serial link with no clock drops its line protocol
+           (_probe_serial5.py), so a passing ping across the hop is itself
+           evidence that the clock is in place.
+        2. The completion rule anchors on the echo of this command instead of
+           on the buffer growing past a base. On a router that just finished a
+           build PT is still logging interface up/down, the console buffer sits
+           at its cap, and a base-relative wait never completes
+           (_serial_e2e.py).
+
+        `attempts` stays at 1 so a build does not spend a minute polling an
+        interface PT will never answer; a caller that wants the second chance
+        asks for it.
+        """
+        command = f"show controllers serial {js.serial_iface_arg(interface)}"
+        unknown: Observable[dict] | None = None
+        for attempt in range(max(1, attempts)):
+            if attempt and settle > 0:
+                time.sleep(settle * attempt)
+            tail = self._console_show(
+                device,
+                command,
+                timeout=timeout * (attempt + 1),
+                collect_expr=lambda: js.js_console_collect_serial_expr(
+                    device, command
+                ),
+            )
+            if not tail.is_known:
+                unknown = Observable[dict].unknown(tail.detail or tail.status.value)
+                continue
+            parsed = js.parse_show_controllers_serial(tail.value)
+            if parsed is None:
+                return Observable[dict].unknown(
+                    f"no serial controller evidence for {interface}: {tail.value[:200]!r}"
+                )
+            return Observable(
+                status=ObservationStatus.KNOWN,
+                value=parsed,
+                detail=tail.value,
+                source=tail.source,
+                observed_at=None,
+            )
+        return unknown or Observable[dict].unknown("console unavailable")
 
     def read_vlans(self, device: str) -> Observable[list]:
         """Structured `show vlan brief` read-back (switches)."""
@@ -972,9 +2830,14 @@ class BridgeAdapter(PacketTracerAdapter):
             vlans = js.parse_show_vlan_brief(tail.value)
         except Exception as exc:
             return Observable[list].unknown(f"unparseable vlan table: {exc}: {tail.value[:200]!r}")
-        known = Observable.known(vlans, source=tail.source)
-        known.metadata = {"console": tail.value}
-        return known
+        # Observable is frozen; the raw console output travels in `detail`.
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=vlans,
+            detail=tail.value,
+            source=tail.source,
+            observed_at=None,
+        )
 
     # -- helpers ------------------------------------------------------------
 

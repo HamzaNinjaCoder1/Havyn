@@ -22,7 +22,7 @@ def test_golden_example_spec_validates():
     assert spec.name == "three-floor-office"
     assert len(spec.devices) == 11
     assert len(spec.links) == 10
-    assert len(spec.acceptance_criteria) == 8
+    assert len(spec.acceptance_criteria) == 7
     # Every requirement is traceable to at least one criterion
     linked = {rid for c in spec.acceptance_criteria for rid in c.requirement_ids}
     assert linked == {r.id for r in spec.requirements}

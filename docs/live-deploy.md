@@ -70,10 +70,10 @@ That's it — the module is now registered.
 ## Verify and deploy
 
 ```text
-pt_bridge_status          # → "Bridge ACTIVE and CONNECTED"
-pt_live_deploy(plan_json) # streams the topology into PT
-pt_query_topology         # read back what's in PT
-pt_export_topology        # full snapshot (positions, per-interface IPs, links)
+pt_status                # -> "Bridge ACTIVE and CONNECTED"
+net_build(spec_json)     # compiles, gates and streams the build into PT
+net_observe              # read back what's in PT (ports, IPs, links)
+net_verify(spec_json)    # real pings, per-criterion verdicts
 ```
 
 ## Troubleshooting
@@ -86,8 +86,8 @@ pt_export_topology        # full snapshot (positions, per-interface IPs, links)
 ??? question "A red error popup appeared (`An error occurred on line N`)"
     A command threw inside the Script Engine. The Control Center's polling loop lives
     in the webview, so it keeps running, but the popup blocks PT's UI until dismissed.
-    Click **OK** and re-run. Prefer the validated tools (`pt_add_device`,
-    `pt_add_link`, …) which pre-check inputs before sending.
+    Click **OK** and re-run. Prefer the gated pipeline (`net_build`, `net_preflight`),
+    which pre-checks inputs and refuses before sending anything.
 
 ??? question "Packet Tracer becomes very slow when the window is in the background"
     A QtWebEngine compositing limitation: when the webview is behind PT but not

@@ -18,7 +18,7 @@
 ## Install the server
 
 ```bash
-pip install packet-tracer-mcp
+pip install havyn
 ```
 
 Or from source, if you want to modify it:
@@ -29,8 +29,8 @@ cd MCP-Packet-Tracer
 pip install -e .
 ```
 
-Either way the `packet_tracer_mcp` module becomes importable from any directory,
-so `python -m packet_tracer_mcp --stdio` works from anywhere — no need to `cd`
+Either way the `network_autopilot` module becomes importable from any directory,
+so `python -m network_autopilot` works from anywhere — no need to `cd`
 into the repo or keep a server running.
 
 !!! note "The extension is not part of the package"
@@ -48,13 +48,13 @@ into the repo or keep a server running.
     **Linux · macOS · Git Bash · Windows `cmd.exe`:**
 
     ```bash
-    claude mcp add --scope user --transport stdio packet-tracer -- python -m packet_tracer_mcp --stdio
+    claude mcp add --scope user --transport stdio packet-tracer -- python -m network_autopilot
     ```
 
     **Windows PowerShell** — quote the `--` separator:
 
     ```powershell
-    claude mcp add --scope user --transport stdio packet-tracer "--" python -m packet_tracer_mcp --stdio
+    claude mcp add --scope user --transport stdio packet-tracer "--" python -m network_autopilot
     ```
 
     !!! warning "PowerShell eats a bare `--`"
@@ -68,7 +68,7 @@ into the repo or keep a server running.
 
     ```bash
     claude mcp list
-    # packet-tracer: python -m packet_tracer_mcp --stdio - ✓ Connected
+    # packet-tracer: python -m network_autopilot - ✓ Connected
     ```
 
     Remove later with `claude mcp remove packet-tracer --scope user`.
@@ -83,7 +83,7 @@ into the repo or keep a server running.
         "packet-tracer": {
           "type": "stdio",
           "command": "python",
-          "args": ["-m", "packet_tracer_mcp", "--stdio"]
+          "args": ["-m", "network_autopilot"]
         }
       }
     }
@@ -98,7 +98,7 @@ into the repo or keep a server running.
       "mcpServers": {
         "packet-tracer": {
           "command": "python",
-          "args": ["-m", "packet_tracer_mcp", "--stdio"]
+          "args": ["-m", "network_autopilot"]
         }
       }
     }
@@ -146,7 +146,7 @@ what it covers and a project-local alternative → **[Claude Code Skill](skill.m
   child process. The internal HTTP bridge to Packet Tracer (`:54321`) still starts
   automatically inside that process — live deploy works the same.
 - **streamable-http** (`http://127.0.0.1:39000/mcp`): start the server yourself with
-  `python -m packet_tracer_mcp` and let multiple clients share one instance.
+  `python -m network_autopilot` and let multiple clients share one instance.
 
 !!! note "On Windows, `python` must be on PATH"
     If your client can't spawn the server, use the full interpreter path in the

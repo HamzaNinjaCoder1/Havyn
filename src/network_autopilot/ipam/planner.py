@@ -24,7 +24,7 @@ from typing import Any
 
 from ..core.network_spec import IpAssignmentSpec, NetworkSpec, SubnetSpec
 
-DEFAULT_POOL = "10.0.0.0/16"
+DEFAULT_POOL = "10.0.0.0/8"
 
 
 class PlanningFailure(Exception):
@@ -115,6 +115,7 @@ class AddressPlan:
     pool: str
     allocations: tuple[PlannedSubnet, ...]
     assignments: tuple[IpAssignment, ...]
+    warnings: tuple[str, ...] = ()
 
     def allocation_by_subnet(self, subnet_id: str) -> PlannedSubnet | None:
         for allocation in self.allocations:
@@ -128,6 +129,32 @@ class AddressPlan:
             "allocations": [a.to_dict() for a in self.allocations],
             "assignments": [a.to_dict() for a in self.assignments],
         }
+
+
+def _validate_gateway(subnet, network: IPv4Address, prefix_len: int, gateway: str, allocations: list) -> list[str]:
+    """Validate a gateway. Returns a list of problem descriptions (empty = OK).
+
+    Non-fatal by design: a bad gateway is recorded and the allocation still
+    proceeds so `validate_plan()` can report the issue with a structured
+    AddressingIssue. Raising here would make the validator unreachable
+    (test_validator_detects_gateway_outside_subnet).
+    """
+    problems: list[str] = []
+    try:
+        gw = IPv4Address(gateway)
+    except ValueError:
+        return [f"invalid gateway address {gateway!r}"]
+    block_net = IPv4Network(f"{network}/{prefix_len}")
+    if gw not in block_net:
+        problems.append(f"gateway outside subnet ({gateway} vs {block_net})")
+    if gw == block_net.network_address:
+        problems.append(f"gateway is network address ({gateway})")
+    if gw == block_net.broadcast_address:
+        problems.append(f"gateway is broadcast address ({gateway})")
+    for earlier in allocations:
+        if earlier.gateway == gateway and earlier.subnet_id != subnet.id:
+            problems.append(f"duplicate gateway ({gateway} already used by {earlier.subnet_id})")
+    return problems
 
 
 def _prefix_for_hosts(hosts: int) -> int:
@@ -158,6 +185,7 @@ def plan_addressing(spec: NetworkSpec, pool: str = DEFAULT_POOL) -> AddressPlan:
 
     # -- allocate subnets ---------------------------------------------------
     allocations: list[PlannedSubnet] = []
+    gateway_warnings: list[str] = []
     cursor = pool_net.network_address  # first candidate offset (may be in use)
     for index, subnet in enumerate(spec.subnets):
         if subnet.cidr is not None:
@@ -210,6 +238,12 @@ def plan_addressing(spec: NetworkSpec, pool: str = DEFAULT_POOL) -> AddressPlan:
             raise PlanningFailure(subnet.id, "subnet has no usable host capacity", str(block))
 
         gateway = subnet.gateway or str(usable_start)
+        # Validate the gateway; problems are recorded (not raised) so the
+        # validator can report them as structured AddressingIssues.
+        gateway_problems = _validate_gateway(subnet, network, prefix, gateway, allocations)
+        for problem in gateway_problems:
+            gateway_warnings.append(f"{subnet.id}: {problem}")
+
         allocations.append(
             PlannedSubnet(
                 allocation_id=f"alloc-{index + 1:02d}",
@@ -244,10 +278,32 @@ def plan_addressing(spec: NetworkSpec, pool: str = DEFAULT_POOL) -> AddressPlan:
             )
 
         if assignment.ip is not None:
+            # #34: an address is written either `10.0.0.5` or `10.0.0.5/24`.
+            # Feeding the raw string to IPv4Address() rejects the second style
+            # outright, so the whole plan died with "invalid ip".
+            raw_ip = str(assignment.ip).strip()
+            declared_prefix: int | None = None
+            if "/" in raw_ip:
+                host_part, _, prefix_txt = raw_ip.partition("/")
+                try:
+                    declared_prefix = int(prefix_txt.strip())
+                except ValueError:
+                    raise PlanningFailure(
+                        assignment.device, "invalid ip", str(assignment.ip)
+                    ) from None
+                raw_ip = host_part.strip()
             try:
-                address = IPv4Address(assignment.ip)
+                address = IPv4Address(raw_ip)
             except ValueError as exc:
                 raise PlanningFailure(assignment.device, "invalid ip", str(exc)) from exc
+            if declared_prefix is not None and declared_prefix != allocation.prefix_len:
+                # The host is inside the subnet but claims another prefix: a
+                # contradiction in the spec, not something to normalise away.
+                raise PlanningFailure(
+                    assignment.device,
+                    "ip prefix disagrees with its subnet",
+                    f"{assignment.ip} vs {allocation.network}/{allocation.prefix_len}",
+                )
             if address not in IPv4Network(f"{allocation.network}/{allocation.prefix_len}"):
                 raise PlanningFailure(
                     assignment.device,
@@ -287,4 +343,9 @@ def plan_addressing(spec: NetworkSpec, pool: str = DEFAULT_POOL) -> AddressPlan:
             )
         )
 
-    return AddressPlan(pool=pool, allocations=tuple(allocations), assignments=tuple(assignments))
+    return AddressPlan(
+        pool=pool,
+        allocations=tuple(allocations),
+        assignments=tuple(assignments),
+        warnings=tuple(gateway_warnings),
+    )

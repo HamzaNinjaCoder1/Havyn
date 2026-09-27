@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from src.network_autopilot.adapter.upstream.bridge_adapter import BridgeAdapter
+from src.network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
 from src.network_autopilot.core.observability import Observable
 from src.network_autopilot.core.receipts import OperationResult
 from src.network_autopilot.core.requirements import FlowOutcome
@@ -82,15 +82,14 @@ def test_destination_resolver_still_refuses_genuine_ambiguity():
 
 
 def test_flow_test_on_unreachable_destination_is_blocked_not_pass():
-    """With no route/paths, a REAL ping reports 100% loss -> BLOCKED."""
+    """With no route/paths, a REAL ping reports 100% loss -> BLOCKED.
+
+    The flow test now retries past ARP convergence, so a genuinely dead path
+    must stay BLOCKED across every attempt (not just one).
+    """
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
-    answers = iter(
-        [
-            _TOPOLOGY,  # resolve destination ip
-            "BASE:0",  # arm
-            "DONE:Packets: Sent = 4, Received = 0, Lost = 4 (100% loss),",
-        ]
-    )
+    blocked = ["BASE:0", "DONE:Packets: Sent = 4, Received = 0, Lost = 4 (100% loss),"]
+    answers = iter([_TOPOLOGY] + blocked * 3)  # resolve, then 3 blocked attempts
     adapter.send_expression = (  # type: ignore[method-assign]
         lambda expression, *, statements=None, wait=None: Observable.known(next(answers))
     )

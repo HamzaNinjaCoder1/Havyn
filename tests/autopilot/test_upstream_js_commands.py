@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from src.network_autopilot.adapter.upstream import js_commands as js
+from src.network_autopilot.adapter.packet_tracer import js_commands as js
 
 HOSTILE_NAME = 'x"); reportResult("pwned'
 

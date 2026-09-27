@@ -191,3 +191,32 @@ def test_clean_plan_has_no_issues():
     plan = plan_addressing(spec)
     assert validate_plan(plan, spec) == []
     assert not has_errors([])
+
+
+# ---------------------------------------------------------------------------
+# Bug #34 - an address is written either `10.0.0.5` or `10.0.0.5/24`
+# ---------------------------------------------------------------------------
+
+
+def test_ip_accepts_the_cidr_style_as_well_as_the_bare_style():
+    """`ip: "192.168.10.5/24"` is how an address is normally written, but the
+    planner fed the raw string to `IPv4Address()`, which rejects anything with
+    a slash - so the whole plan died with "invalid ip" instead of planning."""
+    spec = _spec_with(
+        [{"id": "net-a", "cidr": "192.168.10.0/24", "gateway": "192.168.10.1"}],
+        [{"device": "pc1", "subnet": "net-a", "ip": "192.168.10.5/24"}],
+    )
+    plan = plan_addressing(spec)
+    assert plan.assignments[0].ip == "192.168.10.5"
+
+
+def test_ip_prefix_that_disagrees_with_the_subnet_is_refused():
+    """The address is inside the subnet but claims another prefix - that is a
+    contradiction in the spec, not something to silently normalise away."""
+    spec = _spec_with(
+        [{"id": "net-a", "cidr": "192.168.10.0/24", "gateway": "192.168.10.1"}],
+        [{"device": "pc1", "subnet": "net-a", "ip": "192.168.10.5/16"}],
+    )
+    with pytest.raises(PlanningFailure) as exc:
+        plan_addressing(spec)
+    assert "prefix" in str(exc.value)

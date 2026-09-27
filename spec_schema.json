@@ -1,0 +1,1302 @@
+{
+ "$defs": {
+  "AcceptanceCriterionSpec": {
+   "additionalProperties": false,
+   "description": "One checkable criterion, linked back to the requirements it verifies.",
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "requirement_ids": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Requirement Ids",
+     "type": "array"
+    },
+    "test": {
+     "discriminator": {
+      "mapping": {
+       "config": "#/$defs/ConfigTestSpec",
+       "flow": "#/$defs/FlowTestSpec",
+       "structural": "#/$defs/StructuralTestSpec",
+       "wireless": "#/$defs/WirelessTestSpec"
+      },
+      "propertyName": "kind"
+     },
+     "oneOf": [
+      {
+       "$ref": "#/$defs/FlowTestSpec"
+      },
+      {
+       "$ref": "#/$defs/StructuralTestSpec"
+      },
+      {
+       "$ref": "#/$defs/ConfigTestSpec"
+      },
+      {
+       "$ref": "#/$defs/WirelessTestSpec"
+      }
+     ],
+     "title": "Test"
+    },
+    "title": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Title"
+    }
+   },
+   "required": [
+    "id",
+    "test"
+   ],
+   "title": "AcceptanceCriterionSpec",
+   "type": "object"
+  },
+  "AclRuleSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "action": {
+     "enum": [
+      "permit",
+      "deny"
+     ],
+     "title": "Action",
+     "type": "string"
+    },
+    "protocol": {
+     "default": "ip",
+     "enum": [
+      "ip",
+      "icmp",
+      "tcp",
+      "udp"
+     ],
+     "title": "Protocol",
+     "type": "string"
+    },
+    "source": {
+     "title": "Source",
+     "type": "string"
+    },
+    "destination": {
+     "title": "Destination",
+     "type": "string"
+    },
+    "dest_port": {
+     "anyOf": [
+      {
+       "maximum": 65535,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Dest Port"
+    },
+    "description": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Description"
+    }
+   },
+   "required": [
+    "action",
+    "source",
+    "destination"
+   ],
+   "title": "AclRuleSpec",
+   "type": "object"
+  },
+  "AsaInterfaceSpec": {
+   "additionalProperties": false,
+   "description": "One ASA interface, as the spec wants it named and levelled (#37).\n\nPT's ASA assigns `inside`/`security-level 100` to the first interface and\n`outside`/`0` to the second, so a design that needs a third zone - a DMZ,\nsay - had nowhere to say so. Naming an interface here overrides the\nderived nameif and level; the address still comes from `ip_assignments`,\nbecause that is where the subnet lives.",
+   "properties": {
+    "interface": {
+     "minLength": 1,
+     "title": "Interface",
+     "type": "string"
+    },
+    "nameif": {
+     "maxLength": 64,
+     "pattern": "^[a-z][a-z0-9_]*$",
+     "title": "Nameif",
+     "type": "string"
+    },
+    "security_level": {
+     "maximum": 100,
+     "minimum": 0,
+     "title": "Security Level",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "interface",
+    "nameif",
+    "security_level"
+   ],
+   "title": "AsaInterfaceSpec",
+   "type": "object"
+  },
+  "ConfigTestSpec": {
+   "additionalProperties": false,
+   "description": "A configuration expectation on one field of one interface.",
+   "properties": {
+    "kind": {
+     "const": "config",
+     "default": "config",
+     "title": "Kind",
+     "type": "string"
+    },
+    "device": {
+     "title": "Device",
+     "type": "string"
+    },
+    "interface": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Interface"
+    },
+    "field": {
+     "enum": [
+      "ip",
+      "mask",
+      "vlan",
+      "state",
+      "description"
+     ],
+     "title": "Field",
+     "type": "string"
+    },
+    "expected": {
+     "title": "Expected",
+     "type": "string"
+    }
+   },
+   "required": [
+    "device",
+    "field",
+    "expected"
+   ],
+   "title": "ConfigTestSpec",
+   "type": "object"
+  },
+  "DesignDecisionSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "statement": {
+     "minLength": 1,
+     "title": "Statement",
+     "type": "string"
+    },
+    "rationale": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Rationale"
+    },
+    "source": {
+     "default": "engine",
+     "enum": [
+      "user",
+      "engine"
+     ],
+     "title": "Source",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "statement"
+   ],
+   "title": "DesignDecisionSpec",
+   "type": "object"
+  },
+  "DeviceRole": {
+   "enum": [
+    "router",
+    "switch",
+    "l3_switch",
+    "pc",
+    "server",
+    "laptop",
+    "access_point",
+    "cloud",
+    "firewall",
+    "wireless_router",
+    "modem",
+    "iot",
+    "other"
+   ],
+   "title": "DeviceRole",
+   "type": "string"
+  },
+  "DeviceSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "role": {
+     "$ref": "#/$defs/DeviceRole"
+    },
+    "model_hint": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Model Hint"
+    },
+    "interface_requirements": {
+     "items": {
+      "$ref": "#/$defs/InterfaceRequirement"
+     },
+     "title": "Interface Requirements",
+     "type": "array"
+    },
+    "floor": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Floor"
+    },
+    "description": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Description"
+    },
+    "asa_interfaces": {
+     "items": {
+      "$ref": "#/$defs/AsaInterfaceSpec"
+     },
+     "title": "Asa Interfaces",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "role"
+   ],
+   "title": "DeviceSpec",
+   "type": "object"
+  },
+  "EndpointSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "device": {
+     "title": "Device",
+     "type": "string"
+    },
+    "interface_hint": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Interface Hint"
+    },
+    "vlan": {
+     "anyOf": [
+      {
+       "maximum": 4094,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Vlan"
+    }
+   },
+   "required": [
+    "device"
+   ],
+   "title": "EndpointSpec",
+   "type": "object"
+  },
+  "FlowTestSpec": {
+   "additionalProperties": false,
+   "description": "An expected traffic flow: reachability, or the *negative* case (blocked).",
+   "properties": {
+    "kind": {
+     "const": "flow",
+     "default": "flow",
+     "title": "Kind",
+     "type": "string"
+    },
+    "source": {
+     "title": "Source",
+     "type": "string"
+    },
+    "destination": {
+     "title": "Destination",
+     "type": "string"
+    },
+    "expect": {
+     "enum": [
+      "reachable",
+      "blocked"
+     ],
+     "title": "Expect",
+     "type": "string"
+    },
+    "transport": {
+     "default": "icmp",
+     "enum": [
+      "icmp",
+      "tcp",
+      "udp"
+     ],
+     "title": "Transport",
+     "type": "string"
+    },
+    "port": {
+     "anyOf": [
+      {
+       "maximum": 65535,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Port"
+    },
+    "destination_ip": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Destination Ip"
+    },
+    "destination_interface": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Destination Interface"
+    }
+   },
+   "required": [
+    "source",
+    "destination",
+    "expect"
+   ],
+   "title": "FlowTestSpec",
+   "type": "object"
+  },
+  "InterfaceRequirement": {
+   "additionalProperties": false,
+   "description": "A capability requirement: 'needs N interfaces of this media'.",
+   "properties": {
+    "count": {
+     "default": 1,
+     "minimum": 1,
+     "title": "Count",
+     "type": "integer"
+    },
+    "media": {
+     "default": "ethernet",
+     "enum": [
+      "ethernet",
+      "gigabit",
+      "serial",
+      "fiber",
+      "wireless"
+     ],
+     "title": "Media",
+     "type": "string"
+    },
+    "hint": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Hint"
+    }
+   },
+   "title": "InterfaceRequirement",
+   "type": "object"
+  },
+  "IpAssignmentSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "device": {
+     "title": "Device",
+     "type": "string"
+    },
+    "interface_hint": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Interface Hint"
+    },
+    "subnet": {
+     "title": "Subnet",
+     "type": "string"
+    },
+    "ip": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Ip"
+    },
+    "dhcp": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Dhcp"
+    }
+   },
+   "required": [
+    "device",
+    "subnet"
+   ],
+   "title": "IpAssignmentSpec",
+   "type": "object"
+  },
+  "Ipv6Spec": {
+   "additionalProperties": false,
+   "description": "IPv6 unicast-routing configuration.",
+   "properties": {
+    "enabled": {
+     "default": false,
+     "title": "Enabled",
+     "type": "boolean"
+    },
+    "addresses": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Addresses",
+     "type": "object"
+    },
+    "global_eui_64": {
+     "default": false,
+     "title": "Global Eui 64",
+     "type": "boolean"
+    }
+   },
+   "title": "Ipv6Spec",
+   "type": "object"
+  },
+  "LinkSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "a": {
+     "$ref": "#/$defs/EndpointSpec"
+    },
+    "b": {
+     "$ref": "#/$defs/EndpointSpec"
+    },
+    "media": {
+     "default": "auto",
+     "enum": [
+      "auto",
+      "straight",
+      "crossover",
+      "fiber",
+      "serial",
+      "wireless"
+     ],
+     "title": "Media",
+     "type": "string"
+    },
+    "trunk": {
+     "default": false,
+     "title": "Trunk",
+     "type": "boolean"
+    },
+    "native_vlan": {
+     "anyOf": [
+      {
+       "maximum": 4094,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Native Vlan"
+    },
+    "allowed_vlans": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "integer"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Allowed Vlans"
+    }
+   },
+   "required": [
+    "id",
+    "a",
+    "b"
+   ],
+   "title": "LinkSpec",
+   "type": "object"
+  },
+  "NatSpec": {
+   "additionalProperties": false,
+   "description": "NAT/PAT configuration for a router.",
+   "properties": {
+    "router": {
+     "title": "Router",
+     "type": "string"
+    },
+    "mode": {
+     "default": "pat",
+     "enum": [
+      "static",
+      "dynamic",
+      "pat"
+     ],
+     "title": "Mode",
+     "type": "string"
+    },
+    "inside_interface": {
+     "default": "",
+     "title": "Inside Interface",
+     "type": "string"
+    },
+    "outside_interface": {
+     "default": "",
+     "title": "Outside Interface",
+     "type": "string"
+    },
+    "inside_networks": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Inside Networks",
+     "type": "array"
+    },
+    "pool_name": {
+     "default": "",
+     "title": "Pool Name",
+     "type": "string"
+    },
+    "start_ip": {
+     "default": "",
+     "title": "Start Ip",
+     "type": "string"
+    },
+    "end_ip": {
+     "default": "",
+     "title": "End Ip",
+     "type": "string"
+    },
+    "netmask": {
+     "default": "",
+     "title": "Netmask",
+     "type": "string"
+    },
+    "acl_number": {
+     "default": "1",
+     "title": "Acl Number",
+     "type": "string"
+    },
+    "use_interface_overload": {
+     "default": true,
+     "title": "Use Interface Overload",
+     "type": "boolean"
+    },
+    "static_mappings": {
+     "items": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object"
+     },
+     "title": "Static Mappings",
+     "type": "array"
+    }
+   },
+   "required": [
+    "router"
+   ],
+   "title": "NatSpec",
+   "type": "object"
+  },
+  "OspfSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "process_id": {
+     "default": 1,
+     "minimum": 1,
+     "title": "Process Id",
+     "type": "integer"
+    },
+    "networks": {
+     "items": {
+      "type": "string"
+     },
+     "minItems": 1,
+     "title": "Networks",
+     "type": "array"
+    },
+    "area": {
+     "default": "0",
+     "title": "Area",
+     "type": "string"
+    }
+   },
+   "required": [
+    "networks"
+   ],
+   "title": "OspfSpec",
+   "type": "object"
+  },
+  "PolicySpec": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "kind": {
+     "const": "acl",
+     "default": "acl",
+     "title": "Kind",
+     "type": "string"
+    },
+    "rules": {
+     "items": {
+      "$ref": "#/$defs/AclRuleSpec"
+     },
+     "minItems": 1,
+     "title": "Rules",
+     "type": "array"
+    },
+    "apply_to": {
+     "items": {
+      "type": "string"
+     },
+     "minItems": 1,
+     "title": "Apply To",
+     "type": "array"
+    },
+    "enforcement": {
+     "default": "available",
+     "enum": [
+      "available",
+      "planned"
+     ],
+     "title": "Enforcement",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "rules",
+    "apply_to"
+   ],
+   "title": "PolicySpec",
+   "type": "object"
+  },
+  "ProvenanceSpec": {
+   "additionalProperties": false,
+   "description": "Where this spec came from. Honest provenance starts at the spec itself.",
+   "properties": {
+    "author": {
+     "default": "user",
+     "title": "Author",
+     "type": "string"
+    },
+    "generator": {
+     "default": "network_autopilot",
+     "title": "Generator",
+     "type": "string"
+    },
+    "source_prompt": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Source Prompt"
+    },
+    "notes": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Notes"
+    }
+   },
+   "title": "ProvenanceSpec",
+   "type": "object"
+  },
+  "RequirementSpec": {
+   "additionalProperties": false,
+   "description": "A user requirement in the requirement\u2192acceptance traceability chain.",
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "statement": {
+     "minLength": 1,
+     "title": "Statement",
+     "type": "string"
+    },
+    "kind": {
+     "default": "connectivity",
+     "enum": [
+      "connectivity",
+      "isolation",
+      "addressing",
+      "service",
+      "constraint",
+      "operational"
+     ],
+     "title": "Kind",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "statement"
+   ],
+   "title": "RequirementSpec",
+   "type": "object"
+  },
+  "RoutingSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "mode": {
+     "default": "connected",
+     "enum": [
+      "connected",
+      "static",
+      "ospf",
+      "eigrp",
+      "rip"
+     ],
+     "title": "Mode",
+     "type": "string"
+    },
+    "static_routes": {
+     "items": {
+      "$ref": "#/$defs/StaticRouteSpec"
+     },
+     "title": "Static Routes",
+     "type": "array"
+    },
+    "ospf": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/OspfSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "nat": {
+     "items": {
+      "$ref": "#/$defs/NatSpec"
+     },
+     "title": "Nat",
+     "type": "array"
+    },
+    "ipv6": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Ipv6Spec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    }
+   },
+   "title": "RoutingSpec",
+   "type": "object"
+  },
+  "StaticRouteSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "device": {
+     "title": "Device",
+     "type": "string"
+    },
+    "destination": {
+     "title": "Destination",
+     "type": "string"
+    },
+    "next_hop": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Next Hop"
+    },
+    "exit_interface": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Exit Interface"
+    }
+   },
+   "required": [
+    "device",
+    "destination"
+   ],
+   "title": "StaticRouteSpec",
+   "type": "object"
+  },
+  "StructuralTestSpec": {
+   "additionalProperties": false,
+   "description": "A structural expectation: a device/link/ip/gateway/vlan/trunk exists.",
+   "properties": {
+    "kind": {
+     "const": "structural",
+     "default": "structural",
+     "title": "Kind",
+     "type": "string"
+    },
+    "check": {
+     "enum": [
+      "device_exists",
+      "link_exists",
+      "ip_assigned",
+      "gateway_assigned",
+      "vlan_defined",
+      "trunk_configured"
+     ],
+     "title": "Check",
+     "type": "string"
+    },
+    "target": {
+     "title": "Target",
+     "type": "string"
+    },
+    "detail": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Detail"
+    }
+   },
+   "required": [
+    "check",
+    "target"
+   ],
+   "title": "StructuralTestSpec",
+   "type": "object"
+  },
+  "SubnetSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "vlan_id": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Vlan Id"
+    },
+    "purpose": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Purpose"
+    },
+    "cidr": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Cidr"
+    },
+    "required_hosts": {
+     "anyOf": [
+      {
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Required Hosts"
+    },
+    "gateway": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Gateway"
+    },
+    "dhcp": {
+     "default": false,
+     "title": "Dhcp",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "title": "SubnetSpec",
+   "type": "object"
+  },
+  "VlanSpec": {
+   "additionalProperties": false,
+   "properties": {
+    "vlan_id": {
+     "maximum": 4094,
+     "minimum": 1,
+     "title": "Vlan Id",
+     "type": "integer"
+    },
+    "name": {
+     "minLength": 1,
+     "title": "Name",
+     "type": "string"
+    },
+    "purpose": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Purpose"
+    }
+   },
+   "required": [
+    "vlan_id",
+    "name"
+   ],
+   "title": "VlanSpec",
+   "type": "object"
+  },
+  "WirelessTestSpec": {
+   "additionalProperties": false,
+   "description": "A wireless association expectation.\n\nPasses only when Packet Tracer itself shows the antenna link between the\nclient's radio and that access point - the same `Antenna` object the\nexecutor reads. A client that merely has a Wireless0, or an AP that\nexists, is not an association.",
+   "properties": {
+    "kind": {
+     "const": "wireless",
+     "default": "wireless",
+     "title": "Kind",
+     "type": "string"
+    },
+    "client": {
+     "title": "Client",
+     "type": "string"
+    },
+    "access_point": {
+     "title": "Access Point",
+     "type": "string"
+    },
+    "interface": {
+     "default": "Wireless0",
+     "title": "Interface",
+     "type": "string"
+    },
+    "expect": {
+     "default": "associated",
+     "enum": [
+      "associated",
+      "not_associated"
+     ],
+     "title": "Expect",
+     "type": "string"
+    }
+   },
+   "required": [
+    "client",
+    "access_point"
+   ],
+   "title": "WirelessTestSpec",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "description": "The complete, deterministic description of the intended network.",
+ "properties": {
+  "spec_version": {
+   "const": "1",
+   "default": "1",
+   "title": "Spec Version",
+   "type": "string"
+  },
+  "name": {
+   "minLength": 1,
+   "title": "Name",
+   "type": "string"
+  },
+  "description": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Description"
+  },
+  "provenance": {
+   "$ref": "#/$defs/ProvenanceSpec"
+  },
+  "requirements": {
+   "items": {
+    "$ref": "#/$defs/RequirementSpec"
+   },
+   "title": "Requirements",
+   "type": "array"
+  },
+  "acceptance_criteria": {
+   "items": {
+    "$ref": "#/$defs/AcceptanceCriterionSpec"
+   },
+   "title": "Acceptance Criteria",
+   "type": "array"
+  },
+  "devices": {
+   "items": {
+    "$ref": "#/$defs/DeviceSpec"
+   },
+   "minItems": 1,
+   "title": "Devices",
+   "type": "array"
+  },
+  "links": {
+   "items": {
+    "$ref": "#/$defs/LinkSpec"
+   },
+   "title": "Links",
+   "type": "array"
+  },
+  "vlans": {
+   "items": {
+    "$ref": "#/$defs/VlanSpec"
+   },
+   "title": "Vlans",
+   "type": "array"
+  },
+  "subnets": {
+   "items": {
+    "$ref": "#/$defs/SubnetSpec"
+   },
+   "title": "Subnets",
+   "type": "array"
+  },
+  "ip_assignments": {
+   "items": {
+    "$ref": "#/$defs/IpAssignmentSpec"
+   },
+   "title": "Ip Assignments",
+   "type": "array"
+  },
+  "routing": {
+   "$ref": "#/$defs/RoutingSpec"
+  },
+  "policies": {
+   "items": {
+    "$ref": "#/$defs/PolicySpec"
+   },
+   "title": "Policies",
+   "type": "array"
+  },
+  "assumptions": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Assumptions",
+   "type": "array"
+  },
+  "design_decisions": {
+   "items": {
+    "$ref": "#/$defs/DesignDecisionSpec"
+   },
+   "title": "Design Decisions",
+   "type": "array"
+  },
+  "constraints": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Constraints",
+   "type": "array"
+  },
+  "layout_seed": {
+   "default": 0,
+   "title": "Layout Seed",
+   "type": "integer"
+  }
+ },
+ "required": [
+  "name",
+  "devices"
+ ],
+ "title": "NetworkSpec",
+ "type": "object"
+}

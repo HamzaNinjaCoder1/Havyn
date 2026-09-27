@@ -20,6 +20,7 @@ from ..core.network_spec import (
     ConfigTestSpec,
     FlowTestSpec,
     StructuralTestSpec,
+    WirelessTestSpec,
 )
 from ..core.requirements import (
     AcceptanceResult,
@@ -28,6 +29,11 @@ from ..core.requirements import (
     FlowResult,
 )
 from ..core.actual_state import ActualNetworkState
+# One verdict source (#21): structural/config/wireless verdicts are decided by
+# the acceptance evaluator, and this module only wraps them in the per-criterion
+# evidence chain. Two independent implementations of the same decision is how
+# one spec ended up reporting PASS here and UNKNOWN there.
+from ..acceptance.evaluator import evaluate_criterion, evaluate_wireless
 
 
 class VerificationKind(str, Enum):
@@ -157,6 +163,8 @@ class PerCriterionVerifier:
             return self._verify_structural(criterion, test, state, now, vid)
         if isinstance(test, ConfigTestSpec):
             return self._verify_config(criterion, test, state, now, vid)
+        if isinstance(test, WirelessTestSpec):
+            return self._verify_wireless(criterion, test, state, now, vid)
 
         return CriterionVerification(
             criterion_id=criterion.id,
@@ -169,6 +177,75 @@ class PerCriterionVerifier:
             observed=None,
             verdict=Verdict.UNKNOWN,
             evidence=("unknown test kind",),
+            timestamp=now,
+        )
+
+    def _verify_config(
+        self,
+        criterion: AcceptanceCriterionSpec,
+        test: ConfigTestSpec,
+        state: ActualNetworkState,
+        now: str,
+        vid: str,
+    ) -> CriterionVerification:
+        """Verify a `config` criterion (#18).
+
+        `_verify_one` dispatched ConfigTestSpec here, but this method never
+        existed - so any spec carrying a config criterion raised AttributeError
+        out of `net_verify`, `net_diff` and `net_build`. `config` is a
+        first-class kind of the published schema; it is evaluated now, by the
+        same code the acceptance report uses.
+        """
+        acc = evaluate_criterion(
+            criterion, state, {}, observations_complete=False,
+            checked_by="per-criterion-verifier",
+        )
+        target = test.device
+        if test.interface:
+            target = f"{test.device}:{test.interface}"
+        return CriterionVerification(
+            criterion_id=criterion.id,
+            requirement_ids=tuple(criterion.requirement_ids),
+            test_kind="config",
+            verification_id=vid,
+            kind=VerificationKind.CONFIG,
+            target=target,
+            expected=f"{test.field} == {test.expected}",
+            observed=acc.evidence[-1] if acc.evidence else None,
+            verdict=acc.verdict,
+            evidence=acc.evidence,
+            timestamp=now,
+        )
+
+    def _verify_wireless(
+        self,
+        criterion: AcceptanceCriterionSpec,
+        test,
+        state: ActualNetworkState,
+        now: str,
+        vid: str,
+    ) -> CriterionVerification:
+        """Association is real when PT shows the antenna link, nothing else.
+
+        The observation the state carries is the `Antenna` link on the
+        client's radio: its presence and its peer device. A Wireless0 that
+        merely exists, or an AP that merely exists, is not an association.
+        The verdict itself comes from `evaluate_wireless` - the function the
+        acceptance report also uses - so one spec cannot PASS here and read
+        UNKNOWN there (#22).
+        """
+        verdict, observed, evidence = evaluate_wireless(test, state)
+        return CriterionVerification(
+            criterion_id=criterion.id,
+            requirement_ids=tuple(criterion.requirement_ids),
+            test_kind="wireless",
+            verification_id=vid,
+            kind=VerificationKind.CONNECTIVITY,
+            target=f"{test.client} ))) {test.access_point}",
+            expected=test.expect,
+            observed=observed,
+            verdict=verdict,
+            evidence=evidence,
             timestamp=now,
         )
 
@@ -282,38 +359,13 @@ class PerCriterionVerifier:
             )
 
         if test.check in ("ip_assigned", "gateway_assigned"):
-            field_name = "ip" if test.check == "ip_assigned" else "gateway"
-            dev = state.devices.get(test.target)
-            if dev is None:
-                return CriterionVerification(
-                    criterion_id=criterion.id,
-                    requirement_ids=tuple(criterion.requirement_ids),
-                    test_kind="config",
-                    verification_id=vid,
-                    kind=VerificationKind.ADDRESSING,
-                    target=test.target,
-                    expected="configured",
-                    observed=None,
-                    verdict=Verdict.UNKNOWN,
-                    evidence=("device not observed",),
-                    timestamp=now,
-                )
-            for port in dev.ports.values():
-                val = getattr(port, field_name, None)
-                if val and val.is_known:
-                    return CriterionVerification(
-                        criterion_id=criterion.id,
-                        requirement_ids=tuple(criterion.requirement_ids),
-                        test_kind="config",
-                        verification_id=vid,
-                        kind=VerificationKind.ADDRESSING,
-                        target=f"{test.target}:{port.name}",
-                        expected=test.expected,
-                        observed=str(val.value),
-                        verdict=Verdict.PASS if str(val.value) == test.expected else Verdict.FAIL,
-                        evidence=(f"{port.name} {field_name}={val.value}",),
-                        timestamp=now,
-                    )
+            # #21: `detail` names the interface to inspect - the acceptance
+            # path's reading of the field - and the verdict is the acceptance
+            # verdict, not a second opinion that could contradict it.
+            acc = evaluate_criterion(
+                criterion, state, {}, observations_complete=False,
+                checked_by="per-criterion-verifier",
+            )
             return CriterionVerification(
                 criterion_id=criterion.id,
                 requirement_ids=tuple(criterion.requirement_ids),
@@ -321,10 +373,10 @@ class PerCriterionVerifier:
                 verification_id=vid,
                 kind=VerificationKind.ADDRESSING,
                 target=test.target,
-                expected=test.expected,
-                observed=None,
-                verdict=Verdict.UNKNOWN,
-                evidence=("port not observed",),
+                expected=test.detail or "configured",
+                observed=acc.evidence[-1] if acc.evidence else None,
+                verdict=acc.verdict,
+                evidence=acc.evidence,
                 timestamp=now,
             )
 

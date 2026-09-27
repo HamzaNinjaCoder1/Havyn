@@ -22,8 +22,8 @@ import os
 
 import pytest
 
-from src.packet_tracer_mcp.infrastructure.execution import bridge_token
-from src.packet_tracer_mcp.infrastructure.execution.bridge_token import (
+from src.network_autopilot.pt import token as bridge_token
+from src.network_autopilot.pt.token import (
     BridgeTokenError, get_bridge_token, token_path, token_fingerprint,
     token_was_rotated, token_is_ephemeral, reset_cache,
 )
@@ -156,7 +156,7 @@ class TestWriteRace:
         con tokens DISTINTOS y el cliente solo podia hablar con uno."""
         first = get_bridge_token()
         # Simula al segundo proceso: el archivo ya existe.
-        assert bridge_token._write_new(token_path()) is None
+        assert bridge_token._create_token(token_path()) is None
         assert token_path().read_text(encoding="utf-8").strip() == first
 
 

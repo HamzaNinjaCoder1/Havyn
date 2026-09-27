@@ -227,3 +227,135 @@ class TestPerCriterionReport:
             pass_count=0,
         )
         assert report.all_pass is False
+
+# ---------------------------------------------------------------------------
+# Bugs #18 (missing `_verify_config`) and #21 (two verdict sources)
+# ---------------------------------------------------------------------------
+
+
+def _state_with(port_name: str, ip_value: str) -> ActualNetworkState:
+    state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00+00:00")
+    dev = DeviceObservation(name="r1")
+    port = PortObservation(name=port_name)
+    port.ip = Observable.known(ip_value, source="test")
+    port.state = Observable.known("up", source="test")
+    dev.ports[port_name] = port
+    state.devices["r1"] = dev
+    return state
+
+
+class TestConfigCriterion:
+    """`config` is a first-class schema kind, so it must verify (#18)."""
+
+    def test_config_criterion_is_evaluated_and_not_crashing(self):
+        spec = NetworkSpec(
+            name="cfg-criterion",
+            devices=[DeviceSpec(id="r1", role=DeviceRole.ROUTER)],
+            acceptance_criteria=[
+                AcceptanceCriterionSpec(
+                    id="A-cfg",
+                    requirement_ids=[],
+                    test=ConfigTestSpec(
+                        kind="config",
+                        device="r1",
+                        interface="GigabitEthernet0/0",
+                        field="ip",
+                        expected="10.0.0.1",
+                    ),
+                )
+            ],
+        )
+        report = PerCriterionVerifier().verify(
+            spec, _state_with("GigabitEthernet0/0", "10.0.0.1"), {}
+        )
+        assert report.verifications[0].verdict is Verdict.PASS
+
+    def test_config_criterion_fails_when_the_value_differs(self):
+        spec = NetworkSpec(
+            name="cfg-mismatch",
+            devices=[DeviceSpec(id="r1", role=DeviceRole.ROUTER)],
+            acceptance_criteria=[
+                AcceptanceCriterionSpec(
+                    id="A-cfg2",
+                    requirement_ids=[],
+                    test=ConfigTestSpec(
+                        kind="config",
+                        device="r1",
+                        interface="GigabitEthernet0/0",
+                        field="ip",
+                        expected="10.0.0.9",
+                    ),
+                )
+            ],
+        )
+        report = PerCriterionVerifier().verify(
+            spec, _state_with("GigabitEthernet0/0", "10.0.0.1"), {}
+        )
+        assert report.verifications[0].verdict is Verdict.FAIL
+
+    def test_config_criterion_unknown_when_the_interface_is_not_observed(self):
+        spec = NetworkSpec(
+            name="cfg-unknown",
+            devices=[DeviceSpec(id="r1", role=DeviceRole.ROUTER)],
+            acceptance_criteria=[
+                AcceptanceCriterionSpec(
+                    id="A-cfg3",
+                    requirement_ids=[],
+                    test=ConfigTestSpec(
+                        kind="config",
+                        device="r1",
+                        interface="GigabitEthernet0/0",
+                        field="ip",
+                        expected="10.0.0.1",
+                    ),
+                )
+            ],
+        )
+        state = ActualNetworkState(
+            source="test", observed_at="2026-01-01T00:00:00+00:00"
+        )
+        state.devices["r1"] = DeviceObservation(name="r1")
+        report = PerCriterionVerifier().verify(spec, state, {})
+        assert report.verifications[0].verdict is Verdict.UNKNOWN
+
+
+class TestSingleVerdictSource:
+    """#21: `detail` means "interface" in both paths, and both must agree."""
+
+    @staticmethod
+    def _criterion(detail: str) -> AcceptanceCriterionSpec:
+        return AcceptanceCriterionSpec(
+            id="A-ip",
+            requirement_ids=[],
+            test=StructuralTestSpec(
+                kind="structural",
+                check="ip_assigned",
+                target="r1",
+                detail=detail,
+            ),
+        )
+
+    def _verdicts(self, detail: str, state: ActualNetworkState):
+        crit = self._criterion(detail)
+        acceptance = evaluate_criterion(crit, state, {})
+        spec = NetworkSpec(
+            name="agree",
+            devices=[DeviceSpec(id="r1", role=DeviceRole.ROUTER)],
+            acceptance_criteria=[crit],
+        )
+        per_criterion = PerCriterionVerifier().verify(spec, state, {}).verifications[0]
+        return acceptance.verdict, per_criterion.verdict
+
+    def test_agreement_when_detail_names_an_interface(self):
+        state = _state_with("GigabitEthernet0/0", "10.0.0.1")
+        acceptance, per_criterion = self._verdicts("GigabitEthernet0/0", state)
+        assert acceptance is Verdict.PASS
+        assert per_criterion is acceptance
+
+    def test_agreement_when_detail_names_a_value(self):
+        state = _state_with("GigabitEthernet0/0", "10.0.0.1")
+        acceptance, per_criterion = self._verdicts("10.0.0.1", state)
+        assert per_criterion is acceptance
+
+from src.network_autopilot.acceptance.evaluator import evaluate_criterion  # noqa: E402
+from src.network_autopilot.core.requirements import Verdict  # noqa: E402

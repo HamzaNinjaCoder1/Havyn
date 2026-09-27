@@ -3,62 +3,52 @@
 These tests are only meaningful against a running Packet Tracer with the MCP
 Control Center extension installed. They run when either live channel is up:
 the HTTP bridge (extension webview polling) or the file mailbox (Script Engine
-heartbeat). When neither is reachable they report LIVE TEST BLOCKED with the
-observed state of BOTH channels and skip — they are never satisfied by offline
-behavior, and they are never fake-passed.
+heartbeat). When neither is reachable they report LIVE TEST BLOCKED and skip —
+they are never satisfied by offline behavior, and they are never fake-passed.
 
-Note: the mutation tests leave their devices in the open workspace on purpose;
-they are the evidence that the round trip really happened.
+§30: every device a test creates is registered and removed on teardown, so the
+user's real workspace is never polluted. A leaked device FAILS the run rather
+than being silently left behind.
 """
 
 from __future__ import annotations
 
 import time
-import urllib.error
-import urllib.request
-import uuid
 
 import pytest
 
-from packet_tracer_mcp.infrastructure.execution.file_bridge import FileBridge
-from packet_tracer_mcp.infrastructure.execution.live_bridge import DEFAULT_PORT
-
-from src.network_autopilot.adapter.upstream.bridge_adapter import BridgeAdapter
+from src.network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
 from src.network_autopilot.core.receipts import OperationResult
 from src.network_autopilot.core.requirements import FlowOutcome
 
-
-def _http_bridge_listening() -> bool:
-    try:
-        with urllib.request.urlopen(
-            f"http://127.0.0.1:{DEFAULT_PORT}/ping", timeout=2.0
-        ) as resp:
-            return resp.status == 200
-    except (urllib.error.URLError, OSError):
-        return False
-
-
-def _file_channel_alive() -> bool:
-    try:
-        return FileBridge().pt_alive()
-    except OSError:
-        return False
-
-
-_HTTP_UP = _http_bridge_listening()
-_FILE_UP = _file_channel_alive()
+import _live_harness as live
 
 pytestmark = pytest.mark.skipif(
-    not (_HTTP_UP or _FILE_UP),
+    not live.live_is_reachable(),
     reason=(
-        "LIVE TEST BLOCKED: Packet Tracer is not reachable through any channel — "
-        f"HTTP bridge on 127.0.0.1:{DEFAULT_PORT}: "
-        f"{'listening' if _HTTP_UP else 'nothing listening'}; "
-        f"file mailbox heartbeat: {'fresh' if _FILE_UP else 'stale/absent'}. "
-        "Open Packet Tracer with the MCP Control Center extension installed "
-        "(the Script Engine alone is enough for the file channel), then re-run."
+        "LIVE TEST BLOCKED: Packet Tracer is not reachable through any channel "
+        "(HTTP bridge on 127.0.0.1:54321 or the Script Engine file mailbox). "
+        "Open Packet Tracer with the MCP Control Center extension installed, "
+        "then re-run."
     ),
 )
+
+
+@pytest.fixture
+def owned():
+    """Devices created by one test; removed verbatim on teardown."""
+    created: list[str] = []
+
+    def _track(name: str) -> str:
+        if name not in created:
+            created.append(name)
+        return name
+
+    yield _track
+    outcomes = live.delete_devices(created)
+    leaked = [n for n, s in outcomes.items() if s != "success"]
+    if leaked:
+        pytest.fail(f"live test leaked devices into the workspace: {leaked} ({outcomes})")
 
 
 def _adapter() -> BridgeAdapter:
@@ -66,14 +56,18 @@ def _adapter() -> BridgeAdapter:
     return BridgeAdapter(host_bridge=False)
 
 
+def _unique(tracker, prefix: str) -> str:
+    return tracker(f"{prefix}-{live.run_tag()}")
+
+
 def test_live_bridge_is_ours_and_polling():
     info = _adapter().ping(timeout=5.0)
-    # On the file channel ping() reports not-reachable by design; the guard
-    # above already proved SOME channel is alive. Assert honestly per channel.
-    if _HTTP_UP:
-        assert info.reachable, info.detail.value or info.detail.status.value
-    else:
-        assert not info.reachable  # file channel: HTTP down, that is expected
+    # The module skipif already proved SOME channel is alive, so ping() must
+    # agree no matter which one: an authenticated HTTP bridge reports
+    # reachable, and the Script Engine file mailbox reports reachable by
+    # design (PT is open with the extension polling it). A not-reachable
+    # verdict here would mean ping() contradicts the gate that let us run.
+    assert info.reachable, info.detail.value or info.detail.status.value
 
 
 def test_live_topology_readback_enumerates_devices():
@@ -82,9 +76,9 @@ def test_live_topology_readback_enumerates_devices():
     assert isinstance(names.value, list)
 
 
-def test_live_create_device_confirmed_by_readback():
+def test_live_create_device_confirmed_by_readback(owned):
     adapter = _adapter()
-    name = f"ap-live-{uuid.uuid4().hex[:6]}"
+    name = _unique(owned, "ap-live")
     receipt = adapter.create_device(name, "router", model_hint="2911", position=(820, 120))
     assert receipt.result is OperationResult.SUCCESS, receipt.error
     assert receipt.confirmed, receipt.to_dict()
@@ -92,9 +86,9 @@ def test_live_create_device_confirmed_by_readback():
     assert exists.is_known and exists.value
 
 
-def test_live_deep_inspection_reads_model_and_ports():
+def test_live_deep_inspection_reads_model_and_ports(owned):
     adapter = _adapter()
-    name = f"ap-insp-{uuid.uuid4().hex[:6]}"
+    name = _unique(owned, "ap-insp")
     receipt = adapter.create_device(name, "router", model_hint="2911", position=(840, 140))
     assert receipt.result is OperationResult.SUCCESS, receipt.error
     observation = adapter.inspect_device(name)
@@ -102,15 +96,31 @@ def test_live_deep_inspection_reads_model_and_ports():
     assert observation.ports, "a router always has ports; none were read back"
 
 
-def test_live_end_to_end_pc_to_pc_ping():
+def test_live_delete_device_is_idempotent(owned):
+    """§29: the delete controller removes a device and a repeat is a no-op."""
+    adapter = _adapter()
+    name = _unique(owned, "ap-del")
+    assert adapter.create_device(name, "router", model_hint="2911").executed_ok
+    first = adapter.delete_device(name)
+    assert first.result is OperationResult.SUCCESS, first.error
+    assert first.confirmed, first.to_dict()
+    # Second delete: already absent must be a CONFIRMED success, not an error.
+    second = adapter.delete_device(name)
+    assert second.result is OperationResult.SUCCESS, second.error
+    # The tracker will also try to delete it on teardown — that must be safe.
+    exists = adapter.device_exists(name)
+    assert exists.is_known and not exists.value
+
+
+def test_live_end_to_end_pc_to_pc_ping(owned):
     """Two real PCs, one real link, real static IPs, one REAL ping.
 
     This is the smallest complete data-plane proof the bridge can produce:
     create -> link -> configure -> flow test, every step read back.
     """
     adapter = _adapter()
-    tag = uuid.uuid4().hex[:6]
-    a, b = f"ap-pa-{tag}", f"ap-pb-{tag}"
+    tag = live.run_tag()
+    a, b = _unique(owned, f"ap-pa-{tag}"), _unique(owned, f"ap-pb-{tag}")
     for name, y in ((a, 200), (b, 260)):
         r = adapter.create_device(name, "pc", position=(860, y))
         assert r.result is OperationResult.SUCCESS, r.error
@@ -122,7 +132,7 @@ def test_live_end_to_end_pc_to_pc_ping():
         assert r.executed_ok, r.error
     # give the addressing a moment to settle, then REALLY ping
     time.sleep(1.0)
-    flow = adapter.run_flow_test(a, b, timeout=30.0)
+    flow = adapter.run_flow_test(a, b, timeout=45.0)
     assert flow.outcome is FlowOutcome.REACHABLE, (
         flow.outcome.value, flow.detail, flow.evidence
     )

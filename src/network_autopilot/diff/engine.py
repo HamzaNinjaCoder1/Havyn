@@ -72,14 +72,21 @@ def diff_expected_vs_actual(
     *,
     observations_complete: bool = False,
     observed_names: set[str] | None = None,
+    assignment_ports: dict[tuple[str, str], str] | None = None,
 ) -> DiffResult:
     """Full semantic diff of intended vs observed state.
 
     `observed_names` lets the caller state exactly which devices were part of
     the observation sweep; anything outside it is UNKNOWN, never MISSING.
+
+    `assignment_ports` is the compiler's map of (device, subnet_id) -> the real
+    interface each address assignment landed on; without it a hint-less
+    assignment is diffed against a hardcoded "FastEthernet0" that does not exist
+    on a router (P1-2).
     """
     entries: list[DiffEntry] = []
     names = observed_names if observed_names is not None else set(state.devices)
+    resolved = dict(assignment_ports or {})
 
     # -- devices ------------------------------------------------------------
     for device in spec.devices:
@@ -103,7 +110,8 @@ def diff_expected_vs_actual(
                 entries.append(
                     DiffEntry(
                         path, DiffKind.UNKNOWN, expected_model, None,
-                        observed.detail if observed else "device listed but not inspected",
+                        getattr(observed, "notes", None)
+                        or "device listed but not inspected",
                     )
                 )
         elif device.id in state.devices:
@@ -128,7 +136,10 @@ def diff_expected_vs_actual(
         if assignment.ip is None:
             continue
         allocation = plan.allocation_by_subnet(assignment.subnet_id)
-        iface = assignment.interface_hint or "FastEthernet0"
+        if assignment.interface_hint:
+            iface = assignment.interface_hint
+        else:
+            iface = resolved.get((assignment.device, assignment.subnet_id)) or "FastEthernet0"
         path = f"device({assignment.device}).port({iface}).ip"
         device = state.devices.get(assignment.device)
         if device is None:
@@ -182,6 +193,12 @@ def diff_expected_vs_actual(
     # -- links ------------------------------------------------------------------
     for link in spec.links:
         path = f"link({link.id})"
+        if link.media == "wireless":
+            # A wireless link is an association, not a cable: PT holds it as an
+            # `Antenna` object, so it is compared against the observed radio
+            # link rather than against cabling endpoints.
+            entries.extend(_wireless_link_entries(link, state))
+            continue
         matching = [
             l for l in state.links
             if l.ref_id.is_known and l.ref_id.value == link.id
@@ -206,12 +223,52 @@ def diff_expected_vs_actual(
     return DiffResult(entries=tuple(entries), drift_count=drift, unknown_count=unknown)
 
 
+def _wireless_link_entries(link, state) -> list[DiffEntry]:
+    """Diff a wireless link as the association PT actually holds.
+
+    The client is whichever end has a wireless radio: its port must report an
+    `Antenna` link whose peer is the other device. A wired client (the common
+    case) means the association was never established.
+    """
+    path = f"link({link.id})"
+    candidates = []
+    for device_id in (link.a.device, link.b.device):
+        device = state.devices.get(device_id)
+        if device is None:
+            continue
+        for name, port in sorted(device.ports.items()):
+            if name.lower().startswith(("wireless", "dot11", "wlan")):
+                candidates.append((device_id, name, port))
+                break
+    if not candidates:
+        peer = link.b.device if link.a.device else link.a.device
+        return [DiffEntry(
+            path, DiffKind.UNKNOWN, "associated", None,
+            f"no wireless radio observed on either end (peer {peer})",
+        )]
+    for device_id, name, port in candidates:
+        peer = link.b.device if device_id == link.a.device else link.a.device
+        if not port.link_class.is_known:
+            return [DiffEntry(
+                path, DiffKind.UNKNOWN, f"associated to {peer}", None,
+                "PT did not report the link type on the radio",
+            )]
+        peers = port.peers.value if port.peers.is_known else None
+        if port.link_class.value == "Antenna" and peers and peer in [str(p) for p in peers]:
+            return [DiffEntry(
+                path, DiffKind.MATCH, f"associated to {peer}",
+                f"{device_id}:{name} -> {peer} via {port.link_class.value}",
+            )]
+        return [DiffEntry(
+            path, DiffKind.REMOVE, f"associated to {peer}",
+            f"{device_id}:{name} has no antenna link to {peer}",
+            "no wireless association observed",
+        )]
+    return []
+
+
 def _role_default(role: str) -> str:
-    return {
-        "router": "2911",
-        "switch": "2960-24TT",
-        "l3_switch": "3560-24PS",
-        "pc": "PC",
-        "server": "Server-PT",
-        "laptop": "Laptop-PT",
-    }.get(role, "Generic")
+    # The expected model is the SAME one the compiler builds; reading it from the
+    # canonical source keeps diff and compiler from diverging on "PC" vs "PC-PT".
+    from ..core.network_spec import default_model_for_role
+    return default_model_for_role(role)

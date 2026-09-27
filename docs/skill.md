@@ -13,9 +13,9 @@ happen.
 
 ## What the Skill covers
 
-- **A "discover, never invent" discipline** — always look up models/ports/modules first.
-- The **full 46-tool catalog** and the mandatory `discover → plan → validate → deploy` workflow.
-- The **exact PT Script-Engine API** for `pt_send_raw` (e.g. `ipc.network().getDevice(name)` and the
+- **A "validate, never invent" discipline** — always look up models/ports/modules first.
+- The **full tool catalog** and the mandatory `validate → plan → preflight → build → verify` workflow.
+- The **exact PT Script-Engine API** for raw JS (e.g. `ipc.network().getDevice(name)` and the
   global `getDevices(filter)` — there is **no** global `getDevice`), so raw JS is written correctly.
 - A **wrong → right mistakes table**, the **15 cable types**, **exact port names**, the **IP/DHCP/routing
   conventions**, and the **module-install slot matrix by router family** (HWIC `"0/x"`, NM `"1"`,

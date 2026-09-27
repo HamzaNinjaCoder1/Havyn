@@ -1,7 +1,7 @@
 # Topology Templates
 
 Templates seed a topology's shape and sensible defaults. Pass `template=<key>` to
-`pt_plan_topology` / `pt_full_build`, or list them with `pt_list_templates` /
+the `routing` block in a spec (see `spec_schema.json`), or
 the `pt://catalog/templates` resource.
 
 | Key | Name | Shape | Default routing |

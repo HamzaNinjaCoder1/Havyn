@@ -287,5 +287,5 @@ class PortReservationSystem:
         self, device: str, module_name: str
     ) -> bool:
         """Check if a module exists in the catalog."""
-        from ...packet_tracer_mcp.infrastructure.catalog.modules import resolve_module
+        from ..pt.catalog import resolve_module
         return resolve_module(module_name) is not None

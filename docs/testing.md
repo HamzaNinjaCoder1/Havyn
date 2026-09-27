@@ -1,35 +1,51 @@
 # Testing
 
-The project ships a **187-test** suite covering the domain and application logic.
+The project ships a pytest suite covering the engine, the transports and the
+verification layer.
 
 ```bash
-pip install -e . pytest
+pip install -e ".[test]"
 python -m pytest -q
-# 64 passed
 ```
+
+Run it from the repository root — a few tests read files by path relative to
+the root.
 
 ## What's covered
 
-- **IP planning** — LAN/link subnet assignment, masks.
-- **Plan validation** — typed error codes, warnings.
-- **Auto-fixer** — cable correction, port reassignment, model upgrades.
-- **Plan explanation** & **estimation**.
-- **Generators** — PTBuilder script and IOS CLI config generation.
-- **ACL** — standard/extended/named CLI generation.
-- **Full build** — end-to-end pipeline integration.
-- **Runtime regressions** — guards against known issues.
+- **Spec model and lint** — schema validation, honest roles, DHCP-server rules.
+- **IPAM** — deterministic addressing plan and validator.
+- **Port/media/module solver** — port existence, media compatibility, module
+  requirements, port reservation.
+- **Preflight** — the hard gate that blocks execution before any PT mutation.
+- **Compiler and DAG** — every emitted operation, dependency ordering, refusals.
+- **Executor and safety** — safety modes, mutation budgets, idempotent reuse,
+  dependent blocking, receipts with read-back postconditions.
+- **Verification** — per-criterion verdicts, UNKNOWN-never-PASS, functional-layer
+  reporting, acceptance evaluation, semantic diff, diagnosis, bounded repair.
+- **Transports** — HTTP bridge endpoints, the file mailbox protocol, token
+  generation and validation, ping classification.
+- **Live Packet Tracer** — `tests/autopilot/test_live_*.py`.
 
-## Live (manual) testing
+## Live tests
 
-The bridge/PT-facing tools (`pt_live_deploy`, `pt_add_*`, `pt_delete_*`,
-`pt_apply_acl`, …) require a running Packet Tracer with the
-[live bridge](live-deploy.md) connected; they're validated manually against PT.
-A full QA pass of the first 46 tools was performed on **PT 9.0.0**. The four
-inspection tools added later — `pt_audit_security`, `pt_inspect_ports`,
-`pt_read_vlans` and `pt_device_power` — were each verified individually against
-**PT 9.0.0.0810** when they landed, against a live 2911 and 2960-24TT.
+Live tests need Packet Tracer running with the extension loaded. They **skip
+themselves** when neither channel answers, so the offline suite stays green on a
+machine without Packet Tracer:
 
-!!! note "Unit tests don't start the MCP server"
-    They exercise domain/application code directly. To verify the server actually
-    boots (and that dependencies are compatible), run
-    `python -m packet_tracer_mcp --stdio` — it should start without errors.
+| File | What it proves |
+| --- | --- |
+| `test_live_contract.py` | the transport contract against a live canvas |
+| `test_live_connectivity.py` | wireless association, IoT, cloud/DSL, ASA traversal and policy |
+| `test_live_policy.py` | router ACL enforcement, ASA address scoping, ASA Vlan read-back |
+| `test_scale_live.py` | a larger build end to end |
+
+!!! warning "A green suite does not prove Packet Tracer integration"
+    Live tests skip when PT is absent. An offline pass means the engine is
+    internally consistent — it is **not** evidence that the live canvas behaves
+    as expected. Run the live suite before trusting a build.
+
+!!! note "The server boot is not covered by unit tests"
+    Tests exercise the engine directly. To verify the MCP server actually boots
+    (and that dependencies resolve), run `python -m network_autopilot` — it
+    should start without errors.

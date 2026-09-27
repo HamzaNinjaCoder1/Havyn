@@ -17,9 +17,16 @@ OP = {"operation": "create_device", "name": "R1", "role": "router"}
 
 
 def test_read_only_blocks_mutations():
+    # A denial is a DECISION, never an exception (P1-10): raising here made
+    # the executor's blanket except record the op as FAILED and eat budget for
+    # a mutation that never happened. Now it answers execute=False so the DAG
+    # records BLOCKED and the caller can refund.
     gate = SafetyGate(SafetyMode.READ_ONLY)
-    with pytest.raises(SafetyRejection):
-        gate.authorize([OP])
+    permission = gate.authorize([OP])
+    assert not permission.execute
+    assert len(permission.planned_receipts) == 1
+    assert permission.planned_receipts[0].result is OperationResult.NOT_EXECUTED
+    assert "READ_ONLY" in (permission.planned_receipts[0].evidence.get("reason") or "")
 
 
 def test_dry_run_plans_without_executing():
@@ -31,9 +38,12 @@ def test_dry_run_plans_without_executing():
 
 
 def test_approval_required_blocks_without_approver():
+    # Missing approver denies (execute=False), it does not raise: the op is
+    # BLOCKED in the DAG, not crashed.
     gate = SafetyGate(SafetyMode.APPROVAL_REQUIRED)
-    with pytest.raises(SafetyRejection):
-        gate.authorize([OP])
+    permission = gate.authorize([OP])
+    assert not permission.execute
+    assert all(r.result is OperationResult.NOT_EXECUTED for r in permission.planned_receipts)
 
 
 def test_approval_required_passes_with_consent_and_shows_blast_radius():
@@ -56,9 +66,12 @@ def test_approval_required_passes_with_consent_and_shows_blast_radius():
 
 
 def test_denial_blocks():
+    # An approver that says no denies the batch; the gate returns a decision
+    # the caller can act on instead of an exception (P1-10).
     gate = SafetyGate(SafetyMode.APPROVAL_REQUIRED, approver=lambda preview: False)
-    with pytest.raises(SafetyRejection):
-        gate.authorize([OP])
+    permission = gate.authorize([OP])
+    assert not permission.execute
+    assert "APPROVAL_REQUIRED" in (permission.planned_receipts[0].evidence.get("reason") or "")
 
 
 def test_autonomous_enforces_mutation_budget():

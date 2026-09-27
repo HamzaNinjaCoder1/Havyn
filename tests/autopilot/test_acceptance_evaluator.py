@@ -160,3 +160,45 @@ def test_requirement_without_criteria_is_not_run():
     by_req = {r.requirement_id: r for r in report.requirement_results}
     assert by_req["R-9"].verdict is Verdict.NOT_RUN
     assert report.satisfied is None  # NOT_RUN also blocks "satisfied"
+
+
+def test_wireless_criterion_is_evaluated_rather_than_reported_unknown():
+    """Bug #22: `evaluate_criterion` had no WirelessTestSpec arm, so a wireless
+    criterion fell into the `else` and reported UNKNOWN with the evidence
+    "unknown test kind" - however clear the antenna link was observed."""
+    from src.network_autopilot.core.actual_state import PortObservation
+
+    spec = NetworkSpec.model_validate(
+        {
+            "name": "wifi",
+            "devices": [
+                {"id": "lap1", "role": "laptop"},
+                {"id": "ap1", "role": "access_point"},
+            ],
+            "acceptance_criteria": [
+                {
+                    "id": "A-w",
+                    "requirement_ids": [],
+                    "test": {
+                        "kind": "wireless",
+                        "client": "lap1",
+                        "access_point": "ap1",
+                    },
+                }
+            ],
+        }
+    )
+    state = ActualNetworkState(source="test", observed_at="2026-01-01T00:00:00+00:00")
+    lap = DeviceObservation(name="lap1")
+    port = PortObservation(name="Wireless0")
+    port.state = Observable.known("up", source="test")
+    port.link_class = Observable.known("Antenna", source="test")
+    port.peers = Observable.known(["ap1"], source="test")
+    lap.ports["Wireless0"] = port
+    state.devices["lap1"] = lap
+    state.devices["ap1"] = DeviceObservation(name="ap1")
+
+    report = evaluate_spec(spec, state, {})
+    by_id = {r.criterion_id: r for r in report.results}
+    assert by_id["A-w"].verdict is Verdict.PASS
+    assert not any("unknown test kind" in e for e in by_id["A-w"].evidence)

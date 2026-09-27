@@ -47,6 +47,28 @@ def test_layout_validator_detects_overlap_and_missing_position():
     assert "missing_position" in kinds
 
 
+def test_rectangle_overlap_is_caught_even_when_points_are_far_apart():
+    """Dos routers a 100px de centro a centro no pisan el check de puntos
+    (min_spacing=80 se satisface en X) pero SUS ICONOS se superponen: uno tapa
+    al otro. Ese caso es el que caza device_hides_device."""
+    spec = _spec()
+    issues = validate_layout(spec, {"r1": (100, 100), "r2": (200, 100)})
+    point_kinds = {i.kind for i in issues if i.kind == "too_close"}
+    rect_kinds = {i.kind for i in issues if i.kind == "device_hides_device"}
+    assert not point_kinds, "100px ya deberia superar el min_spacing puntual"
+    assert rect_kinds, "los iconos se pisen no lo detecta el check de puntos"
+
+
+def test_real_layout_has_no_device_hiding_another():
+    """El layout que produce build_layout no puede tener ningún dispositivo
+    tapado: el gate de compile es duro y esto tiene que cumplirse siempre."""
+    layout = build_layout(_spec())
+    assert layout.valid
+    assert all(
+        issue.kind != "device_hides_device" for issue in layout.issues
+    )
+
+
 def test_explicit_port_collision_is_rejected_before_execution():
     raw = _spec().model_dump(mode="json")
     raw["links"][1]["a"]["interface_hint"] = "GigabitEthernet0/0"

@@ -1,9 +1,9 @@
 # Expansion Modules
 
 The catalog includes **151 expansion modules** (WICs, HWICs, NIMs, NMs, SFPs,
-wireless/cellular adapters, …). Use `pt_list_modules` to discover exact names —
-optionally filtered by `router_model` or `category` — then `pt_add_module` (one) or
-`pt_install_modules_batch` (many).
+wireless/cellular adapters, ...). Read `pt/catalog/modules.py` to discover exact names -
+optionally filtered by router model or category - then a module operation (one) or
+a batch (many).
 
 ## Critical rules
 
@@ -14,10 +14,10 @@ optionally filtered by `router_model` or `category` — then `pt_add_module` (on
 
 | Slot type | Format | Example |
 |-----------|--------|---------|
-| HWIC on 1941 / 2901 / 2911 | `"0/0"`, `"0/1"`, `"0/2"`, `"0/3"` | `pt_add_module("R1", "0/0", "HWIC-2T")` |
-| NIM on ISR4321 / ISR4331 | `"0/1"`, `"0/2"` (chassis/subslot — **not** `"0"`/`"1"`) | `pt_add_module("R1", "0/1", "NIM-2T")` |
-| NM on 2811 / 2620XM / Router-PT | `"1"` | `pt_add_module("R1", "1", "NM-4A/S")` |
-| Cloud / hosts | `"0"`, `"1"`, … `"7"` | `pt_add_module("Cloud", "0", "PT-CLOUD-NM-1S")` |
+| HWIC on 1941 / 2901 / 2911 | `"0/0"`, `"0/1"`, `"0/2"`, `"0/3"` | module op `{device:"R1", slot:"0/0", module:"HWIC-2T"}` |
+| NIM on ISR4321 / ISR4331 | `"0/1"`, `"0/2"` (chassis/subslot — **not** `"0"`/`"1"`) | module op `{device:"R1", slot:"0/1", module:"NIM-2T"}` |
+| NM on 2811 / 2620XM / Router-PT | `"1"` | module op `{device:"R1", slot:"1", module:"NM-4A/S"}` |
+| Cloud / hosts | `"0"`, `"1"`, … `"7"` | module op `{device:"Cloud", slot:"0", module:"PT-CLOUD-NM-1S"}` |
 
 ## Compatibility
 
@@ -35,13 +35,13 @@ Ports are named `<type><chassis>/<subslot>/<port>`:
 
 ## Installing several at once
 
-!!! tip "Prefer `pt_install_modules_batch`"
+!!! tip "Prefer a batch install"
     It powers off → adds all modules → powers on in **one** `runCode`. Multiple
-    individual `pt_add_module` calls each power-cycle the device, which is slower and
+    individual installs each power-cycle the device, which is slower and
     can make a single call report a (false) timeout while the reboot finishes.
 
 ```text
-pt_install_modules_batch([
+install_modules([
   {"device": "R1", "slot": "0/0", "module": "HWIC-2T"},
   {"device": "R1", "slot": "0/1", "module": "HWIC-2T"}
 ])

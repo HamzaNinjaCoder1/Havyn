@@ -55,3 +55,8 @@ site/
 _site/
 
 pt_union.txt
+
+# Local working documents (evaluation trackers, not product source)
+ISSUES.md
+QA_REPORT.md
+*.docx

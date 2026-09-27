@@ -1,215 +1,84 @@
 # MCP Tools
 
-Packet Tracer MCP exposes **61 tools**, grouped below by purpose. Tools that touch
-a running Packet Tracer require the [live bridge](live-deploy.md) to be connected.
+Havyn exposes a small, deliberate tool surface. The point is not to give the
+model many ways to poke Packet Tracer — it is to give it one **typed spec** and a
+deterministic pipeline. Every tool below is a thin handler over the engine; the
+LLM never authors an operation by hand.
 
-!!! tip "Discover first"
-    Call `pt_list_devices` (and `pt_list_modules` before installing expansion cards)
-    so the LLM uses real model names, ports and cables from the catalog. Most
-    NAT/ACL/module tools accept `dry_run=True` to preview the generated CLI/JS
-    without touching PT.
+Start the server with `python -m network_autopilot`. Tools that touch a running
+Packet Tracer require the [live bridge](live-deploy.md) to be connected.
 
-## Catalog & discovery
-
-| Tool | What it does |
-|------|--------------|
-| `pt_list_devices` | List all 74 device models with their exact ports + ~100 aliases. |
-| `pt_get_device_details` | Ports/details for one model (accepts a model name or alias). |
-| `pt_list_templates` | List the 9 topology templates and their defaults. |
-| `pt_list_modules` | List expansion modules; optional `router_model` / `category` filter. |
-| `pt_list_projects` | List saved projects under the exports directory. |
-
-## Planning
+## Engine status
 
 | Tool | What it does |
-|------|--------------|
-| `pt_plan_topology` | Generate a full `TopologyPlan` (devices, links, IPs, routing, DHCP). |
-| `pt_estimate_plan` | Fast dry-run: device/link/subnet counts and complexity, no full plan. |
-| `pt_validate_plan` | Validate a plan; returns typed errors and warnings. |
-| `pt_fix_plan` | Auto-fix a plan (cables, port reassignment, model upgrades). |
-| `pt_explain_plan` | Explain the plan's design choices in natural language. |
+| --- | --- |
+| `autopilot_status` | Engine version, channel health and bridge reachability. |
+| `pt_status` | Packet Tracer / Script Engine heartbeat. |
+| `pt_launch` | Start Packet Tracer and wait for the extension to poll. |
 
-## Generation & export
+## Spec lifecycle (offline — no Packet Tracer required)
 
-| Tool | What it does |
-|------|--------------|
-| `pt_generate_script` | Emit the PTBuilder JavaScript (`lwAddDevice`/`lwAddLink`/…). |
-| `pt_generate_configs` | Emit IOS CLI configs for every router and switch + host settings. |
-| `pt_export` | Write script, per-device configs and plan JSON to `projects/<name>/`. |
-| `pt_load_project` | Load a previously saved project's plan. |
-| `pt_full_build` | One-shot pipeline: plan → validate → generate → explain → (deploy). |
-| `pt_deploy` | Copy the PTBuilder script to the clipboard + export files. |
-
-## Live bridge
-
-The bridge has **two channels** and picks one per command automatically: **HTTP**
-while the MCP Control Center window is open, and a **file-bridge** (the Script
-Engine reads a mailbox under `%LOCALAPPDATA%`) when the window is closed but PT is
-still open. Every tool below works over either. See [Live deploy](live-deploy.md).
+These run against the null adapter, so they are safe to call at any time and are
+what an agent should use to reason about a topology before committing to it.
 
 | Tool | What it does |
-|------|--------------|
-| `pt_bridge_status` | Which channel is connected (HTTP, file-bridge, or both). |
-| `pt_live_deploy` | Stream a plan into a running PT (devices, links, configs). |
-| `pt_query_topology` | List devices currently in PT with ports and per-port IPs. |
-| `pt_export_topology` | Full snapshot: positions, per-interface IPs, links, cable info. |
-| `pt_save_project` | Save the running topology as a real `.pkt` file. |
-| `pt_open_project` | Open a `.pkt` in PT (replaces the current topology). |
-| `pt_send_raw` | Run arbitrary JS in PT's Script Engine (`wait_result` injects `reportResult`). |
+| --- | --- |
+| `net_spec_validate` | Validate the spec against the typed `NetworkSpec` model. |
+| `net_plan` | Deterministic IPAM plan: subnets, allocations, conflicts. |
+| `net_preflight` | Port / media / module / address compatibility gate. |
+| `net_compile` | Compile the spec into the operation DAG and report the plan. |
 
-## Live editing
+## Live operations
 
 | Tool | What it does |
-|------|--------------|
-| `pt_add_device` | Add one device (validates name, model, no duplicates). |
-| `pt_add_link` | Link two devices; validates ports are free; infers cable if omitted. |
-| `pt_delete_link` | Remove the link on a given interface. |
-| `pt_delete_device` | Delete a device (via `getLogicalWorkspace().removeDevice()`). |
-| `pt_rename_device` | Rename a device. |
-| `pt_move_device` | Move a device to new canvas coordinates. |
-| `pt_set_port` | Low-level port attributes (bandwidth, duplex, description, MAC, power). |
-| `pt_add_module` | Install one expansion module (auto power-cycle). |
-| `pt_install_modules_batch` | Install several modules in one power-cycle (preferred for many). |
+| --- | --- |
+| `net_build` | Full build: execute the DAG through the safety gate, then verify. |
+| `net_observe` | Read live state from Packet Tracer: ports, addresses, VLAN/trunk. |
+| `net_verify` | Run acceptance criteria and per-criterion verdicts against the canvas. |
+| `net_diff` | Semantic diff of the spec versus what is actually there. |
+| `associate_wireless_client` | Install a wireless module and join an SSID. |
 
-## NAT & ACL
+## Layout
 
 | Tool | What it does |
-|------|--------------|
-| `pt_apply_nat` | Apply NAT/PAT (`static` / `dynamic` / `pat`) on a live router. |
-| `pt_remove_nat` | Remove a NAT/PAT configuration. |
-| `pt_apply_acl` | Build, validate and apply a standard/extended/named ACL via CLI. |
-| `pt_apply_acl_object` | Same, via PT's ACL object API (faster, fewer modal popups). |
-| `pt_remove_acl` | Remove an ACL (and unbind it) via CLI. |
-| `pt_remove_acl_object` | Remove an ACL via the object API. |
+| --- | --- |
+| `pt_auto_layout` | Deterministic, non-overlapping placement (`full` / `rows` / `zones`). |
+| `pt_find_free_position` | A free canvas position for a new device. |
 
-## Switching, security & tuning
+## Typical sequence
 
-| Tool | What it does |
-|------|--------------|
-| `pt_apply_vlan` | VLANs, access ports, trunks + router `.1q` subinterfaces (inter-VLAN routing). |
-| `pt_apply_stp` | Spanning-tree mode, root primary, per-VLAN priority, portfast, BPDU guard. |
-| `pt_apply_port_security` | Port-security: max MACs, sticky/static MACs, violation action. |
-| `pt_apply_hardening` | hostname, banner, enable secret, local users, SSH (RSA keys + vty), password-encryption. |
-| `pt_apply_interface_tuning` | Serial clock-rate (DCE), bandwidth, per-interface OSPF/EIGRP knobs. |
+```text
+net_spec_validate -> net_plan -> net_preflight -> net_compile
+                                          |
+                                          v
+                              net_build (autonomous)
+                                          |
+                                          v
+                              net_verify -> net_diff
+```
 
-All accept `dry_run=True` to preview the generated CLI without touching PT.
+`net_build` takes a `safety_mode`:
 
-## Verification
+| Mode | Behaviour |
+| --- | --- |
+| `read_only` | observe and report; no mutation at all |
+| `dry_run` | compile and print the plan; nothing is pushed |
+| `approval_required` | stop before each mutation class for approval |
+| `autonomous` | execute the whole plan inside the mutation budget |
 
-| Tool | What it does |
-|------|--------------|
-| `pt_diff` | Compare a plan vs the live topology (missing/extra devices, IP mismatches). |
-| `pt_health_check` | Sweep the live topology: down links, cabled-without-IP, duplicate IPs. |
-| `pt_verify_connectivity` | Run a **real ping** from a device's console and parse the result (reachable or not). |
+## Raw Script Engine access
 
-## Live-state inspection
+`network_autopilot/pt/` also exposes verified Script Engine builders
+(`js_commands.py`) used internally by the adapter — device creation, cabling,
+`configureIosDevice`, port-level address and mask, DHCP flags, and inspection
+calls. They are **not** MCP tools: they are the engine's own, tested vocabulary
+for Packet Tracer, and the adapter composes them into the operations the DAG
+declares. An agent that needs raw access reaches it through raw-JS debugging on
+the bridge, not by inventing Script Engine code.
 
-These read the **device**, not the plan — useful to confirm a change landed, or to
-understand a topology you didn't build. Verified against PT 9.0.0.0810.
-
-| Tool | What it does |
-|------|--------------|
-| `pt_audit_security` | Security posture of every IOS device, graded high/medium/low: missing `enable secret`, reversibly-stored credentials (type 7), `service password-encryption` off, no local users, no MOTD banner, config-register left at `0x2142`. |
-| `pt_inspect_ports` | Per-port line/protocol status, MAC, IP, duplex, bandwidth, MTU, delay, CDP, DHCP-client, NAT mode and applied ACLs. Flags cabled-but-down and line-up-protocol-down. |
-| `pt_read_vlans` | The switch's real VLAN database, separating your VLANs from PT's factory ones (1, 1002-1005). |
-| `pt_device_power` | Power a device off/on with read-back — simulate an outage, or force a reboot so a router rereads its startup-config. |
-
-## Canvas: capture & annotations
-
-Turn a topology into something you can hand to a class. The agent stops
-describing the network and starts showing it.
-
-| Tool | What it does |
-|------|--------------|
-| `pt_screenshot` | Capture the logical canvas to an image file and return its path. |
-| `pt_add_note` | Write a text note on the canvas — label a subnet, name a trunk. |
-| `pt_clear_annotations` | Remove notes and drawings. Never touches devices or links. |
-
-!!! tip "Self-documenting topologies"
-    Combine them: build with `pt_full_build`, label each subnet and link with
-    `pt_add_note`, then `pt_screenshot`. The result is a diagram ready for a
-    slide, produced from one prompt.
-
-!!! warning "There is no drawing tool"
-    Packet Tracer can draw lines and circles on the canvas, but not usefully
-    from an extension: the size argument turned out to control stacking order
-    rather than radius or thickness — three circles asking for 60, 60 and 300
-    all came out the same tiny size — and the colour arguments do not produce
-    the colour requested. Rather than ship parameters that don't do what they
-    say, annotation is limited to text notes.
-
-!!! note "The screenshot returns a path, not the image"
-    A capture runs to tens of thousands of bytes. Returning it inline would fill
-    the model's context with data nobody can look at, so the file is written to
-    disk and only its path comes back. PNG is the default because it compresses a
-    line diagram far better than JPG — measured on the same canvas, 33 KB versus
-    105 KB.
-
-## Backup & workspace
-
-| Tool | What it does |
-|------|--------------|
-| `pt_backup_config` | The device's real startup-config — the one it rereads on reboot — plus serial, config-register, boot images and uptime. `include_xml=True` adds the full device dump. |
-| `pt_project_metadata` | The open project's saved filename, the PT version that wrote it, its description and the device/link count. Pass `description` to set it. |
-| `pt_workspace_options` | Read or toggle workspace behaviour: auto-cabling, access to the **real** network, and the canvas labels that decide whether a screenshot is readable. |
-
-!!! tip "Turn auto-cabling off before a scripted build"
-    With auto-cabling on, Packet Tracer picks the cable and the port for you. If
-    you want a link on an exact interface, `pt_workspace_options(auto_cabling=0)`
-    first.
-
-## Telemetry & QoS
-
-| Tool | What it does |
-|------|--------------|
-| `pt_apply_netflow` | Create, reconfigure or remove a NetFlow exporter on a router — collector address, UDP port, version, source interface, monitors — and read the result back. |
-| `pt_read_qos` | Read the device's real class-maps and policy-maps, including each one's CLI form and which features a policy uses (bandwidth, priority, shaping, fair-queue). |
-
-!!! note "NetFlow is configured natively; QoS can only be read"
-    These two look symmetric but are not. `pt_apply_netflow` configures the
-    exporter directly and verifies the result — no CLI involved. QoS, by
-    contrast, can be **read** but not created programmatically, so class-maps and
-    policy-maps are authored through IOS CLI (`pt_send_raw` →
-    `configureIosDevice`) and `pt_read_qos` is how you confirm it landed.
-
-## Simulation
-
-Packet Tracer's Simulation mode holds packets in an event list instead of moving
-them in real time, which is what makes a step-by-step trace possible.
-
-| Tool | What it does |
-|------|--------------|
-| `pt_simulation_mode` | Switch between Realtime and Simulation. |
-| `pt_simulation_step` | Advance, rewind or reset the simulation (`forward` / `back` / `reset`). |
-| `pt_read_packet_trace` | Read the event list: per frame the device, ingress/egress port, source, destination, traffic type and outcome — **plus PT's own per-OSI-layer explanation** of what the device decided and why. |
-
-!!! tip "`pt_read_packet_trace` answers *why*, not just *what*"
-    The decision log is the same text Packet Tracer shows in its **PDU Details**
-    pane. A failing ping stops being "no reply" and becomes a cause:
-
-    ```
-    L3 :: The destination IP address is in the same subnet. The device sets the next-hop to destination.
-    L2 :: The next-hop IP address is not in the ARP table. The ARP process tries to
-          send an ARP request for that IP address and buffers this packet.
-    ```
-
-!!! warning "There is no `pt_send_pdu`"
-    Packet Tracer does not let an extension originate a packet the way the GUI's
-    *Add Simple PDU* button does. Generate traffic the way a user would —
-    `pt_verify_connectivity` runs a real ping — and then read the trace.
-
-!!! warning "`pt_audit_security` never returns credentials"
-    Passwords and hashes do not leave the device. The reader classifies each
-    credential by its prefix and transmits only the algorithm label (`md5`,
-    `type7`, `scrypt`, …) — enough to audit, without putting a hash into the LLM's
-    context or the MCP client's logs.
-
-!!! tip "Build flags"
-    `pt_plan_topology` / `pt_full_build` accept `vlans` (router-on-a-stick VLAN count),
-    `dual_stack` (IPv6: routers via CLI + hosts via SLAAC), `ipv6_base`, and
-    `wireless_laptops` (Laptop-PT → wireless NIC + auto-associated Access Point).
-
-!!! note "Cable types for `pt_add_link`"
-    Valid: `straight`, `cross`, `serial`, `fiber`, `console`, `roll`, `phone`,
-    `coaxial`, `auto`, `usb`. Aliases: `crossover`→`cross`, `rollover`→`roll`.
-    Omit `cable_type` to infer it from the device categories.
+!!! warning "Trust model"
+    Anything that executes JavaScript inside Packet Tracer does so by design.
+    The bridge token stops a browser page from reaching the loopback port, and the
+    file channel is confined to a user-owned directory. This is a single-user
+    local desktop tool — run it on a machine and with topologies you trust.
+    See [SECURITY.md](https://github.com/HamzaNinjaCoder1/Havyn/blob/main/SECURITY.md).

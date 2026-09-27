@@ -1,64 +1,76 @@
 # Architecture
 
-Packet Tracer MCP follows a **clean / hexagonal** layout under
-`src/packet_tracer_mcp/`, keeping domain logic independent of the MCP and PT details.
+Havyn is a single, self-contained engine under `src/network_autopilot/`. Its
+layout keeps Packet Tracer details behind an adapter so the compiler, solver and
+verification layers stay pure and testable offline.
 
 ```text
-adapters/        MCP boundary
-  mcp/           tool_registry.py · resource_registry.py
-application/      use cases + DTOs
-  use_cases/     plan_topology, validate_plan, fix_plan, full_build,
-                 generate_configs, apply_acl, apply_nat, export_artifacts, …
-domain/           pure business logic (no I/O)
-  models/        TopologyPlan, ACLPlan, NAT, errors …
-  rules/         cable_rules, device_rules, ip_rules, acl_rules, nat_rules
-  services/      orchestrator, validator, auto_fixer, ip_planner, explainer, estimator,
-                 topology_diff, security_audit, port_inspect, packet_trace
-infrastructure/   adapters to the outside world
-  catalog/       devices, cables, modules, aliases, templates
-  generator/     ptbuilder_generator, cli_config_generator, acl/nat generators
-  execution/     live_bridge, file_bridge, bridge_token, deploy_executor, manual_executor
-  persistence/   project_repository (save/load projects)
+core/          NetworkSpec, Observable, receipts, safety, actual-state models
+ipam/          deterministic addressing plan + validator
+compiler/      spec → operation DAG, port/media/module solver, preflight,
+               layout gate, policy rendering, executor
+adapter/       PacketTracerAdapter contract
+  null_adapter.py              deterministic offline adapter (no PT)
+  packet_tracer/               the live adapter
+    bridge_adapter.py          receipts, read-back, flow tests
+    js_commands.py             verified Packet Tracer Script Engine builders
+pt/            transport + catalog (no engine knowledge)
+  http_bridge.py  mailbox.py  token.py  ping.py  enums.py  constants.py
+  layout.py       live_layout.py
+  catalog/        devices.py  modules.py  cables.py  aliases.py
+verification/   per-criterion verdicts with evidence chains
+acceptance/    acceptance evaluator, functional-layer report
+diagnosis/      evidence-based diagnosis
+diff/           semantic expected-vs-actual diff
+repair/         bounded diagnose → plan → gate → execute → re-verify
+evidence/       evidence store + redaction
+mcp/server.py   the MCP tool surface (thin handlers over the engine)
 ```
 
 ## Request flow
 
 ```text
-LLM tool call
+MCP tool call
    │
-adapters/mcp/tool_registry.py        ← validates args, orchestrates
+mcp/server.py                     ← validates args, delegates to the engine
    │
-application/use_cases/*              ← pipeline steps
+orchestrator.Autopilot            ← build / verify / diff / repair orchestration
    │
-domain/services/*  +  domain/rules/* ← planning, validation, IP assignment
+compiler/                         ← lint → IPAM → port solver → preflight → layout
+   │                                 → operation DAG
    │
-infrastructure/generator/*          ← PTBuilder JS + IOS CLI
+compiler/executor.py              ← SafetyGate + port reservations + receipts
    │
-infrastructure/execution/{live_bridge,file_bridge} ← HTTP (:54321) or file mailbox
+adapter.packet_tracer             ← receipts, read-back postconditions
+   │
+pt/http_bridge.py  or  pt/mailbox.py   ← HTTP (:54321) or file mailbox
    │
 MCP Control Center extension → PT Script Engine → Cisco Packet Tracer
 ```
 
 ## The live bridge
 
-Two channels reach the extension; `_pick_channel()` chooses one per command.
+Two channels reach the extension; the adapter picks one per command.
 
-**HTTP** — `PTCommandBridge` (`live_bridge.py`) runs a small HTTP server on
-`127.0.0.1:54321`, used while the extension window is open:
+**HTTP** — `pt/http_bridge.py` runs a small HTTP server on `127.0.0.1:54321`,
+used while the extension window is open:
 
 - `GET /next` — the PT webview polls this for queued commands (token required).
-- `POST /queue` — the MCP server enqueues a JS command (token required).
+- `POST /queue` — the server enqueues a JS command (token required).
 - `POST /result` / `GET /result` — round-trips results back via `reportResult()`.
 - `GET /ping` — unauthenticated identity check (fingerprint of the token only).
 
-**File-bridge** — `FileBridge` (`file_bridge.py`), used when the window is closed.
-The Script Engine polls a mailbox under `%LOCALAPPDATA%\packet-tracer-mcp\bridge\`
-(`req_*.js` → execute → `res_*.txt`, plus an `alive.txt` heartbeat). It needs no
-token: a browser page can't write a user-ACL'd local file.
+**File channel** — `pt/mailbox.py`, used when the Control Center window is
+closed. The Script Engine polls a mailbox under
+`%LOCALAPPDATA%\packet-tracer-mcp\bridge\` (`req_*.js` → execute → `res_*.txt`,
+plus an `alive.txt` heartbeat). It needs no token: a browser page cannot write
+into a user-ACL'd local directory. The `packet-tracer-mcp` directory name is a
+compatibility constraint — the extension resolves it by name and cannot be
+configured otherwise (see [INDEPENDENCE.md](https://github.com/HamzaNinjaCoder1/Havyn/blob/main/INDEPENDENCE.md)).
 
-**Auth** — the HTTP bridge requires a per-machine token (`bridge_token.py`,
+**Auth** — the HTTP bridge requires a per-machine token (`pt/token.py`,
 auto-generated under `%LOCALAPPDATA%`). The extension reads it from disk through
-the Script Engine — no pairing, no pasting. See [SECURITY.md](https://github.com/Mats2208/MCP-Packet-Tracer/blob/main/SECURITY.md).
+the Script Engine — no pairing, no pasting. See [SECURITY.md](https://github.com/HamzaNinjaCoder1/Havyn/blob/main/SECURITY.md).
 
 !!! info "Inspired by PTBuilder"
     The Script-Engine helper layer that runs inside Packet Tracer was inspired by
@@ -66,7 +78,8 @@ the Script Engine — no pairing, no pasting. See [SECURITY.md](https://github.c
     MCP Control Center) is this project's own — see [Credits & Attribution](credits.md).
 
 !!! warning "Trust model"
-    `/queue` and `pt_send_raw` execute arbitrary JavaScript in PT's Script Engine
-    **by design**. The token stops a browser page from reaching `:54321`, and the
-    file channel is confined to a user-owned directory. This is a single-user
-    local desktop tool — run it on a machine and with topologies you trust.
+    The Script Engine builders and any raw-JS path execute JavaScript in PT's
+    Script Engine **by design**. The token stops a browser page from reaching
+    `:54321`, and the file channel is confined to a user-owned directory. This is
+    a single-user local desktop tool — run it on a machine and with topologies you
+    trust.

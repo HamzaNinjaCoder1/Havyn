@@ -9,8 +9,8 @@ import time
 
 import pytest
 
-from src.packet_tracer_mcp.infrastructure.execution.file_bridge import (
-    FileBridge,
+from src.network_autopilot.pt.mailbox import (
+    FileMailbox,
     HEARTBEAT_FRESH_S,
 )
 
@@ -55,7 +55,7 @@ def bridge_dir(tmp_path):
 
 
 def test_send_and_wait_round_trip(bridge_dir):
-    fb = FileBridge(bridge_dir)
+    fb = FileMailbox(bridge_dir)
     se = FakeScriptEngine(bridge_dir, handler=lambda js: f"ran:{js.strip()}")
     se.start()
     try:
@@ -67,7 +67,7 @@ def test_send_and_wait_round_trip(bridge_dir):
 
 def test_fire_and_forget_is_consumed(bridge_dir):
     seen = []
-    fb = FileBridge(bridge_dir)
+    fb = FileMailbox(bridge_dir)
     se = FakeScriptEngine(bridge_dir, handler=lambda js: seen.append(js) or "OK")
     se.start()
     try:
@@ -82,7 +82,7 @@ def test_fire_and_forget_is_consumed(bridge_dir):
 
 def test_timeout_when_no_script_engine(bridge_dir):
     """Sin nadie procesando, send_and_wait agota el timeout y devuelve None."""
-    fb = FileBridge(bridge_dir)
+    fb = FileMailbox(bridge_dir)
     t0 = time.monotonic()
     result = fb.send_and_wait("x();", timeout=0.5)
     assert result is None
@@ -90,7 +90,7 @@ def test_timeout_when_no_script_engine(bridge_dir):
 
 
 def test_pt_alive_reflects_heartbeat(bridge_dir):
-    fb = FileBridge(bridge_dir)
+    fb = FileMailbox(bridge_dir)
     assert not fb.pt_alive()  # aún no existe el buzón
 
     se = FakeScriptEngine(bridge_dir)
@@ -113,8 +113,8 @@ def test_newlines_are_written_as_exact_bytes(bridge_dir):
     dentro de un string literal JS es SyntaxError. Un configureIosDevice con
     saltos de línea llegaba corrupto al Script Engine. El req debe tener los
     bytes EXACTOS del comando."""
-    fb = FileBridge(bridge_dir)
-    fb._ensure()
+    fb = FileMailbox(bridge_dir)
+    fb._ensure_dir()
     payload = 'configureIosDevice("R1","enable\nhostname R1\nend");'
     target = bridge_dir / "probe.js"
     fb._write_atomic(target, payload)
@@ -131,7 +131,7 @@ def test_no_partial_reads_under_concurrency(bridge_dir):
     parciales, el eco no coincidiría.
     """
     payload = "configureIosDevice('R1', '" + "x" * 5000 + "');"
-    fb = FileBridge(bridge_dir)
+    fb = FileMailbox(bridge_dir)
     se = FakeScriptEngine(bridge_dir, handler=lambda js: str(len(js)))
     se.start()
     try:
