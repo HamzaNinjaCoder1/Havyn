@@ -285,3 +285,99 @@ def test_a_refused_push_is_not_retried(monkeypatch):
     receipt = adapter.configure_ios("r1", ["hostname r1"])
     assert receipt.result is OperationResult.FAILED, receipt.result
     assert pushes["n"] == 1, pushes
+
+
+def _bulk_adapter(monkeypatch, snapshots):
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    adapter.device_exists = lambda name: Observable[bool].known(True)  # type: ignore[method-assign]
+    adapter.send_expression = (  # type: ignore[method-assign]
+        lambda expr, **kw: Observable[str].known(
+            json.dumps([{"device": "pc0", "ok": True}])
+        )
+    )
+    calls = {"n": 0}
+
+    def fake_live(*, fresh=True):
+        calls["n"] += 1
+        return snapshots[min(calls["n"] - 1, len(snapshots) - 1)]
+
+    monkeypatch.setattr(adapter, "_live_devices", fake_live)
+    return adapter, calls
+
+
+_BULK_SPEC = [
+    {
+        "device": "pc0",
+        "dhcp": False,
+        "ip": "10.0.0.10",
+        "mask": "255.255.255.0",
+        "gateway": "10.0.0.1",
+    }
+]
+
+
+def test_bulk_readback_settles_before_declaring_failure(monkeypatch):
+    """RED pre-fix: one unknown workspace snapshot made every static host
+    receipt FAILED with 'address not observed' although PT had reported
+    ok:true (scale run: 20/20 uniform miss)."""
+    monkeypatch.setattr(bridge_mod, "_BULK_READ_SETTLE_S", 0, raising=False)
+    good = Observable[list[dict]].known(
+        [{"name": "pc0", "ports": [{"name": "Ethernet0", "ip": "10.0.0.10"}]}]
+    )
+    adapter, calls = _bulk_adapter(
+        monkeypatch, [Observable[list[dict]].unknown("heartbeat stale"), good]
+    )
+    receipts = adapter.configure_hosts_bulk(_BULK_SPEC)
+    assert len(receipts) == 1
+    assert receipts[0].result is OperationResult.SUCCESS, receipts[0].error
+    assert calls["n"] >= 2, calls
+
+
+def test_bulk_readback_stays_unknown_when_snapshot_never_returns(monkeypatch):
+    """Rule 7: an unobservable read-back is UNKNOWN, never a FAILED verdict
+    with a message that blames the device."""
+    monkeypatch.setattr(bridge_mod, "_BULK_READ_SETTLE_S", 0, raising=False)
+    dead = Observable[list[dict]].unknown("no live channel: heartbeat is stale")
+    adapter, _ = _bulk_adapter(monkeypatch, [dead])
+    receipts = adapter.configure_hosts_bulk(_BULK_SPEC)
+    assert receipts[0].result is OperationResult.UNKNOWN, receipts[0].result
+    assert receipts[0].error
+
+
+def test_bulk_readback_fails_when_the_address_is_truly_missing(monkeypatch):
+    """Pin: a KNOWN snapshot without the address is a real failure."""
+    adapter, _ = _bulk_adapter(
+        monkeypatch,
+        [Observable[list[dict]].known([{"name": "pc0", "ports": []}])],
+    )
+    receipts = adapter.configure_hosts_bulk(_BULK_SPEC)
+    assert receipts[0].result is OperationResult.FAILED
+    assert "not observed" in (receipts[0].error or "")
+
+
+def test_delete_settles_existence_before_fail_closed(monkeypatch):
+    """RED pre-fix: one unknown existence read made teardown fail-closed the
+    delete as 'rejected' and leak the device (scale run: asa1-4 rejected)."""
+    monkeypatch.setattr(bridge_mod.time, "sleep", lambda s: None)
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    reads = {"n": 0}
+    answers = [
+        Observable[bool].unknown("heartbeat stale"),
+        Observable[bool].known(True),
+        Observable[bool].known(False),
+    ]
+
+    def fake_exists(name):
+        reads["n"] += 1
+        return answers[min(reads["n"] - 1, len(answers) - 1)]
+
+    adapter.device_exists = fake_exists  # type: ignore[method-assign]
+    adapter.send_expression = (  # type: ignore[method-assign]
+        lambda expr, **kw: Observable[str].known("OK")
+    )
+    receipt = adapter.delete_device("asa1")
+    assert receipt.result is OperationResult.SUCCESS, (
+        receipt.result,
+        receipt.error,
+    )
+    assert reads["n"] >= 3, reads

@@ -111,6 +111,13 @@ _RADIO_SETTLE_RETRIES = 4
 _RESOLVE_RETRY_S = 1.0
 _RESOLVE_RETRIES = 6
 
+# Bulk host read-back: the batch write and the one snapshot that verifies it
+# are separate sends, so the snapshot needs the same bounded settle as every
+# other read-back — one unknown read used to fail all 20 static hosts with
+# 'address not observed' although PT had reported ok:true for each.
+_BULK_READ_SETTLE_S = 0.5
+_BULK_READ_RETRIES = 3
+
 # IOS configuration is re-sent until the addresses show up on a read-back. A
 # router added moments earlier is still booting and swallows the CLI input
 # without reporting an error, so "the JS was delivered" is not evidence that
@@ -1547,7 +1554,11 @@ class BridgeAdapter(PacketTracerAdapter):
         desired-state operation, and "it is not there" satisfies it.
         """
         requested = {"name": name}
-        before = self.device_exists(name)
+        # Settled read like the link paths: teardown runs right behind a full
+        # build, when the heartbeat is most likely to hiccup, and one unknown
+        # read used to fail-closed the delete as 'rejected' and leak the
+        # device into the user's workspace (scale run: asa1-4).
+        before = self._device_exists_settled(name)
         if before.is_known and not before.value:
             # Already absent: CONFIRMED success (absent is the desired state).
             absent = Observable.known(True, source=before.source)
@@ -2481,8 +2492,19 @@ class BridgeAdapter(PacketTracerAdapter):
 
         # One workspace read verifies every address at once. A per-host
         # inspect_device is a round-trip each, which is exactly what the batch
-        # removed from the write path.
-        snapshot = self._live_devices()
+        # removed from the write path. The read gets a bounded settle like
+        # every other read-back: an unknown snapshot must neither fail the
+        # hosts (PT reported ok:true) nor become their verdict — it stays
+        # UNKNOWN with the channel detail, per rule 7.
+        snapshot: Observable[list[dict]] = Observable[list[dict]].unknown(
+            "workspace snapshot not read"
+        )
+        for read_attempt in range(1, _BULK_READ_RETRIES + 1):
+            snapshot = self._live_devices()
+            if snapshot.is_known:
+                break
+            if read_attempt < _BULK_READ_RETRIES:
+                time.sleep(_BULK_READ_SETTLE_S)
         observed: dict[str, set[str]] = {}
         if snapshot.is_known:
             for d in (snapshot.value or []):
@@ -2497,7 +2519,9 @@ class BridgeAdapter(PacketTracerAdapter):
             ok = bool(row.get("ok"))
             postconditions: list[CheckResult] = []
             ip = spec.get("ip")
-            if ok and not spec.get("dhcp") and ip:
+            needs_readback = bool(ok and not spec.get("dhcp") and ip)
+            seen = False
+            if needs_readback:
                 seen = ip in observed.get(device, set())
                 postconditions.append(CheckResult.of(
                     "ip_observed", ip,
@@ -2506,11 +2530,23 @@ class BridgeAdapter(PacketTracerAdapter):
                         f"configured ip {ip!r} not observed on {device!r}"
                     ),
                 ))
-            result = (
-                OperationResult.SUCCESS
-                if ok and all(c.passed for c in postconditions if hasattr(c, "passed"))
-                else OperationResult.FAILED
-            )
+            if not ok:
+                result = OperationResult.FAILED
+                error: str | None = (
+                    row.get("error") or "address not observed after configure"
+                )
+            elif needs_readback and not snapshot.is_known:
+                result = OperationResult.UNKNOWN
+                error = (
+                    "workspace snapshot unavailable after configure: "
+                    f"{snapshot.detail or snapshot.status.value}"
+                )
+            elif needs_readback and not seen:
+                result = OperationResult.FAILED
+                error = row.get("error") or "address not observed after configure"
+            else:
+                result = OperationResult.SUCCESS
+                error = None
             receipts.append(OperationReceipt(
                 operation_id=f"{operation_id_prefix}-{device}",
                 operation="configure_host",
@@ -2521,9 +2557,7 @@ class BridgeAdapter(PacketTracerAdapter):
                 evidence={"batch": True, "js_error": row.get("error", "")},
                 started_at=utc_now_iso(),
                 finished_at=utc_now_iso(),
-                error=None if result is OperationResult.SUCCESS else (
-                    row.get("error") or "address not observed after configure"
-                ),
+                error=error,
             ))
         return receipts
 
