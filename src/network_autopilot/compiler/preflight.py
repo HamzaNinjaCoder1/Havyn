@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any
 
 from ..core.ids import utc_now_iso
+from ..core.observability import Observable
 from .port_solver import PortPlan, PortConstraint
 from .port_reservation import PortReservationSystem, ReservationResult
 
@@ -78,13 +79,58 @@ class PreflightValidator:
         spec,
         plan,
         port_plan: PortPlan | None = None,
+        workspace_names: Observable[list[str]] | None = None,
     ) -> PreflightResult:
         """Run all preflight checks. Returns a result where
         `can_execute` is the hard gate.
+
+        `workspace_names` (S1.4) is the device-name read of the live PT
+        workspace. `None` means the caller has no workspace to compare
+        (lint, net_preflight, repair) and skips the check; a read that came
+        back UNKNOWN fails closed - an unreadable canvas is never treated
+        as an empty one.
         """
         checks: list[PreflightCheck] = []
         errors: list[str] = []
         warnings: list[str] = []
+
+        # 0. Workspace collision (S1.4): a device that already answers to a
+        # spec name may be a leftover from another topology or a crashed
+        # run, and blind reuse would make the report lie about it. Refuse
+        # before execution, naming every colliding device.
+        if workspace_names is not None:
+            if not workspace_names.is_known:
+                detail = workspace_names.detail or workspace_names.status.value
+                checks.append(PreflightCheck(
+                    name="workspace_readable",
+                    category="workspace",
+                    status=PreflightLevel.FAIL,
+                    detail=f"workspace unreadable: {detail}",
+                    evidence=(f"status={workspace_names.status.value}",),
+                ))
+                errors.append(
+                    "workspace unreadable: cannot rule out a name collision "
+                    f"({detail})"
+                )
+            else:
+                spec_names = {d.id for d in spec.devices}
+                colliding = sorted(
+                    spec_names & {str(n) for n in (workspace_names.value or [])}
+                )
+                if colliding:
+                    checks.append(PreflightCheck(
+                        name="workspace_collision",
+                        category="workspace",
+                        status=PreflightLevel.FAIL,
+                        detail="workspace already has: " + ", ".join(colliding),
+                        evidence=tuple(colliding),
+                    ))
+                    errors.append(
+                        "workspace collision: "
+                        + ", ".join(colliding)
+                        + " already exist in the Packet Tracer workspace; "
+                        "delete them first or build with --clean-workspace"
+                    )
 
         # 1. Device existence check
         for device in spec.devices:
@@ -180,7 +226,8 @@ def run_preflight(
     plan,
     port_plan: PortPlan | None = None,
     reservation_system: PortReservationSystem | None = None,
+    workspace_names: Observable[list[str]] | None = None,
 ) -> PreflightResult:
     """Convenience function: create validator and run preflight."""
     validator = PreflightValidator(reservation_system)
-    return validator.preflight(spec, plan, port_plan)
+    return validator.preflight(spec, plan, port_plan, workspace_names)

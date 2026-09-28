@@ -85,10 +85,31 @@ class BridgeUnreachable(AdapterError):
 # the settle between attempts gives the convergence room to happen.
 _FLOW_MAX_ATTEMPTS = 3
 _FLOW_CONVERGE_SETTLE_S = 1.0
+# Per-attempt quiet-window schedule (S1.6a): healthy paths answer inside the
+# first second and PT prints a 0%-loss stat block on a dead path within a few
+# seconds, so reserving 25 s on attempt 1 buys nothing but wall-clock (F-7:
+# 31 such windows cost ~775 s of one reference run). Each window may be
+# shorter, the LAST one keeps the old 25 s patience for a genuinely slow
+# console, and callers that pass an explicit timeout= keep it for every
+# attempt — the schedule only replaces the default.
+_FLOW_ATTEMPT_TIMEOUTS: tuple[float, ...] = (8.0, 15.0, 25.0)
 # A large build configures dozens of interfaces right up to the flow test; the
 # control plane needs this brief settle before the first echo or it loses the
 # first packets to ARP/CDP convergence rather than to a real fault.
 _FLOW_PRE_SETTLE_S = 1.5
+
+# Transient-read settles (S1.7 follow-up, build-68648f705ccb): the mailbox
+# heartbeat can be stale for a second or two while PT is busy, and a single
+# unknown read must not fail an op whose answer is one read away. The budgets
+# bound the WAIT, never the truth: after them the answer is still unknown.
+# Radio visibility: PT's swap can be mid-flight on the first read-back.
+_RADIO_SETTLE_S = 0.5
+_RADIO_SETTLE_RETRIES = 4
+# Destination resolve: one heartbeat hiccup used to poison a whole flow.
+# Sized against mailbox.HEARTBEAT_FRESH_S (6 s): the wait must out-run one
+# paused-heartbeat window before the flow is called unknown.
+_RESOLVE_RETRY_S = 1.0
+_RESOLVE_RETRIES = 6
 
 # IOS configuration is re-sent until the addresses show up on a read-back. A
 # router added moments earlier is still booting and swallows the CLI input
@@ -847,6 +868,12 @@ class BridgeAdapter(PacketTracerAdapter):
         if not model.is_known:
             return
         if category_of_model(str(model.value)) not in _VLAN_CATEGORIES:
+            # F-5/A-015: routers/firewalls have no `show vlan brief`, so the
+            # switch-side membership pass cannot run — but the topology read
+            # DOES list every ROAS subinterface (probe-verified live: rhq
+            # GigabitEthernet0/0.10/.20/.30), which is the honest trunk
+            # evidence for the parent port.
+            self._fill_trunk_from_subinterfaces(observation)
             return
         table = self.read_vlans(observation.name)
         if not table.is_known:
@@ -877,8 +904,37 @@ class BridgeAdapter(PacketTracerAdapter):
                     True, source="show vlan brief"
                 )
 
+    def _fill_trunk_from_subinterfaces(self, observation: DeviceObservation) -> None:
+        """F-5: router-on-a-stick trunk state, read from the topology itself.
+
+        A parent Ethernet port carrying dot1Q subinterfaces is trunking (the
+        encapsulation is what made PT accept addresses on those children); a
+        parent without any is a plain routed link. Evidence only — a read
+        that cannot see subinterfaces leaves `port.trunk` not-observed, which
+        the verifier reports as UNKNOWN rather than inventing a verdict.
+        """
+        parents_with_children = {
+            name.split(".", 1)[0]
+            for name in observation.ports
+            if "." in name and name.split(".", 1)[0] in observation.ports
+        }
+        for name, port in observation.ports.items():
+            if "." in name:
+                continue
+            if not name.startswith(
+                ("Ethernet", "FastEthernet", "GigabitEthernet", "TenGigabitEthernet")
+            ):
+                continue
+            port.trunk = Observable[bool].known(
+                name in parents_with_children, source="topology subinterfaces"
+            )
+
     def inspect_device(self, name: str) -> DeviceObservation:
-        devices = self._live_devices()
+        # S1.6b: one snapshot feeds the whole read-back burst. Freshness is
+        # the mutation's job — every mutating call already invalidates the
+        # snapshot — and the TTL bounds anything out-of-band (user hands on
+        # PT) to `_snapshot_ttl` seconds.
+        devices = self._live_devices(fresh=False)
         observation = DeviceObservation(name=name)
         if not devices.is_known:
             observation.notes.append(
@@ -906,7 +962,7 @@ class BridgeAdapter(PacketTracerAdapter):
         """
         if names is None:
             return super().observe_state(None, observed_at=observed_at)
-        devices = self._live_devices()
+        devices = self._live_devices(fresh=False)
         if not devices.is_known:
             return super().observe_state(names, observed_at=observed_at)
         state = ActualNetworkState(
@@ -1845,6 +1901,15 @@ class BridgeAdapter(PacketTracerAdapter):
         # demonstrably there, because the file channel can answer a different
         # request under load.
         visible = self._port_visible(device, interface)
+        for _ in range(_RADIO_SETTLE_RETRIES):
+            if visible.is_known and visible.value:
+                break
+            # The swap can be mid-flight when the first read lands (PT's own
+            # answer even has an `installed:port-pending` state for this) —
+            # build-68648f705ccb failed op-wifi-radio-lap5 on exactly one
+            # premature read while the port appeared a moment later.
+            time.sleep(_RADIO_SETTLE_S)
+            visible = self._port_visible(device, interface)
         installed = bool(visible.is_known and visible.value)
         return {
             "installed": installed,
@@ -1956,6 +2021,18 @@ class BridgeAdapter(PacketTracerAdapter):
                 js.js_configure_ios(device, "\n".join(commands))
             )
             result, executed, error = self._interpret(answer)
+            if (
+                result is OperationResult.UNKNOWN
+                and attempts < _IOS_CONFIG_ATTEMPTS
+            ):
+                # A channel-stale answer is not IOS's verdict: the push is
+                # idempotent and the address read-back below decides truth, so
+                # give the channel a bounded chance to carry the script (the
+                # 63-device scale build aborted op-config-*-r1 on exactly one
+                # stale answer while the re-send a moment later landed).
+                # A KNOWN PT failure keeps its verdict on the first answer.
+                time.sleep(_IOS_SETTLE_SECONDS)
+                continue
             if result is not OperationResult.SUCCESS or not expected:
                 break
             # The JS was delivered, but a router that is still booting drops
@@ -2249,6 +2326,15 @@ class BridgeAdapter(PacketTracerAdapter):
         for iface, allowed in sorted(expected["trunk"].items()):
             port = js.expand_if_name(iface)
             member_of = sorted(set(membership.get(port, [])))
+            if not member_of:
+                # F-4, proven against PT's raw output: `show vlan brief` OMITS
+                # trunk ports from every membership list (S1.1 capture: the
+                # three trunked ports absent, unused ports sitting in VLAN 1).
+                # Absence under a trunk push is the read-back evidence, not a
+                # contradiction — demanding membership made this postcondition
+                # unsatisfiable and failed every VLAN op that carried a trunk.
+                # The allowed list itself is not observable here (S3.B1).
+                continue
             if allowed:
                 absent = [v for v in allowed if v not in member_of]
                 if absent:
@@ -2495,6 +2581,14 @@ class BridgeAdapter(PacketTracerAdapter):
     def _resolve_destination_ip(self, destination: str) -> Observable[str]:
         """The console ping needs an IP; resolve it from observed state."""
         devices = self._live_devices()
+        for _ in range(_RESOLVE_RETRIES):
+            if devices.is_known:
+                break
+            # A heartbeat hiccup at resolve time made whole flows UNKNOWN in
+            # build-68648f705ccb without ever looking at the topology; give
+            # the channel a bounded chance to answer before giving up.
+            time.sleep(_RESOLVE_RETRY_S)
+            devices = self._live_devices()
         if not devices.is_known:
             return Observable[str].unknown(
                 f"cannot resolve {destination!r} address: "
@@ -2531,7 +2625,7 @@ class BridgeAdapter(PacketTracerAdapter):
         *,
         transport: str = "icmp",
         port: int | None = None,
-        timeout: float = 25.0,
+        timeout: float | None = None,
         destination_ip: str | None = None,
     ) -> FlowResult:
         """A REAL console ping: arm on the source, poll for the new stat block.
@@ -2540,6 +2634,10 @@ class BridgeAdapter(PacketTracerAdapter):
         REACHABLE, some loss is PARTIAL (never reported as healthy), no replies
         is BLOCKED. No console, no address, no channel, or a quiet console is
         UNKNOWN — a flow test that could not run is never PASS.
+
+        `timeout` is the quiet window for EVERY attempt when given; when it is
+        omitted the adaptive `_FLOW_ATTEMPT_TIMEOUTS` schedule applies
+        (short first windows, the old 25 s patience kept for the last).
 
         Transport-honest (P1-5): the only data-plane probe verified against PT
         is ICMP echo. A criterion declaring tcp/udp cannot be proved by an echo
@@ -2587,7 +2685,14 @@ class BridgeAdapter(PacketTracerAdapter):
         attempts: list[FlowResult] = []
         time.sleep(_FLOW_PRE_SETTLE_S)
         for attempt_no in range(_FLOW_MAX_ATTEMPTS):
-            result = self._single_ping_flow(source, destination, target, timeout)
+            attempt_timeout = (
+                timeout
+                if timeout is not None
+                else _FLOW_ATTEMPT_TIMEOUTS[
+                    min(attempt_no, len(_FLOW_ATTEMPT_TIMEOUTS) - 1)
+                ]
+            )
+            result = self._single_ping_flow(source, destination, target, attempt_timeout)
             attempts.append(result)
             if result.outcome is FlowOutcome.REACHABLE:
                 break

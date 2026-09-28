@@ -83,6 +83,11 @@ class RepairOutcome:
     function_verdict: str | None = None
     function_detail: str | None = None
     function_flows: list[dict[str, Any]] = field(default_factory=list)
+    #: S1.2/F-1: the actual FlowResult objects behind function_flows, so the
+    #: orchestrator can merge them into execution.flow_results before the
+    #: post-repair re-verify. Serialised copies live in function_flows; these
+    #: are the live objects the evaluator reads.
+    function_flow_results: list[FlowResult] = field(default_factory=list)
 
     @property
     def repaired(self) -> bool:
@@ -628,6 +633,7 @@ class RepairEngine:
                 )
             verdict = _flow_verdict(test.expect, flow.outcome)
             verdicts.append(verdict)
+            outcome.function_flow_results.append(flow)
             outcome.function_flows.append(
                 {
                     "criterion_id": criterion.id,

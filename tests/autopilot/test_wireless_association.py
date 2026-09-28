@@ -162,6 +162,52 @@ def test_iot_thing_is_refused_as_a_wireless_client():
         _compile(_wifi_spec(client_model="Solar Panel"))
 
 
+def _wifi_spec_with_criterion(include_wireless_link: bool) -> dict:
+    raw = _wifi_spec()
+    if not include_wireless_link:
+        raw["links"] = [
+            link for link in raw["links"] if link.get("media") != "wireless"
+        ]
+    raw["requirements"] = [
+        {"id": "R-001", "statement": "the laptop associates", "kind": "connectivity"}
+    ]
+    raw["acceptance_criteria"] = [
+        {
+            "id": "A-001",
+            "requirement_ids": ["R-001"],
+            "title": "lap associates to ap",
+            "test": {
+                "kind": "wireless",
+                "client": "lap",
+                "access_point": "ap",
+                "interface": "Wireless0",
+                "expect": "associated",
+            },
+        }
+    ]
+    return raw
+
+
+def test_a_wireless_criterion_without_a_declared_link_is_refused():
+    """Failing-first (F-6/A-021/A-022): the reference run declared a
+    Wireless0 association on a spec with ZERO wireless links; the build ran
+    to completion and the criteria FAILED late with "no Wireless0
+    interface". A topology that never declares the association can never
+    satisfy it — refuse before any mutation, naming the criterion."""
+    with pytest.raises(CompileError, match="A-001"):
+        _compile(_wifi_spec_with_criterion(include_wireless_link=False))
+
+
+def test_the_declared_wireless_criterion_compiles_with_its_link():
+    """Pin: declaring the wireless link is exactly what satisfies the guard —
+    the same criterion with its link in place compiles clean."""
+    result = _compile(_wifi_spec_with_criterion(include_wireless_link=True))
+    assert any(
+        n.operation.operation_type == "associate_wireless"
+        for n in result.dag.nodes.values()
+    )
+
+
 def test_access_point_cable_to_a_host_is_a_cross_cable():
     """Measured: only a cross cable brings the AP's wired port up."""
     assert infer_cable("accesspoint", "pc") == "cross"

@@ -1,7 +1,7 @@
-"""The end-to-end autopilot: spec -> plan -> compile -> execute -> verify.
+﻿"""The end-to-end autopilot: spec -> plan -> compile -> execute -> verify.
 
 One pipeline for both the offline contract environment (NullAdapter) and the
-real Packet Tracer bridge — only the adapter differs, by design.
+real Packet Tracer bridge â€” only the adapter differs, by design.
 
 The orchestrator records every stage into the evidence store and produces the
 BuildReport. It never upgrades a verdict: if verification could not check
@@ -11,14 +11,17 @@ have actually passed.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from .adapter.base import PacketTracerAdapter
 from .acceptance.evaluator import evaluate_spec
-from .compiler.compiler import compile_spec
+from .compiler.compiler import CompileError, compile_spec
 from .compiler.dag import OperationDag
 from .compiler.executor import DagExecutor
+from .compiler.firewall_policy import PolicyCompileError
+from .core.build_errors import PreflightBlocked
 from .core.network_spec import FlowTestSpec, NetworkSpec
 from .core.observability import Observable
 from .core.actual_state import LinkObservation
@@ -26,10 +29,64 @@ from .core.requirements import FlowOutcome, FlowResult
 from .core.safety import MutationBudget, SafetyGate, SafetyMode
 from .diff.engine import diff_expected_vs_actual
 from .evidence.store import EvidenceStore
-from .ipam.planner import plan_addressing
+from .ipam.planner import PlanningFailure, plan_addressing
 from .ipam.validator import has_errors, validate_plan
 from .repair.engine import RepairEngine
 from .verification.engine import VerificationEngine, VerificationReport
+
+
+#: operation_type -> phase family for the in-execute breakdown (S1.5).
+#: The blueprint wants create / cable / configure / flows separated; anything
+#: not named here (read-back sweeps, save, future types) lands in
+#: ``execute_other`` so the table never hides time it cannot explain.
+_OP_FAMILIES: dict[str, str] = {
+    "create_device": "create",
+    "install_module": "create",
+    "install_wireless_radio": "create",
+    "create_link": "cable",
+    "associate_wireless": "cable",
+    "configure_host": "configure",
+    "configure_ios": "configure",
+    "configure_gateway_lan": "configure",
+    "verify_flow": "flows",
+    "wait_dhcp": "flows",
+    "verify_state": "execute_other",
+    "save_project": "execute_other",
+}
+
+#: (key, note) rows of the report's phase table, in print order. The family
+#: rows are subsets of ``execute``; the note says so instead of letting the
+#: reader add them into a wrong total.
+_PHASE_TABLE: tuple[tuple[str, str], ...] = (
+    ("preflight", "plan + lint + compile + preflight"),
+    ("create", "devices/modules (within execute)"),
+    ("cable", "links/association (within execute)"),
+    ("configure", "device config (within execute)"),
+    ("flows", "flow probes + DHCP wait (within execute)"),
+    ("execute_other", "read-backs, save, other ops (within execute)"),
+    ("execute", "wall clock of the whole executor"),
+    ("verify", "fresh observation + acceptance"),
+    ("repair", "diagnose + repair + re-verify"),
+    ("total", "whole build"),
+)
+
+
+def _families_from_op_seconds(op_seconds: dict[str, float]) -> dict[str, float]:
+    """Group the executor's per-operation_type seconds into phase families.
+
+    ``op_seconds`` is ``ExecutionResult.op_seconds``, measured with a
+    monotonic clock around each dispatch. Receipt timestamps cannot be used
+    here: ``OperationReceipt.started_at``/``finished_at`` are both stamped
+    when the receipt is constructed, so every receipt reports 0 (archived
+    reference run: 123/123 receipts equal). Every family key is always
+    present so the report table has a stable shape.
+    """
+    totals = {family: 0.0 for family in set(_OP_FAMILIES.values())}
+    totals.setdefault("execute_other", 0.0)
+    for op_type, seconds in op_seconds.items():
+        family = _OP_FAMILIES.get(op_type, "execute_other")
+        totals[family] = totals.get(family, 0.0) + float(seconds)
+    return totals
 
 
 def _populate_link_observations(
@@ -133,6 +190,9 @@ class BuildReport:
     drift_unknown_count: int = 0
     safety_mode: str = SafetyMode.AUTONOMOUS.value
     layers: dict[str, dict[str, int]] = field(default_factory=dict)
+    #: Seconds per phase (S1.5): wall segments (preflight/execute/verify/
+    #: repair/total) plus the receipt-derived families inside execute.
+    phase_timing: dict[str, float] = field(default_factory=dict)
 
     @property
     def planned_only(self) -> bool:
@@ -170,7 +230,7 @@ class BuildReport:
     def human_text(self) -> str:
         v = self.verification.summary
         lines = [
-            "AI NETWORK AUTOPILOT — BUILD REPORT",
+            "AI NETWORK AUTOPILOT â€” BUILD REPORT",
             "",
             f"Build:          {self.build_id}",
             f"Spec:           {self.spec_name} ({self.spec_hash[:12]})",
@@ -197,7 +257,19 @@ class BuildReport:
         ]
         if self.compile_unsupported:
             lines.append(f"Unsupported:    {', '.join(self.compile_unsupported)}")
+        lines.extend(self._phase_lines())
         return "\n".join(lines)
+
+    def _phase_lines(self) -> list[str]:
+        """The phase-wise time table, printed at the end of the report."""
+        if not self.phase_timing:
+            return []
+        lines = ["", "Phase timing:"]
+        for key, note in _PHASE_TABLE:
+            if key not in self.phase_timing:
+                continue
+            lines.append(f"  {key + ':':<16}{self.phase_timing[key]:9.1f}s   {note}")
+        return lines
 
     def _layer_lines(self) -> list[str]:
         """One line per functional layer, with an explicit zero (#23).
@@ -216,7 +288,7 @@ class BuildReport:
         counts = self.layers.get(key) or {}
         total = counts.get("total", 0)
         if not total:
-            return "0 criteria — not exercised"
+            return "0 criteria â€” not exercised"
         passed = counts.get("pass", 0)
         parts = [f"{passed}/{total} PASS"]
         for verdict, label in (("fail", "FAIL"), ("unknown", "UNKNOWN"),
@@ -240,10 +312,10 @@ class BuildReport:
     def _acceptance_line(self) -> str:
         a = self.verification.acceptance
         if a.satisfied is True:
-            return f"{a.summary.get('pass', 0)}/{len(a.results)} criteria PASS — requirements satisfied"
+            return f"{a.summary.get('pass', 0)}/{len(a.results)} criteria PASS â€” requirements satisfied"
         if a.satisfied is False:
             return f"requirements NOT satisfied ({a.summary})"
-        return f"requirements UNKNOWN — {a.summary}"
+        return f"requirements UNKNOWN â€” {a.summary}"
 
     def _drift_line(self) -> str:
         if self.diff.get("drift_count", 0) == 0 and self.diff.get("unknown_count", 0) == 0:
@@ -284,6 +356,7 @@ class BuildReport:
             "evidence_path": self.evidence_path,
             "success": self.success,
             "functional_layers": self.layers,
+            "phase_timing": self.phase_timing,
         }
 
 
@@ -331,7 +404,7 @@ class Autopilot:
         # The DIFF has a different bar: absence is itself an observable fact.
         # When the adapter enumerated the workspace and answered for every spec
         # device (present in devices OR recorded as confirmed-absent in
-        # metadata), a missing device is a real REMOVE — drift — not UNKNOWN.
+        # metadata), a missing device is a real REMOVE â€” drift â€” not UNKNOWN.
         # Without this, an empty workspace reported zero drift and hid a
         # completely missing topology.
         diff_observations_complete = all(
@@ -410,7 +483,7 @@ class Autopilot:
         """Observe + verify + diff WITHOUT mutating anything.
 
         Returns (report, diff, error). This is the drift-check path: "does the
-        workspace still match the design?" — pure reads through the adapter.
+        workspace still match the design?" â€” pure reads through the adapter.
         """
         try:
             plan = plan_addressing(spec)
@@ -437,8 +510,10 @@ class Autopilot:
         return report, diff, None
 
     def build(self, spec: NetworkSpec) -> tuple[BuildReport | None, str | None]:
-        """Run the full pipeline. Returns (report, error) — error blocks the build."""
+        """Run the full pipeline. Returns (report, error) â€” error blocks the build."""
         evidence = self.evidence
+        phases: dict[str, float] = {}
+        t_build = time.monotonic()
         if evidence is not None:
             evidence.record(
                 "build_request",
@@ -449,28 +524,50 @@ class Autopilot:
         # 1. IPAM
         try:
             plan = plan_addressing(spec)
+        except PlanningFailure as exc:
+            # A named refusal of the spec's addressing, raised before anything
+            # runs: same class of stop as preflight (S1.3 exit codes).
+            return None, PreflightBlocked(f"addressing failed: {exc}")
         except Exception as exc:
             return None, f"addressing failed: {exc}"
         issues = validate_plan(plan, spec)
         if has_errors(issues):
             if evidence is not None:
                 evidence.record("addressing_invalid", {"issues": [i.to_dict() for i in issues]}, component="orchestrator")
-            return None, "addressing validation failed: " + "; ".join(
-                f"{i.resource}: {i.problem}" for i in issues if i.severity == "error"
+            return None, PreflightBlocked(
+                "addressing validation failed: "
+                + "; ".join(
+                    f"{i.resource}: {i.problem}" for i in issues if i.severity == "error"
+                )
             )
         if evidence is not None:
             evidence.record("addressing_planned", plan.to_dict(), component="orchestrator")
 
-        # 2. Compile + preflight (preflight is a HARD gate — §G)
+        # 2. Compile + preflight (preflight is a HARD gate â€” Â§G)
         from .compiler import net_build
         try:
-            compiled, compile_error = net_build(spec, plan)
+            # adapter forwarded for the S1.4 workspace collision check.
+            compiled, compile_error = net_build(spec, plan, adapter=self.adapter)
+        except (CompileError, PolicyCompileError) as exc:
+            # The compiler refused the spec by name (port preflight, policy,
+            # out-of-scope feature) - pre-mutation, so it shares preflight's
+            # exit code. Anything else escaping here is a bug: keep it
+            # untyped so the CLI reports a plain build error.
+            return None, PreflightBlocked(f"compilation refused: {exc}")
         except Exception as exc:
             return None, f"compilation refused: {exc}"
         if compile_error:
             if evidence is not None:
                 evidence.record("preflight_failed", {"error": compile_error}, component="orchestrator")
-            return None, f"preflight blocked execution: {compile_error}"
+            # Typed (still a str) so the CLI can give preflight its own exit
+            # code (S1.3). net_build already prefixes its own preflight
+            # message, so do not double it; the lint path arrives bare.
+            message = (
+                compile_error
+                if str(compile_error).startswith("preflight blocked execution")
+                else f"preflight blocked execution: {compile_error}"
+            )
+            return None, PreflightBlocked(message)
         if compiled is None:
             return None, "compilation returned no result"
         if evidence is not None:
@@ -484,6 +581,7 @@ class Autopilot:
                 },
                 component="orchestrator",
             )
+        phases["preflight"] = time.monotonic() - t_build
 
         # 3. Execute through the safety gate
         # Size the budget to the actual plan. A hardcoded ceiling here would
@@ -495,22 +593,30 @@ class Autopilot:
                 op_count
             ).max_mutations
         executor = DagExecutor(self.adapter, self.gate, evidence)
+        t_execute = time.monotonic()
         execution = executor.execute(compiled.dag)
+        phases["execute"] = time.monotonic() - t_execute
+        # Family breakdown inside execute (create/cable/configure/flows vs
+        # the rest) from the executor's monotonic clock â€” S1.5.
+        phases.update(_families_from_op_seconds(execution.op_seconds))
         if evidence is not None:
             evidence.record("execution_summary", execution.to_dict(), component="orchestrator")
 
         # 4-5. Verify (against a fresh observation sweep of all spec devices)
+        t_verify = time.monotonic()
         fresh = self.adapter.observe_state([d.id for d in spec.devices])
         merged_state = executor.state
         merged_state.merge(fresh)
         report, diff = self._verify_and_diff(
             spec, plan, compiled.dag, merged_state, execution.flow_results, compiled
         )
+        phases["verify"] = time.monotonic() - t_verify
 
         # 7. Diagnose + repair (bounded) when needed. Diagnosis is for
         # FAILURES and drift: an UNKNOWN test means the flow could not be
-        # observed, so there is no evidence-backed cause to diagnose —
+        # observed, so there is no evidence-backed cause to diagnose â€”
         # attempting repairs on it would be speculation.
+        t_repair = time.monotonic()
         repairs: list[dict[str, Any]] = []
         if report.summary.get("fail", 0) > 0 or diff.drift_count:
             from .diagnosis.engine import diagnose
@@ -520,6 +626,15 @@ class Autopilot:
             for diagnosis in diagnoses:
                 repair_plan = repair_engine.plan_repair(diagnosis, plan)
                 outcome = repair_engine.execute(repair_plan)
+                # S1.2/F-1: the repair's own probes are the freshest
+                # observation of the data plane. Without this merge they die
+                # in repair_function_check records and the re-verify reads
+                # the stale DAG-era result (flows-unknown.md Â§3: three real
+                # PASSes discarded 42s before UNKNOWN was printed).
+                for flow in outcome.function_flow_results:
+                    execution.flow_results[
+                        (flow.source, flow.destination)
+                    ] = flow
                 repairs.append(
                     {
                         "diagnosis": diagnosis.to_dict(),
@@ -546,9 +661,12 @@ class Autopilot:
                             else None
                         )
 
+        phases["repair"] = time.monotonic() - t_repair
+        phases["total"] = time.monotonic() - t_build
         if evidence is not None:
             evidence.record("verification", report.to_dict(), component="orchestrator")
             evidence.record("diff", diff.to_dict(), component="orchestrator")
+            evidence.record("phase_timing", phases, component="orchestrator")
 
         build = BuildReport(
             build_id=evidence.build_id if evidence else "no-evidence",
@@ -570,6 +688,7 @@ class Autopilot:
             evidence_path=str(evidence.path) if evidence else None,
             safety_mode=getattr(self.gate, "mode", SafetyMode.AUTONOMOUS).value,
             layers=functional_layers(spec, report.acceptance),
+            phase_timing=phases,
         )
         build.drift_unknown_count = diff.unknown_count
         if evidence is not None:

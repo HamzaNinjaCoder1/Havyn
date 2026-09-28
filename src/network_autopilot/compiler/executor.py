@@ -1,16 +1,16 @@
-"""The DAG executor: safety gate -> adapter -> receipts -> observed state.
+﻿"""The DAG executor: safety gate -> adapter -> receipts -> observed state.
 
 Contract:
 - every mutating batch passes the SafetyGate first (READ_ONLY rejects,
   DRY_RUN plans, APPROVAL_REQUIRED waits, AUTONOMOUS consumes budget);
 - operations run in the DAG's deterministic topological order;
-- a failed operation BLOCKS its dependents — they are recorded, never tried;
+- a failed operation BLOCKS its dependents â€” they are recorded, never tried;
 - create operations are idempotent: the executor observes first and REUSES an
   existing device instead of blindly recreating it;
 - every executed operation leaves a receipt in the evidence chain;
 - after mutations the executor re-observes the workspace into the shared
   ActualNetworkState. A receipt is "the command was accepted"; the
-  observation is "what is actually visible" — both are kept, never merged.
+  observation is "what is actually visible" â€” both are kept, never merged.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from ..core.actual_state import ActualNetworkState
 from ..core.ids import utc_now_iso
 from ..core.receipts import CheckResult, OperationReceipt, OperationResult
 from ..core.requirements import FlowOutcome, FlowResult
-from ..core.safety import SafetyGate
+from ..core.safety import SafetyGate, SafetyMode
 from ..evidence.store import EvidenceStore
 from ..serial import read_serial_clock_evidence
 from .checks import CheckEvaluator
@@ -33,6 +33,17 @@ from .operations import MutationClassification
 from .port_reservation import PortReservationSystem
 
 _FLOW_TYPES = ("verify_flow",)
+
+#: S1.2/F-2: operations that PROBE the network instead of changing it. Their
+#: dependency gate waives unmet upstreams (see execute()): a blocked config
+#: op means the network may be half-built, which is exactly what a probe
+#: should report rather than hide behind.
+_PROBE_TYPES = frozenset({"verify_flow", "wait_dhcp"})
+
+#: ...but only in modes where execution actually happens. A session that
+#: mutates nothing has nothing to probe: every mutating dep is a policy
+#: refusal, not a failure, and a "dry" run must not start pinging live PTs.
+_NON_EXECUTING_MODES = frozenset({SafetyMode.READ_ONLY, SafetyMode.DRY_RUN})
 
 
 @dataclass
@@ -45,6 +56,11 @@ class ExecutionResult:
     failed: list[str] = field(default_factory=list)
     reused: list[str] = field(default_factory=list)
     preflight_blocked: list[str] = field(default_factory=list)
+    #: Wall seconds spent per operation_type, measured with a monotonic clock
+    #: around each dispatch (bulk runs count once for the whole run). The
+    #: receipts' started_at/finished_at are stamped at construction and are
+    #: always equal, so this is the only honest family breakdown (S1.5).
+    op_seconds: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -62,6 +78,7 @@ class ExecutionResult:
             "failed": list(self.failed),
             "reused": list(self.reused),
             "preflight_blocked": list(self.preflight_blocked),
+            "op_seconds": dict(sorted(self.op_seconds.items())),
             "state_devices": sorted(self.state.devices),
         }
 
@@ -70,12 +87,21 @@ _DHCP_POLL_INTERVAL_S = 0.4
 
 
 def _client_has_address(state: ActualNetworkState, device: str) -> bool:
-    """Does this device currently answer on at least one interface?"""
+    """Does this device currently answer on at least one interface?
+
+    `0.0.0.0` is PT's placeholder (every PC exposes a Bluetooth NIC reading
+    it), not a lease — counted as an answer, the DHCP gate passed on poll 1
+    for leaseless clients and the flows probed them three seconds later
+    (build-ee447a04376b, A-001/A-002 UNKNOWN). Same filter as the ping
+    resolver: a real address only.
+    """
     observation = state.devices.get(device)
     if observation is None:
         return False
     return any(
-        port.ip.is_known and bool(port.ip.value)
+        port.ip.is_known
+        and bool(port.ip.value)
+        and str(port.ip.value) != "0.0.0.0"
         for port in observation.ports.values()
     )
 
@@ -128,10 +154,30 @@ class DagExecutor:
                 not in (OpStatus.SUCCEEDED, OpStatus.SKIPPED)
             ]
             if unmet:
-                node.status = OpStatus.BLOCKED
-                node.note = f"dependencies not satisfied: {unmet}"
-                index += 1
-                continue
+                waived = (
+                    op.operation_type in _PROBE_TYPES
+                    and self.gate.mode not in _NON_EXECUTING_MODES
+                )
+                if waived:
+                    # S1.2/F-2: a read-only probe must report the half-built
+                    # network, not hide behind an unrelated config op's
+                    # blockage - that cascade turned 11 real flows into
+                    # UNKNOWN in the reference run (flows-unknown.md §2).
+                    # The probe runs; its own result carries the truth.
+                    # READ_ONLY/DRY_RUN stay exempt: that build never
+                    # executed, so probing a network nobody tried to build
+                    # is noise (and a live ping storm in a "dry" run).
+                    if self.evidence is not None:
+                        self.evidence.record(
+                            "probe_waived_dependencies",
+                            {"operation_id": op_id, "unmet": list(unmet)},
+                            component="executor",
+                        )
+                else:
+                    node.status = OpStatus.BLOCKED
+                    node.note = f"dependencies not satisfied: {unmet}"
+                    index += 1
+                    continue
 
             # Fast path: a run of independent operations of the same kind is
             # sent to PT as ONE command. Creating twenty hosts, cabling forty
@@ -140,15 +186,21 @@ class DagExecutor:
             # dependencies among themselves, so serialising them buys nothing.
             bulk = self._bulk_handler(op.operation_type)
             if bulk is not None:
+                t_op = time.monotonic()
                 consumed = self._try_bulk(topo, index, dag, result, op.operation_type, bulk)
+                self._time_op(result, op.operation_type, t_op)
                 if consumed:
                     index += consumed
                     continue
 
+            t_op = time.monotonic()
             try:
                 self._execute_one(op, node, result)
             except Exception as exc:  # adapter crash must not kill the run
                 dag.mark_failed(op_id, f"executor exception: {exc}")
+                self._record_failure_receipt(node, op_id, f"executor exception: {exc}")
+            finally:
+                self._time_op(result, op.operation_type, t_op)
             index += 1
 
         # The DAG is the single source of truth for outcomes; the result lists
@@ -157,6 +209,12 @@ class DagExecutor:
         result.blocked = [op_id for op_id in topo if dag.nodes[op_id].status is OpStatus.BLOCKED]
         self.state.observed_at = utc_now_iso()
         return result
+
+    @staticmethod
+    def _time_op(result: ExecutionResult, op_type: str, started: float) -> None:
+        """Attribute monotonic wall time since ``started`` to ``op_type``."""
+        elapsed = time.monotonic() - started
+        result.op_seconds[op_type] = result.op_seconds.get(op_type, 0.0) + elapsed
 
     # The minimum run length that makes batching worth it. Below this the
     # serial path is already cheap and a batch would add a read-back for no
@@ -315,13 +373,13 @@ class DagExecutor:
             self._remember_key(op)
             # Postconditions decide whether the mutation is CONFIRMED (P2-2):
             # a receipt that ran is not evidence that the intended state now
-            # holds — the read-back is.
+            # holds â€” the read-back is.
             self._evaluate_postconditions(op, node)
 
     def _authorize(self, op) -> bool:
         """Pass the operation through the safety gate. Returns execute?
 
-        For link operations, also enforce port reservations (§9/§16): a port
+        For link operations, also enforce port reservations (Â§9/Â§16): a port
         already reserved by another in-flight operation is a hard stop.
         """
         permission = self.gate.authorize([op.to_dict()])
@@ -385,8 +443,8 @@ class DagExecutor:
         """Enforce an operation's idempotency key (P2-4).
 
         Returns True when the operation may proceed. A key that already
-        succeeded in this run is a reused no-op — recorded SKIPPED, not
-        re-executed — so a repeated build never duplicates its own work.
+        succeeded in this run is a reused no-op â€” recorded SKIPPED, not
+        re-executed â€” so a repeated build never duplicates its own work.
         """
         key = getattr(op, "idempotency_key", None)
         if not key:
@@ -444,7 +502,7 @@ class DagExecutor:
 
         Mutating the receipt in place keeps the DAG's receipt honest: it is
         CONFIRMED exactly when the postconditions were observable and TRUE.
-        An unobservable postcondition leaves it unconfirmed — never a pass.
+        An unobservable postcondition leaves it unconfirmed â€” never a pass.
         """
         if not op.expected_postconditions or node.receipt is None:
             return
@@ -458,7 +516,7 @@ class DagExecutor:
         evidence["confirmed_by_read_back"] = confirmed
         if unknown:
             evidence["postcondition_note"] = (
-                "at least one postcondition could not be observed — receipt "
+                "at least one postcondition could not be observed â€” receipt "
                 "stays unconfirmed, verification decides"
             )
         # Receipts are immutable records of what happened; we replace the
@@ -498,7 +556,7 @@ class DagExecutor:
         name = op.inputs["name"]
         exists = self.adapter.device_exists(name)
         if exists.is_known and exists.value:
-            # IDEMPOTENT REUSE: observe → compare → reconcile → reuse.
+            # IDEMPOTENT REUSE: observe â†’ compare â†’ reconcile â†’ reuse.
             # Never recreate a device that already exists.
             self.gate.budget.refund(1)
             reconciliation = self._reconcile_device(op)
@@ -841,13 +899,13 @@ class DagExecutor:
         )
         self._record(receipt)
         node.receipt = receipt
-        # IOS acceptance may be unobservable (receipt unconfirmed) — that is
+        # IOS acceptance may be unobservable (receipt unconfirmed) â€” that is
         # still a SUCCESS for DAG purposes; verification will judge reality.
         if receipt.executed_ok:
             node.status = OpStatus.SUCCEEDED
             if not receipt.confirmed:
                 node.note = (
-                    "executed; IOS acceptance not observable — judged by verification"
+                    "executed; IOS acceptance not observable â€” judged by verification"
                 )
             self._prove_serial_clocks(op, node, result)
         else:
@@ -884,7 +942,7 @@ class DagExecutor:
         if unknown:
             node.note = (
                 f"serial clock roles not observable on {unknown[0]['device']}"
-                f":{unknown[0]['interface']} — judged by verification"
+                f":{unknown[0]['interface']} â€” judged by verification"
             )
 
     def _op_configure_gateway_lan(self, op, node, result: ExecutionResult) -> None:
@@ -911,7 +969,7 @@ class DagExecutor:
             node.status = OpStatus.SUCCEEDED
             if not receipt.confirmed:
                 node.note = (
-                    "executed; gateway LAN address not observable — "
+                    "executed; gateway LAN address not observable â€” "
                     "judged by verification"
                 )
         else:
@@ -947,7 +1005,7 @@ class DagExecutor:
         source = op.inputs["source"]
         destination = op.inputs["destination"]
         # The criterion's declared protocol reaches the adapter so it can
-        # choose a real probe — and honestly report when it has none (P1-5).
+        # choose a real probe â€” and honestly report when it has none (P1-5).
         transport = str(op.inputs.get("transport") or "icmp")
         port = op.inputs.get("port")
         flow = self.adapter.run_flow_test(
@@ -970,7 +1028,8 @@ class DagExecutor:
                 component="executor",
             )
         node.status = OpStatus.SUCCEEDED
-        node.note = f"flow observed: {flow.outcome.value}"
+        note = f"flow observed: {flow.outcome.value}"
+        node.note = f"{node.note}; {note}" if node.note else note
 
     def _op_wait_dhcp(self, op, node, result: ExecutionResult) -> None:
         """#26: bounded convergence wait so flows do not probe a leaseless host.
@@ -1006,11 +1065,12 @@ class DagExecutor:
                 component="executor",
             )
         node.status = OpStatus.SUCCEEDED
-        node.note = (
+        note = (
             "all DHCP clients have an address"
             if not pending
             else "still leaseless after {}s: {}".format(timeout, ", ".join(pending))
         )
+        node.note = f"{node.note}; {note}" if node.note else note
 
     def _op_verify_state(self, op, node, result: ExecutionResult) -> None:
         names = op.inputs.get("device_names") or []
@@ -1046,3 +1106,27 @@ class DagExecutor:
         node.status = OpStatus.FAILED
         node.note = note
         result.failed.append(op_id)
+        self._record_failure_receipt(node, op_id, note)
+
+    def _record_failure_receipt(self, node, op_id: str, note: str) -> None:
+        """Persist a failure's reason where the evidence can answer for it.
+
+        `node.note` alone is not evidence: it never reaches evidence.jsonl, so
+        build-68648f705ccb's radio failure was reconstructable only from the
+        blocked ids around it (rule 9: refuse BY NAME). A failure without a
+        prior receipt gets a FAILED one carrying the reason; an op that already
+        recorded its adapter receipt keeps exactly one record.
+        """
+        if node.receipt is not None or self.evidence is None:
+            return
+        self._record(
+            OperationReceipt(
+                operation_id=op_id,
+                operation=node.operation.operation_type,
+                requested=node.operation.inputs,
+                result=OperationResult.FAILED,
+                error=note,
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+            )
+        )

@@ -23,6 +23,16 @@ from ..adapter.base import PacketTracerAdapter
 from ..core.actual_state import ActualNetworkState
 from .operations import Check
 
+#: Pause between precondition re-reads, seconds (transient-heartbeat settle).
+_PRECONDITION_SETTLE_S = 1.0
+#: How many extra reads an UNKNOWN existence answer is worth. Sized against
+#: mailbox.HEARTBEAT_FRESH_S (6 s): a paused Script Engine heartbeat older
+#: than that reads as "no live channel" until the next tick, so the budget
+#: has to out-wait one full pause — the scale build blocked three switch
+#: configs on a stall that a 3-read window could not cover. Bounded either
+#: way: after the budget the verdict is still UNKNOWN, honestly.
+_PRECONDITION_UNKNOWN_RETRIES = 8
+
 
 @dataclass(frozen=True)
 class CheckOutcome:
@@ -53,7 +63,14 @@ class CheckOutcome:
 
 
 class CheckEvaluator:
-    """Answers Checks from real state."""
+    """Answers Checks from real state, fail-closed.
+
+    A transient unknown (the mailbox heartbeat can be momentarily stale while
+    PT is busy — build-68648f705ccb blocked two router configs for exactly
+    this) gets a bounded re-read before it is treated as unanswerable. The
+    retries wait out a hiccup; they never invent knowledge: after the budget
+    the verdict is still UNKNOWN, honestly.
+    """
 
     def __init__(
         self,
@@ -151,7 +168,7 @@ class CheckEvaluator:
             # delay: a create that already succeeded with a confirmed
             # read-back can still answer "no" for a moment. One settle and one
             # re-query separates that from a device that really is absent.
-            time.sleep(1.0)
+            time.sleep(_PRECONDITION_SETTLE_S)
             retry = self.adapter.device_exists(check.target)
             if retry.is_known and retry.value:
                 return CheckOutcome(
@@ -159,6 +176,16 @@ class CheckEvaluator:
                     f"device_exists({check.target}) read back after a settle",
                 )
             exists = retry
+        if not exists.is_known:
+            # Transient channel unknown: re-read before declaring it
+            # unanswerable (build-68648f705ccb: one stale heartbeat blocked
+            # op-config-rhq/op-config-rbr forever — the devices were right
+            # there). The budget bounds the wait; truth still decides.
+            for _ in range(_PRECONDITION_UNKNOWN_RETRIES):
+                time.sleep(_PRECONDITION_SETTLE_S)
+                exists = self.adapter.device_exists(check.target)
+                if exists.is_known:
+                    break
         if not exists.is_known:
             return CheckOutcome(check, None, None, exists.detail or "existence unknown")
         return CheckOutcome(
@@ -173,6 +200,14 @@ class CheckEvaluator:
         # existence is unsafe (fail-closed). Blocking on "present" here would
         # make every rebuild of an existing topology BLOCKED instead of reused.
         exists = self.adapter.device_exists(check.target)
+        if not exists.is_known:
+            # Same transient-heartbeat settle as device_present: a create must
+            # not be blocked by a heartbeat that is one read from recovering.
+            for _ in range(_PRECONDITION_UNKNOWN_RETRIES):
+                time.sleep(_PRECONDITION_SETTLE_S)
+                exists = self.adapter.device_exists(check.target)
+                if exists.is_known:
+                    break
         if not exists.is_known:
             return CheckOutcome(check, None, None, exists.detail or "existence unknown")
         if exists.value:

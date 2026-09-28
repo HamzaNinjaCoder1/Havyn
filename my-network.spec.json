@@ -783,6 +783,26 @@
    }
   },
   {
+   "id": "l-wl-lap4",
+   "a": {
+    "device": "lap4"
+   },
+   "b": {
+    "device": "wr1"
+   },
+   "media": "wireless"
+  },
+  {
+   "id": "l-wl-lap5",
+   "a": {
+    "device": "lap5"
+   },
+   "b": {
+    "device": "wr1"
+   },
+   "media": "wireless"
+  },
+  {
    "id": "l-serial",
    "a": {
     "device": "redge",

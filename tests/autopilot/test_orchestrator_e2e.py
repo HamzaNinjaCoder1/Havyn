@@ -74,7 +74,22 @@ def test_e2e_golden_build_offline_reports_honest_unknown(tmp_path):
         assert expected in kinds, kinds
 
 
-def test_e2e_rebuild_reuses_instead_of_recreating(tmp_path):
+def test_e2e_rebuild_is_blocked_until_the_workspace_is_cleaned(tmp_path):
+    """S1.4 changed cross-run rebuild semantics on purpose.
+
+    The blueprint: "Same naam ke purane devices build ko bigaad dete hain" -
+    a device that already answers to a spec name may be a leftover from
+    another topology, so the build must refuse to start and name the
+    colliding devices instead of silently reusing them. The old test here
+    pinned the opposite (blind reuse); cleaning unblocks the build, which is
+    the blueprint's done criterion. The executor's reuse path itself is
+    still pinned by test_executor.py::test_second_run_reuses_instead_of_recreating,
+    and repair (which compiles without a workspace read) still reuses live
+    devices mid-run.
+    """
+    from scripts.pt_clean_workspace import clean
+    from src.network_autopilot.core.build_errors import PreflightBlocked
+
     autopilot, adapter, _evidence = _autopilot(tmp_path)
     spec = NetworkSpec.model_validate(GOLDEN_SPEC)
 
@@ -83,11 +98,24 @@ def test_e2e_rebuild_reuses_instead_of_recreating(tmp_path):
     assert first.reused == []
 
     device_count = len(adapter.list_device_names().value)
+    assert device_count > 0
+
     second, err2 = autopilot.build(spec)
-    assert err2 is None and second is not None
-    assert second.execution["failed"] == []
-    # 8 devices + 7 links reused; configs legitimately re-applied
-    assert len(second.reused) == 15
+    assert second is None, "the second build must not start"
+    assert isinstance(err2, PreflightBlocked), err2
+    assert "workspace collision" in str(err2)
+    for name in ("r1", "pc1"):
+        assert name in str(err2), (name, err2)
+    assert len(adapter.list_device_names().value) == device_count, (
+        "a refused build must not touch the workspace"
+    )
+
+    report = clean(adapter)
+    assert report.failed == {} and not report.read_failed
+
+    third, err3 = autopilot.build(spec)
+    assert err3 is None and third is not None
+    assert third.execution["failed"] == []
     assert len(adapter.list_device_names().value) == device_count
 
 

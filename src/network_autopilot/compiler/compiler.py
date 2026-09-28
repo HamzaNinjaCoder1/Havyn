@@ -819,8 +819,36 @@ def _reject_unsupported_wireless(spec: NetworkSpec) -> None:
             "association - Packet Tracer only associates hosts that take a "
             "wireless NIC module (Laptop-PT, TabletPC-PT, SMARTPHONE-PT, "
             "WirelessEndDevice-PT) with an access point. Use one of those as "
-            "the client, or cable the device instead."
+            "the client, or cabled the device instead."
         )
+
+
+def _reject_wireless_criteria_without_links(spec: NetworkSpec) -> None:
+    """F-6: a wireless criterion must name a link the spec declares.
+
+    The reference run carried two Wireless0 criteria on a spec with zero
+    wireless links; the build happily ran, and the criteria failed late with
+    "no Wireless0 interface" - a refusal disguised as a red verdict, payable
+    only after mutations. A topology that never declares the association can
+    never satisfy it, so this is refused by criterion id before any mutation.
+    """
+    declared = {
+        frozenset({link.a.device, link.b.device})
+        for link in spec.links
+        if link.media == "wireless"
+    }
+    for criterion in spec.acceptance_criteria:
+        test = criterion.test
+        if getattr(test, "kind", None) != "wireless":
+            continue
+        pair = frozenset({test.client, test.access_point})
+        if pair not in declared:
+            raise CompileError(
+                f"criterion {criterion.id}: wireless association "
+                f"{test.client} <-> {test.access_point} has no declared "
+                "wireless link - add a link with media \"wireless\" between "
+                "the two devices, or drop the criterion."
+            )
 
 
 def _reject_gateway_wan_cabling(
@@ -1442,11 +1470,22 @@ def _flow_destination_ip(spec, plan, test) -> str | None:
 
 
 def compile_spec(
-    spec: NetworkSpec, plan: AddressPlan, packet_tracer_version: str = "unknown"
+    spec: NetworkSpec,
+    plan: AddressPlan,
+    packet_tracer_version: str = "unknown",
+    *,
+    workspace_names: "Observable[list[str]] | None" = None,
 ) -> CompileResult:
-    """Compile a validated spec + addressing plan into an OperationDag."""
+    """Compile a validated spec + addressing plan into an OperationDag.
+
+    `workspace_names` (S1.4) is an optional device-name read of the live
+    workspace; when given, preflight refuses a spec whose device names
+    already exist there. Callers without a workspace (lint, net_preflight,
+    repair) pass nothing and keep the old behaviour.
+    """
     _check_phase2_support(spec)
     _reject_unsupported_wireless(spec)
+    _reject_wireless_criteria_without_links(spec)
 
     dag = OperationDag()
     device_ops: dict[str, str] = {}
@@ -2018,7 +2057,7 @@ def compile_spec(
     # solve_ports() already ran once above (its incompatible list is the hard
     # compile gate); re-running it would duplicate the work and could diverge
     # from the port_plan the DAG was built from.
-    preflight_result = run_preflight(spec, plan, port_plan)
+    preflight_result = run_preflight(spec, plan, port_plan, workspace_names=workspace_names)
 
     return CompileResult(
         dag=dag,
@@ -2059,6 +2098,11 @@ def net_build(
     `plan` may be None so the caller can hand over a spec it has not planned
     yet: the lint runs before addressing on purpose, because the planner
     aborts on the first bad address and would hide everything else (#35).
+
+    `adapter` (S1.4) is read once for the workspace device names and handed
+    to preflight, which refuses a spec whose names already exist in the
+    workspace. Without an adapter there is no workspace to compare, so the
+    collision check does not run (lint, net_preflight, repair).
     """
     from .compiler import compile_spec
 
@@ -2077,7 +2121,20 @@ def net_build(
 
         plan = plan_addressing(spec)
 
-    result = compile_spec(spec, plan)
+    workspace_names = None
+    if adapter is not None:
+        from ..core.observability import Observable
+
+        try:
+            workspace_names = adapter.list_device_names()
+        except Exception as exc:
+            # A read that raised is still a read we do not have: fail closed
+            # in preflight instead of assuming the canvas is empty.
+            workspace_names = Observable[list[str]].unknown(
+                f"workspace read raised: {exc}"
+            )
+
+    result = compile_spec(spec, plan, workspace_names=workspace_names)
 
     # Size the mutation budget to the actual DAG instead of relying on
     # the default max_mutations=25 which would abort non-trivial builds.
