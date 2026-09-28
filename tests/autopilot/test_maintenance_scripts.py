@@ -137,12 +137,64 @@ def test_dry_run_deletes_nothing_but_still_reports_the_plan():
 
 
 def test_an_unreadable_workspace_is_not_reported_as_all_clear():
-    """An UNKNOWN read must never look like 'there was nothing to delete'."""
+    """An UNKNOWN read must never look like 'there was nothing to delete'.
+
+    This is the S0.4 survivor: ``_read_names`` used to fall back to
+    ``observed.value or []``, and an UNKNOWN observable has ``value None``, so
+    an unreadable canvas came back as an empty list - byte-identical to a clean
+    one. The mutant 'UNKNOWN -> []' therefore passed while silently claiming
+    all-clear. Now an unreadable read surfaces as REMAINING "unknown" and a
+    read_failed flag, and the run must not delete anything in that state.
+    """
     ws = FakeWorkspace(["r1"])
     ws.readable = False
     report = pt_clean.clean(ws)
     assert report.to_delete == []
+    assert report.remaining == ["unknown"], (
+        "an unreadable workspace is not an empty one"
+    )
+    assert report.read_failed is True
+    assert ws.bulk_calls == [] and ws.single_calls == [], (
+        "nothing may be deleted when the workspace could not be read"
+    )
+
+
+def test_an_unreadable_workspace_exits_non_zero(monkeypatch):
+    """A canvas the script could not read is not a green run for CI either."""
+    import network_autopilot.adapter.packet_tracer.bridge_adapter as bridge_mod
+
+    class UnreadableAdapter:
+        def ping(self, timeout: float = 5.0):
+            class _Probe:
+                reachable = True
+
+            return _Probe()
+
+        def list_device_names(self):
+            return Observable(
+                status=ObservationStatus.UNKNOWN, value=None,
+                detail="channel not ready", source="fake",
+            )
+
+        def delete_device(self, name: str):
+            raise AssertionError("delete must not run on an unreadable canvas")
+
+    monkeypatch.setattr(bridge_mod, "BridgeAdapter", UnreadableAdapter)
+    assert pt_clean.main([]) != 0, "read failure must exit non-zero"
+
+
+def test_a_readable_empty_workspace_is_genuinely_all_clear():
+    """The empty case must stay distinguishable from the unreadable one.
+
+    If 'unreadable' and 'empty' both reported ``unknown`` the fix would be
+    useless; if both reported ``[]`` we are back to the survivor. Keep both
+    honest: readable-empty is a real, verified empty list.
+    """
+    ws = FakeWorkspace([])
+    report = pt_clean.clean(ws)
     assert report.remaining == []
+    assert report.read_failed is False
+    assert report.to_delete == []
 
 
 def test_clean_runs_against_the_real_adapter_contract():
@@ -231,17 +283,46 @@ def test_prune_keeps_the_nested_layout_so_an_archive_is_unambiguous(tmp_path):
 
 
 def test_the_archive_is_byte_reproducible(tmp_path):
-    """A hash of the archive is only meaningful if a re-run reproduces it."""
+    """A hash of the archive is only meaningful if a re-run reproduces it.
+
+    This is the S0.4 survivor. The fixed ZIP timestamp is what makes an archive
+    hashable months later, but the mutant that builds ``date_time`` from the
+    wall clock - or from a file's own mtime - used to slip through: both
+    archives were written inside the same two-second zip-clock tick and so came
+    out byte-identical anyway, "proving" determinism that was not there.
+
+    Two things now pin the epoch:
+    - the two builds get deliberately *different* file mtimes, so a member
+      timestamp derived from a file cannot coincide across the pair;
+    - every member's ``date_time`` is asserted against the 1980 epoch directly,
+      which a wall-clock mutant cannot satisfy no matter how fast the test runs.
+    """
+    import os
+
     root = tmp_path / "evidence"
-    _tree(root, ["build-a", "build-b"])
-    first, _ = evidence_prune.write_archive(
-        sorted(root.iterdir()), root / "one.zip"
-    )
-    second, _ = evidence_prune.write_archive(
-        sorted(root.iterdir()), root / "two.zip"
-    )
+    dirs = _tree(root, ["build-a", "build-b"])
+    for i, d in enumerate(dirs):
+        stamp = 1_700_000_000 + i * 100_000
+        for f in d.rglob("*"):
+            if f.is_file():
+                os.utime(f, (stamp, stamp))
+
+    sources = sorted(root.iterdir())
+    first, _ = evidence_prune.write_archive(sources, root / "one.zip")
+    second, _ = evidence_prune.write_archive(sources, root / "two.zip")
+
     assert first == second
     assert (root / "one.zip").read_bytes() == (root / "two.zip").read_bytes()
+
+    for archive in (root / "one.zip", root / "two.zip"):
+        with zipfile.ZipFile(archive) as zf:
+            assert zf.namelist(), "the archive must hold something to test"
+            # Literal, not evidence_prune._ZIP_EPOCH: comparing against the
+            # module's own constant would let a mutant redefine the constant
+            # and be measured by it.
+            assert all(
+                info.date_time == (1980, 1, 1, 0, 0, 0) for info in zf.infolist()
+            ), "member timestamps must stay the fixed epoch, not the clock"
 
 
 def test_prune_removes_nothing_when_the_archive_cannot_be_written(tmp_path, monkeypatch):

@@ -28,6 +28,10 @@ from typing import Protocol, Sequence
 #: Device names starting with any of these are never deleted.
 DEFAULT_PROTECTED_PREFIXES: tuple[str, ...] = ("Power Distribution Device",)
 
+#: What REMAINING shows when the canvas could not be read at all. A real device
+#: list is never literally this, so "unknown" can never be mistaken for empty.
+_UNKNOWN = "unknown"
+
 
 class DeletableWorkspace(Protocol):
     """The slice of the adapter this script needs.
@@ -56,6 +60,10 @@ class CleanReport:
     failed: dict[str, str] = field(default_factory=dict)
     remaining: list[str] = field(default_factory=list)
     dry_run: bool = False
+    #: The workspace could not be read. An unreadable canvas must never look like
+    #: an empty one, so this stays separate from ``failed`` (delete problems) and
+    #: forces a non-zero exit.
+    read_failed: bool = False
 
     def as_dict(self) -> dict:
         return {
@@ -65,6 +73,7 @@ class CleanReport:
             "deleted": self.deleted,
             "failed": self.failed,
             "remaining": self.remaining,
+            "read_failed": self.read_failed,
         }
 
 
@@ -90,16 +99,17 @@ def plan(
     return sorted(drop), sorted(keep)
 
 
-def _read_names(workspace: DeletableWorkspace) -> list[str]:
-    """Device names from the workspace, or an empty list if the read failed.
+def _read_names(workspace: DeletableWorkspace) -> list[str] | None:
+    """Device names from the workspace, or ``None`` when the read itself failed.
 
-    An unreadable workspace is reported as empty rather than raised: the caller
-    prints the result, and "I could not read it" must never look like "there was
-    nothing to delete, all clear".
+    ``None`` is the whole point: an unreadable workspace used to be reported as
+    an empty list, which is byte-identical to "the canvas is clean, all clear".
+    The caller treats ``None`` as REMAINING "unknown" and refuses to proceed,
+    because "I could not read it" must never look like "nothing to delete".
     """
     observed = workspace.list_device_names()
     if not getattr(observed, "is_known", False):
-        return []
+        return None
     return [str(n) for n in (observed.value or [])]
 
 
@@ -117,10 +127,16 @@ def clean(
     read-back - never the call's own claim of success.
     """
     report = CleanReport(dry_run=dry_run)
-    report.to_delete, report.protected = plan(_read_names(workspace), protected_prefixes)
+    names = _read_names(workspace)
+    if names is None:
+        # Unreadable: report "unknown", never an empty-looking "all clear".
+        report.read_failed = True
+        report.remaining = [_UNKNOWN]
+        return report
+    report.to_delete, report.protected = plan(names, protected_prefixes)
 
     if dry_run or not report.to_delete:
-        report.remaining = _read_names(workspace)
+        report.remaining = _final_names(workspace, report)
         return report
 
     outcomes: dict[str, str] = {}
@@ -147,11 +163,27 @@ def clean(
         except Exception as exc:
             report.failed[name] = f"error:{type(exc).__name__}"
 
-    report.remaining = _read_names(workspace)
+    report.remaining = _final_names(workspace, report)
     return report
 
 
+def _final_names(workspace: DeletableWorkspace, report: CleanReport) -> list[str]:
+    """The post-run read-back, keeping an unreadable canvas visible as UNKNOWN."""
+    names = _read_names(workspace)
+    if names is None:
+        report.read_failed = True
+        return [_UNKNOWN]
+    return names
+
+
 def _print_report(report: CleanReport) -> None:
+    if report.read_failed:
+        print(
+            "REMAINING unknown: the workspace could not be read, so nothing was"
+            " deleted and the device list is unavailable.",
+            file=sys.stderr,
+        )
+        return
     if report.dry_run:
         print(f"DRY RUN - would delete {len(report.to_delete)} device(s):")
         for name in report.to_delete:
@@ -196,7 +228,9 @@ def main(argv: list[str] | None = None) -> int:
 
     report = clean(workspace, protected_prefixes=prefixes, dry_run=args.dry_run)
     _print_report(report)
-    return 1 if report.failed else 0
+    # A read failure is not "success with nothing to do": exit non-zero so a
+    # caller or CI never reads an unreadable canvas as an all-clear.
+    return 1 if (report.failed or report.read_failed) else 0
 
 
 if __name__ == "__main__":

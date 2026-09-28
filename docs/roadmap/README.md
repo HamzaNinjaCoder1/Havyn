@@ -38,6 +38,29 @@ Its sections, in order:
   one concrete instance: it refuses an address-scoped ASA rule because PT takes
   the line and then matches nothing.
 
+## Open notes against blueprint tasks
+
+### S1.12 — `DEVICE_TYPE_CODES`: four keys sitting on PT type 1
+
+> S1.12: switch, patch_panel, wall_mount, power_dist sab PT type 1 pe map hain;
+> live probe se sahi codes confirm karne hain. power_dist ka koi model nahi
+> (dead entry).
+
+Spelled out against `src/network_autopilot/adapter/packet_tracer/js_commands.py`
+(`DEVICE_TYPE_CODES`, lines 24 and 60-62):
+
+| Key | Mapped to | Status |
+| --- | --- | --- |
+| `switch` | 1 | Real PT switch type — correct, pinned by `test_upstream_js_commands.py`. |
+| `patch_panel` | 1 | **Placeholder.** `Copper-Patch-Panel` is the only catalogued model of this category (`pt/catalog/devices.py`), and its true PT type has never been read back from a live probe. |
+| `wall_mount` | 1 | **Placeholder.** No catalogued model carries this category at all. |
+| `power_dist` | 1 | **Placeholder and dead entry.** No catalogued model carries `category="power_dist"`, so the production path (`device_type_code_for_model()`) can never return this key — it is reachable only by literal key lookup. |
+
+The three non-switch keys are guesses parked on the switch's type id. The
+S1.12 auto-probe — create every model from `allDeviceTypes`, read its real
+device type back, diff against the catalog — is what turns them into verified
+codes; until a probe says otherwise, none of the three counts as confirmed.
+
 ## Editing the blueprint
 
 **This folder is the source of truth.** The blueprint is committed here; a copy
