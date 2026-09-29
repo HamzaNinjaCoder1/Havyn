@@ -219,10 +219,10 @@ def test_clean_workspace_flag_wipes_the_workspace_before_building(
         return adapter
 
     class _Autopilot:
-        def __init__(self, adapter, gate, evidence) -> None:
+        def __init__(self, adapter, gate, evidence, keep_evidence=20) -> None:
             captured["built_with"] = adapter
 
-        def build(self, spec):
+        def build(self, spec, *, resume_from=None):
             return _Report(), None
 
     monkeypatch.setattr(build_havyn, "BridgeAdapter", make_adapter)
@@ -256,7 +256,7 @@ def test_clean_workspace_exits_one_when_the_workspace_cannot_be_read(
         return adapter
 
     class _Autopilot:
-        def __init__(self, adapter, gate, evidence) -> None:
+        def __init__(self, adapter, gate, evidence, keep_evidence=20) -> None:
             captured["build_called"] = True
 
         def build(self, spec):  # pragma: no cover - must never run

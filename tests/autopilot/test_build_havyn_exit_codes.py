@@ -86,10 +86,10 @@ class _Report:
 
 def _fake_autopilot(report, error=None):
     class _Autopilot:
-        def __init__(self, adapter, gate, evidence) -> None:
+        def __init__(self, adapter, gate, evidence, keep_evidence=20) -> None:
             pass
 
-        def build(self, spec):
+        def build(self, spec, *, resume_from=None):
             return report, error
 
     return _Autopilot
@@ -307,3 +307,25 @@ def test_addressing_refusal_is_typed_as_a_preflight_block(monkeypatch, tmp_path)
 
     assert isinstance(error, PreflightBlocked)
     assert str(error).startswith("addressing failed: ")
+
+
+def test_resume_flag_reaches_the_build(monkeypatch, spec_file):
+    """--resume <build-id> must reach Autopilot.build as resume_from (S1.14):
+    only the remainder runs, and the flag is what selects it."""
+    seen: dict = {}
+
+    class _Autopilot:
+        def __init__(self, adapter, gate, evidence, keep_evidence=20) -> None:
+            pass
+
+        def build(self, spec, *, resume_from=None):
+            seen["resume_from"] = resume_from
+            return _Report(success=True), None
+
+    monkeypatch.setattr(build_havyn, "BridgeAdapter", _fake_adapter(True))
+    monkeypatch.setattr(build_havyn, "Autopilot", _Autopilot)
+    assert (
+        build_havyn.main([spec_file, "autonomous", "--resume", "build-prior"])
+        == 0
+    )
+    assert seen["resume_from"] == "build-prior"
