@@ -411,3 +411,219 @@ def test_a_manifest_records_what_went_where(tmp_path):
     manifest = json.loads((root / "archive-m1.manifest.json").read_text(encoding="utf-8"))
     assert manifest["archived_from"] == ["build-a", "build-b"]
     assert manifest["sha256"] == report.archive_sha256
+
+
+# -- pt_catalog_probe (S1.12 / F9) -------------------------------------------
+
+pt_catalog_probe = importlib.import_module("scripts.pt_catalog_probe")
+
+
+class _FakeProbeAdapter:
+    """Scripted stand-in for the live bridge: enumeration answers, real
+    catalog reads for the diff, recorded creates/deletes."""
+
+    def __init__(self, models, ports_by_model, *, enum_works_on=0,
+                 fail_read=(), fail_create=()):
+        self.models = list(models)
+        self.ports_by_model = dict(ports_by_model)
+        self.enum_works_on = enum_works_on
+        self.fail_read = set(fail_read)
+        self.fail_create = set(fail_create)
+        self.created: list[str] = []
+        self.deleted: list[str] = []
+        self._model_of: dict[str, str] = {}
+
+    def send_expression(self, expression, *, wait=None):
+        from network_autopilot.core.observability import Observable
+
+        for i, candidate in enumerate(pt_catalog_probe.ENUMERATION_CANDIDATES):
+            if candidate in expression:
+                if self.enum_works_on is not None and i == self.enum_works_on:
+                    import json as _json
+                    return Observable.known(_json.dumps(self.models))
+                return Observable.known("NOPE")
+        return Observable.known('{"getDeviceType": "function"}')
+
+    def _receipt(self, operation_id, operation, ok: bool, error=None):
+        from network_autopilot.core.receipts import (
+            OperationReceipt, OperationResult,
+        )
+
+        return OperationReceipt(
+            operation_id=operation_id,
+            operation=operation,
+            requested={},
+            result=OperationResult.SUCCESS if ok else OperationResult.FAILED,
+            error=error,
+        )
+
+    def create_device(self, name, role=None, model_hint=None, position=None,
+                      operation_id=None):
+        from network_autopilot.core.receipts import OperationResult
+
+        self.created.append(name)
+        self._model_of[name] = model_hint
+        if model_hint in self.fail_create:
+            return self._receipt(name, "create_device", False,
+                                 error="refused by fake PT")
+        return self._receipt(name, "create_device", True)
+
+    def inspect_device(self, name):
+        from network_autopilot.core.actual_state import (
+            DeviceObservation, PortObservation,
+        )
+        from network_autopilot.core.observability import Observable
+
+        model = self._model_of[name]
+        if model in self.fail_read:
+            raise RuntimeError("unreadable, says the fake channel")
+        return DeviceObservation(
+            name=name,
+            model=Observable.known(model, source="fake"),
+            ports={p: PortObservation(name=p)
+                   for p in self.ports_by_model[model]},
+        )
+
+    def delete_device(self, name, operation_id=None):
+        self.deleted.append(name)
+        return self._receipt(name, "delete_device", True)
+
+
+def _probe_models():
+    from network_autopilot.pt.catalog import get_valid_ports
+
+    return {
+        # a real catalog model whose observed ports differ by exactly one
+        "2960-24TT": sorted(get_valid_ports("2960-24TT"))[:-1],
+        # a model the catalog never heard of
+        "Future-Switch-9000": ["GigabitEthernet0/1"],
+    }
+
+
+def test_probe_diffs_catalog_ports_and_flags_unknown_models():
+    adapter = _FakeProbeAdapter(
+        ["2960-24TT", "Future-Switch-9000"], _probe_models()
+    )
+    report = pt_catalog_probe.run_probe(adapter)
+
+    assert report.enumeration_api == (
+        pt_catalog_probe.ENUMERATION_CANDIDATES[0]
+    )
+    assert report.catalog_missing == ["Future-Switch-9000"]
+    assert len(report.mismatches) == 1
+    mismatch = report.mismatches[0]
+    assert mismatch["model"] == "2960-24TT"
+    assert mismatch["catalog_only"] and mismatch["actual_only"] == []
+    assert report.cleanup_failures == []
+    assert sorted(report.probed[0].actual_ports) == sorted(
+        _probe_models()["2960-24TT"]
+    )
+
+
+def test_probe_enumeration_falls_back_to_the_next_candidate():
+    adapter = _FakeProbeAdapter(["2911"], {"2911": ["GigabitEthernet0/0"]},
+                                enum_works_on=2)
+    report = pt_catalog_probe.run_probe(adapter)
+
+    assert report.enumeration_api == (
+        pt_catalog_probe.ENUMERATION_CANDIDATES[2]
+    )
+    assert [p.model for p in report.probed] == ["2911"]
+
+
+def test_probe_cleans_up_when_the_read_fails():
+    adapter = _FakeProbeAdapter(
+        ["2960-24TT"], {"2960-24TT": ["GigabitEthernet0/1"]},
+        fail_read={"2960-24TT"},
+    )
+    report = pt_catalog_probe.run_probe(adapter)
+
+    assert report.probed[0].error, "a failed read must be recorded, not lost"
+    assert report.cleanup_failures == []
+    assert adapter.deleted == adapter.created
+
+
+def test_probe_never_touches_foreign_devices():
+    adapter = _FakeProbeAdapter(["2911"], {"2911": ["GigabitEthernet0/0"]})
+    pt_catalog_probe.run_probe(adapter)
+
+    assert adapter.created and adapter.deleted
+    for name in (*adapter.created, *adapter.deleted):
+        assert name.startswith(pt_catalog_probe.PROBE_PREFIX), name
+
+
+def test_enumerate_models_raises_when_nothing_answers():
+    adapter = _FakeProbeAdapter([], {}, enum_works_on=None)
+    import pytest as _pytest
+
+    with _pytest.raises(RuntimeError):
+        pt_catalog_probe.enumerate_models(adapter)
+
+
+def test_logical_interfaces_do_not_fail_the_diff():
+    """Vlan1 is really reported by PT and really not a cableable port: it
+    is acknowledged, not diffed."""
+    from network_autopilot.pt.catalog import get_valid_ports
+
+    adapter = _FakeProbeAdapter(
+        ["2911"],
+        {"2911": sorted(get_valid_ports("2911")) + ["Vlan1"]},
+    )
+    report = pt_catalog_probe.run_probe(adapter, models=["2911"])
+
+    assert report.mismatches == []
+    assert report.logical_notes[0]["logical_only"] == ["Vlan1"]
+
+
+def test_probe_acknowledges_every_pt_virtual_interface_family():
+    """S1.12 live (PT 9.0.1): alongside the cableable ports PT also reports
+    Bluetooth, Wireless radios, PPP Dialer/Virtual-Access, cellular stubs, a
+    "Backbone" trunk and Meraki's numbered "Internet N" WAN stubs. None of
+    them cables, so none may fail the diff."""
+    from network_autopilot.pt.catalog import get_valid_ports
+
+    virtual = [
+        "Bluetooth", "Wireless0", "Wireless 1", "Wireless0/0",
+        "Dialer1", "Virtual-Access1", "Cellular0/0", "Cellular Server1",
+        "Backbone", "3G/4G Cell1", "Internet 1",
+    ]
+    adapter = _FakeProbeAdapter(
+        ["PC-PT"],
+        {"PC-PT": sorted(get_valid_ports("PC-PT")) + virtual},
+    )
+    report = pt_catalog_probe.run_probe(adapter, models=["PC-PT"])
+
+    assert report.mismatches == []
+    assert set(report.logical_notes[0]["logical_only"]) == set(virtual)
+
+
+def test_a_catalog_declared_logical_port_is_not_a_mismatch():
+    """The ASA 5505's Vlan1/Vlan2 are the SVIs its routed config addresses,
+    so the catalog declares them on purpose; a declared port is part of the
+    contract even though Vlan* is otherwise logical."""
+    from network_autopilot.pt.catalog import get_valid_ports
+
+    adapter = _FakeProbeAdapter(
+        ["5505"], {"5505": sorted(get_valid_ports("5505"))},
+    )
+    report = pt_catalog_probe.run_probe(adapter, models=["5505"])
+
+    assert report.mismatches == []
+    assert report.logical_notes == []
+
+
+def test_explicit_models_skip_enumeration_entirely():
+    """Live find: PT exposes no enumeration surface, so the probe drives
+    from the catalog's model list instead of asking PT first."""
+    adapter = _FakeProbeAdapter([], {}, enum_works_on=None)
+    report = pt_catalog_probe.run_probe(adapter, models=["2911"])
+
+    assert report.enumeration_api == "catalog-fallback"
+    assert [p.model for p in report.probed] == ["2911"]
+    assert adapter.deleted == adapter.created
+
+
+def test_catalog_models_lists_every_supported_model():
+    from network_autopilot.pt.catalog import all_models
+
+    assert len(pt_catalog_probe.catalog_models()) == len(all_models())

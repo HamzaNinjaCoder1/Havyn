@@ -1029,6 +1029,11 @@ class BridgeAdapter(PacketTracerAdapter):
         model_aliases = {"PC": "PC-PT"}
         default_model = {"router": "Router-PT", "switch": "Switch-PT"}.get(role, "PC-PT")
         model = model_aliases.get(model_hint, model_hint) if model_hint else default_model
+        # S1.12: PT places some chassis only under its own spelling
+        # ("4321" -> "ISR4321", "Smart-LED" -> "Smart LED"); the autopilot
+        # key fails silently, so translate before sending.
+        from ...pt.catalog.aliases import pt_model_string
+        model = pt_model_string(model)
         x, y = position or (100, 100)
         try:
             type_code = js.device_type_code_for_model(model, role=role)

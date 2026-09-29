@@ -67,6 +67,7 @@ class ProbeReport:
     probed: list[ModelProbe] = field(default_factory=list)
     catalog_missing: list[str] = field(default_factory=list)
     mismatches: list[dict] = field(default_factory=list)
+    logical_notes: list[dict] = field(default_factory=list)
     cleanup_failures: list[str] = field(default_factory=list)
     started_at: str = ""
     finished_at: str = ""
@@ -80,6 +81,17 @@ class ProbeReport:
             - len(self.catalog_missing),
             "catalog_missing": list(self.catalog_missing),
             "mismatches": list(self.mismatches),
+            "probed": [
+                {
+                    "model": p.model,
+                    "actual_ports": list(p.actual_ports),
+                    "observed_model": p.observed_model,
+                    "error": p.error,
+                    "cleaned": p.cleaned,
+                }
+                for p in self.probed
+            ],
+            "logical_notes": list(self.logical_notes),
             "cleanup_failures": list(self.cleanup_failures),
             "errors": [
                 {"model": p.model, "error": p.error}
@@ -158,15 +170,18 @@ def _model_names(parsed) -> list[str]:
 def probe_model(adapter, model: str, index: int) -> ModelProbe:
     """Create → read ports → delete (always) for one model."""
     from network_autopilot.pt.catalog import get_valid_ports
+    from network_autopilot.pt.catalog.aliases import pt_model_string
 
     probe = ModelProbe(model=model)
     name = f"{PROBE_PREFIX}{index}-{model}".replace(" ", "_")[:60]
     cleanup_attempted = False
     try:
+        # The probe tests the same string the engine sends: PT places some
+        # chassis only under its own spelling (S1.12).
         receipt = adapter.create_device(
             name,
             role="other",
-            model_hint=model,
+            model_hint=pt_model_string(model),
             position=(100 + (index % 25) * 50, 100 + (index // 25) * 50),
         )
         if receipt.result.value not in ("success",):
@@ -200,16 +215,51 @@ def probe_model(adapter, model: str, index: int) -> ModelProbe:
     return probe
 
 
-def diff_against_catalog(probed: list[ModelProbe]) -> tuple[list[str], list[dict]]:
-    """Split probe results into (models missing from the catalog, mismatches).
+#: PT's virtual interfaces: reported by port enumeration but never cableable,
+#: so never catalog valid ports — unless the catalog declares one on purpose
+#: (the ASA 5505's Vlan SVIs, which its routed config addresses). Measured
+#: live on PT 9.0.1 (S1.12): a fresh chassis enumerates its cableable ports
+#: plus, depending on model, Vlan SVIs, Bluetooth, Wireless radios, PPP
+#: Dialer/Virtual-Access, cellular stubs, a "Backbone" trunk and Meraki's
+#: numbered "Internet N" WAN stubs.
+LOGICAL_PORT_RE = (
+    r"(?:Vlan|VLAN|Loopback|Null)\d*"
+    r"|Bluetooth"
+    r"|Wireless[\s\d/]*"
+    r"|Dialer\d*"
+    r"|Virtual-Access\d*"
+    r"|Cellular.*"
+    r"|Backbone"
+    r"|3G/4G Cell\d*"
+    r"|Internet \d+"
+)
+
+
+def _split_logical(ports: set[str]) -> tuple[set[str], set[str]]:
+    """(physical, logical) split of PT-reported ports."""
+    import re
+
+    logical = {p for p in ports if re.fullmatch(LOGICAL_PORT_RE, p)}
+    return set(ports) - logical, logical
+
+
+def diff_against_catalog(
+    probed: list[ModelProbe],
+) -> tuple[list[str], list[dict], list[dict]]:
+    """Split probe results into (missing, mismatches, logical_notes).
 
     A mismatch names the model, what the catalog claims, and what PT showed.
-    Order-independent: ports are sets on both sides.
+    Order-independent: ports are sets on both sides. Logical interfaces PT
+    reports (Vlan1 and kin) are acknowledged in logical_notes — they are
+    real but never cableable, so they must not fail the diff. A logical
+    interface the catalog *declares* (the ASA 5505's Vlan SVIs) is part of
+    the contract, not a stray: it stays on the physical side of the diff.
     """
     from network_autopilot.pt.catalog import get_valid_ports, resolve_model
 
     missing: list[str] = []
     mismatches: list[dict] = []
+    logical_notes: list[dict] = []
     for probe in probed:
         if probe.error and not probe.actual_ports:
             continue  # nothing observed; the error is recorded, not diffed
@@ -217,25 +267,60 @@ def diff_against_catalog(probed: list[ModelProbe]) -> tuple[list[str], list[dict
             missing.append(probe.model)
             continue
         catalog_ports = set(get_valid_ports(probe.model))
-        actual_ports = set(probe.actual_ports)
-        if catalog_ports != actual_ports:
+        actual = set(probe.actual_ports)
+        physical, logical = _split_logical(actual)
+        # A declared port is the catalog's claim, not a stray virtual
+        # interface: keep it on the physical side (5505 Vlan1/Vlan2).
+        logical -= catalog_ports
+        physical = actual - logical
+        if logical:
+            logical_notes.append({
+                "model": probe.model,
+                "logical_only": sorted(logical),
+            })
+        if catalog_ports != physical:
             mismatches.append({
                 "model": probe.model,
-                "catalog_only": sorted(catalog_ports - actual_ports),
-                "actual_only": sorted(actual_ports - catalog_ports),
+                "catalog_only": sorted(catalog_ports - physical),
+                "actual_only": sorted(physical - catalog_ports),
             })
-    return missing, mismatches
+    return missing, mismatches, logical_notes
+
+
+def catalog_models() -> list[str]:
+    """Every model the catalog claims PT supports (S1.12's probe set when PT
+    itself exposes no enumeration surface — measured live: `ipc.network()`
+    has getDevice/getDeviceAt/getDeviceCount but no allDeviceTypes)."""
+    from network_autopilot.pt.catalog import all_models
+
+    names: list[str] = []
+    for entry in all_models():
+        name = entry if isinstance(entry, str) else str(
+            getattr(entry, "model", getattr(entry, "name", entry))
+        )
+        if name and name not in names:
+            names.append(name)
+    return names
 
 
 def run_probe(adapter, *, limit: int | None = None,
-              only: list[str] | None = None) -> ProbeReport:
+              only: list[str] | None = None,
+              models: list[str] | None = None) -> ProbeReport:
     """Full probe run against a live adapter. See module docstring."""
     from network_autopilot.core.ids import utc_now_iso
 
     report = ProbeReport(started_at=utc_now_iso())
-    models, api_used, raw = enumerate_models(adapter)
-    report.enumeration_api = api_used
-    report.enumeration_raw = raw[:2000]
+    if models is None:
+        models, api_used, raw = enumerate_models(adapter)
+        report.enumeration_api = api_used
+        report.enumeration_raw = raw[:2000]
+    else:
+        report.enumeration_api = "catalog-fallback"
+        report.enumeration_raw = (
+            "PT exposes no device-type enumeration "
+            "(ipc.network() keys measured live); probing the catalog's "
+            f"{len(models)} supported models instead"
+        )
     if only:
         wanted = set(only)
         models = [m for m in models if m in wanted]
@@ -246,9 +331,8 @@ def run_probe(adapter, *, limit: int | None = None,
         report.probed.append(probe)
         if not probe.cleaned:
             report.cleanup_failures.append(model)
-    report.catalog_missing, report.mismatches = diff_against_catalog(
-        report.probed
-    )
+    (report.catalog_missing, report.mismatches,
+     report.logical_notes) = diff_against_catalog(report.probed)
     report.finished_at = utc_now_iso()
     return report
 
@@ -261,6 +345,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--only", default=None,
                         help="comma-separated models to probe")
+    parser.add_argument("--from-catalog", action="store_true",
+                        help="probe the catalog's supported models instead of "
+                        "asking PT to enumerate (PT has no such surface)")
     parser.add_argument("--out", default=None,
                         help="write the JSON report here (default prints summary only)")
     parser.add_argument("--dry-run", action="store_true",
@@ -285,6 +372,7 @@ def main(argv: list[str] | None = None) -> int:
             adapter,
             limit=args.limit,
             only=args.only.split(",") if args.only else None,
+            models=catalog_models() if args.from_catalog else None,
         )
     except RuntimeError as exc:
         print(f"probe failed: {exc}", file=sys.stderr)
@@ -302,6 +390,9 @@ def main(argv: list[str] | None = None) -> int:
             f"MISMATCH {mismatch['model']}: catalog-only "
             f"{mismatch['catalog_only']}; actual-only {mismatch['actual_only']}"
         )
+    for note in data["logical_notes"]:
+        print(f"LOGICAL {note['model']}: {note['logical_only']} "
+              "(reported by PT, never cableable, not a mismatch)")
     if data["errors"]:
         for entry in data["errors"]:
             print(f"ERROR {entry['model']}: {entry['error']}")

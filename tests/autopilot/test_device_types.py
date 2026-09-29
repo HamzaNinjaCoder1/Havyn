@@ -52,9 +52,11 @@ def test_l3_switch_uses_the_multilayer_switch_type():
 @pytest.mark.parametrize(
     "model,expected",
     [
+        # MCU-PT is deliberately absent from the catalog (S1.12: PT 9.0.1
+        # refuses to place it), so it is not a placeable model to type-map.
         ("HomeRouter-PT-AC", 28), ("Linksys-WRT300N", 11),
         ("Smart LED", 27), ("Solar Panel", 27), ("Thing", 27),
-        ("MCU-PT", 34), ("SBC-PT", 35), ("5506-X", 26),
+        ("SBC-PT", 35), ("5506-X", 26),
         ("Switch-PT", 1), ("Router-PT", 0), ("PC-PT", 8),
         ("WLC-PT", 7), ("Cell-Tower", 29),
         ("Meraki-MX65W", 0), ("Meraki-Server", 9), ("DLC100", 9),

@@ -84,21 +84,12 @@ def _ser(slot: str) -> PortSpec:
     return PortSpec(PortSpeed.SERIAL, slot)
 
 
-def _con(slot: str) -> PortSpec:
-    return PortSpec(PortSpeed.CONSOLE, slot)
-
-
 def _coax(slot: str) -> PortSpec:
     return PortSpec(PortSpeed.COAXIAL, slot)
 
 
 def _modem(slot: str) -> PortSpec:
     return PortSpec(PortSpeed.MODEM, slot)
-
-
-# Ports every router chassis exposes regardless of model: the fixed console
-# plus the onboard switching ports. Built once and reused per model.
-_CONSOLE = (_con("0"),)
 
 
 # ---------------------------------------------------------------------------
@@ -121,14 +112,16 @@ def _register(model: DeviceModel) -> DeviceModel:
 # and still reports success, so a phantom console port here would let a build
 # "succeed" while carrying no traffic. The Vlan1 SVI is created by
 # configuration, not by the chassis, so it is not an onboard port.
+# 2921/2951 are deliberately absent: PT 9.0.1's lw.addDevice answers "" for
+# both (measured live), so no build can place them. 4321/4331 place as
+# "ISR4321"/"ISR4331" (see pt_model_string) with triple-index GigE ports,
+# measured live after a publish settle.
 for _pt_type, _onboard in (
     ("2911", (_ge("0/0"), _ge("0/1"), _ge("0/2"))),
     ("2901", (_ge("0/0"), _ge("0/1"))),
-    ("2921", (_ge("0/0"), _ge("0/1"), _ge("0/2"), _ge("0/3"))),
-    ("2951", (_ge("0/0"), _ge("0/1"), _ge("0/2"))),
     ("1941", (_ge("0/0"), _ge("0/1"))),
-    ("4321", (_ge("0/0"), _ge("0/1"))),
-    ("4331", (_ge("0/0"), _ge("0/1"), _ge("0/2"))),
+    ("4321", (_ge("0/0/0"), _ge("0/0/1"))),
+    ("4331", (_ge("0/0/0"), _ge("0/0/1"), _ge("0/0/2"))),
 ):
     _register(DeviceModel(
         pt_type=_pt_type,
@@ -142,23 +135,25 @@ for _pt_type, _onboard in (
 
 # -- Switches ----------------------------------------------------------------
 
-for _pt_type in ("2960-24TT", "2950-24", "2950T-24"):
-    # Enumerated live: PT numbers these chassis' copper ports 0/1..0/24. There
-    # is NO FastEthernet0/0 — naming one here would have the port solver hand
-    # a link an interface PT does not have, and addLink refuses it with a bare
-    # 'false' that looks like a bad cable.
+# Enumerated live (S1.12 full probe, PT 9.0.1): 24xFE on all four; the two
+# uplink GEs exist on 2960-24TT/2950T-24/3560-24PS but NOT on 2950-24; NONE
+# of them reports a Console0 on the port surface, and a console cable to it
+# is refused live - so no Console0 anywhere. There is NO FastEthernet0/0:
+# naming one here would have the port solver hand a link an interface PT
+# does not have, and addLink refuses it with a bare 'false' that looks
+# like a bad cable.
+for _pt_type in ("2960-24TT", "2950T-24", "3560-24PS"):
     _register(DeviceModel(
         pt_type=_pt_type,
         category="switch",
         ports=tuple(_fe(f"0/{i}") for i in range(1, 25))
-        + (_ge("0/1"), _ge("0/2")) + _CONSOLE,
+        + (_ge("0/1"), _ge("0/2")),
         module_slots=(),
     ))
 
 _register(DeviceModel(
-    pt_type="3560-24PS", category="switch",
-    ports=tuple(_fe(f"0/{i}") for i in range(1, 25))
-    + (_ge("0/1"), _ge("0/2")) + _CONSOLE,
+    pt_type="2950-24", category="switch",
+    ports=tuple(_fe(f"0/{i}") for i in range(1, 25)),
     module_slots=(),
 ))
 
@@ -204,13 +199,13 @@ def _ap_ports() -> tuple[PortSpec, ...]:
 
     PT names an access point's ports positionally rather than after a speed
     family. "Port 0" is where a wired client cables in, and it is "Port 1"
-    that the antenna attaches to.
+    that the antenna attaches to. Enumerated live (S1.12): PT reports exactly
+    these two - "Port 2".."Port 15" never exist, and handing one to addLink
+    is refused.
     """
     return (
         PortSpec(PortSpeed.ETHERNET, "0", "Port 0"),
         PortSpec(PortSpeed.WIRELESS, "1", "Port 1"),
-    ) + tuple(
-        PortSpec(PortSpeed.ETHERNET, str(i), f"Port {i}") for i in range(2, 16)
     )
 
 
@@ -221,8 +216,9 @@ _register(DeviceModel(
 ))
 # PT ships several AP chassis under AccessPoint-PT-<variant>; they behave the
 # same for association purposes.
-for _ap_type in ("AccessPoint-PT-AC", "AccessPoint-PT-A", "AccessPoint-PT-N",
-                 "AccessPoint-PT-AG"):
+# AccessPoint-PT-AG is deliberately absent: PT 9.0.1 places its siblings but
+# answers "" for -AG under every role tried (measured live, S1.12).
+for _ap_type in ("AccessPoint-PT-AC", "AccessPoint-PT-A", "AccessPoint-PT-N"):
     _register(DeviceModel(
         pt_type=_ap_type, category="accesspoint",
         ports=_ap_ports(),
@@ -234,9 +230,11 @@ for _ap_type in ("AccessPoint-PT-AC", "AccessPoint-PT-A", "AccessPoint-PT-N",
 # Linksys-WRT300N, registered below. Declaring the phantom one let a spec ask
 # for a device PT would not create: lwAddDevice returns the name it was given
 # even when it adds nothing, so the build only failed at the read-back.
+# Enumerated live (S1.12): a single GigabitEthernet0 (plus a Vlan1 the probe
+# acknowledges as logical, never cableable).
 _register(DeviceModel(
     pt_type="WLC-PT", category="wlc",
-    ports=(_ge("0"), _ge("1"), _ge("2"), _ge("3"), _ge("4"), _ge("5")),
+    ports=(_ge("0"),),
     module_slots=("0", "1", "2", "3", "4", "5", "6"),
 ))
 
@@ -274,17 +272,13 @@ for _pt_type in ("DSL-Modem-PT", "Cable-Modem-PT"):
 
 # -- Phones ------------------------------------------------------------------
 
+# IP-Phone-PT is deliberately absent: PT 9.0.1 refuses to place it (measured
+# live, S1.12); the placeable phone is the 7960 below, which is also the
+# "phone" alias default.
 _register(DeviceModel(
-    pt_type="IP-Phone-PT", category="ip_phone",
-    ports=(_fe("0"), _fe("1")),
-    module_slots=(),
-))
-
-# -- Security appliance represented as an independent firewall ----------------
-
-_register(DeviceModel(
-    pt_type="Cisco-PT-Firewall", category="firewall",
-    ports=(_ge("0/0"), _ge("0/1")) + _CONSOLE,
+    pt_type="Analog-Phone-PT", category="analog_phone",
+    # Enumerated live (S1.12): a single "Port 0", not FastEthernet0.
+    ports=(PortSpec(PortSpeed.MODEM_PORT, "0", "Port 0"),),
     module_slots=(),
 ))
 
@@ -339,18 +333,22 @@ _register(DeviceModel(
 _register(DeviceModel(
     pt_type="Switch-PT", category="switch",
     # Enumerated live: the generic chassis presents FastEthernet0/1 .. 5/1.
-    # As with the 2960 there is no "0/0".
-    ports=tuple(_fe(f"{i}/1") for i in range(0, 6)) + _CONSOLE,
+    # As with the 2960 there is no "0/0" and no Console0 (S1.12: PT neither
+    # reports it nor accepts a console cable to it).
+    ports=tuple(_fe(f"{i}/1") for i in range(0, 6)),
     module_slots=(),
 ))
+# Enumerated live (S1.12): the bridge answers Ethernet0/1 + Ethernet1/1
+# (plus a Vlan1 the probe acknowledges as logical), the repeater answers
+# Ethernet0 + Ethernet1. The old FastEthernet guesses were never reported.
 _register(DeviceModel(
     pt_type="Bridge-PT", category="bridge",
-    ports=tuple(_fe(f"0/{i}") for i in range(8)),
+    ports=(_eth("0/1"), _eth("1/1")),
     module_slots=(),
 ))
 _register(DeviceModel(
     pt_type="Repeater-PT", category="repeater",
-    ports=tuple(_fe(f"0/{i}") for i in range(4)),
+    ports=(_eth("0"), _eth("1")),
     module_slots=(),
 ))
 _register(DeviceModel(
@@ -358,47 +356,69 @@ _register(DeviceModel(
     ports=(_coax("0"), _coax("1"), _coax("2")),
     module_slots=(),
 ))
+# Enumerated live (S1.12, PT 9.0.1 — created via the PT spellings in
+# pt_model_string): the patch panel answers 24 Jacks + 24 PunchDowns (PT's
+# "Copper Patch Panel", which also settles the roadmap's open type-code
+# note: it places as a switch, type 1); the sniffer answers two Ethernets;
+# the cell tower answers Coaxial0 (plus a "Cellular Server1" radio the probe
+# acknowledges as logical); the central office answers six coax lines (plus
+# Backbone/Cellular/Virtual-Access/Vlan1 the probe acknowledges); the
+# controller answers two GigabitEthernets, not Ethernets. MCU-PT is
+# deliberately absent: PT refuses to place it under any spelling tried.
 _register(DeviceModel(
     pt_type="Copper-Patch-Panel", category="patch_panel",
-    ports=tuple(_fe(f"0/{i}") for i in range(12)),
+    ports=tuple(
+        PortSpec(PortSpeed.ETHERNET, str(i), f"Jack{i}") for i in range(1, 25)
+    ) + tuple(
+        PortSpec(PortSpeed.ETHERNET, str(i), f"PunchDown{i}")
+        for i in range(1, 25)
+    ),
     module_slots=(),
 ))
 _register(DeviceModel(
     pt_type="Cell-Tower", category="cell_tower",
-    ports=(_eth("0"), _eth("1")),
+    ports=(PortSpec(PortSpeed.COAXIAL, "0", "Coaxial0"),),
     module_slots=(),
 ))
 _register(DeviceModel(
     pt_type="Central-Office-Server", category="central_office",
-    ports=tuple(_eth(str(i)) for i in range(4)),
+    ports=tuple(
+        PortSpec(PortSpeed.COAXIAL, f"0/{i}", f"Coaxial0/{i}")
+        for i in range(6)
+    ),
     module_slots=("0", "1", "2", "3", "4", "5", "6"),
 ))
 _register(DeviceModel(
     pt_type="Sniffer-PT", category="sniffer",
-    ports=(_eth("0"),),
-    module_slots=(),
-))
-_register(DeviceModel(
-    pt_type="MCU-PT", category="mcu",
-    ports=(_eth("0"),),
+    ports=(_eth("0"), _eth("1")),
     module_slots=(),
 ))
 _register(DeviceModel(
     pt_type="SBC-PT", category="sbc",
-    ports=(_eth("0"),),
+    ports=(),
     module_slots=(),
 ))
 _register(DeviceModel(
     pt_type="Network-Controller", category="network_controller",
-    ports=(_eth("0"), _eth("1")),
+    ports=(_ge("0"), _ge("1")),
     module_slots=(),
 ))
 
 # -- Meraki chassis: MX is a router, Meraki-Server is a server --------------
 
+# Enumerated live (S1.12): the MX answers spaced-name Ethernets
+# ("GigabitEthernet 3".."10", "Ethernet 11"/"12") plus Dialer/Internet/
+# Virtual-Access/Wireless/Vlan1 the probe acknowledges as logical. The old
+# GigabitEthernet0/0+0/1+Console0 were never reported.
 _register(DeviceModel(
     pt_type="Meraki-MX65W", category="meraki",
-    ports=(_ge("0/0"), _ge("0/1")) + _CONSOLE,
+    ports=tuple(
+        PortSpec(PortSpeed.GIGABIT_ETHERNET, str(i), f"GigabitEthernet {i}")
+        for i in range(3, 11)
+    ) + tuple(
+        PortSpec(PortSpeed.ETHERNET, str(i), f"Ethernet {i}")
+        for i in (11, 12)
+    ),
     module_slots=(),
 ))
 _register(DeviceModel(
@@ -409,54 +429,73 @@ _register(DeviceModel(
 
 # -- IP phones ---------------------------------------------------------------
 
-# 7960 carries an integrated 3-port switch: two phone-side FE plus a PC port.
+# 7960: enumerated live (S1.12), PT reports exactly "Switch" (the wall side)
+# and "PC" (the passthrough) plus a Vlan1 the probe acknowledges as logical.
+# The old FastEthernet0/1/2 names were never reported and made the solver
+# hand T11-style phone links an interface PT refuses.
 _register(DeviceModel(
     pt_type="7960", category="ip_phone",
-    ports=(_fe("0"), _fe("1"), _fe("2")),
-    module_slots=(),
-))
-_register(DeviceModel(
-    pt_type="Analog-Phone-PT", category="analog_phone",
-    ports=(_fe("0"),),
+    ports=(
+        PortSpec(PortSpeed.FAST_ETHERNET, "0", "Switch"),
+        PortSpec(PortSpeed.FAST_ETHERNET, "1", "PC"),
+    ),
     module_slots=(),
 ))
 
 # -- Smart-home / IoT endpoints (PT's "end device" family) -------------------
 
-for _pt_type in ("TV-PT", "Tablet-PT", "PDA-PT", "WirelessEndDevice-PT",
-                 "WiredEndDevice-PT", "TabletPC-PT", "SMARTPHONE-PT"):
+# Enumerated live (S1.12, PT 9.0.1): Tablet-PT and PDA-PT are not placeable
+# under any spelling tried, so they are absent. The radio-only chassis carry
+# no cableable port - their Wireless0/Bluetooth interfaces are acknowledged
+# by the probe as logical, never diffed.
+_register(DeviceModel(
+    pt_type="TV-PT", category="end_device",
+    ports=(PortSpec(PortSpeed.MODEM_PORT, "0", "Port 0"),),
+    module_slots=("0",),
+))
+_register(DeviceModel(
+    pt_type="WirelessEndDevice-PT", category="end_device",
+    ports=(),
+    module_slots=("0",),
+))
+_register(DeviceModel(
+    pt_type="WiredEndDevice-PT", category="end_device",
+    ports=(_fe("0"),),
+    module_slots=("0",),
+))
+for _pt_type in ("TabletPC-PT", "SMARTPHONE-PT"):
     _register(DeviceModel(
         pt_type=_pt_type, category="end_device",
-        ports=(_eth("0"),),
+        ports=(),
         module_slots=("0",),
     ))
 
-# PT's IoE family. Enumerated live: add each model and read the workspace back.
-# "Smart LED" is the only one of these that PT will actually create *and* that
-# exposes a copper port, so it is the one a wired smart-home build can use.
-# "Fan" is RF-only (Wireless0 + Bluetooth) and "Thing" exposes no ports at all,
-# so neither can be cabled to a switch - claiming FastEthernet0 for them made
-# the port solver hand out a link PT refuses.
+# PT's IoE family, measured live one by one (S1.12, PT 9.0.1): every one of
+# these places via its PT spelling (see pt_model_string) and enumerates the
+# ports below. "Smart LED", "Fire Monitor" and "Trip Sensor" expose real
+# copper, so a wired smart-home build can use them; the rest are RF-only
+# (Wireless0/Bluetooth, acknowledged by the probe as logical) or portless.
+# Claiming FastEthernet0 for an RF-only thing made the port solver hand out
+# a link PT refuses. Smart-Lock/Smart-Plug are deliberately absent: PT
+# creates nothing observable for either spelling tried.
 _IOT_PORTS: dict[str, tuple[PortSpec, ...]] = {
     "Thing": (),
     "Smart-LED": (_fe("0"),),
     "Fan": (PortSpec(PortSpeed.WIRELESS, "0"),),
     "Solar-Panel": (PortSpec(PortSpeed.WIRELESS, "0"),),
-    "Fire-Monitor": (PortSpec(PortSpeed.WIRELESS, "0"),),
-    "CO2-Sensor": (PortSpec(PortSpeed.WIRELESS, "0"),),
-    "Humidity-Sensor": (PortSpec(PortSpeed.WIRELESS, "0"),),
+    "Fire-Monitor": (_fe("0"),),
+    "Trip-Sensor": (_fe("0"),),
+    "CO2-Sensor": (),
+    "Humidity-Sensor": (),
+    "Door-Sensor": (),
+    "Motion-Sensor": (),
+    "Garage-Door": (),
+    "Web-Cam": (_ge("3"),),
 }
-# Declared for completeness, but PT refused to add every one of these in the
-# live probe, so their port shape is unverified and must not be relied on.
-_IOT_UNVERIFIED = (
-    "Trip-Sensor", "Door-Sensor", "Motion-Sensor", "Smart-Lock",
-    "Smart-Plug", "Web-Cam", "Garage-Door",
-)
-_IOT_TYPES = tuple(_IOT_PORTS) + _IOT_UNVERIFIED
-for _iot_type in _IOT_TYPES:
+for _iot_type, _iot_ports in _IOT_PORTS.items():
     _register(DeviceModel(
         pt_type=_iot_type, category="iot",
-        ports=_IOT_PORTS.get(_iot_type, (_fe("0"),)),
+        ports=_iot_ports,
         module_slots=("0",),
     ))
 
@@ -498,9 +537,15 @@ _register(DeviceModel(
 ))
 
 # DLC100: PT's "digital light controller" — a server-class host.
+# Enumerated live (S1.12): four spaced Ethernets plus an "Internet" WAN port
+# (plus Virtual-Access1/Vlan1/Wireless the probe acknowledges as logical).
+# The old FastEthernet0 was never reported.
 _register(DeviceModel(
     pt_type="DLC100", category="server",
-    ports=(_fe("0"),),
+    ports=tuple(
+        PortSpec(PortSpeed.ETHERNET, str(i), f"Ethernet {i}")
+        for i in range(1, 5)
+    ) + (PortSpec(PortSpeed.MODEM_PORT, "0", "Internet"),),
     module_slots=("0", "1", "2", "3", "4", "5", "6"),
 ))
 

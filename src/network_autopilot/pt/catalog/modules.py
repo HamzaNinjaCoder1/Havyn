@@ -70,19 +70,19 @@ _register(ModuleSpec(
     name="HWIC-2T", module_type=2, category="router_hwic",
     ports_added=_ports(PortSpeed.SERIAL, 2),
     description="2-port high-speed serial (HWIC)",
-    compatible_with=("2911", "2901", "2921", "2951", "1941", "Router-PT"),
+    compatible_with=("2911", "2901", "1941", "Router-PT"),
 ))
 _register(ModuleSpec(
     name="HWIC-4T", module_type=3, category="router_hwic",
     ports_added=_ports(PortSpeed.SERIAL, 4),
     description="4-port high-speed serial (HWIC)",
-    compatible_with=("2911", "2921", "2951", "Router-PT"),
+    compatible_with=("2911", "Router-PT"),
 ))
 _register(ModuleSpec(
     name="HWIC-8A", module_type=4, category="router_hwic",
     ports_added=_ports(PortSpeed.SERIAL, 8),
     description="8-port async serial (HWIC)",
-    compatible_with=("2911", "2921", "2951", "Router-PT"),
+    compatible_with=("2911", "Router-PT"),
 ))
 
 # -- Ethernet modules --------------------------------------------------------
@@ -91,21 +91,21 @@ _register(ModuleSpec(
     name="HWIC-1GE-SFP", module_type=5, category="router_hwic",
     ports_added=(f"{PortSpeed.GIGABIT_ETHERNET.value}0/0/0",),
     description="1-port Gigabit SFP (HWIC)",
-    compatible_with=("2911", "2901", "2921", "2951", "1941"),
+    compatible_with=("2911", "2901", "1941"),
 ))
 _register(ModuleSpec(
     name="HWIC-4ESW", module_type=6, category="router_hwic",
     ports_added=tuple(
         f"{PortSpeed.FAST_ETHERNET.value}0/0/{i}" for i in range(4)),
     description="4-port Ethernet switch (HWIC)",
-    compatible_with=("2911", "2901", "2921", "2951", "1941"),
+    compatible_with=("2911", "2901", "1941"),
 ))
 _register(ModuleSpec(
     name="NME-16ES-2P", module_type=7, category="router_nm",
     ports_added=tuple(
         f"{PortSpeed.FAST_ETHERNET.value}1/{i}" for i in range(16)),
     description="16-port Ethernet switch (NME)",
-    compatible_with=("2911", "2921", "2951"),
+    compatible_with=("2911"),
 ))
 
 # -- Wireless modules --------------------------------------------------------
@@ -114,7 +114,7 @@ _register(ModuleSpec(
     name="HWIC-AP-AG-B", module_type=8, category="router_hwic",
     ports_added=(f"{PortSpeed.WIRELESS.value}0/0/0",),
     description="802.11a/b/g access point (HWIC)",
-    compatible_with=("2911", "2901", "2921", "2951", "1941"),
+    compatible_with=("2911", "2901", "1941"),
 ))
 
 # -- PT-family modules (hosts, cloud, laptop) --------------------------------
@@ -161,8 +161,6 @@ _register(ModuleSpec(
 _SERIAL_MODULES: dict[str, str] = {
     "2911": "HWIC-2T",
     "2901": "HWIC-2T",
-    "2921": "HWIC-2T",
-    "2951": "HWIC-2T",
     "1941": "HWIC-2T",
 }
 

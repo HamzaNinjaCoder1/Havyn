@@ -43,7 +43,6 @@ MODEL_SPELLINGS: dict[str, tuple[str, str]] = {
     "hub": ("Hub-PT", "Hub-PT"),
     "laptop": ("Laptop-PT", "Laptop-PT"),
     "linksys": ("Linksys-WRT300N", "Linksys-WRT300N"),
-    "mcu": ("MCU-PT", "MCU-PT"),
     "modem": ("DSL-Modem-PT", "DSL-Modem-PT"),
     "pc": ("PC-PT", "PC-PT"),
     "printer": ("Printer-PT", "Printer-PT"),
@@ -127,10 +126,11 @@ _MODEL_ALIASES: dict[str, str] = {
     # Cell tower / central office
     "cell-tower": "Cell-Tower",
     "central-office": "Central-Office-Server",
-    # Phone: this package's default is PT's generic IP Phone; the MCP catalog
-    # does not carry that model and defaults to a smartphone / the 7960.
-    "phone": "IP-Phone-PT",
-    "ip_phone": "IP-Phone-PT",
+    # Phone: PT 9.0.1 refuses to place "IP-Phone-PT" (measured live: silent
+    # addDevice failure), so the default is the 7960, whose PC/Switch ports
+    # enumerate live.
+    "phone": "7960",
+    "ip_phone": "7960",
 }
 _MODEL_ALIASES.update(
     {key: ap_key for key, (ap_key, _mc_key) in MODEL_SPELLINGS.items()}
@@ -143,3 +143,18 @@ def canonical_model_name(name: str) -> str:
         return ""
     key = name.strip().lower()
     return _MODEL_ALIASES.get(key, key)
+
+
+def pt_model_string(catalog_key: str) -> str:
+    """The model string PT's addDevice wants for an autopilot catalog key.
+
+    Mostly the key itself ("2911", "2960-24TT"); the exceptions are PT's own
+    spellings from MODEL_SPELLINGS ("4321" -> "ISR4321", "Smart-LED" ->
+    "Smart LED", ...). Passing the autopilot key for those makes
+    lw.addDevice fail silently while the receipt still says success, so
+    every create path must go through here (S1.12, measured live on PT 9.0.1).
+    """
+    for autopilot_key, pt_key in MODEL_SPELLINGS.values():
+        if autopilot_key == catalog_key:
+            return pt_key
+    return catalog_key
