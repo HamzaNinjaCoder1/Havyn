@@ -208,6 +208,16 @@ class PacketTracerAdapter(ABC):
         prevent (P1-5).
         """
 
+    def read_routing_table(self, device: str) -> Observable[list]:
+        """Structured route table for one device, or an honest UNKNOWN.
+
+        Concrete default (S1.11/F7): an adapter with no console reads reports
+        NOT_OBSERVED, so the route-missing rule stays silent instead of
+        guessing. The live Packet Tracer adapter overrides this with a real
+        `show ip route` read-back.
+        """
+        return Observable[list].not_observed()
+
     # -- convenience --------------------------------------------------------
 
     def observe_state(

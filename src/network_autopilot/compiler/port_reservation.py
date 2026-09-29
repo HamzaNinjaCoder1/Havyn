@@ -14,9 +14,7 @@ from typing import Any
 from ..core.ids import utc_now_iso
 from .port_solver import (
     ModuleRequirement,
-    PortPlan,
     PortResolution,
-    PortConstraint,
     solve_ports,
 )
 
@@ -88,109 +86,6 @@ class PortReservationSystem:
     # device -> {interface -> operation_id}
 
     # -- pre-execution reservation --------------------------------------
-
-    def reserve(
-        self,
-        plan: PortPlan,
-        operation_id: str = "",
-    ) -> tuple[list[PortReservation], list[str]]:
-        """Reserve all ports in a PortPlan BEFORE execution.
-
-        Returns (reservations, blocked_reasons). If any reservation
-        fails, the blocked_reason list has entries explaining why.
-        """
-        reservations: list[PortReservation] = []
-        blocked: list[str] = []
-
-        for key, resolution in plan.resolutions.items():
-            device = resolution.device
-            iface = resolution.interface
-
-            # Check if port is already reserved by another operation
-            if self._is_reserved(device, iface):
-                existing_op = self.device_reservations[device][iface]
-                blocked.append(
-                    f"PORT CONFLICT: {device}:{iface} already reserved by {existing_op}"
-                )
-                res = PortReservation(
-                    reservation_id=f"res-{key}",
-                    device=device,
-                    interface=iface,
-                    media=resolution.media,
-                    status=ReservationStatus.FAILED,
-                    reason=ReservationReason.PORT_IN_USE,
-                    module_name=resolution.module_required,
-                    slot=resolution.slot,
-                    reserved_at=utc_now_iso(),
-                    operation_id=operation_id,
-                )
-                self.reservations[f"res-{key}"] = res
-                continue
-
-            # Check module requirement
-            if resolution.module_required:
-                mod = self._check_module(
-                    resolution.device, resolution.module_required
-                )
-                if not mod:
-                    blocked.append(
-                        f"MISSING MODULE: {device}:{iface} requires "
-                        f"{resolution.module_required}"
-                    )
-                    res = PortReservation(
-                        reservation_id=f"res-{key}",
-                        device=device,
-                        interface=iface,
-                        media=resolution.media,
-                        status=ReservationStatus.FAILED,
-                        reason=ReservationReason.MISSING_MODULE,
-                        module_name=resolution.module_required,
-                        slot=resolution.slot,
-                        reserved_at=utc_now_iso(),
-                        operation_id=operation_id,
-                    )
-                    self.reservations[f"res-{key}"] = res
-                    continue
-
-            # Check media compatibility
-            if resolution.constraint != PortConstraint.COMPATIBLE:
-                blocked.append(
-                    f"INCOMPATIBLE: {device}:{iface} — "
-                    f"{resolution.constraint.value}: {resolution.reason}"
-                )
-                res = PortReservation(
-                    reservation_id=f"res-{key}",
-                    device=device,
-                    interface=iface,
-                    media=resolution.media,
-                    status=ReservationStatus.FAILED,
-                    reason=ReservationReason.INCOMPATIBLE_MEDIA,
-                    module_name=resolution.module_required,
-                    slot=resolution.slot,
-                    reserved_at=utc_now_iso(),
-                    operation_id=operation_id,
-                )
-                self.reservations[f"res-{key}"] = res
-                continue
-
-            # Reserve it
-            res = PortReservation(
-                reservation_id=f"res-{key}",
-                device=device,
-                interface=iface,
-                media=resolution.media,
-                status=ReservationStatus.RESERVED,
-                reason=ReservationReason.OK,
-                module_name=resolution.module_required,
-                slot=resolution.slot,
-                reserved_at=utc_now_iso(),
-                operation_id=operation_id,
-            )
-            self.reservations[f"res-{key}"] = res
-            self._mark_reserved(device, iface, operation_id)
-            reservations.append(res)
-
-        return reservations, blocked
 
     def reserve_single(
         self,
@@ -282,10 +177,3 @@ class PortReservationSystem:
 
     def _mark_reserved(self, device: str, interface: str, op_id: str) -> None:
         self.device_reservations.setdefault(device, {})[interface] = op_id
-
-    def _check_module(
-        self, device: str, module_name: str
-    ) -> bool:
-        """Check if a module exists in the catalog."""
-        from ..pt.catalog import resolve_module
-        return resolve_module(module_name) is not None

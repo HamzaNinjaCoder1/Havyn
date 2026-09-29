@@ -619,8 +619,15 @@ class Autopilot:
         t_repair = time.monotonic()
         repairs: list[dict[str, Any]] = []
         if report.summary.get("fail", 0) > 0 or diff.drift_count:
-            from .diagnosis.engine import diagnose
+            from .diagnosis.engine import diagnose, fill_missing_routes
 
+            # S1.11/F7 wiring: the route-missing rule needs observed route
+            # tables, and this is the only path that fills them — failure
+            # path only, so green builds pay nothing. A adapter that cannot
+            # read routes reports NOT_OBSERVED and the rule stays silent.
+            fill_missing_routes(
+                spec, merged_state, self.adapter.read_routing_table
+            )
             diagnoses = diagnose(spec, report, merged_state)
             repair_engine = RepairEngine(self.adapter, self.gate, evidence, spec=spec)
             for diagnosis in diagnoses:

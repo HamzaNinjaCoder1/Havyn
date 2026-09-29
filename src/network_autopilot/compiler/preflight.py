@@ -169,6 +169,82 @@ class PreflightValidator:
                     ))
                     errors.append(f"module {mod_req.module_name} not found")
 
+        # 2b. interface_hint subnet fit (S1.9/F6): a hint that names a port on
+        # the WRONG side (a LAN address on the WAN-facing port) builds green and
+        # then gives 100% loss. The hinted port must lead, across the solved
+        # cable graph, to the subnet's own members; if it does not, refuse with
+        # the correct port named. A subnet whose only addressed member is the
+        # device itself (a WAN pointed at an unaddressed ISP endpoint) has no
+        # members to reach, so it is not judged here.
+        if port_plan is not None:
+            subnet_members: dict[str, set[str]] = {}
+            for assignment in plan.assignments:
+                if assignment.ip:
+                    subnet_members.setdefault(assignment.subnet_id, set()).add(
+                        assignment.device
+                    )
+            neighbours: dict[str, list[tuple[str, str]]] = {}
+            for endpoints in port_plan.link_endpoints.values():
+                a_dev, a_port, b_dev, b_port = endpoints
+                neighbours.setdefault(a_dev, []).append((a_port, b_dev))
+                neighbours.setdefault(b_dev, []).append((b_port, a_dev))
+
+            for assignment in plan.assignments:
+                if not assignment.interface_hint or not assignment.ip:
+                    continue
+                hint = assignment.interface_hint
+                if _is_virtual_interface(hint):
+                    # An SVI (Vlan1/Vlan2) or radio has no cable of its own:
+                    # its traffic rides the switchport the VLAN joins, so the
+                    # cable-graph test does not apply. The compiler's own SVI
+                    # resolution (ASA 5505 / home gateway) already owns that
+                    # mapping.
+                    continue
+                members = subnet_members.get(assignment.subnet_id, set()) - {
+                    assignment.device
+                }
+                if not members:
+                    continue
+                if _interface_leads_to_member(
+                    assignment.device, hint, members, neighbours
+                ):
+                    continue
+                interfaces = sorted({
+                    resolution.interface
+                    for resolution in port_plan.resolutions.values()
+                    if resolution.device == assignment.device
+                })
+                correct = [
+                    iface
+                    for iface in interfaces
+                    if _interface_leads_to_member(
+                        assignment.device, iface, members, neighbours
+                    )
+                ]
+                suggestion = (
+                    "use " + ", ".join(correct) if correct
+                    else "no interface on this device reaches that subnet"
+                )
+                detail = (
+                    f"{assignment.device}:{hint} does not lead to subnet "
+                    f"{assignment.subnet_id} ({assignment.ip}) — {suggestion}"
+                )
+                checks.append(PreflightCheck(
+                    name=(
+                        f"interface_hint_{assignment.device}_"
+                        f"{assignment.subnet_id}"
+                    ),
+                    category="interface_hint",
+                    status=PreflightLevel.FAIL,
+                    detail=detail,
+                    evidence=(f"hint={hint}", f"subnet={assignment.subnet_id}"),
+                ))
+                errors.append(
+                    f"interface_hint {assignment.device}:{hint} is on the wrong "
+                    f"side for subnet {assignment.subnet_id} ({assignment.ip}); "
+                    f"{suggestion}"
+                )
+
         # 3. Reservation check (if reservation system is available)
         if self.reservation_system and self.reservation_system.reservations:
             unresolved = self.reservation_system.unresolved()
@@ -219,6 +295,55 @@ class PreflightValidator:
 def _known_roles() -> set:
     from ..core.network_spec import DeviceRole
     return set(DeviceRole)
+
+
+def _is_virtual_interface(iface: str) -> bool:
+    """An interface with no cable of its own: an SVI or a radio.
+
+    `Vlan12` must be matched as a prefix but not confused with a physical
+    `Vlan`-named port; PT has no such port, so the prefix rule is exact here.
+    """
+    name = (iface or "").strip().lower()
+    return (
+        name.startswith("vlan")
+        or name.startswith("wireless")
+        or name.startswith("wlan")
+        or name.startswith("dot11")
+        or name.startswith("loopback")
+    )
+
+
+def _interface_leads_to_member(
+    device: str,
+    iface: str,
+    members: set[str],
+    neighbours: dict[str, list[tuple[str, str]]],
+) -> bool:
+    """Does the cable from `device:iface` reach any of `members`?
+
+    BFS across the solved cable graph, never back through `device` itself, so
+    an interface is judged by where it actually leads — the LAN-facing port
+    reaches the LAN members, the WAN port does not.
+    """
+    start = next(
+        (nb for my_iface, nb in neighbours.get(device, []) if my_iface == iface),
+        None,
+    )
+    if start is None:
+        return False
+    seen = {device}
+    frontier = [start]
+    while frontier:
+        nxt: list[str] = []
+        for node in frontier:
+            if node in seen:
+                continue
+            seen.add(node)
+            if node in members:
+                return True
+            nxt.extend(nb for _, nb in neighbours.get(node, []))
+        frontier = nxt
+    return False
 
 
 def run_preflight(

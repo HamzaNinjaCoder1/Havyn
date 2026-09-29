@@ -584,14 +584,14 @@ _LINKSYS_SPEC = {
 }
 
 
-def _linksys_repair_engine():
+def _linksys_repair_engine(mode: SafetyMode = SafetyMode.AUTONOMOUS):
     from src.network_autopilot.diagnosis.engine import Diagnosis
 
     spec = NetworkSpec.model_validate(_LINKSYS_SPEC)
     plan = plan_addressing(spec)
     engine = RepairEngine(
         NullAdapter(),
-        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        SafetyGate(mode, MutationBudget(max_mutations=100)),
         spec=spec,
     )
     diagnosis = Diagnosis(
@@ -650,3 +650,30 @@ def test_rollback_of_a_linksys_address_pushes_the_port_api_too():
 
     assert outcome.rolled_back, outcome.blocked_reason
     assert pushed == [("wr", "192.168.0.1", "255.255.255.0")]
+
+
+def test_rollback_in_read_only_mode_never_touches_the_adapter():
+    """S1.11 / F8: rollback is a mutation path like any other. In READ_ONLY
+    mode the safety gate must stop it BEFORE the adapter is written to —
+    the whole point of the gate is that no mutation path bypasses it."""
+    engine, plan, diagnosis = _linksys_repair_engine(SafetyMode.READ_ONLY)
+    engine._prior_values["wr"] = {
+        "device": "wr",
+        "ports": {
+            "Vlan1": {"ip": "192.168.0.1", "mask": "255.255.255.0", "gateway": None}
+        },
+    }
+    pushed: list[tuple] = []
+
+    def _capture(device, ip, mask, operation_id=None):
+        pushed.append((device, ip, mask))
+        return None
+
+    engine.adapter.configure_gateway_lan = _capture  # type: ignore[method-assign]
+    repair_plan = engine.plan_repair(diagnosis, plan)
+    outcome = engine.rollback(repair_plan)
+
+    assert not outcome.rolled_back, "READ_ONLY rollback must not report success"
+    assert pushed == [], f"adapter was written in READ_ONLY mode: {pushed}"
+    assert outcome.blocked_reason, "a blocked rollback must say why"
+    assert "READ_ONLY" in outcome.blocked_reason, outcome.blocked_reason

@@ -549,36 +549,6 @@ def js_link_peer_check_expr(
     )
 
 
-def js_both_ports_linked_expr(
-    a_device: str, a_port: str, b_device: str, b_port: str
-) -> str:
-    """'yes' when BOTH named ports currently have a link attached.
-
-    Uses only the verified Port surface (getPortCount/getPortAt/getName/
-    getLink) behind guards, mirroring the upstream port-reader pattern.
-
-    The inner helper takes the device/port NAMES as its own JS parameters;
-    the Python values are interpolated only at the two call sites (found
-    live: interpolating inside the helper referenced undefined names).
-    """
-    return (
-        "(function(){"
-        "function linked(dn,pn){"
-        "var d=ipc.network().getDevice(dn);"
-        "if(!d){return false;}"
-        "var n=d.getPortCount();"
-        "for(var i=0;i<n;i++){"
-        "var p=d.getPortAt(i);"
-        "if(!p){continue;}"
-        "if(String(p.getName())===pn){"
-        "return (typeof p.getLink==='function') ? !!p.getLink() : false;}"
-        "}return false;}"
-        "return (linked(" + _q(a_device) + "," + _q(a_port) + ") && "
-        "linked(" + _q(b_device) + "," + _q(b_port) + ")) ? 'yes' : 'no';"
-        "})()"
-    )
-
-
 # -- topology read-back (deep inspection) -------------------------------------
 #
 # PROVENANCE: adapted from the upstream tool_registry `_LIVE_DEVICES_JS`

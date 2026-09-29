@@ -687,7 +687,12 @@ class RepairEngine:
         )
 
     def rollback(self, repair_plan: RepairPlan) -> RepairOutcome:
-        """Restore prior observed values where the adapter can write them."""
+        """Restore prior observed values where the adapter can write them.
+
+        S1.11/F8: every write here goes through the safety gate FIRST — a
+        rollback is a mutation like any other, so READ_ONLY/DRY_RUN/APPROVAL
+        refusal stops it before the adapter is touched.
+        """
         outcome = RepairOutcome(
             repair_id=repair_plan.repair_id,
             attempt=self.attempts,
@@ -699,34 +704,63 @@ class RepairEngine:
             if self.evidence is not None:
                 self.evidence.record("rollback_failed", outcome.to_dict(), component="repair")
             return outcome
-        try:
-            for device, snapshot in self._prior_values.items():
-                # #10: a Linksys cannot be restored through configure_host
-                # (configurePcIp is unproven on it) - its prior Vlan1 address
-                # goes back through the port API, like every other gateway
-                # write. A port whose mask was never read stays untouched:
-                # pushing half an address would be worse than not restoring.
-                gateway = (
-                    self._spec is not None
-                    and _role_of(self._spec, device) == "wireless_router"
-                )
-                for _port, values in snapshot["ports"].items():
-                    if values["ip"] is None:
+        # Plan first (which restores go where), then gate the whole batch,
+        # then execute only what the gate authorized.
+        actions: list[tuple[str, str, dict[str, Any]]] = []
+        requested: list[dict[str, Any]] = []
+        for device, snapshot in self._prior_values.items():
+            # #10: a Linksys cannot be restored through configure_host
+            # (configurePcIp is unproven on it) - its prior Vlan1 address
+            # goes back through the port API, like every other gateway
+            # write. A port whose mask was never read stays untouched:
+            # pushing half an address would be worse than not restoring.
+            gateway = (
+                self._spec is not None
+                and _role_of(self._spec, device) == "wireless_router"
+            )
+            for _port, values in snapshot["ports"].items():
+                if values["ip"] is None:
+                    continue
+                if gateway:
+                    if values["mask"] is None:
                         continue
-                    if gateway:
-                        if values["mask"] is None:
-                            continue
-                        self.adapter.configure_gateway_lan(
-                            device, values["ip"], values["mask"]
-                        )
-                    else:
-                        self.adapter.configure_host(
-                            device,
-                            dhcp=False,
-                            ip=values["ip"],
-                            mask=values["mask"],
-                            gateway=values["gateway"],
-                        )
+                    actions.append(("gateway", device, values))
+                    requested.append({
+                        "operation_type": "configure_gateway_lan",
+                        "device": device,
+                        "ip": values["ip"],
+                        "mask": values["mask"],
+                    })
+                else:
+                    actions.append(("host", device, values))
+                    requested.append({
+                        "operation_type": "configure_host",
+                        "device": device,
+                        "ip": values["ip"],
+                        "mask": values["mask"],
+                        "gateway": values["gateway"],
+                    })
+        permission = self.gate.authorize(requested)
+        if not permission.execute:
+            reason = _gate_denial_reason(permission) or "safety gate denied the rollback"
+            outcome.blocked_reason = f"rollback blocked: {reason}"
+            if self.evidence is not None:
+                self.evidence.record("rollback", outcome.to_dict(), component="repair")
+            return outcome
+        try:
+            for kind, device, values in actions:
+                if kind == "gateway":
+                    self.adapter.configure_gateway_lan(
+                        device, values["ip"], values["mask"]
+                    )
+                else:
+                    self.adapter.configure_host(
+                        device,
+                        dhcp=False,
+                        ip=values["ip"],
+                        mask=values["mask"],
+                        gateway=values["gateway"],
+                    )
             outcome.rolled_back = True
         except Exception as exc:
             outcome.blocked_reason = f"rollback failed: {exc}"
@@ -741,3 +775,12 @@ def _role_of(spec: Any, device_id: str) -> str:
     """The spec's role for a device, tolerating a `device:port` resource id."""
     device = spec.device_by_id(device_id.partition(":")[0])
     return str(getattr(getattr(device, "role", None), "value", ""))
+
+
+def _gate_denial_reason(permission: Any) -> str | None:
+    """The gate's stated reason for refusing, from its planned receipts."""
+    for receipt in getattr(permission, "planned_receipts", None) or []:
+        reason = (receipt.evidence or {}).get("reason")
+        if reason:
+            return str(reason)
+    return None

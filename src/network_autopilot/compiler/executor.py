@@ -605,7 +605,17 @@ class DagExecutor:
             self._fail(node, op.operation_id, result, receipt.error or "create failed")
 
     def _reconcile_device(self, op) -> list[dict]:
-        """Inspect an existing device and generate a semantic diff against the spec."""
+        """Reuse is observe -> diff -> reconcile -> confirm, not just observe.
+
+        A device that already exists may carry config the spec no longer asks
+        for (an operator's leftover, a crashed earlier build). The normal
+        configure push only SETS what the spec wants, so an extra address
+        survives the build and the device never equals the spec (F5). Here the
+        observed addresses are diffed against the addresses this very DAG's
+        config operations ask for; the extras are removed through the safety
+        gate and the removal is confirmed by read-back. Everything the spec
+        does want is left to the normal configure op.
+        """
         name = op.inputs["name"]
         obs = self.adapter.inspect_device(name)
         expected_model = op.inputs.get("model")
@@ -621,41 +631,121 @@ class DagExecutor:
                 "needs_mutation": True,
             })
 
-        # Compare observed IPs against expected
-        ip_observations: list[dict] = []
-        for port_name, port_obs in obs.ports.items():
-            if port_obs.ip.is_known:
-                ip_observations.append({
-                    "port": port_name,
-                    "ip": port_obs.ip.value,
-                    "mask": port_obs.mask.value if port_obs.mask.is_known else None,
-                })
-        if ip_observations:
+        expected_ips = self._expected_addresses_for(name)
+        extras: list[dict] = []
+        for port_name, port_obs in sorted(obs.ports.items()):
+            if not (port_obs.ip.is_known and port_obs.ip.value):
+                continue
+            ip = str(port_obs.ip.value)
+            if ip == "0.0.0.0":  # PT's Bluetooth placeholder, not a real address
+                continue
+            if ip not in expected_ips:
+                extras.append({"port": port_name, "ip": ip})
+
+        if extras:
             reconciliation.append({
-                "field": "port_ips",
-                "actual": ip_observations,
+                "field": "extra_addresses",
+                "actual": extras,
+                "expected": sorted(expected_ips),
                 "needs_mutation": True,
             })
+            self._reconcile_remove_extras(name, extras, reconciliation)
 
-        # Compare routes
+        # Control-plane read-back is reported, never acted on here: routes and
+        # VLANs are re-pushed by their own configure op, and guessing a removal
+        # set from a partial read is exactly the speculation this project bans.
         if hasattr(obs, "routes") and obs.routes.is_known and obs.routes.value:
             actual_routes = obs.routes.value if isinstance(obs.routes.value, list) else [obs.routes.value]
             reconciliation.append({
                 "field": "routes",
                 "actual": actual_routes,
-                "needs_mutation": True,
+                "needs_mutation": False,
             })
-
-        # Compare VLANs
         if hasattr(obs, "vlans") and obs.vlans.is_known and obs.vlans.value:
             actual_vlans = obs.vlans.value if isinstance(obs.vlans.value, list) else [obs.vlans.value]
             reconciliation.append({
                 "field": "vlans",
                 "actual": actual_vlans,
-                "needs_mutation": True,
+                "needs_mutation": False,
             })
 
         return reconciliation
+
+    def _expected_addresses_for(self, device: str) -> set[str]:
+        """Every address the spec asks for on `device`, read off this DAG.
+
+        Sourced from the compiled configure ops themselves, so the reconcile
+        compares against exactly what the build is about to push — not a
+        parallel re-derivation that could drift from the compiler.
+        """
+        expected: set[str] = set()
+        if self._dag is None:
+            return expected
+        for node in self._dag.nodes.values():
+            op = node.operation
+            inputs = op.inputs
+            if op.operation_type == "configure_ios" and inputs.get("device") == device:
+                for command in inputs.get("commands") or []:
+                    stripped = command.strip()
+                    if stripped.lower().startswith("ip address "):
+                        parts = stripped.split()
+                        if len(parts) >= 3:
+                            expected.add(parts[2])
+            elif op.operation_type == "configure_host" and inputs.get("device") == device:
+                ip = inputs.get("ip")
+                if ip:
+                    expected.add(str(ip))
+            elif (
+                op.operation_type == "configure_gateway_lan"
+                and inputs.get("device") == device
+            ):
+                ip = inputs.get("ip")
+                if ip:
+                    expected.add(str(ip))
+        return expected
+
+    def _reconcile_remove_extras(
+        self, device: str, extras: list[dict], reconciliation: list[dict]
+    ) -> None:
+        """Remove stale addresses through the gate, then confirm by read-back."""
+        commands: list[str] = []
+        for entry in extras:
+            commands.extend([f"interface {entry['port']}", "no ip address", "exit"])
+        permission = self.gate.authorize([
+            {
+                "operation_type": "configure_ios",
+                "device": device,
+                "commands": commands,
+            }
+        ])
+        if not permission.execute:
+            reconciliation.append({
+                "field": "removal_refused",
+                "detail": "safety gate did not authorize the reconcile removal",
+                "ports": [e["port"] for e in extras],
+                "needs_mutation": True,
+            })
+            return
+        receipt = self.adapter.configure_ios(device, commands)
+        self._record(receipt)
+        after = self.adapter.inspect_device(device)
+        removed: list[dict] = []
+        remaining: list[dict] = []
+        for entry in extras:
+            port_obs = after.ports.get(entry["port"])
+            still_there = (
+                port_obs is not None
+                and port_obs.ip.is_known
+                and port_obs.ip.value
+                and str(port_obs.ip.value) == entry["ip"]
+            )
+            (remaining if still_there else removed).append(entry)
+        reconciliation.append({
+            "field": "removal_readback",
+            "removed": removed,
+            "remaining": remaining,
+            "needs_mutation": False,
+        })
 
     def _op_install_wireless_radio(self, op, node, result: ExecutionResult) -> None:
         """Put a wireless NIC in a host so it can associate at all."""

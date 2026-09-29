@@ -12,15 +12,52 @@ Rules:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from ..core.actual_state import ActualNetworkState
 from ..core.ids import new_id
 from ..core.network_spec import NetworkSpec
+from ..core.observability import Observable
 from ..core.requirements import Verdict
 from ..verification.engine import VerificationReport
 
 _EMPTY_READ = "runtime returned an empty value"
+
+
+def fill_missing_routes(
+    spec: NetworkSpec,
+    state: ActualNetworkState,
+    reader: Callable[[str], Observable] | None,
+) -> int:
+    """Observe route tables for the devices the spec gives static routes to.
+
+    S1.11/F7 wiring: the route-missing rule weighs observed tables, but
+    nothing used to fill `DeviceObservation.routes` on the live path. This
+    reads only what the rule can use, only for route-bearing devices, and
+    only when the field is not already KNOWN. A missing or failing reader
+    leaves the field untouched — NOT_OBSERVED is evidence of nothing, so the
+    rule stays silent rather than guessing (rule 7). Returns tables filled.
+    """
+    if reader is None:
+        return 0
+    filled = 0
+    seen: set[str] = set()
+    for route in spec.routing.static_routes:
+        device_id = route.device
+        if device_id in seen:
+            continue
+        seen.add(device_id)
+        observed = state.devices.get(device_id)
+        if observed is None or observed.routes.is_known:
+            continue
+        try:
+            table = reader(device_id)
+        except Exception:
+            continue
+        if table is not None and getattr(table, "is_known", False):
+            observed.routes = table
+            filled += 1
+    return filled
 
 
 @dataclass(frozen=True)
@@ -230,6 +267,71 @@ def diagnose(
                 )
             )
 
+    # 3b. route-missing rule (S1.10/F7): a flow that fails while the destination
+    # subnet is absent from the observed route table has a specific cause - the
+    # router is missing the route the spec asked for. The repair re-pushes that
+    # spec route. An UNKNOWN route table is not evidence, so it stays silent.
+    for test in report.tests:
+        if test.level != "connectivity" or test.verdict is Verdict.PASS:
+            continue
+        destination = state.devices.get(test.target or "")
+        if destination is None:
+            continue
+        dest_ip = next(
+            (
+                str(p.ip.value)
+                for p in destination.ports.values()
+                if p.ip.is_known and p.ip.value and str(p.ip.value) != "0.0.0.0"
+            ),
+            None,
+        )
+        if not dest_ip:
+            continue
+        for route in spec.routing.static_routes:
+            device_id = route.device
+            if not _ip_in_network(dest_ip, route.destination):
+                continue
+            observed = state.devices.get(device_id)
+            if observed is None or not observed.routes.is_known:
+                continue
+            table = observed.routes.value or []
+            if any(
+                _ip_in_network(dest_ip, f"{r.get('network')}/{r.get('prefix')}")
+                for r in table
+            ):
+                continue
+            commands = _route_commands(route)
+            if not commands:
+                continue
+            diagnoses.append(
+                Diagnosis(
+                    diagnosis_id=new_id("diag"),
+                    failed_tests=(test.test_id,),
+                    root_cause=(
+                        f"route to {route.destination} is missing on {device_id}; "
+                        f"the flow to {dest_ip} cannot leave its subnet"
+                    ),
+                    evidence=(
+                        f"flow {test.source}->{test.target}: {test.observed_result}",
+                        f"observed route table on {device_id} has no entry for "
+                        f"{route.destination}",
+                    ),
+                    confidence="high",
+                    affected_resources=(device_id,),
+                    proposed_repair=(
+                        {
+                            "operation_type": "ios_command",
+                            "inputs": {
+                                "device": device_id,
+                                "commands": commands,
+                            },
+                            "reason": "re-push the spec's static route",
+                        },
+                    ),
+                    uncertainty=None,
+                )
+            )
+
     # 4. L2 failures: a switch whose VLAN table or trunk state does not match
     # (#29). The repair re-pushes the switch's own compiled block rather than
     # guessing individual lines, so it cannot drift from a build.
@@ -365,6 +467,34 @@ def diagnose(
         )
 
     return diagnoses
+
+
+def _ip_in_network(ip: str, network: str) -> bool:
+    """Is `ip` inside `network` (CIDR)? Pure stdlib, no guessing."""
+    import ipaddress
+
+    try:
+        return ipaddress.ip_address(ip) in ipaddress.ip_network(network, strict=False)
+    except ValueError:
+        return False
+
+
+def _route_commands(route) -> list[str]:
+    """Render the spec's static route as IOS CLI, from the spec itself."""
+    import ipaddress
+
+    try:
+        net = ipaddress.ip_network(route.destination, strict=False)
+    except ValueError:
+        return []
+    commands = [f"ip route {net.network_address} {net.netmask}"]
+    if route.next_hop:
+        commands[-1] += f" {route.next_hop}"
+    elif route.exit_interface:
+        commands[-1] += f" {route.exit_interface}"
+    else:
+        return []
+    return commands
 
 
 def _role_of(spec: NetworkSpec, device_id: str) -> str:

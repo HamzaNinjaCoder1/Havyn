@@ -159,6 +159,13 @@ class NullAdapter(PacketTracerAdapter):
             lowered = stripped.lower()
             if lowered.startswith("interface "):
                 current = stripped.split(None, 1)[1]
+            elif lowered.startswith("no ip address") and current:
+                # F5 reconcile: removing an address is a real config change the
+                # double must reflect, or a stale address would survive reuse and
+                # the read-back would "confirm" a state that is not there.
+                if current in info["ports"]:
+                    info["ports"][current]["config"].pop("ip", None)
+                    info["ports"][current]["config"].pop("mask", None)
             elif lowered.startswith("ip address ") and current:
                 parts = stripped.split()
                 if len(parts) >= 4 and current in info["ports"]:

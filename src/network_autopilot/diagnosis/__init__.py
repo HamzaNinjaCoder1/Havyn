@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .engine import Diagnosis, diagnose
+from .engine import Diagnosis, diagnose, fill_missing_routes
 
-__all__ = ["Diagnosis", "diagnose"]
+__all__ = ["Diagnosis", "diagnose", "fill_missing_routes"]
