@@ -1,0 +1,163 @@
+{
+ "name": "T04 HQ branch serial WAN",
+ "description": "HQ and branch routers back to back over a serial DCE link.",
+ "devices": [
+  {
+   "id": "hq",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "br",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "pc2",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-wan",
+   "a": {
+    "device": "hq",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "br",
+    "interface_hint": "Serial2/0"
+   },
+   "media": "serial"
+  },
+  {
+   "id": "l-hq-s1",
+   "a": {
+    "device": "hq"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-br-pc2",
+   "a": {
+    "device": "br"
+   },
+   "b": {
+    "device": "pc2"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "wan",
+   "cidr": "10.0.0.0/30"
+  },
+  {
+   "id": "hqlan",
+   "cidr": "10.0.1.0/24"
+  },
+  {
+   "id": "brlan",
+   "cidr": "10.0.2.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "hq",
+   "subnet": "wan",
+   "ip": "10.0.0.1",
+   "interface_hint": "Serial2/0"
+  },
+  {
+   "device": "br",
+   "subnet": "wan",
+   "ip": "10.0.0.2",
+   "interface_hint": "Serial2/0"
+  },
+  {
+   "device": "hq",
+   "subnet": "hqlan",
+   "ip": "10.0.1.1"
+  },
+  {
+   "device": "br",
+   "subnet": "brlan",
+   "ip": "10.0.2.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "hqlan"
+  },
+  {
+   "device": "pc2",
+   "subnet": "brlan"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Branch PC reaches HQ PC over the serial WAN"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc2 reaches pc1 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc2",
+    "destination": "pc1",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "serial link exists",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-wan"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {
+    "device": "hq",
+    "destination": "10.0.2.0/24",
+    "next_hop": "10.0.0.2"
+   },
+   {
+    "device": "br",
+    "destination": "10.0.1.0/24",
+    "next_hop": "10.0.0.1"
+   }
+  ]
+ }
+}

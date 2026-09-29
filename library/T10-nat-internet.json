@@ -1,0 +1,157 @@
+{
+ "name": "T10 NAT internet",
+ "description": "Border router overloads the LAN onto one public address.",
+ "devices": [
+  {
+   "id": "edge",
+   "role": "router"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "isp",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "srv",
+   "role": "server"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-edge-s1",
+   "a": {
+    "device": "edge"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-edge-isp",
+   "a": {
+    "device": "edge"
+   },
+   "b": {
+    "device": "isp"
+   }
+  },
+  {
+   "id": "l-isp-srv",
+   "a": {
+    "device": "isp"
+   },
+   "b": {
+    "device": "srv"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "lan",
+   "cidr": "192.168.20.0/24"
+  },
+  {
+   "id": "wan",
+   "cidr": "203.0.113.0/30"
+  },
+  {
+   "id": "pub",
+   "cidr": "198.51.100.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "edge",
+   "subnet": "lan",
+   "ip": "192.168.20.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "lan"
+  },
+  {
+   "device": "edge",
+   "subnet": "wan",
+   "ip": "203.0.113.1"
+  },
+  {
+   "device": "isp",
+   "subnet": "wan",
+   "ip": "203.0.113.2"
+  },
+  {
+   "device": "isp",
+   "subnet": "pub",
+   "ip": "198.51.100.1"
+  },
+  {
+   "device": "srv",
+   "subnet": "pub",
+   "ip": "198.51.100.10"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "LAN PC reaches the public server through PAT"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches srv (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "srv",
+    "expect": "reachable"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {
+    "device": "edge",
+    "destination": "0.0.0.0/0",
+    "next_hop": "203.0.113.2"
+   },
+   {
+    "device": "isp",
+    "destination": "192.168.20.0/24",
+    "next_hop": "203.0.113.1"
+   }
+  ],
+  "nat": [
+   {
+    "router": "edge",
+    "mode": "pat",
+    "inside_interface": "GigabitEthernet0/1",
+    "outside_interface": "GigabitEthernet0/0",
+    "inside_networks": [
+     "192.168.20.0/24"
+    ]
+   }
+  ]
+ }
+}

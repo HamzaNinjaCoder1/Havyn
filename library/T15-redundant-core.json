@@ -1,0 +1,156 @@
+{
+ "name": "T15 redundant core",
+ "description": "Dual-homed core: the physical topology builds, but HSRP failover and EtherChannel bundling have no render path, so the redundancy goal is pending verification.",
+ "devices": [
+  {
+   "id": "c1",
+   "role": "l3_switch",
+   "model_hint": "3560-24PS"
+  },
+  {
+   "id": "c2",
+   "role": "l3_switch",
+   "model_hint": "3560-24PS"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-c1-c2a",
+   "a": {
+    "device": "c1"
+   },
+   "b": {
+    "device": "c2"
+   }
+  },
+  {
+   "id": "l-c1-c2b",
+   "a": {
+    "device": "c1"
+   },
+   "b": {
+    "device": "c2"
+   }
+  },
+  {
+   "id": "l-c1-s1",
+   "a": {
+    "device": "c1"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-c2-s1",
+   "a": {
+    "device": "c2"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "transit",
+   "cidr": "10.0.0.0/29"
+  },
+  {
+   "id": "lan",
+   "cidr": "10.0.5.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "c1",
+   "subnet": "transit",
+   "ip": "10.0.0.1"
+  },
+  {
+   "device": "c2",
+   "subnet": "transit",
+   "ip": "10.0.0.2"
+  },
+  {
+   "device": "c1",
+   "subnet": "lan",
+   "ip": "10.0.5.1"
+  },
+  {
+   "device": "c2",
+   "subnet": "lan",
+   "ip": "10.0.5.2"
+  },
+  {
+   "device": "pc1",
+   "subnet": "lan",
+   "ip": "10.0.5.10"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Core links and uplinks exist as cabled"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "core mesh first link",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-c1-c2a"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "core mesh second link",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-c1-c2b"
+   }
+  },
+  {
+   "id": "A-3",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "core to access",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-c1-s1"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": []
+ }
+}

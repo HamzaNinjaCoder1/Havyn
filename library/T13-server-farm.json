@@ -1,0 +1,141 @@
+{
+ "name": "T13 server farm",
+ "description": "Two static servers behind a distribution switch, reachable LAN-wide.",
+ "devices": [
+  {
+   "id": "r1",
+   "role": "router"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "web",
+   "role": "server"
+  },
+  {
+   "id": "dns",
+   "role": "server"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-r1-s1",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-web",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "web"
+   }
+  },
+  {
+   "id": "l-s1-dns",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "dns"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "farm",
+   "cidr": "10.0.40.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "farm",
+   "ip": "10.0.40.1"
+  },
+  {
+   "device": "web",
+   "subnet": "farm",
+   "ip": "10.0.40.10"
+  },
+  {
+   "device": "dns",
+   "subnet": "farm",
+   "ip": "10.0.40.11"
+  },
+  {
+   "device": "pc1",
+   "subnet": "farm"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Clients reach both farm servers"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches web (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "web",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches dns (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "dns",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-3",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "web server addressed",
+   "test": {
+    "kind": "structural",
+    "check": "ip_assigned",
+    "target": "web",
+    "detail": "FastEthernet0"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

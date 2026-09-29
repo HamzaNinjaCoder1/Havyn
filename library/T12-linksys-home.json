@@ -1,0 +1,105 @@
+{
+ "name": "T12 Linksys home",
+ "description": "Linksys gateway with a wired PC and a wireless laptop.",
+ "devices": [
+  {
+   "id": "wr",
+   "role": "wireless_router"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "lap1",
+   "role": "laptop"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-wr-pc1",
+   "a": {
+    "device": "wr"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-wr-lap1",
+   "a": {
+    "device": "wr"
+   },
+   "b": {
+    "device": "lap1"
+   },
+   "media": "wireless"
+  }
+ ],
+ "subnets": [
+  {
+   "id": "lan",
+   "cidr": "192.168.0.0/24",
+   "dhcp": true
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "wr",
+   "subnet": "lan",
+   "ip": "192.168.0.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "lap1",
+   "subnet": "lan",
+   "dhcp": true
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Home devices share the LAN"
+  },
+  {
+   "id": "R-2",
+   "statement": "Laptop associates to the home gateway"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches lap1 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "lap1",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-2"
+   ],
+   "title": "lap1 associated to wr",
+   "test": {
+    "kind": "wireless",
+    "client": "lap1",
+    "access_point": "wr",
+    "interface": "Wireless0",
+    "expect": "associated"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

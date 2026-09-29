@@ -1,0 +1,104 @@
+{
+ "version": 1,
+ "specs": [
+  {
+   "id": "T01",
+   "file": "T01-small-office.json",
+   "title": "small office",
+   "status": "active"
+  },
+  {
+   "id": "T02",
+   "file": "T02-two-vlan-office.json",
+   "title": "two-VLAN office",
+   "status": "active"
+  },
+  {
+   "id": "T03",
+   "file": "T03-campus-l3-core.json",
+   "title": "3-floor campus",
+   "status": "active"
+  },
+  {
+   "id": "T04",
+   "file": "T04-serial-wan.json",
+   "title": "HQ+branch serial",
+   "status": "active"
+  },
+  {
+   "id": "T05",
+   "file": "T05-dsl-internet.json",
+   "title": "DSL internet",
+   "status": "active"
+  },
+  {
+   "id": "T06",
+   "file": "T06-home-cable.json",
+   "title": "home network",
+   "status": "active"
+  },
+  {
+   "id": "T07",
+   "file": "T07-asa-perimeter.json",
+   "title": "ASA inside/outside",
+   "status": "pending",
+   "pending_reason": "awaiting S1.16 live proof (ASA criteria + address-scoped ACL decision)"
+  },
+  {
+   "id": "T08",
+   "file": "T08-asa-dmz.json",
+   "title": "ASA DMZ",
+   "status": "pending",
+   "pending_reason": "awaiting S1.16 live proof (ASA criteria + address-scoped ACL decision)"
+  },
+  {
+   "id": "T09",
+   "file": "T09-ospf-backbone.json",
+   "title": "OSPF backbone",
+   "status": "active"
+  },
+  {
+   "id": "T10",
+   "file": "T10-nat-internet.json",
+   "title": "NAT internet",
+   "status": "active"
+  },
+  {
+   "id": "T11",
+   "file": "T11-wireless-office.json",
+   "title": "wireless office",
+   "status": "active"
+  },
+  {
+   "id": "T12",
+   "file": "T12-linksys-home.json",
+   "title": "Linksys home",
+   "status": "active"
+  },
+  {
+   "id": "T13",
+   "file": "T13-server-farm.json",
+   "title": "server farm",
+   "status": "active"
+  },
+  {
+   "id": "T14",
+   "file": "T14-iot-home.json",
+   "title": "IoT smart home",
+   "status": "active"
+  },
+  {
+   "id": "T15",
+   "file": "T15-redundant-core.json",
+   "title": "HSRP + EtherChannel core",
+   "status": "pending",
+   "pending_reason": "HSRP failover and EtherChannel bundling have no compiler render path; physical topology builds, redundancy goal unverified"
+  },
+  {
+   "id": "T16",
+   "file": "T16-enterprise-campus.json",
+   "title": "enterprise campus (reference)",
+   "status": "active"
+  }
+ ]
+}

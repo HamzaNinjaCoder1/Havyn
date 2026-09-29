@@ -1,0 +1,165 @@
+{
+ "name": "T01 small office",
+ "description": "Single router, one access switch, five DHCP PCs. Baseline lab.",
+ "devices": [
+  {
+   "id": "r1",
+   "role": "router"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "pc2",
+   "role": "pc"
+  },
+  {
+   "id": "pc3",
+   "role": "pc"
+  },
+  {
+   "id": "pc4",
+   "role": "pc"
+  },
+  {
+   "id": "pc5",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-r1-s1",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-s1-pc2",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc2"
+   }
+  },
+  {
+   "id": "l-s1-pc3",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc3"
+   }
+  },
+  {
+   "id": "l-s1-pc4",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc4"
+   }
+  },
+  {
+   "id": "l-s1-pc5",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc5"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "lan",
+   "cidr": "192.168.1.0/24",
+   "dhcp": true
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "lan",
+   "ip": "192.168.1.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "pc2",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "pc3",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "pc4",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "pc5",
+   "subnet": "lan",
+   "dhcp": true
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Every PC gets a DHCP address and reaches every other PC"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches pc5 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "pc5",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "uplink exists",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-r1-s1"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

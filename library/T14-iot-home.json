@@ -1,0 +1,117 @@
+{
+ "name": "T14 IoT smart home",
+ "description": "Wired IoT sensors on the gateway LAN ports, laptop controller on LAN.",
+ "devices": [
+  {
+   "id": "wr",
+   "role": "wireless_router"
+  },
+  {
+   "id": "led1",
+   "role": "iot"
+  },
+  {
+   "id": "led2",
+   "role": "iot"
+  },
+  {
+   "id": "lap1",
+   "role": "laptop"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-wr-led1",
+   "a": {
+    "device": "wr"
+   },
+   "b": {
+    "device": "led1"
+   }
+  },
+  {
+   "id": "l-wr-led2",
+   "a": {
+    "device": "wr"
+   },
+   "b": {
+    "device": "led2"
+   }
+  },
+  {
+   "id": "l-wr-lap1",
+   "a": {
+    "device": "wr"
+   },
+   "b": {
+    "device": "lap1"
+   },
+   "media": "wireless"
+  }
+ ],
+ "subnets": [
+  {
+   "id": "lan",
+   "cidr": "192.168.0.0/24",
+   "dhcp": true
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "wr",
+   "subnet": "lan",
+   "ip": "192.168.0.1"
+  },
+  {
+   "device": "led1",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "led2",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "lap1",
+   "subnet": "lan",
+   "dhcp": true
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Sensors join the LAN and the controller reaches them"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "lap1 reaches led1 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "lap1",
+    "destination": "led1",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "sensor cabled",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-wr-led1"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

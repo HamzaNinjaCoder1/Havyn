@@ -1,0 +1,175 @@
+{
+ "name": "T05 DSL internet",
+ "description": "Branch router out to the Internet through a DSL modem and cloud.",
+ "devices": [
+  {
+   "id": "r1",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "modem",
+   "role": "modem",
+   "model_hint": "DSL-Modem-PT"
+  },
+  {
+   "id": "cloud",
+   "role": "cloud",
+   "model_hint": "Cloud-PT"
+  },
+  {
+   "id": "isp",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "srv",
+   "role": "server"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-r1-s1",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-r1-modem",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "modem"
+   }
+  },
+  {
+   "id": "l-modem-cloud",
+   "a": {
+    "device": "modem"
+   },
+   "b": {
+    "device": "cloud"
+   }
+  },
+  {
+   "id": "l-cloud-isp",
+   "a": {
+    "device": "cloud"
+   },
+   "b": {
+    "device": "isp"
+   }
+  },
+  {
+   "id": "l-isp-srv",
+   "a": {
+    "device": "isp"
+   },
+   "b": {
+    "device": "srv"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "lan",
+   "cidr": "192.168.10.0/24"
+  },
+  {
+   "id": "wan",
+   "cidr": "203.0.113.0/30"
+  },
+  {
+   "id": "ispnet",
+   "cidr": "198.51.100.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "lan",
+   "ip": "192.168.10.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "lan"
+  },
+  {
+   "device": "r1",
+   "subnet": "wan",
+   "ip": "203.0.113.1"
+  },
+  {
+   "device": "isp",
+   "subnet": "wan",
+   "ip": "203.0.113.2"
+  },
+  {
+   "device": "isp",
+   "subnet": "ispnet",
+   "ip": "198.51.100.1"
+  },
+  {
+   "device": "srv",
+   "subnet": "ispnet",
+   "ip": "198.51.100.10"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "LAN PC reaches the Internet server through DSL+cloud"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches srv (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "srv",
+    "expect": "reachable"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {
+    "device": "r1",
+    "destination": "0.0.0.0/0",
+    "next_hop": "203.0.113.2"
+   },
+   {
+    "device": "isp",
+    "destination": "192.168.10.0/24",
+    "next_hop": "203.0.113.1"
+   }
+  ]
+ }
+}

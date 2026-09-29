@@ -1,0 +1,159 @@
+{
+ "name": "T03 three-floor campus",
+ "description": "Two 3560 L3 cores route between floors; 2960 access per floor.",
+ "devices": [
+  {
+   "id": "c1",
+   "role": "l3_switch",
+   "model_hint": "3560-24PS"
+  },
+  {
+   "id": "c2",
+   "role": "l3_switch",
+   "model_hint": "3560-24PS"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "s2",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "pc2",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-c1-c2",
+   "a": {
+    "device": "c1"
+   },
+   "b": {
+    "device": "c2"
+   }
+  },
+  {
+   "id": "l-c1-s1",
+   "a": {
+    "device": "c1"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-c2-s2",
+   "a": {
+    "device": "c2"
+   },
+   "b": {
+    "device": "s2"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-s2-pc2",
+   "a": {
+    "device": "s2"
+   },
+   "b": {
+    "device": "pc2"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "transit",
+   "cidr": "10.0.0.0/30"
+  },
+  {
+   "id": "floor1",
+   "cidr": "10.0.1.0/24"
+  },
+  {
+   "id": "floor2",
+   "cidr": "10.0.2.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "c1",
+   "subnet": "transit",
+   "ip": "10.0.0.1"
+  },
+  {
+   "device": "c2",
+   "subnet": "transit",
+   "ip": "10.0.0.2"
+  },
+  {
+   "device": "c1",
+   "subnet": "floor1",
+   "ip": "10.0.1.1"
+  },
+  {
+   "device": "c2",
+   "subnet": "floor2",
+   "ip": "10.0.2.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "floor1"
+  },
+  {
+   "device": "pc2",
+   "subnet": "floor2"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Floor 1 reaches floor 2 through the L3 core"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches pc2 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "pc2",
+    "expect": "reachable"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {
+    "device": "c1",
+    "destination": "10.0.2.0/24",
+    "next_hop": "10.0.0.2"
+   },
+   {
+    "device": "c2",
+    "destination": "10.0.1.0/24",
+    "next_hop": "10.0.0.1"
+   }
+  ]
+ }
+}

@@ -1,0 +1,1685 @@
+{
+ "spec_version": "1",
+ "name": "enterprise-campus-eval",
+ "description": "Multi-site enterprise network: HQ campus with router-on-a-stick inter-VLAN routing (VLAN 10/20/30) and DHCP, perimeter + data-center + branch ASA firewalls, branch office over a serial DCE WAN link, Internet via Cloud-PT + DSL modem, VLANs 10/20/30 with DHCP, IoT switch, wireless router with wireless laptops. 4 routers, 3 ASA, 6 switches, 16 PCs, 5 laptops, 5 IoT, 3 servers.",
+ "provenance": {
+  "author": "user",
+  "generator": "network_autopilot",
+  "source_prompt": "Complex production-level evaluation network: 16 PCs, 5 laptops, 3 ASA, 1 wireless router, IoT devices, multiple routers and switches, serial DCE link, Cloud-PT, VLANs, full acceptance testing.",
+  "notes": "Hand-authored typed spec. Every acceptance criterion traces to a requirement; negative (blocked) flows included."
+ },
+ "requirements": [
+  {
+   "id": "R-001",
+   "statement": "HQ users on different floors communicate (inter-VLAN routing).",
+   "kind": "connectivity"
+  },
+  {
+   "id": "R-002",
+   "statement": "HQ users and laptops reach data-center servers through the DC firewall.",
+   "kind": "connectivity"
+  },
+  {
+   "id": "R-003",
+   "statement": "Branch office reaches HQ and the data center over the serial WAN link.",
+   "kind": "connectivity"
+  },
+  {
+   "id": "R-004",
+   "statement": "All sites reach the Internet server through the Cloud/DSL path.",
+   "kind": "connectivity"
+  },
+  {
+   "id": "R-005",
+   "statement": "IoT Smart LEDs are created and cabled on a dedicated IoT switch (PT IoE things are provisioned by an IoT server, not by desktop IP config).",
+   "kind": "operational"
+  },
+  {
+   "id": "R-006",
+   "statement": "Only ICMP and HTTP are permitted through the firewalls; telnet is blocked.",
+   "kind": "isolation"
+  },
+  {
+   "id": "R-007",
+   "statement": "Each HQ user group (floor-1, floor-2, laptops) has its own VLAN, carried on 802.1Q trunks.",
+   "kind": "isolation"
+  },
+  {
+   "id": "R-008",
+   "statement": "HQ users get addressing via DHCP; servers, IoT and infrastructure are static.",
+   "kind": "addressing"
+  },
+  {
+   "id": "R-009",
+   "statement": "Wireless laptops associate to the HQ wireless router.",
+   "kind": "connectivity"
+  },
+  {
+   "id": "R-010",
+   "statement": "Perimeter ASA passes inside-initiated flows and blocks outside-initiated flows (S1.16: live proof pending).",
+   "kind": "isolation"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-001",
+   "requirement_ids": [
+    "R-001"
+   ],
+   "title": "Floor-1 PC reaches floor-2 PC (inter-VLAN)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "pc7",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-002",
+   "requirement_ids": [
+    "R-001"
+   ],
+   "title": "Floor-2 laptop reaches floor-1 PC",
+   "test": {
+    "kind": "flow",
+    "source": "lap2",
+    "destination": "pc6",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-003",
+   "requirement_ids": [
+    "R-002"
+   ],
+   "title": "HQ PC reaches DC server 1",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "srv1",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-004",
+   "requirement_ids": [
+    "R-002"
+   ],
+   "title": "HQ laptop reaches DC server 2",
+   "test": {
+    "kind": "flow",
+    "source": "lap1",
+    "destination": "srv2",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-005",
+   "requirement_ids": [
+    "R-003"
+   ],
+   "title": "Branch PC reaches DC server 2",
+   "test": {
+    "kind": "flow",
+    "source": "pc13",
+    "destination": "srv2",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-006",
+   "requirement_ids": [
+    "R-003"
+   ],
+   "title": "Branch PC reaches HQ laptop across serial WAN",
+   "test": {
+    "kind": "flow",
+    "source": "pc14",
+    "destination": "lap1",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-007",
+   "requirement_ids": [
+    "R-003"
+   ],
+   "title": "Branch PC reaches HQ PC",
+   "test": {
+    "kind": "flow",
+    "source": "pc15",
+    "destination": "pc4",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-008",
+   "requirement_ids": [
+    "R-003"
+   ],
+   "title": "Branch PC reaches DC server",
+   "test": {
+    "kind": "flow",
+    "source": "pc16",
+    "destination": "srv1",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-009",
+   "requirement_ids": [
+    "R-003"
+   ],
+   "title": "Branch laptop reaches branch PC",
+   "test": {
+    "kind": "flow",
+    "source": "lap3",
+    "destination": "pc16",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-010",
+   "requirement_ids": [
+    "R-004"
+   ],
+   "title": "HQ PC reaches Internet server via Cloud",
+   "test": {
+    "kind": "flow",
+    "source": "pc9",
+    "destination": "srvisp",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-011",
+   "requirement_ids": [
+    "R-004"
+   ],
+   "title": "Branch PC reaches Internet server via Cloud",
+   "test": {
+    "kind": "flow",
+    "source": "pc13",
+    "destination": "srvisp",
+    "expect": "reachable",
+    "transport": "icmp"
+   }
+  },
+  {
+   "id": "A-012",
+   "requirement_ids": [
+    "R-007"
+   ],
+   "title": "VLAN 10 defined",
+   "test": {
+    "kind": "structural",
+    "check": "vlan_defined",
+    "target": "10"
+   }
+  },
+  {
+   "id": "A-013",
+   "requirement_ids": [
+    "R-007"
+   ],
+   "title": "VLAN 20 defined",
+   "test": {
+    "kind": "structural",
+    "check": "vlan_defined",
+    "target": "20"
+   }
+  },
+  {
+   "id": "A-014",
+   "requirement_ids": [
+    "R-007"
+   ],
+   "title": "VLAN 30 defined",
+   "test": {
+    "kind": "structural",
+    "check": "vlan_defined",
+    "target": "30"
+   }
+  },
+  {
+   "id": "A-015",
+   "requirement_ids": [
+    "R-007"
+   ],
+   "title": "HQ router trunk to distribution switch",
+   "test": {
+    "kind": "structural",
+    "check": "trunk_configured",
+    "target": "rhq",
+    "detail": "GigabitEthernet0/0"
+   }
+  },
+  {
+   "id": "A-016",
+   "requirement_ids": [
+    "R-008"
+   ],
+   "title": "Floor-1 PC obtained DHCP address",
+   "test": {
+    "kind": "structural",
+    "check": "ip_assigned",
+    "target": "pc1",
+    "detail": "FastEthernet0"
+   }
+  },
+  {
+   "id": "A-017",
+   "requirement_ids": [
+    "R-008"
+   ],
+   "title": "Floor-2 laptop obtained DHCP address",
+   "test": {
+    "kind": "structural",
+    "check": "ip_assigned",
+    "target": "lap1",
+    "detail": "FastEthernet0"
+   }
+  },
+  {
+   "id": "A-018",
+   "requirement_ids": [
+    "R-005"
+   ],
+   "title": "IoT Smart LED exists",
+   "test": {
+    "kind": "structural",
+    "check": "device_exists",
+    "target": "iot1"
+   }
+  },
+  {
+   "id": "A-019",
+   "requirement_ids": [
+    "R-005"
+   ],
+   "title": "IoT Smart LED is cabled",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-swiot-iot1"
+   }
+  },
+  {
+   "id": "A-020",
+   "requirement_ids": [
+    "R-003"
+   ],
+   "title": "Serial WAN link exists",
+   "test": {
+    "kind": "structural",
+    "check": "link_exists",
+    "target": "l-serial"
+   }
+  },
+  {
+   "id": "A-021",
+   "requirement_ids": [
+    "R-009"
+   ],
+   "title": "lap4 associated to wireless router",
+   "test": {
+    "kind": "wireless",
+    "client": "lap4",
+    "access_point": "wr1",
+    "interface": "Wireless0",
+    "expect": "associated"
+   }
+  },
+  {
+   "id": "A-022",
+   "requirement_ids": [
+    "R-009"
+   ],
+   "title": "lap5 associated to wireless router",
+   "test": {
+    "kind": "wireless",
+    "client": "lap5",
+    "access_point": "wr1",
+    "interface": "Wireless0",
+    "expect": "associated"
+   }
+  },
+  {
+   "id": "A-023",
+   "requirement_ids": [
+    "R-008"
+   ],
+   "title": "DC server has static address",
+   "test": {
+    "kind": "structural",
+    "check": "ip_assigned",
+    "target": "srv1",
+    "detail": "FastEthernet0"
+   }
+  },
+  {
+   "id": "A-024",
+   "requirement_ids": [
+    "R-010",
+    "R-006"
+   ],
+   "title": "Outside cannot initiate to inside through the ASA",
+   "test": {
+    "kind": "flow",
+    "source": "srvisp",
+    "destination": "pc9",
+    "expect": "blocked",
+    "transport": "icmp"
+   }
+  }
+ ],
+ "devices": [
+  {
+   "id": "redge",
+   "role": "router",
+   "model_hint": "Router-PT",
+   "floor": "WAN",
+   "description": "WAN edge router: serial to branch, Internet via Cloud/DSL"
+  },
+  {
+   "id": "rhq",
+   "role": "router",
+   "model_hint": "2911",
+   "floor": "HQ",
+   "description": "HQ core router: router-on-a-stick inter-VLAN routing + DHCP"
+  },
+  {
+   "id": "rbr",
+   "role": "router",
+   "model_hint": "Router-PT",
+   "floor": "Branch",
+   "description": "Branch router: serial WAN to HQ"
+  },
+  {
+   "id": "risp",
+   "role": "router",
+   "model_hint": "Router-PT",
+   "floor": "ISP",
+   "description": "ISP router (simulated Internet)"
+  },
+  {
+   "id": "fwhq",
+   "role": "firewall",
+   "model_hint": "5506-X",
+   "floor": "HQ",
+   "description": "HQ perimeter firewall (ASA 5506-X)"
+  },
+  {
+   "id": "fwdc",
+   "role": "firewall",
+   "model_hint": "5506-X",
+   "floor": "DC",
+   "description": "Data-center firewall (ASA 5506-X)"
+  },
+  {
+   "id": "fwbr",
+   "role": "firewall",
+   "model_hint": "5505",
+   "floor": "Branch",
+   "description": "Branch firewall (ASA 5505)"
+  },
+  {
+   "id": "swcore",
+   "role": "switch",
+   "model_hint": "2960-24TT",
+   "floor": "HQ",
+   "description": "HQ distribution switch (trunks)"
+  },
+  {
+   "id": "swf1",
+   "role": "switch",
+   "model_hint": "2960-24TT",
+   "floor": "HQ",
+   "description": "HQ floor-1 access switch"
+  },
+  {
+   "id": "swf2",
+   "role": "switch",
+   "model_hint": "2960-24TT",
+   "floor": "HQ",
+   "description": "HQ floor-2 access switch"
+  },
+  {
+   "id": "swiot",
+   "role": "switch",
+   "model_hint": "2950-24",
+   "floor": "HQ",
+   "description": "IoT access switch"
+  },
+  {
+   "id": "swdc",
+   "role": "switch",
+   "model_hint": "3560-24PS",
+   "floor": "DC",
+   "description": "Data-center server switch"
+  },
+  {
+   "id": "swbr",
+   "role": "switch",
+   "model_hint": "2960-24TT",
+   "floor": "Branch",
+   "description": "Branch access switch"
+  },
+  {
+   "id": "cloud1",
+   "role": "cloud",
+   "model_hint": "Cloud-PT",
+   "floor": "WAN",
+   "description": "Internet cloud (DSL)"
+  },
+  {
+   "id": "dsl1",
+   "role": "modem",
+   "model_hint": "DSL-Modem-PT",
+   "floor": "ISP",
+   "description": "ISP DSL modem (phone cable to Cloud)"
+  },
+  {
+   "id": "wr1",
+   "role": "wireless_router",
+   "model_hint": "Linksys-WRT300N",
+   "floor": "HQ",
+   "description": "HQ wireless router (Linksys WRT300N) for wireless laptops"
+  },
+  {
+   "id": "srv1",
+   "role": "server",
+   "model_hint": "Server-PT",
+   "floor": "DC",
+   "description": "DC server 1 (web)"
+  },
+  {
+   "id": "srv2",
+   "role": "server",
+   "model_hint": "Server-PT",
+   "floor": "DC",
+   "description": "DC server 2"
+  },
+  {
+   "id": "srvisp",
+   "role": "server",
+   "model_hint": "Server-PT",
+   "floor": "ISP",
+   "description": "Public Internet server"
+  },
+  {
+   "id": "pc1",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-1 PC"
+  },
+  {
+   "id": "pc2",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-1 PC"
+  },
+  {
+   "id": "pc3",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-1 PC"
+  },
+  {
+   "id": "pc4",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-1 PC"
+  },
+  {
+   "id": "pc5",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-1 PC"
+  },
+  {
+   "id": "pc6",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-1 PC"
+  },
+  {
+   "id": "pc7",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 PC"
+  },
+  {
+   "id": "pc8",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 PC"
+  },
+  {
+   "id": "pc9",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 PC"
+  },
+  {
+   "id": "pc10",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 PC"
+  },
+  {
+   "id": "pc11",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 PC"
+  },
+  {
+   "id": "pc12",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 PC"
+  },
+  {
+   "id": "pc13",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "Branch",
+   "description": "Branch PC"
+  },
+  {
+   "id": "pc14",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "Branch",
+   "description": "Branch PC"
+  },
+  {
+   "id": "pc15",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "Branch",
+   "description": "Branch PC"
+  },
+  {
+   "id": "pc16",
+   "role": "pc",
+   "model_hint": "PC-PT",
+   "floor": "Branch",
+   "description": "Branch PC"
+  },
+  {
+   "id": "lap1",
+   "role": "laptop",
+   "model_hint": "Laptop-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 laptop"
+  },
+  {
+   "id": "lap2",
+   "role": "laptop",
+   "model_hint": "Laptop-PT",
+   "floor": "HQ",
+   "description": "HQ floor-2 laptop"
+  },
+  {
+   "id": "lap3",
+   "role": "laptop",
+   "model_hint": "Laptop-PT",
+   "floor": "Branch",
+   "description": "Branch laptop"
+  },
+  {
+   "id": "lap4",
+   "role": "laptop",
+   "model_hint": "Laptop-PT",
+   "floor": "HQ",
+   "description": "Wireless laptop (associates to wr1)"
+  },
+  {
+   "id": "lap5",
+   "role": "laptop",
+   "model_hint": "Laptop-PT",
+   "floor": "HQ",
+   "description": "Wireless laptop (associates to wr1)"
+  },
+  {
+    "id": "iot1",
+    "role": "iot",
+   "model_hint": "Smart LED",
+   "floor": "HQ",
+   "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
+  },
+  {
+    "id": "iot2",
+    "role": "iot",
+   "model_hint": "Smart LED",
+   "floor": "HQ",
+   "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
+  },
+  {
+    "id": "iot3",
+    "role": "iot",
+   "model_hint": "Smart LED",
+   "floor": "HQ",
+   "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
+  },
+  {
+    "id": "iot4",
+    "role": "iot",
+   "model_hint": "Smart LED",
+   "floor": "HQ",
+   "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
+  },
+  {
+    "id": "iot5",
+    "role": "iot",
+   "model_hint": "Smart LED",
+   "floor": "HQ",
+   "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-edge-fwhq",
+   "a": {
+    "device": "redge",
+    "interface_hint": "FastEthernet0/0"
+   },
+   "b": {
+    "device": "fwhq",
+    "interface_hint": "GigabitEthernet1/1"
+   }
+  },
+  {
+   "id": "l-fwhq-rhq",
+   "a": {
+    "device": "fwhq",
+    "interface_hint": "GigabitEthernet1/2"
+   },
+   "b": {
+    "device": "rhq",
+    "interface_hint": "GigabitEthernet0/1"
+   }
+  },
+  {
+   "id": "l-rhq-swcore",
+   "a": {
+    "device": "rhq",
+    "interface_hint": "GigabitEthernet0/0"
+   },
+   "b": {
+    "device": "swcore",
+    "interface_hint": "GigabitEthernet0/1"
+   },
+   "trunk": true
+  },
+  {
+   "id": "l-rhq-fwdc",
+   "a": {
+    "device": "rhq",
+    "interface_hint": "GigabitEthernet0/2"
+   },
+   "b": {
+    "device": "fwdc",
+    "interface_hint": "GigabitEthernet1/1"
+   }
+  },
+  {
+   "id": "l-fwdc-swdc",
+   "a": {
+    "device": "fwdc",
+    "interface_hint": "GigabitEthernet1/2"
+   },
+   "b": {
+    "device": "swdc",
+    "interface_hint": "GigabitEthernet0/1"
+   }
+  },
+  {
+   "id": "l-swcore-swf1",
+   "a": {
+    "device": "swcore",
+    "interface_hint": "FastEthernet0/1"
+   },
+   "b": {
+    "device": "swf1",
+    "interface_hint": "GigabitEthernet0/1"
+   },
+   "trunk": true
+  },
+  {
+   "id": "l-swcore-swf2",
+   "a": {
+    "device": "swcore",
+    "interface_hint": "FastEthernet0/2"
+   },
+   "b": {
+    "device": "swf2",
+    "interface_hint": "GigabitEthernet0/1"
+   },
+   "trunk": true
+  },
+  {
+   "id": "l-swcore-swiot",
+   "a": {
+    "device": "swcore",
+    "interface_hint": "FastEthernet0/3"
+   },
+   "b": {
+    "device": "swiot",
+    "interface_hint": "FastEthernet0/24"
+   }
+  },
+  {
+   "id": "l-swf1-wr1",
+   "a": {
+    "device": "swf1",
+    "interface_hint": "FastEthernet0/24"
+   },
+   "b": {
+    "device": "wr1"
+   }
+  },
+  {
+   "id": "l-wl-lap4",
+   "a": {
+    "device": "lap4"
+   },
+   "b": {
+    "device": "wr1"
+   },
+   "media": "wireless"
+  },
+  {
+   "id": "l-wl-lap5",
+   "a": {
+    "device": "lap5"
+   },
+   "b": {
+    "device": "wr1"
+   },
+   "media": "wireless"
+  },
+  {
+   "id": "l-serial",
+   "a": {
+    "device": "redge",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "rbr",
+    "interface_hint": "Serial2/0"
+   },
+   "media": "serial"
+  },
+  {
+   "id": "l-edge-cloud",
+   "a": {
+    "device": "redge",
+    "interface_hint": "FastEthernet1/0"
+   },
+   "b": {
+    "device": "cloud1"
+   }
+  },
+  {
+   "id": "l-cloud-dsl",
+   "a": {
+    "device": "cloud1"
+   },
+   "b": {
+    "device": "dsl1"
+   }
+  },
+  {
+   "id": "l-dsl-isp",
+   "a": {
+    "device": "dsl1"
+   },
+   "b": {
+    "device": "risp",
+    "interface_hint": "FastEthernet0/0"
+   }
+  },
+  {
+   "id": "l-isp-srv",
+   "a": {
+    "device": "risp",
+    "interface_hint": "FastEthernet1/0"
+   },
+   "b": {
+    "device": "srvisp",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-rbr-fwbr",
+   "a": {
+    "device": "rbr",
+    "interface_hint": "FastEthernet0/0"
+   },
+   "b": {
+    "device": "fwbr",
+    "interface_hint": "Ethernet0/0"
+   }
+  },
+  {
+   "id": "l-fwbr-swbr",
+   "a": {
+    "device": "fwbr",
+    "interface_hint": "Ethernet0/1"
+   },
+   "b": {
+    "device": "swbr",
+    "interface_hint": "GigabitEthernet0/1"
+   }
+  },
+  {
+   "id": "l-swdc-srv1",
+   "a": {
+    "device": "swdc",
+    "interface_hint": "FastEthernet0/1"
+   },
+   "b": {
+    "device": "srv1",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swdc-srv2",
+   "a": {
+    "device": "swdc",
+    "interface_hint": "FastEthernet0/2"
+   },
+   "b": {
+    "device": "srv2",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf1-pc1",
+   "a": {
+    "device": "swf1",
+    "interface_hint": "FastEthernet0/1"
+   },
+   "b": {
+    "device": "pc1",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf1-pc2",
+   "a": {
+    "device": "swf1",
+    "interface_hint": "FastEthernet0/2"
+   },
+   "b": {
+    "device": "pc2",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf1-pc3",
+   "a": {
+    "device": "swf1",
+    "interface_hint": "FastEthernet0/3"
+   },
+   "b": {
+    "device": "pc3",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf1-pc4",
+   "a": {
+    "device": "swf1",
+    "interface_hint": "FastEthernet0/4"
+   },
+   "b": {
+    "device": "pc4",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf1-pc5",
+   "a": {
+    "device": "swf1",
+    "interface_hint": "FastEthernet0/5"
+   },
+   "b": {
+    "device": "pc5",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf1-pc6",
+   "a": {
+    "device": "swf1",
+    "interface_hint": "FastEthernet0/6"
+   },
+   "b": {
+    "device": "pc6",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-pc7",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/1"
+   },
+   "b": {
+    "device": "pc7",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-pc8",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/2"
+   },
+   "b": {
+    "device": "pc8",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-pc9",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/3"
+   },
+   "b": {
+    "device": "pc9",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-pc10",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/4"
+   },
+   "b": {
+    "device": "pc10",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-pc11",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/5"
+   },
+   "b": {
+    "device": "pc11",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-pc12",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/6"
+   },
+   "b": {
+    "device": "pc12",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-lap1",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/7"
+   },
+   "b": {
+    "device": "lap1",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swf2-lap2",
+   "a": {
+    "device": "swf2",
+    "interface_hint": "FastEthernet0/8"
+   },
+   "b": {
+    "device": "lap2",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swbr-pc13",
+   "a": {
+    "device": "swbr",
+    "interface_hint": "FastEthernet0/1"
+   },
+   "b": {
+    "device": "pc13",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swbr-pc14",
+   "a": {
+    "device": "swbr",
+    "interface_hint": "FastEthernet0/2"
+   },
+   "b": {
+    "device": "pc14",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swbr-pc15",
+   "a": {
+    "device": "swbr",
+    "interface_hint": "FastEthernet0/3"
+   },
+   "b": {
+    "device": "pc15",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swbr-pc16",
+   "a": {
+    "device": "swbr",
+    "interface_hint": "FastEthernet0/4"
+   },
+   "b": {
+    "device": "pc16",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swbr-lap3",
+   "a": {
+    "device": "swbr",
+    "interface_hint": "FastEthernet0/5"
+   },
+   "b": {
+    "device": "lap3",
+    "interface_hint": "FastEthernet0"
+   }
+  },
+  {
+   "id": "l-swiot-iot1",
+   "a": {
+    "device": "swiot",
+    "interface_hint": "FastEthernet0/1"
+   },
+   "b": {
+    "device": "iot1"
+   }
+  },
+  {
+   "id": "l-swiot-iot2",
+   "a": {
+    "device": "swiot",
+    "interface_hint": "FastEthernet0/2"
+   },
+   "b": {
+    "device": "iot2"
+   }
+  },
+  {
+   "id": "l-swiot-iot3",
+   "a": {
+    "device": "swiot",
+    "interface_hint": "FastEthernet0/3"
+   },
+   "b": {
+    "device": "iot3"
+   }
+  },
+  {
+   "id": "l-swiot-iot4",
+   "a": {
+    "device": "swiot",
+    "interface_hint": "FastEthernet0/4"
+   },
+   "b": {
+    "device": "iot4"
+   }
+  },
+  {
+   "id": "l-swiot-iot5",
+   "a": {
+    "device": "swiot",
+    "interface_hint": "FastEthernet0/5"
+   },
+   "b": {
+    "device": "iot5"
+   }
+  }
+ ],
+ "vlans": [
+  {
+   "vlan_id": 10,
+   "name": "HQ-FLOOR1",
+   "purpose": "HQ floor-1 users"
+  },
+  {
+   "vlan_id": 20,
+   "name": "HQ-FLOOR2",
+   "purpose": "HQ floor-2 users and laptops"
+  },
+  {
+   "vlan_id": 30,
+   "name": "LAPTOPS",
+   "purpose": "Staff laptops (DHCP)"
+  }
+ ],
+ "subnets": [
+  {
+   "id": "net-hq-f1",
+   "vlan_id": 10,
+   "purpose": "HQ floor-1 users",
+   "cidr": "10.10.10.0/24",
+   "gateway": "10.10.10.1",
+   "dhcp": true
+  },
+  {
+   "id": "net-hq-f2",
+   "vlan_id": 20,
+   "purpose": "HQ floor-2 users",
+   "cidr": "10.10.20.0/24",
+   "gateway": "10.10.20.1",
+   "dhcp": true
+  },
+  {
+   "id": "net-laptops",
+   "vlan_id": 30,
+   "purpose": "Staff laptops",
+   "cidr": "10.10.30.0/24",
+   "gateway": "10.10.30.1",
+   "dhcp": true
+  },
+  {
+   "id": "net-dc",
+   "purpose": "Data-center servers behind fwdc",
+   "cidr": "10.20.40.0/24",
+   "gateway": "10.20.40.1",
+   "dhcp": false
+  },
+  {
+   "id": "net-br-lan",
+   "purpose": "Branch LAN behind fwbr",
+   "cidr": "10.30.50.0/24",
+   "gateway": "10.30.50.1",
+   "dhcp": false
+  },
+  {
+   "id": "net-t-edge-fwhq",
+   "purpose": "Transit redge-fwhq",
+   "cidr": "10.0.0.0/30",
+   "dhcp": false
+  },
+  {
+   "id": "net-t-fwhq-rhq",
+   "purpose": "Transit fwhq-rhq",
+   "cidr": "10.0.0.4/30",
+   "dhcp": false
+  },
+  {
+   "id": "net-t-rhq-fwdc",
+   "purpose": "Transit rhq-fwdc",
+   "cidr": "10.0.0.8/30",
+   "dhcp": false
+  },
+  {
+   "id": "net-wan-serial",
+   "purpose": "Serial WAN HQ-Branch",
+   "cidr": "10.0.0.12/30",
+   "dhcp": false
+  },
+  {
+   "id": "net-t-rbr-fwbr",
+   "purpose": "Transit rbr-fwbr",
+   "cidr": "10.0.0.16/30",
+   "dhcp": false
+  },
+  {
+   "id": "net-wan-internet",
+   "purpose": "Internet uplink via Cloud/DSL",
+   "cidr": "203.0.113.0/30",
+   "dhcp": false
+  },
+  {
+   "id": "net-isp-dmz",
+   "purpose": "Public server segment",
+   "cidr": "198.51.100.0/24",
+   "gateway": "198.51.100.1",
+   "dhcp": false
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "redge",
+   "interface_hint": "FastEthernet0/0",
+   "subnet": "net-t-edge-fwhq",
+   "ip": "10.0.0.1"
+  },
+  {
+   "device": "fwhq",
+   "interface_hint": "GigabitEthernet1/1",
+   "subnet": "net-t-edge-fwhq",
+   "ip": "10.0.0.2"
+  },
+  {
+   "device": "fwhq",
+   "interface_hint": "GigabitEthernet1/2",
+   "subnet": "net-t-fwhq-rhq",
+   "ip": "10.0.0.5"
+  },
+  {
+   "device": "rhq",
+   "interface_hint": "GigabitEthernet0/1",
+   "subnet": "net-t-fwhq-rhq",
+   "ip": "10.0.0.6"
+  },
+  {
+   "device": "rhq",
+   "interface_hint": "GigabitEthernet0/2",
+   "subnet": "net-t-rhq-fwdc",
+   "ip": "10.0.0.9"
+  },
+  {
+   "device": "fwdc",
+   "interface_hint": "GigabitEthernet1/1",
+   "subnet": "net-t-rhq-fwdc",
+   "ip": "10.0.0.10"
+  },
+  {
+   "device": "redge",
+   "interface_hint": "Serial2/0",
+   "subnet": "net-wan-serial",
+   "ip": "10.0.0.13"
+  },
+  {
+   "device": "rbr",
+   "interface_hint": "Serial2/0",
+   "subnet": "net-wan-serial",
+   "ip": "10.0.0.14"
+  },
+  {
+   "device": "rbr",
+   "interface_hint": "FastEthernet0/0",
+   "subnet": "net-t-rbr-fwbr",
+   "ip": "10.0.0.17"
+  },
+  {
+   "device": "fwbr",
+   "interface_hint": "Vlan2",
+   "subnet": "net-t-rbr-fwbr",
+   "ip": "10.0.0.18"
+  },
+  {
+   "device": "redge",
+   "interface_hint": "FastEthernet1/0",
+   "subnet": "net-wan-internet",
+   "ip": "203.0.113.1"
+  },
+  {
+   "device": "risp",
+   "interface_hint": "FastEthernet0/0",
+   "subnet": "net-wan-internet",
+   "ip": "203.0.113.2"
+  },
+  {
+   "device": "risp",
+   "interface_hint": "FastEthernet1/0",
+   "subnet": "net-isp-dmz",
+   "ip": "198.51.100.1"
+  },
+  {
+   "device": "srvisp",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-isp-dmz",
+   "ip": "198.51.100.10"
+  },
+  {
+   "device": "rhq",
+   "interface_hint": "GigabitEthernet0/0.10",
+   "subnet": "net-hq-f1",
+   "ip": "10.10.10.1"
+  },
+  {
+   "device": "rhq",
+   "interface_hint": "GigabitEthernet0/0.20",
+   "subnet": "net-hq-f2",
+   "ip": "10.10.20.1"
+  },
+  {
+   "device": "rhq",
+   "interface_hint": "GigabitEthernet0/0.30",
+   "subnet": "net-laptops",
+   "ip": "10.10.30.1"
+  },
+  {
+   "device": "fwdc",
+   "interface_hint": "GigabitEthernet1/2",
+   "subnet": "net-dc",
+   "ip": "10.20.40.1"
+  },
+  {
+   "device": "fwbr",
+   "interface_hint": "Vlan1",
+   "subnet": "net-br-lan",
+   "ip": "10.30.50.1"
+  },
+  {
+   "device": "pc1",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f1"
+  },
+  {
+   "device": "pc2",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f1"
+  },
+  {
+   "device": "pc3",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f1"
+  },
+  {
+   "device": "pc4",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f1"
+  },
+  {
+   "device": "pc5",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f1"
+  },
+  {
+   "device": "pc6",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f1"
+  },
+  {
+   "device": "pc7",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f2"
+  },
+  {
+   "device": "pc8",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f2"
+  },
+  {
+   "device": "pc9",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f2"
+  },
+  {
+   "device": "pc10",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f2"
+  },
+  {
+   "device": "pc11",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f2"
+  },
+  {
+   "device": "pc12",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-hq-f2"
+  },
+  {
+   "device": "lap1",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-laptops"
+  },
+  {
+   "device": "lap2",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-laptops"
+  },
+  {
+   "device": "srv1",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-dc",
+   "ip": "10.20.40.10"
+  },
+  {
+   "device": "srv2",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-dc",
+   "ip": "10.20.40.11"
+  },
+  {
+   "device": "pc13",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-br-lan",
+   "ip": "10.30.50.11"
+  },
+  {
+   "device": "pc14",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-br-lan",
+   "ip": "10.30.50.12"
+  },
+  {
+   "device": "pc15",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-br-lan",
+   "ip": "10.30.50.13"
+  },
+  {
+   "device": "pc16",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-br-lan",
+   "ip": "10.30.50.14"
+  },
+  {
+   "device": "lap3",
+   "interface_hint": "FastEthernet0",
+   "subnet": "net-br-lan",
+   "ip": "10.30.50.15"
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {
+    "device": "redge",
+    "destination": "10.10.0.0/16",
+    "next_hop": "10.0.0.2"
+   },
+   {
+    "device": "redge",
+    "destination": "10.20.0.0/16",
+    "next_hop": "10.0.0.2"
+   },
+   {
+    "device": "redge",
+    "destination": "10.0.0.4/30",
+    "next_hop": "10.0.0.2"
+   },
+   {
+    "device": "redge",
+    "destination": "10.0.0.8/30",
+    "next_hop": "10.0.0.2"
+   },
+   {
+    "device": "redge",
+    "destination": "10.30.0.0/16",
+    "next_hop": "10.0.0.14"
+   },
+   {
+    "device": "redge",
+    "destination": "10.0.0.16/30",
+    "next_hop": "10.0.0.14"
+   },
+   {
+    "device": "redge",
+    "destination": "0.0.0.0/0",
+    "next_hop": "203.0.113.2"
+   },
+   {
+    "device": "fwhq",
+    "destination": "0.0.0.0/0",
+    "next_hop": "10.0.0.1"
+   },
+   {
+    "device": "fwhq",
+    "destination": "10.10.0.0/16",
+    "next_hop": "10.0.0.6"
+   },
+   {
+    "device": "fwhq",
+    "destination": "10.20.0.0/16",
+    "next_hop": "10.0.0.6"
+   },
+   {
+    "device": "fwhq",
+    "destination": "10.0.0.8/30",
+    "next_hop": "10.0.0.6"
+   },
+   {
+    "device": "rhq",
+    "destination": "0.0.0.0/0",
+    "next_hop": "10.0.0.5"
+   },
+   {
+    "device": "rhq",
+    "destination": "10.20.0.0/16",
+    "next_hop": "10.0.0.10"
+   },
+   {
+    "device": "fwdc",
+    "destination": "0.0.0.0/0",
+    "next_hop": "10.0.0.9"
+   },
+   {
+    "device": "rbr",
+    "destination": "0.0.0.0/0",
+    "next_hop": "10.0.0.13"
+   },
+   {
+    "device": "rbr",
+    "destination": "10.30.0.0/16",
+    "next_hop": "10.0.0.18"
+   },
+   {
+    "device": "fwbr",
+    "destination": "0.0.0.0/0",
+    "next_hop": "10.0.0.17"
+   },
+   {
+    "device": "risp",
+    "destination": "10.0.0.0/8",
+    "next_hop": "203.0.113.1"
+   }
+  ]
+ },
+ "policies": [
+  {
+   "id": "acl-fw-transit",
+   "kind": "acl",
+   "enforcement": "available",
+   "apply_to": [
+    "fwhq",
+    "fwdc",
+    "fwbr"
+   ],
+   "rules": [
+    {
+     "action": "permit",
+     "protocol": "icmp",
+     "source": "any",
+     "destination": "any",
+     "description": "Allow ICMP (ping) through the firewalls"
+    },
+    {
+     "action": "permit",
+     "protocol": "tcp",
+     "source": "any",
+     "destination": "any",
+     "dest_port": 80,
+     "description": "Allow HTTP to web services"
+    }
+   ]
+  }
+ ],
+ "assumptions": [
+  "Cloud-PT DSL mapping (Modem <-> Ethernet) is set in the Cloud config after the build.",
+  "ISP router needs no NAT because it has a return route to 10.0.0.0/8.",
+  "Wireless laptops are associated after the build with associate_wireless_client."
+ ],
+ "design_decisions": [
+  {
+   "id": "D-001",
+   "statement": "Router-on-a-stick on rhq GigabitEthernet0/0 for VLANs 10, 20, 30.",
+   "rationale": "Proven inter-VLAN pattern; one trunk to the distribution switch carries all HQ VLANs.",
+   "source": "user"
+  },
+  {
+   "id": "D-002",
+   "statement": "Three firewall zones: HQ perimeter (fwhq), data center (fwdc), branch (fwbr).",
+   "rationale": "Defense in depth: servers and branch are each behind their own ASA.",
+   "source": "user"
+  },
+  {
+   "id": "D-003",
+   "statement": "Static routing with summarised /16 routes per site.",
+   "rationale": "Deterministic, fully verifiable paths across ASAs, which do not take part in dynamic routing here.",
+   "source": "user"
+  },
+  {
+   "id": "D-004",
+   "statement": "/30 transit networks for every point-to-point link, /24 per user or server segment.",
+   "source": "user"
+  },
+  {
+   "id": "D-005",
+   "statement": "IoT Smart LEDs are cabled without IP configuration.",
+   "rationale": "Smart LED is the only live-verified cablable IoE thing; it is provisioned by an IoT server, so a desktop IP op would be meaningless.",
+   "source": "user"
+  },
+  {
+   "id": "D-006",
+   "statement": "Linksys WRT300N is cabled by the port solver without hints; laptops lap4/lap5 join it wirelessly.",
+   "rationale": "Matches the engine's live-verified 63-device build pattern.",
+   "source": "user"
+  },
+  {
+   "id": "D-007",
+   "statement": "ISP router is a Router-PT so the DSL modem uses the verified DSL-Modem-PT <-> Router-PT cable pair.",
+   "source": "user"
+  }
+ ],
+ "constraints": [
+  "ASA policies use only 'any' addressing (address-scoped ASA ACLs are not enforced in Packet Tracer).",
+  "Serial link uses Router-PT built-in Serial2/0 ports."
+ ],
+ "layout_seed": 42
+}

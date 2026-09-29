@@ -1,0 +1,207 @@
+{
+ "name": "T09 OSPF backbone",
+ "description": "Three routers in a triangle, OSPF area 0, one LAN each.",
+ "devices": [
+  {
+   "id": "r1",
+   "role": "router"
+  },
+  {
+   "id": "r2",
+   "role": "router"
+  },
+  {
+   "id": "r3",
+   "role": "router"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "pc2",
+   "role": "pc"
+  },
+  {
+   "id": "pc3",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-r1-r2",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "r2"
+   }
+  },
+  {
+   "id": "l-r2-r3",
+   "a": {
+    "device": "r2"
+   },
+   "b": {
+    "device": "r3"
+   }
+  },
+  {
+   "id": "l-r3-r1",
+   "a": {
+    "device": "r3"
+   },
+   "b": {
+    "device": "r1"
+   }
+  },
+  {
+   "id": "l-r1-pc1",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-r2-pc2",
+   "a": {
+    "device": "r2"
+   },
+   "b": {
+    "device": "pc2"
+   }
+  },
+  {
+   "id": "l-r3-pc3",
+   "a": {
+    "device": "r3"
+   },
+   "b": {
+    "device": "pc3"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "n12",
+   "cidr": "10.0.12.0/30"
+  },
+  {
+   "id": "n23",
+   "cidr": "10.0.23.0/30"
+  },
+  {
+   "id": "n31",
+   "cidr": "10.0.31.0/30"
+  },
+  {
+   "id": "lan1",
+   "cidr": "10.0.1.0/24"
+  },
+  {
+   "id": "lan2",
+   "cidr": "10.0.2.0/24"
+  },
+  {
+   "id": "lan3",
+   "cidr": "10.0.3.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "n12",
+   "ip": "10.0.12.1"
+  },
+  {
+   "device": "r2",
+   "subnet": "n12",
+   "ip": "10.0.12.2"
+  },
+  {
+   "device": "r2",
+   "subnet": "n23",
+   "ip": "10.0.23.1"
+  },
+  {
+   "device": "r3",
+   "subnet": "n23",
+   "ip": "10.0.23.2"
+  },
+  {
+   "device": "r3",
+   "subnet": "n31",
+   "ip": "10.0.31.1"
+  },
+  {
+   "device": "r1",
+   "subnet": "n31",
+   "ip": "10.0.31.2"
+  },
+  {
+   "device": "r1",
+   "subnet": "lan1",
+   "ip": "10.0.1.1"
+  },
+  {
+   "device": "r2",
+   "subnet": "lan2",
+   "ip": "10.0.2.1"
+  },
+  {
+   "device": "r3",
+   "subnet": "lan3",
+   "ip": "10.0.3.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "lan1"
+  },
+  {
+   "device": "pc2",
+   "subnet": "lan2"
+  },
+  {
+   "device": "pc3",
+   "subnet": "lan3"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Every LAN reaches every other LAN via OSPF"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches pc3 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "pc3",
+    "expect": "reachable"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "ospf",
+  "ospf": {
+   "process_id": 1,
+   "area": "0",
+   "networks": [
+    "10.0.12.0/30",
+    "10.0.23.0/30",
+    "10.0.31.0/30",
+    "10.0.1.0/24",
+    "10.0.2.0/24",
+    "10.0.3.0/24"
+   ]
+  }
+ }
+}

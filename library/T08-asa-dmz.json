@@ -1,0 +1,165 @@
+{
+ "name": "T08 ASA DMZ",
+ "description": "ASA with inside, DMZ server and outside zones. Pending S1.16 live proof.",
+ "devices": [
+  {
+   "id": "fw",
+   "role": "firewall",
+   "model_hint": "5506-X"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "websrv",
+   "role": "server"
+  },
+  {
+   "id": "r1",
+   "role": "router"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-fw-inside",
+   "a": {
+    "device": "fw",
+    "interface_hint": "GigabitEthernet1/1"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-fw-dmz",
+   "a": {
+    "device": "fw",
+    "interface_hint": "GigabitEthernet1/2"
+   },
+   "b": {
+    "device": "websrv"
+   }
+  },
+  {
+   "id": "l-fw-out",
+   "a": {
+    "device": "fw",
+    "interface_hint": "GigabitEthernet1/3"
+   },
+   "b": {
+    "device": "r1"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "inside",
+   "cidr": "10.0.1.0/24"
+  },
+  {
+   "id": "dmz",
+   "cidr": "10.0.2.0/24"
+  },
+  {
+   "id": "outside",
+   "cidr": "203.0.113.0/30"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "fw",
+   "subnet": "inside",
+   "ip": "10.0.1.1",
+   "interface_hint": "GigabitEthernet1/1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "inside"
+  },
+  {
+   "device": "fw",
+   "subnet": "dmz",
+   "ip": "10.0.2.1",
+   "interface_hint": "GigabitEthernet1/2"
+  },
+  {
+   "device": "websrv",
+   "subnet": "dmz",
+   "ip": "10.0.2.10"
+  },
+  {
+   "device": "fw",
+   "subnet": "outside",
+   "ip": "203.0.113.1",
+   "interface_hint": "GigabitEthernet1/3"
+  },
+  {
+   "device": "r1",
+   "subnet": "outside",
+   "ip": "203.0.113.2"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Inside reaches the DMZ web server"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches websrv (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "websrv",
+    "expect": "reachable"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {
+    "device": "fw",
+    "destination": "0.0.0.0/0",
+    "next_hop": "203.0.113.2"
+   }
+  ]
+ },
+ "policies": [
+  {
+   "id": "acl-dmz",
+   "kind": "acl",
+   "enforcement": "available",
+   "apply_to": [
+    "fw"
+   ],
+   "rules": [
+    {
+     "action": "permit",
+     "protocol": "icmp",
+     "source": "any",
+     "destination": "any"
+    }
+   ]
+  }
+ ]
+}

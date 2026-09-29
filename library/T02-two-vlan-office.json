@@ -1,0 +1,165 @@
+{
+ "name": "T02 two-VLAN office",
+ "description": "Router-on-a-stick inter-VLAN routing: users VLAN 10, guests VLAN 20.",
+ "devices": [
+  {
+   "id": "r1",
+   "role": "router"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "pc2",
+   "role": "pc"
+  },
+  {
+   "id": "pc3",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-r1-s1",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "s1"
+   },
+   "trunk": true
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-s1-pc2",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc2"
+   }
+  },
+  {
+   "id": "l-s1-pc3",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc3"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "users",
+   "cidr": "10.0.10.0/24",
+   "vlan_id": 10,
+   "dhcp": true
+  },
+  {
+   "id": "guests",
+   "cidr": "10.0.20.0/24",
+   "vlan_id": 20
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "users",
+   "ip": "10.0.10.1",
+   "interface_hint": "GigabitEthernet0/0.10"
+  },
+  {
+   "device": "r1",
+   "subnet": "guests",
+   "ip": "10.0.20.1",
+   "interface_hint": "GigabitEthernet0/0.20"
+  },
+  {
+   "device": "pc1",
+   "subnet": "users",
+   "dhcp": true
+  },
+  {
+   "device": "pc2",
+   "subnet": "users",
+   "dhcp": true
+  },
+  {
+   "device": "pc3",
+   "subnet": "guests"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Users reach each other and the guest network via the stick"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches pc2 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "pc2",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches pc3 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "pc3",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-3",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "VLAN 10 defined",
+   "test": {
+    "kind": "structural",
+    "check": "vlan_defined",
+    "target": "10"
+   }
+  }
+ ],
+ "vlans": [
+  {
+   "vlan_id": 10,
+   "name": "USERS"
+  },
+  {
+   "vlan_id": 20,
+   "name": "GUESTS"
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

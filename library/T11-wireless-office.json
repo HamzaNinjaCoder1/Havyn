@@ -1,0 +1,165 @@
+{
+ "name": "T11 wireless office",
+ "description": "Enterprise AP with associating laptops plus a wired PC.",
+ "devices": [
+  {
+   "id": "ap",
+   "role": "access_point",
+   "model_hint": "AccessPoint-PT-AC"
+  },
+  {
+   "id": "lap1",
+   "role": "laptop"
+  },
+  {
+   "id": "lap2",
+   "role": "laptop"
+  },
+  {
+   "id": "r1",
+   "role": "router"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-ap-lap1",
+   "a": {
+    "device": "ap"
+   },
+   "b": {
+    "device": "lap1"
+   },
+   "media": "wireless"
+  },
+  {
+   "id": "l-ap-lap2",
+   "a": {
+    "device": "ap"
+   },
+   "b": {
+    "device": "lap2"
+   },
+   "media": "wireless"
+  },
+  {
+   "id": "l-ap-s1",
+   "a": {
+    "device": "ap"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-r1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "r1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "lan",
+   "cidr": "192.168.30.0/24",
+   "dhcp": true
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "lan",
+   "ip": "192.168.30.1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "lap1",
+   "subnet": "lan",
+   "dhcp": true
+  },
+  {
+   "device": "lap2",
+   "subnet": "lan",
+   "dhcp": true
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Laptops associate and reach the wired PC"
+  },
+  {
+   "id": "R-2",
+   "statement": "Both laptops associate to the office AP"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "lap1 reaches pc1 (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "lap1",
+    "destination": "pc1",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-2"
+   ],
+   "title": "lap1 associated to ap",
+   "test": {
+    "kind": "wireless",
+    "client": "lap1",
+    "access_point": "ap",
+    "interface": "Wireless0",
+    "expect": "associated"
+   }
+  },
+  {
+   "id": "A-3",
+   "requirement_ids": [
+    "R-2"
+   ],
+   "title": "lap2 associated to ap",
+   "test": {
+    "kind": "wireless",
+    "client": "lap2",
+    "access_point": "ap",
+    "interface": "Wireless0",
+    "expect": "associated"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

@@ -1,0 +1,185 @@
+{
+ "name": "T07 ASA perimeter",
+ "description": "ASA 5506-X between inside LAN and outside router. Pending S1.16 live proof.",
+ "devices": [
+  {
+   "id": "fw",
+   "role": "firewall",
+   "model_hint": "5506-X"
+  },
+  {
+   "id": "s1",
+   "role": "switch"
+  },
+  {
+   "id": "pc1",
+   "role": "pc"
+  },
+  {
+   "id": "r1",
+   "role": "router"
+  },
+  {
+   "id": "srv",
+   "role": "server"
+  }
+ ],
+ "links": [
+  {
+   "id": "l-fw-inside",
+   "a": {
+    "device": "fw",
+    "interface_hint": "GigabitEthernet1/1"
+   },
+   "b": {
+    "device": "s1"
+   }
+  },
+  {
+   "id": "l-s1-pc1",
+   "a": {
+    "device": "s1"
+   },
+   "b": {
+    "device": "pc1"
+   }
+  },
+  {
+   "id": "l-fw-out",
+   "a": {
+    "device": "fw",
+    "interface_hint": "GigabitEthernet1/3"
+   },
+   "b": {
+    "device": "r1"
+   }
+  },
+  {
+   "id": "l-r1-srv",
+   "a": {
+    "device": "r1"
+   },
+   "b": {
+    "device": "srv"
+   }
+  }
+ ],
+ "subnets": [
+  {
+   "id": "inside",
+   "cidr": "10.0.1.0/24"
+  },
+  {
+   "id": "outside",
+   "cidr": "203.0.113.0/30"
+  },
+  {
+   "id": "srvnet",
+   "cidr": "198.51.100.0/24"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "fw",
+   "subnet": "inside",
+   "ip": "10.0.1.1",
+   "interface_hint": "GigabitEthernet1/1"
+  },
+  {
+   "device": "pc1",
+   "subnet": "inside"
+  },
+  {
+   "device": "fw",
+   "subnet": "outside",
+   "ip": "203.0.113.1",
+   "interface_hint": "GigabitEthernet1/3"
+  },
+  {
+   "device": "r1",
+   "subnet": "outside",
+   "ip": "203.0.113.2"
+  },
+  {
+   "device": "r1",
+   "subnet": "srvnet",
+   "ip": "198.51.100.1"
+  },
+  {
+   "device": "srv",
+   "subnet": "srvnet",
+   "ip": "198.51.100.10"
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Inside reaches outside"
+  },
+  {
+   "id": "R-2",
+   "statement": "Outside cannot initiate in"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "pc1 reaches srv (reachable)",
+   "test": {
+    "kind": "flow",
+    "source": "pc1",
+    "destination": "srv",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-2"
+   ],
+   "title": "srv cannot initiate to pc1 (blocked)",
+   "test": {
+    "kind": "flow",
+    "source": "srv",
+    "destination": "pc1",
+    "expect": "blocked"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {
+    "device": "fw",
+    "destination": "0.0.0.0/0",
+    "next_hop": "203.0.113.2"
+   },
+   {
+    "device": "r1",
+    "destination": "10.0.1.0/24",
+    "next_hop": "203.0.113.1"
+   }
+  ]
+ },
+ "policies": [
+  {
+   "id": "acl-perimeter",
+   "kind": "acl",
+   "enforcement": "available",
+   "apply_to": [
+    "fw"
+   ],
+   "rules": [
+    {
+     "action": "permit",
+     "protocol": "icmp",
+     "source": "any",
+     "destination": "any"
+    }
+   ]
+  }
+ ]
+}
