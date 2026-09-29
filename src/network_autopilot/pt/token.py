@@ -30,6 +30,12 @@ from pathlib import Path
 _TOKEN_FILENAME = "bridge_token"
 _ENV_VAR = "PT_MCP_BRIDGE_TOKEN"
 
+#: S1.18/F16: the product is Havyn, so runtime data lives under Havyn/.
+#: The pre-rename packet-tracer-mcp/ dir is still READ (once, for a
+#: one-time migration) so old installs keep working untouched.
+_NEW_DIR_NAME = "Havyn"
+_OLD_DIR_NAME = "packet-tracer-mcp"
+
 # 32 bytes of entropy, url-safe encoded. Long enough that an offline guess is
 # hopeless; restricted charset so the value survives a query string and a
 # plain-text file without escaping.
@@ -51,24 +57,61 @@ class BridgeTokenError(RuntimeError):
 def token_dir() -> Path:
     """Directory holding the token: per-user, local to the machine.
 
-    On Windows this is ``%LOCALAPPDATA%`` and deliberately not ``%APPDATA%`` —
-    the latter roams with a domain profile, and a loopback secret has no
-    business travelling to a file server. On POSIX the XDG state directory is
-    used.
+    On Windows this is ``%LOCALAPPDATA%\\Havyn`` and deliberately not
+    ``%APPDATA%`` — the latter roams with a domain profile, and a loopback
+    secret has no business travelling to a file server. On POSIX the XDG
+    state directory is used.
+    """
+    return _candidate_dirs()[0]
+
+
+def _candidate_dirs() -> list[Path]:
+    """Runtime dirs, newest first: the Havyn dir, then the pre-rename dir.
+
+    Both sides (engine here, extension in main.js) try the new dir first
+    and fall back to the old one, so a new engine pairs with an old
+    extension and vice versa.
     """
     if os.name == "nt":
         base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if base:
-            return Path(base) / "packet-tracer-mcp"
-        return Path.home() / ".packet-tracer-mcp"
+            return [Path(base) / _NEW_DIR_NAME, Path(base) / _OLD_DIR_NAME]
+        return [Path.home() / ".havyn", Path.home() / ".packet-tracer-mcp"]
     xdg = os.environ.get("XDG_STATE_HOME")
     if xdg:
-        return Path(xdg) / "packet-tracer-mcp"
-    return Path.home() / ".local" / "state" / "packet-tracer-mcp"
+        return [Path(xdg) / _NEW_DIR_NAME, Path(xdg) / _OLD_DIR_NAME]
+    default = Path.home() / ".local" / "state"
+    return [default / _NEW_DIR_NAME, default / _OLD_DIR_NAME]
 
 
 def token_path() -> Path:
     return token_dir() / _TOKEN_FILENAME
+
+
+def _migrate_once() -> None:
+    """One-time migration of a pre-rename token into the Havyn dir.
+
+    Copies (never moves) the first valid old token when the new dir has
+    none yet, so old installs keep working untouched. Best-effort and
+    never raises: migration must not break a fresh install.
+    """
+    try:
+        new_path = token_path()
+        if new_path.exists():
+            return
+        for old_dir in _candidate_dirs()[1:]:
+            old_path = old_dir / _TOKEN_FILENAME
+            if _read_token(old_path) is None:
+                continue
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            new_path.write_bytes(old_path.read_bytes())
+            try:
+                os.chmod(new_path, 0o600)
+            except OSError:
+                pass
+            return
+    except OSError:
+        pass
 
 
 def token_fingerprint(token: str) -> str:
@@ -142,6 +185,8 @@ def get_bridge_token(refresh: bool = False) -> str:
 
     if _cached is not None and not refresh:
         return _cached
+
+    _migrate_once()
 
     path = token_path()
     try:

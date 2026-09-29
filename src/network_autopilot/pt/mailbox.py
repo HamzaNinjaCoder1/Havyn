@@ -47,7 +47,29 @@ HEARTBEAT_FRESH_S = 6.0
 _POLL_INTERVAL_S = 0.1
 
 
+def _heartbeat_fresh(directory: Path) -> bool:
+    """True while the Script Engine is refreshing this dir's heartbeat."""
+    try:
+        age = time.time() - (directory / "alive.txt").stat().st_mtime
+    except OSError:
+        return False
+    return age < HEARTBEAT_FRESH_S
+
+
 def mailbox_dir() -> Path:
+    """Where to talk to the Script Engine: the new dir first, then the old.
+
+    S1.18 compat: the extension resolves its mailbox the same way, but it
+    resolves once at load — an extension started before the rename (or
+    before migration) keeps heartbeating into the pre-rename dir. Meeting
+    it where its heartbeat is fresh is what reconnects, not what forks:
+    only one dir is ever used per call.
+    """
+    from .token import _candidate_dirs
+
+    for candidate in _candidate_dirs():
+        if _heartbeat_fresh(candidate / _MAILBOX_SUBDIR):
+            return candidate / _MAILBOX_SUBDIR
     return token_dir() / _MAILBOX_SUBDIR
 
 
@@ -66,6 +88,10 @@ class FileMailbox:
 
     def __init__(self, directory: Path | None = None):
         self.dir = Path(directory) if directory else mailbox_dir()
+        # Only a default-dir mailbox follows a fresh heartbeat elsewhere: a
+        # caller-supplied directory (tests, alternate config) is explicit and
+        # stays put.
+        self._follow_heartbeat = directory is None
         self._seq = 0
 
     def _ensure_dir(self) -> None:
@@ -78,11 +104,17 @@ class FileMailbox:
 
     def pt_alive(self) -> bool:
         """True while the Script Engine is refreshing its heartbeat."""
-        try:
-            age = time.time() - (self.dir / "alive.txt").stat().st_mtime
-        except OSError:
-            return False
-        return age < HEARTBEAT_FRESH_S
+        if _heartbeat_fresh(self.dir):
+            return True
+        # The extension may have restarted onto the other dir (pre/post
+        # rename); follow a fresh heartbeat rather than going dark. Explicit
+        # directories never follow.
+        if self._follow_heartbeat:
+            resolved = mailbox_dir()
+            if resolved != self.dir and _heartbeat_fresh(resolved):
+                self.dir = resolved
+                return True
+        return False
 
     # -- request/response ------------------------------------------------
 

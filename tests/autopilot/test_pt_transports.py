@@ -83,6 +83,81 @@ class TestToken:
 
 
 # --------------------------------------------------------------------------
+# runtime dir rename (S1.18 / F16)
+# --------------------------------------------------------------------------
+
+
+class TestHavynDirs:
+    """Product is Havyn: runtime data lives under Havyn/, the old
+    packet-tracer-mcp/ dir is read for one-time migration and then left
+    alone so old installs keep working."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        monkeypatch.delenv(tk._ENV_VAR, raising=False)
+        tk.reset_cache()
+        yield tmp_path
+        tk.reset_cache()
+
+    def _old_token_file(self, tmp_path, value: str = "a" * 40):
+        old = tmp_path / "packet-tracer-mcp"
+        old.mkdir(parents=True, exist_ok=True)
+        (old / "bridge_token").write_text(value, encoding="utf-8")
+        return old
+
+    def test_token_dir_is_havyn(self, tmp_path):
+        assert tk.token_dir() == tmp_path / "Havyn"
+
+    def test_old_token_migrates_on_first_use(self, tmp_path):
+        """Old install's token is copied to the new dir once; the old file
+        stays so the old extension builds keep working."""
+        self._old_token_file(tmp_path)
+
+        assert tk.get_bridge_token() == "a" * 40
+        assert (tmp_path / "Havyn" / "bridge_token").read_text(
+            encoding="utf-8"
+        ) == "a" * 40
+        assert (tmp_path / "packet-tracer-mcp" / "bridge_token").exists()
+
+    def test_new_token_wins_when_both_exist(self, tmp_path):
+        self._old_token_file(tmp_path, "a" * 40)
+        new = tmp_path / "Havyn"
+        new.mkdir(parents=True, exist_ok=True)
+        (new / "bridge_token").write_text("b" * 40, encoding="utf-8")
+
+        assert tk.get_bridge_token() == "b" * 40
+        assert (tmp_path / "packet-tracer-mcp" / "bridge_token").read_text(
+            encoding="utf-8"
+        ) == "a" * 40
+
+    def test_fresh_install_creates_only_the_new_dir(self, tmp_path):
+        value = tk.get_bridge_token()
+
+        assert tk.is_valid(value)
+        assert (tmp_path / "Havyn" / "bridge_token").exists()
+        assert not (tmp_path / "packet-tracer-mcp").exists()
+
+    def test_extension_searches_the_new_dir_before_the_old(self):
+        """Both halves must agree on the order. main.js cannot be executed
+        from a test, so its candidate list is pinned by reading it, next to
+        the engine's own order - a rename that updated one side only would
+        leave the engine and the extension looking in different places."""
+        from pathlib import Path
+
+        js = (
+            Path(__file__).resolve().parents[2]
+            / "EXTENSION" / "script-engine" / "main.js"
+        ).read_text(encoding="utf-8")
+        new = js.index("AppData/Local/Havyn/bridge_token")
+        old = js.index("AppData/Local/packet-tracer-mcp/bridge_token")
+        assert new < old, "the extension must try Havyn/ before packet-tracer-mcp/"
+
+        candidates = tk._candidate_dirs()
+        assert [c.name for c in candidates] == ["Havyn", "packet-tracer-mcp"]
+
+
+# --------------------------------------------------------------------------
 # mailbox
 # --------------------------------------------------------------------------
 
@@ -162,6 +237,31 @@ class TestMailbox:
         channel.send(command)
         request = next(p for p in tmp_path.glob("req_*.js"))
         assert request.read_bytes() == command.encode("utf-8")
+
+    def test_mailbox_meets_a_stale_extension_in_the_old_dir(
+        self, tmp_path, monkeypatch):
+        """S1.18 live find: an extension started before the rename keeps
+        heartbeating into packet-tracer-mcp/bridge while the engine defaults
+        to Havyn/bridge. The mailbox must meet the fresh heartbeat, not go
+        dark insisting on the new dir."""
+        new = tmp_path / "Havyn"
+        old = tmp_path / "packet-tracer-mcp"
+        (old / "bridge").mkdir(parents=True)
+        (old / "bridge" / "alive.txt").write_text(
+            str(int(time.time() * 1000)), encoding="utf-8")
+        monkeypatch.setattr(tk, "_candidate_dirs", lambda: [new, old])
+
+        assert mb.mailbox_dir() == old / "bridge"
+        assert mb.FileMailbox().pt_alive() is True
+
+    def test_mailbox_prefers_the_new_dir_when_nothing_beats_it(
+        self, tmp_path, monkeypatch):
+        new = tmp_path / "Havyn"
+        old = tmp_path / "packet-tracer-mcp"
+        old.mkdir(parents=True)
+        monkeypatch.setattr(tk, "_candidate_dirs", lambda: [new, old])
+
+        assert mb.mailbox_dir() == new / "bridge"
 
     def test_timeout_withdraws_the_request(self, tmp_path):
         """A request left queued gets executed late, and then the retry runs it

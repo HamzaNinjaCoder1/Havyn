@@ -47,8 +47,11 @@ function mcpTokenCandidates() {
         var uf = String(ipc.appWindow().getUserFolder());
         var home = uf.substring(0, uf.lastIndexOf("/"));
         if (home) {
+            paths.push(home + "/AppData/Local/Havyn/bridge_token");
             paths.push(home + "/AppData/Local/packet-tracer-mcp/bridge_token");
+            paths.push(home + "/.local/state/Havyn/bridge_token");
             paths.push(home + "/.local/state/packet-tracer-mcp/bridge_token");
+            paths.push(home + "/.havyn/bridge_token");
             paths.push(home + "/.packet-tracer-mcp/bridge_token");
         }
     } catch (e) {}
