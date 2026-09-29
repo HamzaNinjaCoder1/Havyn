@@ -7,9 +7,11 @@ behaviour those shapes were derived from, against the open Packet Tracer:
   them - the old refusal "PT enforces access-lists only on the ASA" was wrong
   for routers (issue #16). Proven ABA: reachable, then blocked by the deny,
   then reachable again once the deny is removed.
-* PT's ASA cannot carry traffic through an address-scoped rule while the
-  wildcard form on the same nameif can - the fresh probe the address-scoped
-  refusal in firewall_policy.py rests on (issue #16).
+* PT's ASA DOES match addresses: a permit scoped to the pair carries the
+  flow while a permit for a different pair does not. This is the S1.16 probe
+  that overturned the older "address-scoped is accepted but matched
+  nothing" measurement, and it is why firewall_policy.py renders scoped
+  operands instead of refusing them (issue #16).
 * an ASA 5505's Vlan SVIs read back the addresses the push asked for instead
   of 0.0.0.0, and the configure_ios receipt says so through its
   configured_addresses_present postcondition (issue #17).
@@ -181,32 +183,39 @@ def test_router_acl_renders_a_cidr_operand_and_enforces_it():
         assert not leaked, f"leaked devices: {leaked}"
 
 
-def test_asa_address_scoped_acl_cannot_carry_traffic_but_wildcard_can():
-    """#16 (fresh probe): PT's ASA cannot enforce address-scoped rules.
+def test_asa_address_scoped_acl_is_enforced():
+    """S1.16 live decision: PT's ASA DOES match addresses, so the compiler
+    renders a scoped rule instead of refusing it.
 
-    The refusal in firewall_policy.py rests on this, so it is re-probed here
-    from a clean state instead of trusting the older measurement - and there
-    is no teardown trick involved, because an invalid `no` line in a
-    configureIosDevice block aborts everything after it and would fake the
-    result. Instead:
+    The earlier measurement said an address-scoped rule was accepted but
+    matched nothing, and the compiler refused such a policy on that basis.
+    This probe overturns it and is deliberately discriminating:
 
-    1. push the compiler's firewall config with the ACL lines stripped, so
-       the interfaces are addressed and named but nothing is bound: PT's ASA
-       passes no flow without an access-group (asserted as the baseline);
-    2. bind ONLY address-scoped permit lines for the pair: if PT matched
-       addresses the pair would pass - it must not;
-    3. bind the wildcard permit on the same nameif: traffic must return,
-       which is what keeps a dead lab from satisfying step 2.
+    1. push the COMPILER's own commands for a policy scoped to the pair
+       (``host 192.168.10.10 host 192.168.20.10``) - the pair must pass,
+       which proves both the render and the enforcement;
+    2. re-bind a permit for a DIFFERENT pair - the same flow must die, which
+       is what separates address matching from "any permit opens the
+       protocol". Without step 2 a protocol-only PT would satisfy step 1;
+    3. re-bind a wildcard permit - the flow must return, the control that
+       keeps a dead lab from faking step 2.
 
-    The ASA has no console (`getCommandLine()` is null), so `show` read-back
-    is impossible; the flow verdicts are the only observable. Whether PT
-    rejects the host lines or accepts-but-unmatches them, the engineering
-    outcome is the same - an address-scoped policy cannot be enforced on PT's
-    ASA - and that is exactly what this test pins.
+    The ASA has no console (`getCommandLine()` is null), so the flow verdicts
+    are the only observable - and they are enough.
     """
     adapter = live.make_adapter()
     tag = live.run_tag()
     spec = _asa_spec("5506-X")
+    spec["policies"] = [{
+        "id": "scoped",
+        "apply_to": ["fw"],
+        "rules": [
+            {"action": "permit", "protocol": "icmp",
+             "source": "192.168.10.10", "destination": "192.168.20.10"},
+            {"action": "permit", "protocol": "icmp",
+             "source": "192.168.20.10", "destination": "192.168.10.10"},
+        ],
+    }]
     result = _dag(spec)
     created: list[str] = []
     try:
@@ -217,62 +226,38 @@ def test_asa_address_scoped_acl_cannot_carry_traffic_but_wildcard_can():
         _host_addressing(adapter, result, tag)
 
         commands = _one(result, "configure_ios", "fw").inputs.get("commands", [])
-        acl_free = [
-            c for c in commands
-            if not c.startswith(("access-list ", "access-group "))
-        ]
-        assert len(acl_free) < len(commands), (
-            "the compiler's firewall block should carry the default ACL"
-        )
-        receipt = adapter.configure_ios(fw, acl_free)
+        assert (
+            "access-list scoped extended permit icmp "
+            "host 192.168.10.10 host 192.168.20.10"
+        ) in commands, commands
+        assert "access-group scoped in interface outside" in commands, commands
+
+        receipt = adapter.configure_ios(fw, commands)
         assert receipt.result.value == "success", receipt.error
-        addr_checks = [
-            c for c in receipt.postconditions
-            if c.name == "configured_addresses_present"
-        ]
-        assert addr_checks and addr_checks[0].passed is True, (
-            f"interface config without ACL did not land: {receipt.postconditions}"
-        )
         _settle(3.0)
 
-        # 1: interfaces up, no access-group - PT's ASA passes nothing.
-        forward = adapter.run_flow_test(pca, pcb, transport="icmp")
-        assert forward.outcome.value == BLOCKED, (
-            "with no access-group PT's ASA must pass no flow (it has no "
-            f"implicit inside->outside permit), got {forward.outcome.value}: "
-            f"{str(forward.detail)[:160]}"
-        )
+        # 1: the compiler's address-scoped permit carries the pair both ways.
+        _assert_both_ways(adapter, pca, pcb, "asa address-scoped permit")
 
-        # 2: ONLY address-scoped lines, both orientations, freshly bound.
-        address_scoped = adapter.configure_ios(
+        # 2: a permit for a DIFFERENT pair must not open this flow.
+        other = adapter.configure_ios(
             fw,
             [
-                "access-list addr-scoped extended permit icmp "
-                "host 192.168.10.10 host 192.168.20.10",
-                "access-list addr-scoped extended permit icmp "
-                "host 192.168.20.10 host 192.168.10.10",
-                "access-group addr-scoped in interface outside",
+                "access-list otherpair extended permit icmp "
+                "host 10.9.9.9 host 10.8.8.8",
+                "access-group otherpair in interface outside",
             ],
         )
-        assert address_scoped.result.value == "success", address_scoped.error
+        assert other.result.value == "success", other.error
         _settle(3.0)
-
         forward = adapter.run_flow_test(pca, pcb, transport="icmp")
         assert forward.outcome.value == BLOCKED, (
-            "an address-scoped ACL must not carry the pair's traffic on "
-            f"PT's ASA (the claim behind the refusal), got "
-            f"{forward.outcome.value}: {str(forward.detail)[:160]} - if PT "
-            "now matches addresses, the compiler's refusal is too "
-            "conservative and must be relaxed"
-        )
-        reverse = adapter.run_flow_test(pcb, pca, transport="icmp")
-        assert reverse.outcome.value == BLOCKED, (
-            "the reverse direction must be blocked by the same unmatched "
-            f"ACL, got {reverse.outcome.value}: {str(reverse.detail)[:160]}"
+            "a permit for a non-matching pair must not open this flow - if it "
+            f"does, PT ignores addresses and the scoped render is a lie, got "
+            f"{forward.outcome.value}: {str(forward.detail)[:160]}"
         )
 
-        # 3: control - the wildcard form on the same nameif has to work,
-        # otherwise steps 1-2 only prove the lab died along the way.
+        # 3: control - the wildcard permit has to bring the flow back.
         wildcard = adapter.configure_ios(
             fw,
             [

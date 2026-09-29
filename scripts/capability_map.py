@@ -74,7 +74,7 @@ def REGISTRY() -> list[Feature]:
             families=("firewall:5506-X", "firewall:5505"),
             status="Verified",
             evidence="tests/autopilot/test_live_policy.py::"
-            "test_asa_address_scoped_acl_cannot_carry_traffic_but_wildcard_can",
+            "test_asa_address_scoped_acl_is_enforced",
         ),
         Feature(
             id="asa-5505-svi-readback",
@@ -103,12 +103,9 @@ def REGISTRY() -> list[Feature]:
             id="asa-address-scoped",
             name="Address-scoped ASA rules (per-host/per-subnet permits)",
             families=("firewall:5506-X", "firewall:5505"),
-            status="Refused",
-            evidence="tests/autopilot/test_asa_policy.py::"
-            "test_host_scoped_source_is_refused_not_silently_emitted",
-            refusal_reason="PT accepts the lines and matches nothing; "
-            "emitting them would be a green build that enforces nothing. "
-            "Enforce at the router (router-acl-enforce) instead.",
+            status="Verified",
+            evidence="tests/autopilot/test_live_policy.py::"
+            "test_asa_address_scoped_acl_is_enforced",
         ),
         Feature(
             id="acl-icmp-port",

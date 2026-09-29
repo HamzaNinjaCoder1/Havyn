@@ -27,7 +27,7 @@ from .dag import OperationDag
 from .operations import Check, MutationClassification, NetworkOperation, Risk, key_for
 from .layout import build_layout
 from .port_solver import PortPlan, solve_ports
-from .preflight import PreflightResult, run_preflight
+from .preflight import PreflightLevel, PreflightResult, run_preflight
 
 # Device categories PT gives neither an addressable port nor an IOS CLI
 # (measured live in _probe_wan2: their port objects have no
@@ -60,6 +60,10 @@ class CompileResult:
     fingerprint: dict[str, str] = field(default_factory=dict)
     port_plan: PortPlan | None = None
     preflight: PreflightResult | None = None
+    # S1.14/F11: when preflight fails but the failure scopes to specific ops,
+    # net_build returns the result (not an error) with these op ids named.
+    # The executor pre-blocks them; everything else still builds.
+    preflight_blocked_ops: list[str] = field(default_factory=list)
     # The interface each address assignment was compiled onto. Verification
     # MUST read this: without it, an assignment with no interface_hint falls
     # back to a hardcoded "FastEthernet0" that does not exist on a 2911 and
@@ -80,6 +84,7 @@ class CompileResult:
                 f"{dev}#{subnet}": iface
                 for (dev, subnet), iface in self.assignment_ports.items()
             },
+            "preflight_blocked_ops": list(self.preflight_blocked_ops),
         }
 
 
@@ -885,7 +890,10 @@ def _reject_gateway_wan_cabling(
                 continue
             if endpoint.interface_hint:
                 continue  # the author asked for this port on purpose
-            a_device, a_port, b_device, b_port = port_plan.link_endpoints[link.id]
+            solved = port_plan.link_endpoints.get(link.id)
+            if solved is None:
+                continue  # RF association, not a cable: no WAN-port question
+            a_device, a_port, b_device, b_port = solved
             port = a_port if side == "a" else b_port
             if port != "Internet":
                 continue
@@ -1221,10 +1229,9 @@ def _build_firewall_commands(
 
     ACL evidence (see firewall_policy for the full matrix): with no access-group
     PT blocks every flow both ways, enforcement is protocol-selective on the
-    outside nameif, and address-scoped rules are accepted but NOT matched - so
-    a spec policy is honoured when it is protocol-level, and refused outright
-    when it is not. A policy replaces the default ICMP permit rather than
-    widening it.
+    outside nameif, and address-scoped rules ARE matched (S1.16 live A/B/C) -
+    so a spec policy renders scoped operands in the ASA's netmask syntax. A
+    policy replaces the default ICMP permit rather than widening it.
     """
     assignments = [
         a for a in plan.assignments
@@ -1475,6 +1482,7 @@ def compile_spec(
     packet_tracer_version: str = "unknown",
     *,
     workspace_names: "Observable[list[str]] | None" = None,
+    strict_ports: bool = True,
 ) -> CompileResult:
     """Compile a validated spec + addressing plan into an OperationDag.
 
@@ -1482,6 +1490,11 @@ def compile_spec(
     workspace; when given, preflight refuses a spec whose device names
     already exist there. Callers without a workspace (lint, net_preflight,
     repair) pass nothing and keep the old behaviour.
+
+    `strict_ports` (S1.14/F11): with the default True, an unresolvable port
+    refuses the whole spec by name. net_build passes False so one bad cable
+    becomes a scoped preflight failure (the bad link op pre-blocks, the rest
+    still builds) instead of zeroing 134/134 ops.
     """
     _check_phase2_support(spec)
     _reject_unsupported_wireless(spec)
@@ -1491,7 +1504,8 @@ def compile_spec(
     device_ops: dict[str, str] = {}
     port_plan = solve_ports(spec, plan)
     if port_plan.incompatible:
-        raise CompileError("port preflight failed: " + "; ".join(port_plan.incompatible))
+        if strict_ports:
+            raise CompileError("port preflight failed: " + "; ".join(port_plan.incompatible))
     _reject_unaddressable_assignments(spec, plan)
     _reject_gateway_wan_cabling(spec, plan, port_plan)
     layout = build_layout(spec)
@@ -2088,6 +2102,7 @@ def net_build(
     adapter: "PacketTracerAdapter | None" = None,
     *,
     lint: bool = True,
+    resume_from: str | None = None,
 ) -> tuple[CompileResult | None, str | None]:
     """Compile with preflight as a HARD execution gate (§G).
 
@@ -2103,6 +2118,10 @@ def net_build(
     to preflight, which refuses a spec whose names already exist in the
     workspace. Without an adapter there is no workspace to compare, so the
     collision check does not run (lint, net_preflight, repair).
+
+    `resume_from` (S1.14/F11) is an explicit ownership claim over the
+    workspace: the run continues a prior build, so its devices are expected
+    there and the collision check is skipped. Anything else still gates.
     """
     from .compiler import compile_spec
 
@@ -2110,11 +2129,17 @@ def net_build(
     # message. Otherwise a spec with a bad address, a misaimed policy and a
     # missing port costs three separate build attempts to diagnose.
     if lint:
-        from .spec_lint import format_issues, lint_spec
+        from .spec_lint import format_issues, lint_spec, split_lint_problems
 
         problems = lint_spec(spec)
         if problems:
-            return None, format_issues(problems)
+            hard, _deferred = split_lint_problems(problems)
+            if hard:
+                return None, format_issues(problems)
+            # Only preflight-originated problems (S1.14/F11): they resurface
+            # below in the compile-time preflight — same deterministic
+            # checks, plus workspace context — where they scope to the
+            # implicated ops instead of zeroing the build.
 
     if plan is None:
         from ..ipam.planner import plan_addressing
@@ -2122,7 +2147,7 @@ def net_build(
         plan = plan_addressing(spec)
 
     workspace_names = None
-    if adapter is not None:
+    if adapter is not None and resume_from is None:
         from ..core.observability import Observable
 
         try:
@@ -2134,7 +2159,9 @@ def net_build(
                 f"workspace read raised: {exc}"
             )
 
-    result = compile_spec(spec, plan, workspace_names=workspace_names)
+    result = compile_spec(
+        spec, plan, workspace_names=workspace_names, strict_ports=False
+    )
 
     # Size the mutation budget to the actual DAG instead of relying on
     # the default max_mutations=25 which would abort non-trivial builds.
@@ -2145,17 +2172,31 @@ def net_build(
     else:
         gate.budget = budget
 
-    # Preflight is a HARD gate: if it fails, DO NOT execute
+    # Preflight is a HARD gate: if it fails, DO NOT execute the implicated
+    # ops. A failure that scopes to specific ops (S1.14/F11) blocks only them
+    # — plus their dependents, via the executor's dependency gate — while the
+    # rest of the build still runs. A failure that cannot be scoped keeps the
+    # old fail-closed behaviour: no result, execution blocked entirely.
     if result.preflight is not None and not result.preflight.can_execute:
         error_parts = result.preflight.errors
         if result.port_plan:
             for key, res in result.port_plan.resolutions.items():
                 if res.constraint.name != "COMPATIBLE":
                     error_parts.append(f"{key}: {res.constraint.value}")
-        return None, (
-            "preflight blocked execution: "
+        scoped = preflight_blocked_ops(
+            result.preflight, result.dag, result.port_plan
+        )
+        if scoped is None:
+            return None, (
+                "preflight blocked execution: "
+                + "; ".join(error_parts)
+            )
+        result.preflight_blocked_ops = sorted(scoped)
+        result.notes.append(
+            "partial build: preflight refused "
             + "; ".join(error_parts)
         )
+        return result, None
 
     # If preflight has warnings, still proceed but record them
     if result.preflight is not None and result.preflight.warnings:
@@ -2189,3 +2230,148 @@ def _link_ops_for_device(dag: OperationDag, device: str) -> list[str]:
         if device in (op.inputs.get("a_device"), op.inputs.get("b_device")):
             out.append(op.operation_id)
     return out
+
+
+def _create_op_for_device(dag: OperationDag, device: str) -> str | None:
+    """The create_device op for `device`, if the DAG has one."""
+    for node in dag.nodes.values():
+        op = node.operation
+        if op.operation_type == "create_device" and op.inputs.get("name") == device:
+            return op.operation_id
+    return None
+
+
+def _device_config_ops(dag: OperationDag, device: str) -> list[str]:
+    """The device's own config ops (addressing, VLAN, wireless, modules) —
+    everything that configures it short of creating it or cabling it."""
+    out: list[str] = []
+    for node in dag.nodes.values():
+        op = node.operation
+        if op.inputs.get("device") != device:
+            continue
+        if op.operation_type in ("create_device", "create_link"):
+            continue
+        if op.operation_id.startswith("op-flow-"):
+            continue
+        out.append(op.operation_id)
+    return out
+
+
+def preflight_blocked_ops(
+    preflight: PreflightResult,
+    dag: OperationDag,
+    port_plan: PortPlan | None,
+) -> set[str] | None:
+    """Scope FAILED preflight checks to the ops they implicate (S1.14/F11).
+
+    Returns the op ids to pre-block, or None when a failure cannot be scoped
+    — the caller then keeps the old fail-closed behaviour (block everything).
+    WARNING checks never block. Dependents of a blocked op block themselves
+    through the executor's dependency gate.
+    """
+    create_names = {
+        node.operation.inputs.get("name")
+        for node in dag.nodes.values()
+        if node.operation.operation_type == "create_device"
+    }
+    blocked: set[str] = set()
+    for check in preflight.checks:
+        if check.status is not PreflightLevel.FAIL:
+            continue
+        name = check.name
+        scoped: set[str] = set()
+        if name == "workspace_readable":
+            return None
+        elif name == "workspace_collision":
+            # S1.4 guard stays global: a workspace that already holds spec
+            # names may belong to another topology, and scoping it away
+            # would silently bless building on top of foreign devices. The
+            # only way past it is --resume, which is an explicit ownership
+            # claim and bypasses the check before it ever runs (net_build).
+            return None
+        elif name.startswith("port_"):
+            port_key = name[len("port_"):]
+            device, _, iface = port_key.partition(":")
+            link_op = _link_op_for_port(dag, device, iface) if iface else None
+            if link_op is not None:
+                scoped.add(link_op)
+            else:
+                scoped.update(_device_config_ops(dag, device))
+                create_op = _create_op_for_device(dag, device)
+                if create_op is not None:
+                    scoped.add(create_op)
+        elif name.startswith("module_"):
+            rest = name[len("module_"):]
+            device = next(
+                (n for n in create_names if rest.startswith(n + "_")), None
+            )
+            module = rest[len(device) + 1:] if device is not None else rest
+            if device is not None:
+                scoped.update(
+                    op_id for op_id in _device_config_ops(dag, device)
+                    if dag.nodes[op_id].operation.operation_type == "install_module"
+                )
+                if port_plan is not None:
+                    for resolution in port_plan.resolutions.values():
+                        if (
+                            resolution.device == device
+                            and resolution.module_required == module
+                        ):
+                            link_op = _link_op_for_port(
+                                dag, device, resolution.interface
+                            )
+                            if link_op is not None:
+                                scoped.add(link_op)
+        elif name.startswith("interface_hint_"):
+            device = name[len("interface_hint_"):].rsplit("_", 1)[0]
+            scoped.update(_device_config_ops(dag, device))
+        elif name.startswith("reservation_"):
+            rid = name[len("reservation_"):]
+            device, iface = _reservation_endpoint(rid, create_names)
+            if device is None:
+                return None
+            link_op = _link_op_for_port(dag, device, iface) if iface else None
+            if link_op is not None:
+                scoped.add(link_op)
+            else:
+                scoped.update(_device_config_ops(dag, device))
+        elif name.startswith("link_"):
+            link_id = name[len("link_"):].rsplit("_", 1)[0]
+            op_id = f"op-link-{link_id}"
+            if op_id in dag.nodes:
+                scoped.add(op_id)
+            else:
+                return None
+        elif name.startswith("device_") and name.endswith("_role"):
+            device = name[len("device_"):-len("_role")]
+            create_op = _create_op_for_device(dag, device)
+            if create_op is not None:
+                scoped.add(create_op)
+            else:
+                return None
+        else:
+            # A failure we do not understand: fail closed, block everything.
+            return None
+        if not scoped:
+            # A scoped category that names nothing in this DAG is a mapping
+            # miss, not a pass — fail closed.
+            return None
+        blocked.update(scoped)
+    return blocked
+
+
+def _reservation_endpoint(
+    rid: str, device_names: set[str]
+) -> tuple[str | None, str | None]:
+    """Split a reservation id into (device, interface).
+
+    reserve_single() keys them `res-{device}-{interface}`; the removed bulk
+    path keyed them `res-{device}:{interface}`. Device names win over naive
+    splitting so ids containing dashes still parse.
+    """
+    body = rid[4:] if rid.startswith("res-") else rid
+    for device in sorted(device_names, key=len, reverse=True):
+        for sep in ("-", ":"):
+            if body.startswith(device + sep):
+                return device, body[len(device) + 1:]
+    return None, None

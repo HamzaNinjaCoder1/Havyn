@@ -53,6 +53,11 @@
    "id": "R-009",
    "statement": "Wireless laptops associate to the HQ wireless router.",
    "kind": "connectivity"
+  },
+  {
+   "id": "R-010",
+   "statement": "Perimeter ASA passes inside-initiated flows and blocks outside-initiated flows (S1.16 live-proven).",
+   "kind": "isolation"
   }
  ],
  "acceptance_criteria": [
@@ -360,6 +365,21 @@
     "check": "ip_assigned",
     "target": "srv1",
     "detail": "FastEthernet0"
+   }
+  },
+  {
+   "id": "A-024",
+   "requirement_ids": [
+    "R-010",
+    "R-006"
+   ],
+   "title": "Outside cannot initiate to inside through the ASA",
+   "test": {
+    "kind": "flow",
+    "source": "srvisp",
+    "destination": "pc9",
+    "expect": "blocked",
+    "transport": "icmp"
    }
   }
  ],
@@ -1658,7 +1678,7 @@
   }
  ],
  "constraints": [
-  "ASA policies use only 'any' addressing (address-scoped ASA ACLs are not enforced in Packet Tracer).",
+  "ASA policies are protocol-scoped here; address-scoped ASA ACLs ARE enforced by PT (S1.16 live A/B/C) and are available to specs that need them.",
   "Serial link uses Router-PT built-in Serial2/0 ports."
  ],
  "layout_seed": 42

@@ -7,11 +7,12 @@ these tests pin the limits that were measured live rather than assumed:
 * ``permit <proto> any any`` on the ``outside`` nameif passes that protocol
   both ways, and enforcement IS protocol-selective;
 * an access-group on ``inside`` passes nothing;
-* address-scoped rules are ACCEPTED by PT and match NOTHING.
-
-The last point is why the compiler refuses an address-scoped policy: emitting
-it would produce a build that reports success and enforces nothing. Every
-refusal here is the engine declining to lie.
+* address-scoped rules ARE enforced: S1.16's live A/B/C probe bound a permit
+  for the matching pair (the flow passed) and a permit for a non-matching
+  pair (the flow stayed blocked), which is address matching. The compiler
+  therefore renders address-scoped ASA rules in the ASA's netmask syntax
+  instead of refusing them; only junk operands and a bogus netmask are
+  refused, because PT would accept those and match nothing.
 """
 
 from __future__ import annotations
@@ -111,33 +112,65 @@ def test_each_protocol_maps_to_its_own_cli_keyword():
         assert rule_to_cli("p", 0, rule).split()[4] == proto
 
 
-# -- rules PT accepts but cannot enforce --------------------------------------
+# -- address-scoped rules ARE enforced (S1.16 live probe A/B/C) ---------------
 
 
-def test_host_scoped_source_is_refused_not_silently_emitted():
-    """PT takes the line, reports success, and then blocks every flow. Compiling
-    it would hand back a green build that enforces nothing."""
+def test_host_scoped_source_renders_the_asa_host_form():
+    """S1.16 live A/B/C: a permit for the pair passes, a permit for a
+    non-matching pair does not - PT's ASA matches addresses. So a host-scoped
+    rule renders instead of being refused."""
     rule = AclRuleSpec(action="permit", protocol="icmp", source="192.168.10.10",
                        destination="any")
-    with pytest.raises(PolicyCompileError) as exc:
-        rule_to_cli("p", 0, rule)
-    assert "does not match" in str(exc.value)
+    assert rule_to_cli("p", 0, rule) == (
+        "access-list p extended permit icmp host 192.168.10.10 any"
+    )
 
 
-def test_subnet_scoped_destination_is_refused():
+def test_subnet_scoped_destination_renders_the_asa_netmask_form():
     rule = AclRuleSpec(action="permit", protocol="icmp", source="any",
                        destination="192.168.20.0 255.255.255.0")
-    with pytest.raises(PolicyCompileError):
-        rule_to_cli("p", 0, rule)
+    assert rule_to_cli("p", 0, rule) == (
+        "access-list p extended permit icmp any 192.168.20.0 255.255.255.0"
+    )
 
 
-def test_deny_with_a_host_source_is_refused_too():
-    """A deny that cannot be matched is worse than no deny: the spec would read
-    as 'this host is blocked' while it is merely unreachable."""
+def test_deny_with_a_host_source_renders_too():
     rule = AclRuleSpec(action="deny", protocol="icmp", source="10.0.0.5",
                        destination="any")
+    assert rule_to_cli("p", 0, rule) == (
+        "access-list p extended deny icmp host 10.0.0.5 any"
+    )
+
+
+def test_asa_accepts_cidr_netmask_host_and_wildcard_operand_forms():
+    cidr = AclRuleSpec(action="permit", protocol="ip",
+                       source="10.0.0.0/8", destination="any")
+    assert rule_to_cli("p", 0, cidr) == (
+        "access-list p extended permit ip 10.0.0.0 255.0.0.0 any"
+    )
+    netmask_host = AclRuleSpec(action="permit", protocol="icmp",
+                               source="10.8.8.2 255.255.255.255",
+                               destination="any")
+    assert rule_to_cli("p", 1, netmask_host) == (
+        "access-list p extended permit icmp host 10.8.8.2 any"
+    )
+    wildcard = AclRuleSpec(action="permit", protocol="ip",
+                           source="10.0.0.0 0.0.0.255", destination="any")
+    assert rule_to_cli("p", 2, wildcard) == (
+        "access-list p extended permit ip 10.0.0.0 255.255.255.0 any"
+    )
+
+
+def test_asa_address_junk_and_bogus_netmask_are_refused():
+    junk = AclRuleSpec(action="permit", protocol="ip",
+                       source="not-an-address", destination="any")
     with pytest.raises(PolicyCompileError):
-        rule_to_cli("p", 0, rule)
+        rule_to_cli("p", 0, junk)
+    bogus = AclRuleSpec(action="permit", protocol="ip",
+                        source="10.0.0.0 255.0.255.0", destination="any")
+    with pytest.raises(PolicyCompileError) as exc:
+        rule_to_cli("p", 0, bogus)
+    assert "not a valid netmask" in str(exc.value)
 
 
 def test_wildcard_in_long_form_is_accepted():
@@ -194,15 +227,20 @@ def test_policy_on_a_device_with_no_enforcement_path_fails_the_build():
     assert "not an ASA firewall" in str(exc.value)
 
 
-def test_address_scoped_policy_fails_the_build_with_a_reason():
+def test_address_scoped_policy_compiles_and_emits_the_scoped_line():
+    """S1.16 live A/B/C: PT's ASA matches addresses, so an address-scoped
+    policy compiles to a scoped line instead of failing the build."""
     spec = _spec(policies=[{
         "id": "toospecific", "apply_to": ["fw"],
         "rules": [{"action": "permit", "protocol": "icmp",
-                   "source": "192.168.10.10", "destination": "any"}],
+                   "source": "192.168.10.10", "destination": "192.168.20.10"}],
     }])
-    with pytest.raises(CompileError) as exc:
-        _compile(spec)
-    assert "not 'any'" in str(exc.value)
+    cmds = _ios_commands(spec)
+    assert (
+        "access-list toospecific extended permit icmp "
+        "host 192.168.10.10 host 192.168.20.10"
+    ) in cmds
+    assert f"access-group toospecific in interface {ENFORCING_NAMEIF}" in cmds
 
 
 # -- end-to-end command emission ----------------------------------------------

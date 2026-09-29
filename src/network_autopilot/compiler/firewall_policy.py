@@ -12,22 +12,25 @@ findings that shape this module:
   applied, ICMP is blocked and TCP passes. This is what makes a deliberately
   blocked flow expressible.
 * An access-group on the **inside** nameif passes nothing.
-* **Address matching is not implemented.** ``permit icmp host A host B`` and
-  ``permit icmp 192.168.10.0 255.255.255.0 192.168.20.0 255.255.255.0`` are
-  both accepted by PT and both leave every flow blocked. So a host- or
-  subnet-scoped policy cannot be enforced on an ASA, and this module refuses
-  to compile one for an ASA rather than emit config that silently does
-  nothing.
+* **Address matching IS implemented** (S1.16 live probe A/B/C, PT 9.0.1): a
+  permit for the matching pair passed the flow while a permit for a
+  non-matching pair left it blocked - that is address matching. Earlier the
+  opposite was measured and this module refused an address-scoped ASA rule;
+  the fresh probe overturns that, so addresses now render in the ASA's
+  netmask syntax (``host A`` / ``<net> <dotted-netmask>``). Only a junk
+  operand or a bogus netmask is still refused, because PT accepts those and
+  then matches nothing.
 
-**IOS routers are different** (fresh live probe, issue #16): ``access-list 100
-permit icmp any any`` + ``ip access-group 100 in`` on an interface passes that
-protocol, and unlike the ASA, address matching works — a ``deny icmp host A
-host B`` line blocks exactly that pair while other flows keep passing. Router
-policies therefore render as numbered IOS ACLs bound ``in`` on every
-addressed interface of the target (see :func:`build_router_policy_commands`),
-and address-scoped rules are allowed for routers.
+**IOS routers** are different in binding, not in matching (fresh live probe,
+issue #16): ``access-list 100 permit icmp any any`` + ``ip access-group 100
+in`` on an interface passes that protocol, and address matching works the
+same way - a ``deny icmp host A host B`` line blocks exactly that pair while
+other flows keep passing. Router policies therefore render as numbered IOS
+ACLs bound ``in`` on every addressed interface of the target (see
+:func:`build_router_policy_commands`), using IOS wildcard operands where the
+ASA uses netmasks.
 
-The last point about ASAs is the whole reason this module raises instead of
+The remaining refusals are the whole reason this module raises instead of
 degrading: a green build that does not enforce the policy the spec asked for
 is worse than a refusal, because the failure only shows up as unexplained
 traffic loss later.
@@ -42,7 +45,8 @@ from ..core.network_spec import AclRuleSpec, NetworkSpec, PolicySpec
 # The only nameif PT honours for an inbound access-group.
 ENFORCING_NAMEIF = "outside"
 
-#: Addressing PT's ASA will not match on. Only these pass traffic.
+#: Addressing PT treats as "everything". ``0.0.0.0 0.0.0.0`` is the wildcard
+#: spelling; both render as the CLI keyword ``any``.
 WILDCARD_ADDRESSES = frozenset({"any", "0.0.0.0 0.0.0.0"})
 
 #: Protocols PT's ASA will match on, mapped to the CLI keyword.
@@ -58,33 +62,15 @@ class PolicyCompileError(ValueError):
     """The requested policy cannot be enforced by Packet Tracer's ASA."""
 
 
-def _is_wildcard(address: str) -> bool:
-    return address.strip() in WILDCARD_ADDRESSES
-
-
 def _check_rule_is_enforceable(policy_id: str, index: int, rule: AclRuleSpec) -> None:
     """Refuse a rule PT would accept but not enforce.
 
-    PT takes the line, reports success and then matches nothing, so the policy
-    would look applied while every flow stayed blocked. Saying so at compile
-    time is the only honest outcome.
+    Address matching is NOT one of those (S1.16 live A/B/C): PT's ASA matches
+    addresses, so a scoped rule is rendered, not refused. What is still
+    refused is a rule PT takes and then mishandles: a transport port on icmp
+    (PT aborts the whole configure block) or an unknown protocol.
     """
     where = f"policy {policy_id!r} rule {index + 1}"
-    if not _is_wildcard(rule.source):
-        raise PolicyCompileError(
-            f"{where}: source {rule.source!r} is not 'any'. Packet Tracer's ASA "
-            "accepts address-scoped permit/deny lines but does not match on "
-            "them - the flow would be blocked no matter what the rule says. "
-            "Use source='any' and separate the zones with subnets, or enforce "
-            "the restriction at the host/router."
-        )
-    if not _is_wildcard(rule.destination):
-        raise PolicyCompileError(
-            f"{where}: destination {rule.destination!r} is not 'any'. Packet "
-            "Tracer's ASA accepts address-scoped permit/deny lines but does not "
-            "match on them - the flow would be blocked no matter what the rule "
-            "says. Use destination='any' and separate the zones with subnets."
-        )
     if rule.dest_port is not None and rule.protocol == "icmp":
         raise PolicyCompileError(
             f"{where}: dest_port does not apply to icmp. PT rejects the line and "
@@ -98,14 +84,83 @@ def _check_rule_is_enforceable(policy_id: str, index: int, rule: AclRuleSpec) ->
         )
 
 
+def _asa_address(value: str) -> str:
+    """One rule operand as PT's ASA extended-ACL form (netmask syntax).
+
+    PT's ASA matches addresses (S1.16 live A/B/C), so operands render rather
+    than being refused. Shapes accepted, mirroring :func:`_ios_address`:
+    ``any``, a bare IP -> ``host <ip>``, ``host <ip>`` verbatim,
+    ``<net>/<prefix>`` -> ``<net> <dotted-netmask>``, ``<net> <dotted-netmask>``,
+    and an already-wildcard pair (inverted to its netmask, the form the ASA
+    wants). Anything else is refused instead of guessed at - PT would accept
+    a malformed operand and match nothing.
+    """
+    import ipaddress
+
+    text = value.strip()
+    if text in WILDCARD_ADDRESSES:
+        return "any"
+    if text.startswith("host "):
+        return text
+    parts = text.split()
+    if len(parts) == 2:
+        try:
+            network = ipaddress.ip_network(f"{parts[0]}/{parts[1]}", strict=False)
+        except ValueError:
+            # Not a netmask pair: either an already-wildcard pair such as
+            # `10.0.0.0 0.0.0.255` or junk. A real netmask always starts with
+            # 255 while a wildcard virtually always starts with 0, so a
+            # second half with a leading 255 that does not parse is a bogus
+            # netmask (S1.16 probe S4) - refuse it by name instead of
+            # emitting a line PT accepts and never matches. Otherwise the
+            # pair is a wildcard, which the ASA wants inverted to a netmask.
+            if parts[1].split(".")[0] == "255":
+                raise PolicyCompileError(
+                    f"address {value!r} is not a valid netmask pair: "
+                    f"{parts[1]!r} is no valid mask"
+                ) from None
+            try:
+                ipaddress.ip_address(parts[0])
+                ipaddress.ip_address(parts[1])
+            except ValueError:
+                raise PolicyCompileError(
+                    f"address {value!r} is neither 'any', a host, a CIDR "
+                    "network, a netmask pair nor a wildcard pair"
+                ) from None
+            return f"{parts[0]} {_inverse_mask(parts[1])}"
+        if network.prefixlen == 32:
+            # `host X` written as `X 255.255.255.255` (S1.16 probe): the
+            # canonical host form, not a redundant `X 0.0.0.0` pair.
+            return f"host {network.network_address}"
+        return f"{network.network_address} {network.netmask}"
+    if "/" in text:
+        try:
+            network = ipaddress.ip_network(text, strict=False)
+        except ValueError:
+            raise PolicyCompileError(f"address {value!r} is not a valid CIDR network") from None
+        return f"{network.network_address} {network.netmask}"
+    try:
+        ipaddress.ip_address(text)
+    except ValueError:
+        raise PolicyCompileError(
+            f"address {value!r} is neither 'any', a host nor a network"
+        ) from None
+    return f"host {text}"
+
+
 def rule_to_cli(policy_id: str, index: int, rule: AclRuleSpec) -> str:
-    """One ``access-list`` line, in the exact shape proven against live PT."""
+    """One ``access-list`` line, in the exact shape proven against live PT.
+
+    Addresses render in the ASA's netmask syntax (S1.16 live A/B/C: PT's ASA
+    matches them); see :func:`_asa_address`.
+    """
     _check_rule_is_enforceable(policy_id, index, rule)
     protocol = PROTOCOL_KEYWORDS[rule.protocol]
     port = f" eq {rule.dest_port}" if rule.dest_port is not None else ""
     return (
         f"access-list {policy_id} extended {rule.action} "
-        f"{protocol} any any{port}"
+        f"{protocol} {_asa_address(rule.source)} "
+        f"{_asa_address(rule.destination)}{port}"
     )
 
 
@@ -189,7 +244,7 @@ def _ios_address(value: str) -> str:
 def rule_to_ios_cli(acl_number: str, index: int, rule: AclRuleSpec) -> str:
     """One numbered IOS ACL line (``access-list 100 permit ...``).
 
-    Unlike :func:`rule_to_cli` (ASA), addresses are rendered rather than
+    Like :func:`rule_to_cli` (ASA), addresses are rendered rather than
     refused: PT's IOS router matches them live (issue #16).
     """
     where = f"policy rule {index + 1}"
@@ -275,10 +330,10 @@ def assert_policies_target_firewalls(
     """Every enforced policy must land on a device that can enforce it.
 
     Live probes cover two categories: ASA firewalls (named ACL + nameif) and
-    IOS routers (numbered ACL + ``ip access-group ... in``, address matching
-    included - issue #16). A policy aimed at anything else would compile
-    cleanly and then have no effect, which is the same silent-no-op failure
-    as an address-scoped rule on an ASA. ``model_for`` resolves a device id
+    IOS routers (numbered ACL + ``ip access-group ... in``); both match
+    addresses (S1.16, issue #16). A policy aimed at anything else would
+    compile cleanly and then have no effect, which is the same silent-no-op
+    failure this module exists to refuse. ``model_for`` resolves a device id
     to its catalog DeviceModel (or None).
     """
     for policy in spec.policies:
@@ -334,10 +389,10 @@ def describe_enforcement(
 ) -> Iterable[str]:
     """Human-readable notes about what a spec's policies can and cannot do.
 
-    ``model_for`` resolves ``apply_to`` ids to catalog models. When it is
-    given and every target is an IOS router, the ASA address-scoping check
-    is skipped for that policy: router ACLs match addresses live (issue #16),
-    so an address-scoped rule on a router is not a limitation to report.
+    ``model_for`` resolves ``apply_to`` ids to catalog models; it is kept for
+    callers that want to name the target, but since S1.16 address-scoped
+    rules are enforceable on both ASA and IOS targets, so there is no longer
+    a per-category limitation to skip.
     """
     for policy in spec.policies:
         if policy.enforcement != "available":
@@ -346,13 +401,6 @@ def describe_enforcement(
                 "spec but not enforced, so verification reports it UNKNOWN"
             )
             continue
-        if model_for is not None:
-            targets = [model_for(t.strip()) for t in policy.apply_to]
-            if targets and all(
-                m is not None and getattr(m, "category", None) == "router"
-                for m in targets
-            ):
-                continue
         try:
             for index, rule in enumerate(policy.rules):
                 _check_rule_is_enforceable(policy.id, index, rule)

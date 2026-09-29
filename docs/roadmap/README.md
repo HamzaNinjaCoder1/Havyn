@@ -35,8 +35,10 @@ Its sections, in order:
   the Capability Map checklist in the PR template.
 - The **refusal policy** in section 6 is why the engine raises instead of
   emitting config PT would accept and ignore. `compiler/firewall_policy.py` is
-  one concrete instance: it refuses an address-scoped ASA rule because PT takes
-  the line and then matches nothing.
+  one concrete instance: it refuses a malformed ACL operand or a transport
+  port on icmp, because PT takes such a line and then matches nothing (or
+  aborts the block). Note the S1.16 live probe: an *address-scoped* rule is
+  NOT refused — PT's ASA matches addresses, so those render in netmask syntax.
 
 ## Open notes against blueprint tasks
 
