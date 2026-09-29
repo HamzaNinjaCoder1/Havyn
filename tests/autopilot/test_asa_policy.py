@@ -433,6 +433,28 @@ def test_rule_to_ios_cli_refuses_junk_instead_of_guessing():
         rule_to_ios_cli("100", 0, junk)
 
 
+def test_host_in_netmask_form_renders_as_host():
+    """S1.16 probe: `host X` written as `X 255.255.255.255` must render the
+    canonical host form, not a redundant `X 0.0.0.0` wildcard pair."""
+    rule = AclRuleSpec(action="permit", protocol="icmp",
+                       source="10.8.8.2 255.255.255.255",
+                       destination="any")
+    assert rule_to_ios_cli("100", 0, rule) == (
+        "access-list 100 permit icmp host 10.8.8.2 any"
+    )
+
+
+def test_bogus_netmask_is_refused_by_name():
+    """S1.16 probe S4: a mask that is no valid netmask but sits in the
+    netmask position (leading 255) is a broken netmask, not a wildcard -
+    refuse it instead of emitting a line PT accepts and never matches."""
+    rule = AclRuleSpec(action="permit", protocol="ip",
+                       source="10.0.0.0 255.0.255.0", destination="any")
+    with pytest.raises(PolicyCompileError) as exc:
+        rule_to_ios_cli("100", 0, rule)
+    assert "not a valid netmask" in str(exc.value)
+
+
 def test_build_router_policy_commands_is_empty_without_a_policy():
     spec = _spec()
     assert build_router_policy_commands(spec, "r1", ["GigabitEthernet0/0"]) == ([], [])

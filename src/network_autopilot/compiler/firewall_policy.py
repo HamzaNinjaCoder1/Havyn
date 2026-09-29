@@ -145,8 +145,18 @@ def _ios_address(value: str) -> str:
             network = ipaddress.ip_network(f"{parts[0]}/{parts[1]}", strict=False)
         except ValueError:
             # Not a netmask pair: either an already-wildcard pair such as
-            # `10.0.0.0 0.0.0.255` or junk. A wildcard pair only parses when
-            # both halves are addresses, so verify before passing it through.
+            # `10.0.0.0 0.0.0.255` or junk. A real netmask always starts with
+            # 255 while a wildcard virtually always starts with 0, so a
+            # second half with a leading 255 that does not parse is a bogus
+            # netmask (S1.16 probe S4) - refuse it by name instead of
+            # emitting a wildcard PT accepts and never matches. Otherwise
+            # verify both halves are addresses before passing a wildcard
+            # pair through.
+            if parts[1].split(".")[0] == "255":
+                raise PolicyCompileError(
+                    f"address {value!r} is not a valid netmask pair: "
+                    f"{parts[1]!r} is no valid mask"
+                ) from None
             try:
                 ipaddress.ip_address(parts[0])
                 ipaddress.ip_address(parts[1])
@@ -156,6 +166,10 @@ def _ios_address(value: str) -> str:
                     "network, a netmask pair nor a wildcard pair"
                 ) from None
             return text
+        if network.prefixlen == 32:
+            # `host X` written as `X 255.255.255.255` (S1.16 probe): the
+            # canonical host form, not a redundant `X 0.0.0.0` pair.
+            return f"host {network.network_address}"
         return f"{network.network_address} {_inverse_mask(str(network.netmask))}"
     if "/" in text:
         try:
