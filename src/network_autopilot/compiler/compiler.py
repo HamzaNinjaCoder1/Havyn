@@ -1214,8 +1214,14 @@ def _build_firewall_commands(
     assignment_ports: dict[tuple[str, str], str],
     device,
     model: Any,
-) -> list[str]:
+) -> tuple[list[str], dict[str, str]]:
     """Interface + ACL CLI for an ASA, in shapes proven against live PT.
+
+    Returns ``(commands, nameif_by_subnet)``: the second element maps each of
+    this ASA's subnet ids to the ``nameif`` its interface got, so the caller
+    can render an ASA static route against the interface the next hop is
+    reachable through (PT's ASA needs ``route <nameif> ...``; ``ip route`` is
+    silently ignored - S1.19 live root cause).
 
     Interface evidence (PT 5505/5506-X, all re-measured live): configureIosDevice
     ABORTS at the first invalid line, so every block leads with its most
@@ -1292,6 +1298,8 @@ def _build_firewall_commands(
         resolved.append((physical, config_iface, assignment))
 
     cmds: list[str] = []
+    #: subnet id -> the nameif its interface carries, for ASA route rendering.
+    nameif_by_subnet: dict[str, str] = {}
     if model.pt_type == "5505":
         # L2 joins first (r12 emission order): each switchport into the vlan
         # whose SVI will carry its subnet's gateway address.
@@ -1322,7 +1330,10 @@ def _build_firewall_commands(
         ip_line = f"ip address {assignment.ip} {mask.netmask}"
         if config_iface == "Vlan1":
             # Factory-named, factory-IP Vlan1 (see docstring): double ip
-            # push, security/shutdown, and no nameif line at all.
+            # push, security/shutdown, and no nameif line at all. PT's 5505
+            # factory names it `inside`, which is the name a route via this
+            # interface must use.
+            nameif_by_subnet[assignment.subnet_id] = "inside"
             cmds += [
                 f"interface {config_iface}", ip_line, "exit",
                 f"interface {config_iface}", ip_line, "exit",
@@ -1333,6 +1344,7 @@ def _build_firewall_commands(
             # Vlan2 is fresh in PT: the full r10/r12 block applies at once.
             declared = declared_asa.get(config_iface) or declared_asa.get(physical)
             nameif, level = declared if declared else ("outside", 0)
+            nameif_by_subnet[assignment.subnet_id] = nameif
             cmds += [
                 f"interface {config_iface}", ip_line,
                 f"nameif {nameif}", f"security-level {level}",
@@ -1353,6 +1365,7 @@ def _build_firewall_commands(
                 level = 0
             if index != 0:
                 acl_targets.append(nameif)
+            nameif_by_subnet[assignment.subnet_id] = nameif
             cmds += [
                 f"interface {physical}", ip_line,
                 f"nameif {nameif}", f"security-level {level}",
@@ -1369,7 +1382,7 @@ def _build_firewall_commands(
         raise CompileError(str(exc)) from exc
     if policy_acls:
         cmds.extend(policy_cmds)
-        return cmds
+        return cmds, nameif_by_subnet
 
     # Otherwise the default: an ICMP permit on each security-level-0 nameif.
     # With no access-group at all PT blocks EVERY flow in both directions -
@@ -1382,7 +1395,52 @@ def _build_firewall_commands(
             f"access-list {acl_name} extended permit icmp any any",
             f"access-group {acl_name} in interface {nameif_value}",
         ]
-    return cmds
+    return cmds, nameif_by_subnet
+
+
+def _asa_route_nameif(
+    plan: AddressPlan,
+    device,
+    route,
+    nameif_by_subnet: dict[str, str],
+) -> str:
+    """The nameif an ASA route to ``route.next_hop`` must name.
+
+    PT's ASA installs a static route only in its own form -
+    ``route <nameif> <net> <mask> <next_hop> <metric>`` - and only when the
+    nameif is the interface the next hop is reachable through. The IOS
+    ``ip route`` form is accepted and then silently never installed: live
+    probe (PT 9.0.1, S1.19) showed every flow across a routed ASA dropping
+    100% with ``ip route`` and passing on the first probe once the same route
+    was pushed as ``route inside ... 1``.
+    """
+    if not route.next_hop:
+        raise CompileError(
+            f"ASA {device.id}: the static route to {route.destination} has no "
+            "next_hop. PT's ASA `route` needs a gateway address, so an "
+            "exit-interface-only route cannot be pushed - refused by name "
+            "rather than emitted as a line the ASA would silently ignore."
+        )
+    hop = ipaddress.ip_address(route.next_hop)
+    for assignment in plan.assignments:
+        if assignment.device != device.id or not assignment.ip:
+            continue
+        nameif = nameif_by_subnet.get(assignment.subnet_id)
+        if nameif is None:
+            continue
+        allocation = plan.allocation_by_subnet(assignment.subnet_id)
+        if allocation is None:  # pragma: no cover - plan/spec consistency
+            continue
+        network = ipaddress.ip_network(
+            f"{allocation.network}/{allocation.prefix_len}", strict=False
+        )
+        if hop in network:
+            return nameif
+    raise CompileError(
+        f"ASA {device.id}: next hop {route.next_hop} of the route to "
+        f"{route.destination} is on no subnet this ASA is addressed on, so "
+        "PT's ASA has no interface to reach it through."
+    )
 
 
 def _add_firewall_config_op(
@@ -1399,7 +1457,9 @@ def _add_firewall_config_op(
     Deps cover every link touching the device: the switchport joins inside
     this op configure the very ports those links terminate on.
     """
-    commands = _build_firewall_commands(spec, plan, assignment_ports, device, model)
+    commands, nameif_by_subnet = _build_firewall_commands(
+        spec, plan, assignment_ports, device, model
+    )
     static_routes: list[dict[str, str]] = []
     if spec.routing.mode == "static":
         for route in spec.routing.static_routes:
@@ -1412,11 +1472,13 @@ def _add_firewall_config_op(
                     "exit_interface": route.exit_interface or "",
                 }
             )
-            # IOS/ASA static routes need a dotted netmask, not CIDR.
+            # An ASA static route needs a dotted netmask, not CIDR, AND the
+            # ASA's own `route <nameif> ... <metric>` form: PT's ASA ignores
+            # `ip route` entirely (S1.19 live root cause).
             net, mask = _split_cidr(route.destination)
+            nameif = _asa_route_nameif(plan, device, route, nameif_by_subnet)
             commands.append(
-                f"ip route {net} {mask} "
-                f"{route.next_hop or route.exit_interface or ''}".strip()
+                f"route {nameif} {net} {mask} {route.next_hop} 1"
             )
     commands.append(f"hostname {device.id}")
     deps = [device_ops[device.id], *_link_ops_for_device(dag, device.id)]

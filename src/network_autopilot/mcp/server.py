@@ -44,6 +44,7 @@ def _parse_spec(spec_json: str) -> tuple[NetworkSpec | None, dict | None]:
 
 def _make_autopilot(
     adapter: str, safety_mode: str, evidence_dir: str, auto_launch: bool = False,
+    keep_evidence: int = 20,
 ) -> tuple[Autopilot | None, dict | None]:
     """Build the engine facade; adapter='bridge' requires no live check here —
     callers report channel status honestly from ping()."""
@@ -51,13 +52,13 @@ def _make_autopilot(
     gate = SafetyGate(mode, MutationBudget())
     evidence = EvidenceStore(root=Path(evidence_dir))
     if adapter == "null":
-        return Autopilot(NullAdapter(), gate, evidence), None
+        return Autopilot(NullAdapter(), gate, evidence, keep_evidence=keep_evidence), None
     if adapter == "bridge":
         from ..adapter.packet_tracer.bridge_adapter import BridgeAdapter
 
         bridge = BridgeAdapter(host_bridge=True, evidence=evidence,
                                auto_launch=auto_launch)
-        return Autopilot(bridge, gate, evidence), None
+        return Autopilot(bridge, gate, evidence, keep_evidence=keep_evidence), None
     return None, {"error": f"unknown adapter {adapter!r}: use 'null' or 'bridge'"}
 
 
@@ -351,6 +352,8 @@ def net_build(
     safety_mode: str = "dry_run",
     evidence_dir: str = _DEFAULT_EVIDENCE_DIR,
     auto_launch: bool = False,
+    resume_from: str | None = None,
+    keep_evidence: int = 20,
 ) -> dict:
     """Run the full autopilot pipeline: plan -> compile -> execute -> verify.
 
@@ -367,19 +370,26 @@ def net_build(
 
     The response carries the full machine-readable build report and the
     human-readable one; every PASS in it is backed by recorded evidence.
+
+    resume_from: a prior build id whose CONFIRMED operations are skipped —
+    only the remainder runs. Fails closed when the id has nothing confirmed.
+
+    keep_evidence: newest build folders kept live in the evidence dir
+    (default 20); older ones are archived and removed at the end of the build.
     """
     spec, err = _parse_spec(spec_json)
     if err:
         return err
     autopilot, aerr = _make_autopilot(adapter, safety_mode, evidence_dir,
-                                      auto_launch=auto_launch)
+                                       auto_launch=auto_launch,
+                                       keep_evidence=keep_evidence)
     if aerr:
         return aerr
     if adapter == "bridge":
         blocked = _live_or_blocked(autopilot.adapter, auto_launch)
         if blocked is not None:
             return blocked
-    build, error = autopilot.build(spec)
+    build, error = autopilot.build(spec, resume_from=resume_from)
     if error:
         return {"status": "FAILED", "error": error}
     return {  # type: ignore[union-attr]

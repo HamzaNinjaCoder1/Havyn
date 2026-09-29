@@ -250,6 +250,8 @@ class BuildReport:
             f"Drift:          {self._drift_line()}",
             f"Repairs:        {self._repairs_line()}",
             f"Reused:         {len(self.reused)} operation(s) (idempotent)",
+            f"Blocked:        {self._blocked_line()}",
+            f"Resumed:        {len(self.execution.get('resumed', []))} operation(s) (prior confirmed work)",
             f"Project:        {self.project_file or 'not saved'}",
             f"Evidence:       {self.evidence_path or 'n/a'}",
             "",
@@ -339,6 +341,15 @@ class BuildReport:
             parts.append("all blocked (no speculative repair)")
         return ", ".join(parts)
 
+    def _blocked_line(self) -> str:
+        """The blocked part of the build, named (S1.14/F11)."""
+        blocked = self.execution.get("blocked", [])
+        preflight = self.execution.get("preflight_blocked", [])
+        line = f"{len(blocked)} operation(s)"
+        if preflight:
+            line += f" [preflight: {', '.join(preflight)}]"
+        return line
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "build_id": self.build_id,
@@ -368,10 +379,17 @@ class Autopilot:
         adapter: PacketTracerAdapter,
         gate: SafetyGate,
         evidence: EvidenceStore | None = None,
+        *,
+        keep_evidence: int = 20,
     ):
         self.adapter = adapter
         self.gate = gate
         self.evidence = evidence
+        if keep_evidence < 0:
+            raise ValueError("keep_evidence must be >= 0")
+        #: S1.17/F15: newest build folders kept live; older ones are archived
+        #: and removed at the end of every build so the folder stays bounded.
+        self.keep_evidence = keep_evidence
 
     # -- shared pipeline stages ---------------------------------------------
 
@@ -509,7 +527,9 @@ class Autopilot:
             self.evidence.record("diff", diff.to_dict(), component="orchestrator")
         return report, diff, None
 
-    def build(self, spec: NetworkSpec) -> tuple[BuildReport | None, str | None]:
+    def build(
+        self, spec: NetworkSpec, *, resume_from: str | None = None
+    ) -> tuple[BuildReport | None, str | None]:
         """Run the full pipeline. Returns (report, error) â€” error blocks the build."""
         evidence = self.evidence
         phases: dict[str, float] = {}
@@ -546,8 +566,11 @@ class Autopilot:
         # 2. Compile + preflight (preflight is a HARD gate â€” Â§G)
         from .compiler import net_build
         try:
-            # adapter forwarded for the S1.4 workspace collision check.
-            compiled, compile_error = net_build(spec, plan, adapter=self.adapter)
+            # adapter forwarded for the S1.4 workspace collision check
+            # (skipped when resuming: the prior build owns those names).
+            compiled, compile_error = net_build(
+                spec, plan, adapter=self.adapter, resume_from=resume_from
+            )
         except (CompileError, PolicyCompileError) as exc:
             # The compiler refused the spec by name (port preflight, policy,
             # out-of-scope feature) - pre-mutation, so it shares preflight's
@@ -583,6 +606,35 @@ class Autopilot:
             )
         phases["preflight"] = time.monotonic() - t_build
 
+        # S1.14/F11: resume reuses the prior build's CONFIRMED ops only.
+        # An unknown build id or a prior build with nothing confirmed is a
+        # fail-closed error, never a silent full rebuild.
+        resumed_from: dict[str, str] = {}
+        if resume_from:
+            if evidence is None:
+                return None, (
+                    f"resume failed: no evidence store to read "
+                    f"build {resume_from!r} from"
+                )
+            from .evidence.store import completed_ops_from_evidence
+
+            resumed_from = completed_ops_from_evidence(
+                evidence.root, resume_from
+            )
+            if not resumed_from:
+                return None, (
+                    f"resume failed: build {resume_from!r} has no confirmed "
+                    "operations to resume from"
+                )
+            evidence.record(
+                "resumed_from",
+                {
+                    "build_id": resume_from,
+                    "operations": sorted(resumed_from),
+                },
+                component="orchestrator",
+            )
+
         # 3. Execute through the safety gate
         # Size the budget to the actual plan. A hardcoded ceiling here would
         # abort any non-trivial build (the old fixed 25 killed 12-device labs);
@@ -594,7 +646,11 @@ class Autopilot:
             ).max_mutations
         executor = DagExecutor(self.adapter, self.gate, evidence)
         t_execute = time.monotonic()
-        execution = executor.execute(compiled.dag)
+        execution = executor.execute(
+            compiled.dag,
+            pre_blocked=compiled.preflight_blocked_ops,
+            pre_completed=resumed_from,
+        )
         phases["execute"] = time.monotonic() - t_execute
         # Family breakdown inside execute (create/cable/configure/flows vs
         # the rest) from the executor's monotonic clock â€” S1.5.
@@ -700,4 +756,23 @@ class Autopilot:
         build.drift_unknown_count = diff.unknown_count
         if evidence is not None:
             evidence.record("build_result", build.to_dict(), component="orchestrator")
+            self._prune_evidence()
         return build, None
+
+    def _prune_evidence(self) -> None:
+        """Retention pass at the end of a build (S1.17/F15).
+
+        The running build is excluded by id and can never eat itself; a
+        failed archive removes nothing (fail closed inside prune_evidence).
+        """
+        from .evidence.store import prune_evidence
+
+        assert self.evidence is not None
+        summary = prune_evidence(
+            self.evidence.root,
+            keep=self.keep_evidence,
+            exclude={self.evidence.build_id},
+        )
+        self.evidence.record(
+            "evidence_pruned", summary, component="orchestrator"
+        )

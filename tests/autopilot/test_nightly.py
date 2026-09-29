@@ -56,3 +56,28 @@ def test_task_xml_is_well_formed_and_points_at_the_runner():
     assert "havyn-nightly.ps1" in text
     assert "CalendarTrigger" in text and "DaysInterval" in text
     assert "%REPOROOT%" in text, "absolute repo path is the importer's job"
+
+
+def test_nightly_heartbeat_path_matches_the_engine_mailbox():
+    """The wrapper waits on the Script Engine heartbeat before it runs.
+
+    It has to look where the engine actually writes it — ``<dir>/<subdir>/
+    alive.txt`` — in both runtime dirs. A guessed subdir (``mailbox`` instead
+    of the engine's ``bridge``) makes ``Test-Heartbeat`` return false forever,
+    so the nightly throws "no Script Engine heartbeat within 5 minutes" with
+    Packet Tracer wide awake. This ties the .ps1 literal to the engine's own
+    constant, so renaming the subdir on either side fails here.
+    """
+    from network_autopilot.pt import mailbox
+
+    subdir = mailbox._MAILBOX_SUBDIR
+    ps1 = (REPO_ROOT / "scripts" / "nightly" / "havyn-nightly.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert f'"Havyn" "{subdir}" "alive.txt"' in ps1, ps1
+    assert f'"packet-tracer-mcp" "{subdir}" "alive.txt"' in ps1, ps1
+    assert '"mailbox" "alive.txt"' not in ps1, (
+        "the nightly still probes a stale mailbox/ heartbeat path"
+    )
+

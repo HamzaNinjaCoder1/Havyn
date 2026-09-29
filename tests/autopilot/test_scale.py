@@ -8,6 +8,8 @@ catch a regression the moment the budget stops scaling.
 
 from __future__ import annotations
 
+import pathlib
+import re
 import time
 
 import pytest
@@ -104,6 +106,29 @@ def test_budget_scaling_formula_is_monotonic():
 
     assert small.max_mutations < medium.max_mutations < large.max_mutations
     assert large.max_mutations <= MutationBudget.GLOBAL_CEILING
+
+
+def test_budget_formula_matches_the_documented_numbers():
+    """S1.13/F10: the README states the budget formula; the code must agree.
+
+    The documented numbers are parsed out of the README (not copied here),
+    so changing the formula without updating the docs — or vice versa —
+    turns this red. Single truth, checked both ways.
+    """
+    readme = (pathlib.Path(__file__).parents[2] / "README.md").read_text(
+        encoding="utf-8"
+    )
+    formula = re.search(r"min\((\d+)\s*\+\s*(\d+)\*ops,\s*(\d+)\)", readme)
+    assert formula, "README must state the budget as min(<base> + <head>*ops, <ceiling>)"
+    base, head, ceiling = (int(g) for g in formula.groups())
+    default = re.search(r"unsized default is `(\d+)`", readme)
+    assert default, "README must state the unsized default budget"
+    assert MutationBudget().max_mutations == int(default.group(1))
+    assert MutationBudget.GLOBAL_CEILING == ceiling
+    for ops in (0, 1, 10, 100, 100_000):
+        assert MutationBudget.for_operations(ops).max_mutations == min(
+            base + head * ops, ceiling
+        ), f"budget formula drifted for {ops} ops"
 
 
 def test_large_compile_is_deterministic():

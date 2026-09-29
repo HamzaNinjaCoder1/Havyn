@@ -18,6 +18,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from typing import Any
+from collections.abc import Collection, Mapping
 
 from ..adapter.base import PacketTracerAdapter
 from ..core.actual_state import ActualNetworkState
@@ -56,6 +57,9 @@ class ExecutionResult:
     failed: list[str] = field(default_factory=list)
     reused: list[str] = field(default_factory=list)
     preflight_blocked: list[str] = field(default_factory=list)
+    #: S1.14/F11: ops skipped because a prior build already confirmed them
+    #: (--resume). Skipped-for-resume satisfies dependents like any SKIPPED op.
+    resumed: list[str] = field(default_factory=list)
     #: Wall seconds spent per operation_type, measured with a monotonic clock
     #: around each dispatch (bulk runs count once for the whole run). The
     #: receipts' started_at/finished_at are stamped at construction and are
@@ -78,6 +82,7 @@ class ExecutionResult:
             "failed": list(self.failed),
             "reused": list(self.reused),
             "preflight_blocked": list(self.preflight_blocked),
+            "resumed": list(self.resumed),
             "op_seconds": dict(sorted(self.op_seconds.items())),
             "state_devices": sorted(self.state.devices),
         }
@@ -133,9 +138,35 @@ class DagExecutor:
 
     # -- public API -----------------------------------------------------------
 
-    def execute(self, dag: OperationDag, *, filename_hint: str | None = None) -> ExecutionResult:
+    def execute(
+        self,
+        dag: OperationDag,
+        *,
+        filename_hint: str | None = None,
+        pre_blocked: Collection[str] = (),
+        pre_completed: Mapping[str, str] | None = None,
+    ) -> ExecutionResult:
         result = ExecutionResult(dag=dag, state=self.state)
         self._dag = dag
+        # S1.14/F11: pre-blocked ops (scoped preflight failures) never run;
+        # their dependents block themselves through the dependency gate below.
+        # Pre-completed ops (--resume: confirmed by a prior build) are marked
+        # SKIPPED with the prior build named, so the report shows what this
+        # run did versus what it reused.
+        for op_id in pre_blocked:
+            node = dag.nodes.get(op_id)
+            if node is None or node.status is not OpStatus.PENDING:
+                continue
+            node.status = OpStatus.BLOCKED
+            node.note = "blocked by scoped preflight failure"
+            result.preflight_blocked.append(op_id)
+        for op_id, prior_build in (pre_completed or {}).items():
+            node = dag.nodes.get(op_id)
+            if node is None or node.status is not OpStatus.PENDING:
+                continue
+            node.status = OpStatus.SKIPPED
+            node.note = f"already confirmed in {prior_build} (resumed)"
+            result.resumed.append(op_id)
         topo = list(dag.topo_order())
         index = 0
         while index < len(topo):

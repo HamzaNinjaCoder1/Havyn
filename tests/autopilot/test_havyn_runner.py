@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import importlib
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 havyn_runner = importlib.import_module("scripts.havyn_runner")
@@ -70,6 +72,18 @@ class _DirtyAdapter(NullAdapter):
 
     def delete_devices_bulk(self, names):
         return {n: "still-present" for n in names}
+
+
+class _ProtectedOnlyAdapter(NullAdapter):
+    """A canvas holding only a protected power device.
+
+    ``clean()`` leaves it in place (by design) and reports it in ``remaining``
+    — which is the full read-back, not just leftovers. The runner must read
+    that as a clean workspace, not as an uncleanable one.
+    """
+
+    def list_device_names(self):
+        return Observable.known(["Power Distribution Device0"], source="fake")
 
 
 def test_runner_writes_result_json_per_case(tmp_path):
@@ -134,6 +148,28 @@ def test_runner_stops_when_workspace_cannot_be_cleaned(tmp_path):
     assert summary.ran == 1
 
 
+def test_runner_does_not_treat_protected_devices_as_dirt(tmp_path):
+    """Protected devices always survive cleaning; that is not a dirty canvas.
+
+    ``clean()`` reports them in ``remaining`` (the whole read-back). A runner
+    that blocked on any ``remaining`` would refuse to run on every real
+    workspace, which always holds the user's protected power devices.
+    """
+    spec = _write_spec(tmp_path)
+    summary = havyn_runner.run_queue(
+        _queue([{"id": "T", "spec": spec}]),
+        _ProtectedOnlyAdapter,
+        tmp_path / "results",
+        tmp_path / "evidence",
+    )
+
+    result = json.loads((tmp_path / "results" / "T.json").read_text(
+        encoding="utf-8"))
+    assert result["status"] != "blocked", result
+    assert not summary.stopped, summary.to_dict()
+    assert summary.ran == 1
+
+
 def test_failed_build_does_not_stop_the_queue(tmp_path):
     """One bad case is recorded; the queue marches on."""
     spec = _write_spec(tmp_path)
@@ -176,4 +212,41 @@ def test_runner_prunes_and_uploads_on_cadence(tmp_path):
     assert all(u["uploaded"] for u in summary.uploads)
     assert list((tmp_path / "evidence").glob("archive-*.zip")), (
         "pruning must archive the first case's evidence"
+    )
+
+
+def test_runner_runs_as_a_script_from_the_repo_root(tmp_path):
+    """The nightly .ps1 invokes ``python scripts/havyn_runner.py``.
+
+    Run that way, ``sys.path[0]`` is ``scripts/`` -- not the repo root -- so the
+    sibling import ``scripts.pt_clean_workspace`` used to raise
+    ModuleNotFoundError before the first build. This drives the real entry point
+    as a subprocess (the only faithful way to reproduce a launch-time sys.path)
+    and asserts the case actually produced a result.
+    """
+    repo = Path(havyn_runner.__file__).resolve().parents[1]
+    spec = _write_spec(tmp_path)
+    queue = tmp_path / "queue.json"
+    queue.write_text(
+        json.dumps({"cases": [{"id": "T", "spec": spec}]}), encoding="utf-8"
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable, str(repo / "scripts" / "havyn_runner.py"),
+            str(queue),
+            "--adapter", "null",
+            "--results-dir", str(tmp_path / "results"),
+            "--evidence-dir", str(tmp_path / "evidence"),
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "ModuleNotFoundError" not in proc.stderr, proc.stderr
+    assert "No module named 'scripts'" not in proc.stderr, proc.stderr
+    assert (tmp_path / "results" / "T.json").exists(), (
+        f"runner did not produce a result\nstdout:\n{proc.stdout}\n"
+        f"stderr:\n{proc.stderr}"
     )

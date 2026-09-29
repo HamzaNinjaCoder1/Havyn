@@ -91,3 +91,44 @@ def test_svi_hint_is_not_judged_by_the_cable_graph():
         if c.category == "interface_hint" and c.status.value == "fail"
     ]
     assert hint_fails == [], hint_fails
+
+
+def test_dotted_subinterface_hint_is_judged_by_its_parent_port():
+    """A subinterface (Gi0/1.10) rides its parent port: a dotted hint on the
+    RIGHT parent must pass, so router-on-a-stick specs are not false
+    positives."""
+    raw = copy.deepcopy(GOLDEN_SPEC)
+    for assignment in raw["ip_assignments"]:
+        if assignment["device"] == "r1" and assignment["subnet"] == "net-lan1":
+            assignment["interface_hint"] = "GigabitEthernet0/1.10"
+    spec = _spec(raw)
+    plan = plan_addressing(spec)
+    port_plan = solve_ports(spec, plan)
+
+    result = run_preflight(spec, plan, port_plan)
+
+    hint_fails = [
+        c for c in result.checks
+        if c.category == "interface_hint" and c.status.value == "fail"
+    ]
+    assert hint_fails == [], hint_fails
+
+
+def test_dotted_hint_on_the_wrong_parent_is_still_refused():
+    """Pin: stripping the suffix must not blind the check — a dotted hint on
+    the WRONG parent port is still the 100%-loss mistake."""
+    raw = copy.deepcopy(GOLDEN_SPEC)
+    for assignment in raw["ip_assignments"]:
+        if assignment["device"] == "r1" and assignment["subnet"] == "net-lan1":
+            assignment["interface_hint"] = "GigabitEthernet0/0.10"
+    spec = _spec(raw)
+    plan = plan_addressing(spec)
+    port_plan = solve_ports(spec, plan)
+
+    result = run_preflight(spec, plan, port_plan)
+
+    assert not result.can_execute, result.errors
+    assert any(
+        c.category == "interface_hint" and c.status.value == "fail"
+        for c in result.checks
+    )

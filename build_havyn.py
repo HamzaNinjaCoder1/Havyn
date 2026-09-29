@@ -80,6 +80,18 @@ def main(argv: list[str] | None = None) -> int:
         help="mutation budget; raise it for a topology larger than the default",
     )
     parser.add_argument(
+        "--resume", default=None, metavar="BUILD_ID",
+        help="resume a prior build: ops it already confirmed are skipped, "
+             "only the remainder runs. Fails closed when the build id has "
+             "no confirmed operations.",
+    )
+    parser.add_argument(
+        "--keep-evidence", type=int, default=20, metavar="N",
+        help="newest build folders kept live in the evidence dir (default: "
+             "20); older ones are archived into a zip and removed at the "
+             "end of the build.",
+    )
+    parser.add_argument(
         "--clean-workspace", action="store_true",
         help="delete every existing workspace device first (the S0.4 cleanup; "
              "protected power-distribution devices are kept). Without it, a "
@@ -138,7 +150,9 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_BUILD_ERROR
 
     start = time.time()
-    build, error = Autopilot(adapter, gate, evidence).build(spec)
+    build, error = Autopilot(
+        adapter, gate, evidence, keep_evidence=args.keep_evidence
+    ).build(spec, resume_from=args.resume)
     elapsed = time.time() - start
 
     if error:

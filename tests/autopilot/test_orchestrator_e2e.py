@@ -337,3 +337,37 @@ def test_the_report_prints_each_layer_and_admits_an_unexercised_one(tmp_path):
     assert "0/0 PASS" not in text, text
     assert build.to_dict()["functional_layers"] == build.layers
     assert build.layers["data_plane"]["total"] >= 1, build.layers
+
+
+def test_build_prunes_old_evidence_at_the_end(tmp_path):
+    """S1.17/F15: the evidence folder stays bounded by itself. After a build
+    with keep_evidence=2 over three aged builds, only the running build and
+    the newest old one remain live; the rest are archived into a zip first,
+    then removed."""
+    import os
+
+    root = tmp_path / "evidence"
+    base = 1_700_000_000
+    for rank, name in enumerate(("build-old-1", "build-old-2", "build-old-3")):
+        d = root / name
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "evidence.jsonl").write_text('{"kind": "x"}\n', encoding="utf-8")
+        os.utime(d, (base + rank * 100, base + rank * 100))
+
+    autopilot = Autopilot(
+        NullAdapter(),
+        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        EvidenceStore(root=root),
+        keep_evidence=2,
+    )
+    build, error = autopilot.build(NetworkSpec.model_validate(GOLDEN_SPEC))
+
+    assert error is None and build is not None
+    remaining = sorted(
+        p.name for p in root.iterdir()
+        if p.is_dir() and p.name.startswith("build-")
+    )
+    assert build.build_id in remaining
+    assert len(remaining) == 2, remaining
+    assert "build-old-1" not in remaining
+    assert list(root.glob("archive-*.zip")), "pruned builds need a zip, not just deletion"

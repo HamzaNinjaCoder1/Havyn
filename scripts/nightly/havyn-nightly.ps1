@@ -25,9 +25,15 @@ $Results = $env:HAVYN_RESULTS
 if (-not $Results) { $Results = Join-Path $RepoRoot "runner_results" }
 
 function Test-Heartbeat {
-    $hb = Join-Path $env:LOCALAPPDATA "Havyn" "mailbox" "alive.txt"
-    $old = Join-Path $env:LOCALAPPDATA "packet-tracer-mcp" "mailbox" "alive.txt"
-    foreach ($candidate in @($hb, $old)) {
+    # The Script Engine heartbeats into the engine's mailbox subdir ("bridge" --
+    # see network_autopilot.pt.mailbox._MAILBOX_SUBDIR), in whichever of the two
+    # runtime dirs its extension resolved at load. A guessed subdir here makes
+    # the nightly always time out with PT wide awake.
+    $candidates = @(
+        (Join-Path $env:LOCALAPPDATA "Havyn" "bridge" "alive.txt"),
+        (Join-Path $env:LOCALAPPDATA "packet-tracer-mcp" "bridge" "alive.txt")
+    )
+    foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate) {
             $age = ((Get-Date) - (Get-Item -LiteralPath $candidate).LastWriteTime).TotalSeconds
             if ($age -lt 30) { return $true }

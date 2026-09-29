@@ -188,7 +188,7 @@ def plan_issues(spec: NetworkSpec) -> list[str]:
     try:
         for issue in validate_plan(plan, spec):
             if has_errors([issue]):
-                issues.append(f"addressing: {issue.message}")
+                issues.append(f"addressing: {issue.resource}: {issue.problem}")
     except Exception as exc:
         issues.append(f"addressing validation failed: {exc}")
     try:
@@ -230,6 +230,27 @@ def lint_spec(spec: NetworkSpec) -> list[str]:
             seen.add(issue)
             unique.append(issue)
     return unique
+
+
+def split_lint_problems(problems: list[str]) -> tuple[list[str], list[str]]:
+    """Split lint problems into (hard, preflight_deferred).
+
+    S1.14/F11: problems the embedded preflight run reported (prefixed
+    "preflight: ") are NOT build-killers at lint time. They resurface with
+    full context (workspace, reservations) in the compile-time preflight,
+    where they scope to the implicated ops instead of zeroing the build.
+    Everything else — bad addressing, policy violations, a solver that
+    raised, a preflight run that itself crashed ("preflight failed: ...") —
+    stays hard and refuses the spec as before.
+    """
+    hard: list[str] = []
+    deferred: list[str] = []
+    for problem in problems:
+        if problem.startswith("preflight: "):
+            deferred.append(problem)
+        else:
+            hard.append(problem)
+    return hard, deferred
 
 
 def format_issues(issues: list[str]) -> str:

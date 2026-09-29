@@ -496,3 +496,79 @@ def test_bogus_netmask_is_refused_by_name():
 def test_build_router_policy_commands_is_empty_without_a_policy():
     spec = _spec()
     assert build_router_policy_commands(spec, "r1", ["GigabitEthernet0/0"]) == ([], [])
+
+
+# -- ASA static routes: ASA syntax, not IOS (S1.19 live root cause) -----------
+#
+# Live probe on PT 9.0.1 (clean canvas, ASA 5506-X between a router and a
+# server LAN): the compiler emitted ``ip route 0.0.0.0 0.0.0.0 <nh>`` and
+# EVERY flow across the ASA came back 100% loss. Pushing the same route in the
+# ASA's own form - ``route inside 0.0.0.0 0.0.0.0 <nh> 1`` - made the flow pass
+# both ways on the first probe. ``ip route`` is silently accepted and never
+# installed, which is exactly the "green build, no traffic" failure this
+# project exists to prevent. Routers keep the IOS form; only the ASA path
+# changes.
+
+_ASA_ROUTE_LAB = {
+    "name": "asa-route-lab",
+    "devices": [
+        {"id": "fw", "role": "firewall", "model_hint": "5506-X"},
+        {"id": "r1", "role": "router", "model_hint": "2911"},
+        {"id": "srv", "role": "server"},
+        {"id": "pc", "role": "pc"},
+    ],
+    "links": [
+        {"id": "l-r-fw", "a": {"device": "r1", "interface_hint": "GigabitEthernet0/1"},
+         "b": {"device": "fw", "interface_hint": "GigabitEthernet1/1"}},
+        {"id": "l-fw-srv", "a": {"device": "fw", "interface_hint": "GigabitEthernet1/2"},
+         "b": {"device": "srv"}},
+        {"id": "l-r-pc", "a": {"device": "r1", "interface_hint": "GigabitEthernet0/0"},
+         "b": {"device": "pc"}},
+    ],
+    "subnets": [
+        {"id": "transit", "cidr": "10.0.0.8/30"},
+        {"id": "lan", "cidr": "10.10.10.0/24"},
+        {"id": "dc", "cidr": "10.20.40.0/24"},
+    ],
+    "ip_assignments": [
+        {"device": "r1", "interface_hint": "GigabitEthernet0/1", "subnet": "transit", "ip": "10.0.0.9"},
+        {"device": "fw", "interface_hint": "GigabitEthernet1/1", "subnet": "transit", "ip": "10.0.0.10"},
+        {"device": "r1", "interface_hint": "GigabitEthernet0/0", "subnet": "lan", "ip": "10.10.10.1"},
+        {"device": "pc", "subnet": "lan", "ip": "10.10.10.2"},
+        {"device": "fw", "interface_hint": "GigabitEthernet1/2", "subnet": "dc", "ip": "10.20.40.1"},
+        {"device": "srv", "subnet": "dc", "ip": "10.20.40.10"},
+    ],
+    "routing": {
+        "mode": "static",
+        "static_routes": [
+            {"device": "r1", "destination": "10.20.40.0/24", "next_hop": "10.0.0.10"},
+            {"device": "fw", "destination": "0.0.0.0/0", "next_hop": "10.0.0.9"},
+        ],
+    },
+    "requirements": [{"id": "R-1", "statement": "pc reaches srv"}],
+    "acceptance_criteria": [
+        {"id": "A-1", "requirement_ids": ["R-1"],
+         "test": {"kind": "flow", "source": "pc", "destination": "srv",
+                  "expect": "reachable"}},
+    ],
+}
+
+
+def _asa_route_spec() -> NetworkSpec:
+    return NetworkSpec.model_validate(copy.deepcopy(_ASA_ROUTE_LAB))
+
+
+def test_asa_static_route_uses_asa_syntax_not_ip_route():
+    """PT's ASA silently ignores `ip route`; it needs
+    `route <nameif> <net> <mask> <next_hop> <metric>` with the nameif the
+    next hop is reachable through (live root cause, S1.19)."""
+    commands = _ios_commands(_asa_route_spec(), "fw")
+    assert "route inside 0.0.0.0 0.0.0.0 10.0.0.9 1" in commands, commands
+    assert not any(c.startswith("ip route") for c in commands), commands
+
+
+def test_router_static_route_keeps_the_ios_form():
+    """The ASA fix must not leak into routers: IOS still wants `ip route`."""
+    commands = _ios_commands(_asa_route_spec(), "r1")
+    assert "ip route 10.20.40.0 255.255.255.0 10.0.0.10" in commands, commands
+    assert not any(c.startswith("route ") for c in commands), commands

@@ -1,0 +1,54 @@
+{
+ "cases": [
+  {
+   "id": "run01",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run02",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run03",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run04",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run05",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run06",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run07",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run08",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run09",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  },
+  {
+   "id": "run10",
+   "spec": "my-network.spec.json",
+   "safety_mode": "autonomous"
+  }
+ ]
+}

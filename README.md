@@ -1,5 +1,7 @@
 # Havyn
 
+[![tests](https://github.com/HamzaNinjaCoder1/Havyn/actions/workflows/tests.yml/badge.svg)](https://github.com/HamzaNinjaCoder1/Havyn/actions/workflows/tests.yml)
+
 **Closed-loop network engineering for Cisco Packet Tracer.**
 
 Havyn turns a typed network specification into a validated plan, compiles it
@@ -168,6 +170,11 @@ invalid addressing prevent Packet Tracer mutation.
 
 Repair is bounded and evidence-based. Failed operations block unsafe
 dependents. The engine does not blindly retry destructive operations.
+
+The mutation budget for a sized build is `min(40 + 3*ops, 4000)` where `ops`
+is the compiled DAG size; the unsized default is `25`. Both `net_build()` and
+the orchestrator size the budget from the actual plan, so the budget never
+aborts a legitimate build and never mutates without a ceiling.
 
 ## Testing
 

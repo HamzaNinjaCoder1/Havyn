@@ -393,7 +393,7 @@ ASA_GOLDEN = {
         "exit",
         "access-list out_in extended permit icmp any any",
         "access-group out_in in interface outside",
-        "ip route 10.9.0.0 255.255.255.0 192.168.10.254",
+        "route inside 10.9.0.0 255.255.255.0 192.168.10.254 1",
         "hostname fw",
     ],
     "5505": [
@@ -421,7 +421,7 @@ ASA_GOLDEN = {
         "exit",
         "access-list out_in extended permit icmp any any",
         "access-group out_in in interface outside",
-        "ip route 10.9.0.0 255.255.255.0 192.168.10.254",
+        "route inside 10.9.0.0 255.255.255.0 192.168.10.254 1",
         "hostname fw",
     ],
 }
@@ -441,7 +441,7 @@ def test_asa_firewall_golden_rendered_config(model: str):
     assert cmds, f"the {model} must receive a configure_ios op"
     assert any(line.startswith("nameif ") for line in cmds), cmds
     assert any(line.startswith("security-level ") for line in cmds), cmds
-    assert "ip route 10.9.0.0 255.255.255.0 192.168.10.254" in cmds
+    assert "route inside 10.9.0.0 255.255.255.0 192.168.10.254 1" in cmds
     assert cmds[-1] == "hostname fw"
     assert sum(1 for line in cmds if line.startswith("hostname ")) == 1
     assert not any("/" in line for line in cmds if line.startswith("ip address"))
@@ -702,14 +702,17 @@ def test_rich_spec_renders_sane_commands_for_every_device_type():
             assert "None" not in line, (op.operation_id, line)
             stripped = line.strip()
             if stripped.startswith(
-                ("ip address ", "ip route ", "network ", "default-router ")
+                ("ip address ", "ip route ", "route ", "network ",
+                 "default-router ")
             ):
                 assert "/" not in stripped, (op.operation_id, line)
 
     # and each device type still renders its signature lines
     by_device = {op.inputs["device"]: op.inputs["commands"] for op in ops}
     assert "nameif inside" in by_device["fw"]
-    assert "ip route 10.0.10.0 255.255.255.0 192.168.10.254" in by_device["fw"]
+    # an ASA static route renders in the ASA's own form (S1.19 live root
+    # cause: PT's ASA silently ignores `ip route`)
+    assert "route inside 10.0.10.0 255.255.255.0 192.168.10.254 1" in by_device["fw"]
     assert by_device["fw"][-1] == "hostname fw"
     assert "ip address 10.0.10.1 255.255.255.0" in by_device["r1"]
     assert " ip dhcp pool net-lan" in by_device["r1"]

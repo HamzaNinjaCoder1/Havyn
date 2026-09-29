@@ -29,6 +29,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+#: ``python scripts/havyn_runner.py`` (the nightly .ps1 does exactly this) puts
+#: ``scripts/`` -- not the repo root -- on ``sys.path``, so the sibling import
+#: ``scripts.pt_clean_workspace`` raises ModuleNotFoundError and the run dies
+#: before the first build. Put the repo root back on the path. Under pytest the
+#: root is already present (pyproject ``pythonpath = [".", "src"]``), so this is
+#: a no-op there.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_CASES_FAILED = 2
@@ -142,7 +152,11 @@ def run_case(case: dict[str, Any], adapter, results_dir: Path,
                           elapsed_s=time.monotonic() - t0)
 
     cleaning = clean(adapter)
-    if cleaning.read_failed or cleaning.failed or cleaning.remaining:
+    # `clean()`'s ``remaining`` is the full post-run read-back, so it always
+    # contains the *protected* devices that were never meant to go. Only a
+    # leftover that should have been deleted means the canvas is still dirty.
+    leftovers = [n for n in cleaning.remaining if n not in set(cleaning.protected)]
+    if cleaning.read_failed or cleaning.failed or leftovers:
         return CaseResult(
             case_id, str(case["spec"]), "blocked",
             finished_at=_utc_now(),
@@ -150,7 +164,7 @@ def run_case(case: dict[str, Any], adapter, results_dir: Path,
                 "workspace could not be cleaned: "
                 f"read_failed={cleaning.read_failed} "
                 f"failed={sorted(cleaning.failed)} "
-                f"remaining={sorted(cleaning.remaining)}"
+                f"remaining={sorted(leftovers)}"
             ),
             elapsed_s=time.monotonic() - t0,
         )

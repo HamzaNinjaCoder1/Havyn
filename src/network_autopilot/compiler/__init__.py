@@ -6,7 +6,7 @@ and port reservation system.
 
 from __future__ import annotations
 
-from .compiler import CompileError, CompileResult, COMPILER_VERSION, compile_spec, net_build
+from .compiler import CompileError, CompileResult, COMPILER_VERSION, compile_spec, net_build, preflight_blocked_ops
 from .dag import DagError, OperationDag, OpStatus
 from .operations import NetworkOperation, Risk
 from .port_solver import PortPlan, PortResolution, PortConstraint, ModuleRequirement, solve_ports
@@ -19,6 +19,7 @@ __all__ = [
     "COMPILER_VERSION",
     "compile_spec",
     "net_build",
+    "preflight_blocked_ops",
     "DagError",
     "OperationDag",
     "OpStatus",

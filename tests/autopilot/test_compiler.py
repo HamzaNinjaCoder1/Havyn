@@ -912,9 +912,13 @@ def test_firewall_role_compiles_to_a_real_asa_config_op():
     assert cmds, "an ASA must receive a configure_ios op"
     assert any(c.strip().startswith("nameif ") for c in cmds), cmds
     assert any("security-level" in c for c in cmds), cmds
-    # the spec's static route must be pushed, in dotted form (#14)
-    assert any(c.strip() == "ip route 10.9.0.0 255.255.255.0 192.168.10.254"
+    # the spec's static route must be pushed, in dotted form AND in the ASA's
+    # own `route <nameif> ... <metric>` syntax: PT's ASA ignores `ip route`
+    # (S1.19 live root cause - `ip route` left every flow across a routed ASA
+    # at 100% loss while the `route inside ...` form passed on the first probe).
+    assert any(c.strip() == "route inside 10.9.0.0 255.255.255.0 192.168.10.254 1"
                for c in cmds), cmds
+    assert not any(c.strip().startswith("ip route") for c in cmds), cmds
     assert cmds[-1] == "hostname fw"
 
 
@@ -1253,6 +1257,34 @@ def test_an_out_of_range_allowed_vlan_is_rejected_at_parse_time():
     raw["links"][0]["allowed_vlans"] = [10, 5000]
     with pytest.raises(ValueError):
         NetworkSpec.model_validate(raw)
+
+
+def test_lint_reports_addressing_errors_with_their_text():
+    """The lint reporter crashed with AttributeError on any addressing
+    validation error (AddressingIssue has no `.message`), hiding the real
+    problem behind 'addressing validation failed'. The message must carry
+    the validator's own words."""
+    from src.network_autopilot.compiler.spec_lint import lint_spec
+
+    spec = NetworkSpec.model_validate({
+        "name": "dup-lab",
+        "devices": [
+            {"id": "r1", "role": "router"},
+            {"id": "pc1", "role": "pc"},
+        ],
+        "links": [{"id": "l1", "a": {"device": "r1"}, "b": {"device": "pc1"}}],
+        "subnets": [{"id": "net1", "cidr": "10.0.9.0/24"}],
+        "ip_assignments": [
+            {"device": "r1", "subnet": "net1", "ip": "10.0.9.1"},
+            {"device": "pc1", "subnet": "net1", "ip": "10.0.9.1"},
+        ],
+        "requirements": [],
+        "acceptance_criteria": [],
+    })
+    problems = lint_spec(spec)
+    assert problems, "expected an addressing complaint"
+    assert any("duplicate ip" in p for p in problems), problems
+    assert not any("has no attribute" in p for p in problems), problems
 
 
 def test_an_asa_may_declare_its_own_zone_names_and_levels():

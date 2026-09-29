@@ -323,10 +323,13 @@ def _interface_leads_to_member(
 
     BFS across the solved cable graph, never back through `device` itself, so
     an interface is judged by where it actually leads — the LAN-facing port
-    reaches the LAN members, the WAN port does not.
+    reaches the LAN members, the WAN port does not. A dotted subinterface
+    (Gi0/0.10) rides its parent port, so it is judged by the parent cable,
+    not by a port name that never appears in the graph.
     """
+    physical = (iface or "").split(".")[0]
     start = next(
-        (nb for my_iface, nb in neighbours.get(device, []) if my_iface == iface),
+        (nb for my_iface, nb in neighbours.get(device, []) if my_iface == physical),
         None,
     )
     if start is None:
