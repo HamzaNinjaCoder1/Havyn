@@ -1,0 +1,156 @@
+{
+ "generated_at": "2026-09-29T13:15:41+00:00",
+ "features": [
+  {
+   "id": "router-acl-enforce",
+   "name": "IOS router numbered ACLs with address matching",
+   "families": [
+    "router"
+   ],
+   "status": "Verified",
+   "evidence": "tests/autopilot/test_live_policy.py::test_router_acl_renders_a_cidr_operand_and_enforces_it",
+   "refusal_reason": ""
+  },
+  {
+   "id": "asa-wildcard-permit",
+   "name": "ASA wildcard permit on the outside nameif passes the protocol",
+   "families": [
+    "firewall:5506-X",
+    "firewall:5505"
+   ],
+   "status": "Verified",
+   "evidence": "tests/autopilot/test_live_policy.py::test_asa_address_scoped_acl_cannot_carry_traffic_but_wildcard_can",
+   "refusal_reason": ""
+  },
+  {
+   "id": "asa-5505-svi-readback",
+   "name": "ASA 5505 Vlan SVIs read back pushed addresses",
+   "families": [
+    "firewall:5505"
+   ],
+   "status": "Verified",
+   "evidence": "tests/autopilot/test_live_policy.py::test_asa_5505_vlan_addresses_read_back_after_the_push",
+   "refusal_reason": ""
+  },
+  {
+   "id": "wireless-association",
+   "name": "Wireless clients associate automatically (Antenna link)",
+   "families": [
+    "laptop",
+    "accesspoint"
+   ],
+   "status": "Verified",
+   "evidence": "tests/autopilot/test_live_connectivity.py (wireless area: laptop associates, then reaches across the AP)",
+   "refusal_reason": ""
+  },
+  {
+   "id": "flow-reachable-blocked",
+   "name": "ICMP flows verify reachable and blocked end to end",
+   "families": [
+    "router",
+    "switch",
+    "pc",
+    "firewall"
+   ],
+   "status": "Verified",
+   "evidence": "tests/autopilot/test_live_connectivity.py",
+   "refusal_reason": ""
+  },
+  {
+   "id": "asa-address-scoped",
+   "name": "Address-scoped ASA rules (per-host/per-subnet permits)",
+   "families": [
+    "firewall:5506-X",
+    "firewall:5505"
+   ],
+   "status": "Refused",
+   "evidence": "tests/autopilot/test_asa_policy.py::test_host_scoped_source_is_refused_not_silently_emitted",
+   "refusal_reason": "PT accepts the lines and matches nothing; emitting them would be a green build that enforces nothing. Enforce at the router (router-acl-enforce) instead."
+  },
+  {
+   "id": "acl-icmp-port",
+   "name": "dest_port on an icmp ACL rule",
+   "families": [
+    "firewall",
+    "router"
+   ],
+   "status": "Refused",
+   "evidence": "tests/autopilot/test_asa_policy.py::test_dest_port_on_icmp_is_refused_before_pt_aborts_the_block",
+   "refusal_reason": "PT rejects the line and configureIosDevice aborts the rest of the block, which would cost the interface addresses."
+  },
+  {
+   "id": "asa-5505-third-zone",
+   "name": "Third security zone on the ASA 5505",
+   "families": [
+    "firewall:5505"
+   ],
+   "status": "Refused",
+   "evidence": "tests/autopilot/test_asa_policy.py::test_5505_refuses_more_than_two_zones",
+   "refusal_reason": "PT's 5505 only exposes Vlan1/Vlan2; a third zone cannot be configured. Use a 5506-X."
+  },
+  {
+   "id": "policy-on-non-enforcer",
+   "name": "ACL policy on a device that enforces nothing (hosts, switches)",
+   "families": [
+    "pc",
+    "server",
+    "switch"
+   ],
+   "status": "Refused",
+   "evidence": "tests/autopilot/test_asa_policy.py::test_policy_on_a_device_with_no_enforcement_path_fails_the_build",
+   "refusal_reason": "The policy would compile and then do nothing. Only ASA firewalls and IOS routers enforce."
+  },
+  {
+   "id": "hsrp-failover",
+   "name": "HSRP gateway failover",
+   "families": [
+    "router",
+    "l3_switch"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T15-redundant-core.json (pending: no compiler render path; physical topology builds, redundancy unverified)",
+   "refusal_reason": ""
+  },
+  {
+   "id": "etherchannel",
+   "name": "EtherChannel bundling",
+   "families": [
+    "switch",
+    "l3_switch"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T15-redundant-core.json (pending: no compiler render path; physical topology builds, redundancy unverified)",
+   "refusal_reason": ""
+  },
+  {
+   "id": "ospf-backbone",
+   "name": "OSPF single-area routing",
+   "families": [
+    "router"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T09-ospf-backbone.json (offline lint+compile pass; no live lab yet)",
+   "refusal_reason": ""
+  },
+  {
+   "id": "nat-pat",
+   "name": "NAT/PAT internet access",
+   "families": [
+    "router"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T10-nat-internet.json (offline lint+compile pass; no live lab yet)",
+   "refusal_reason": ""
+  },
+  {
+   "id": "asa-dmz",
+   "name": "ASA three-zone DMZ policy",
+   "families": [
+    "firewall:5506-X"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T08-asa-dmz.json (pending S1.16 live proof)",
+   "refusal_reason": ""
+  }
+ ]
+}
