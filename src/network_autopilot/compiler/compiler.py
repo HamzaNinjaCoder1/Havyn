@@ -88,9 +88,17 @@ class CompileResult:
         }
 
 
-# How long the flow gate gives a DHCP client to answer (seconds). PT hands a
-# lease out in a moment, so this is a safety net rather than a timer.
-_DHCP_WAIT_TIMEOUT_S = 20.0
+# How long the flow gate gives a DHCP client to answer (seconds). The gate
+# exits the moment every client is addressed, so this is a ceiling, not a
+# timer — it only costs time when leases are genuinely slow.
+#
+# Measured (S1.19 live, PT 9.0.1, 45-device reference): the old 20 s ceiling
+# closed with all 14 HQ clients still leaseless while a later observation
+# showed every one of them holding a real address (pc1 10.10.10.4, pc7
+# 10.10.20.2, lap1 10.10.30.3). PT was still converging under the load, so
+# the flows probed leaseless hosts and reported "destination has no
+# observable IP" on a network that was in fact healthy.
+_DHCP_WAIT_TIMEOUT_S = 120.0
 
 
 def _model_for(spec: NetworkSpec, device_id: str, role: DeviceRole) -> str:
@@ -1208,6 +1216,84 @@ def _resolve_policy_model(spec: NetworkSpec, device) -> Any:
     return resolve_model(_model_for(spec, device.id, device.role))
 
 
+#: Roles that count as "the network an ASA protects". A firewall's inside
+#: faces the users; routers, switches and other firewalls are transit.
+_END_DEVICE_ROLES = frozenset(
+    {"pc", "laptop", "server", "iot"}
+)
+
+
+def _asa_outside_subnet(
+    spec: NetworkSpec, plan: AddressPlan, device
+) -> str | None:
+    """Subnet id of the interface an ASA should call ``outside``.
+
+    PT's ASA is directional: traffic from the level-100 interface reaches the
+    level-0 one and NOT the other way, even when a matching ``permit`` is
+    bound to the level-0 interface. Live A/B (PT 9.0.1, S1.19) proved the
+    *name* is what decides it — one router+ASA+switch lab, with only the order
+    of the two ``ip_assignments`` swapped, flipped the same flow PASS->FAIL.
+
+    So the name has to come from the topology, not from the order the
+    assignments happen to be listed in. The interface the ASA protects — its
+    ``inside`` — is the one facing the larger share of the spec's end
+    devices; the edge it guards is ``outside``. For the reference campus that
+    names fwhq's WAN port outside (HQ behind it) and fwdc's DC port outside
+    (the core behind it), which is what each firewall actually protects.
+
+    Returns ``None`` when the question is undecidable — no links, an
+    unresolved port, or two sides holding the same number of end devices —
+    and the caller keeps its positional fallback.
+    """
+    links = [
+        link
+        for link in spec.links
+        if device.id in (link.a.device, link.b.device)
+    ]
+    if not links:
+        return None
+
+    adjacency: dict[str, set[str]] = {}
+    for link in spec.links:
+        adjacency.setdefault(link.a.device, set()).add(link.b.device)
+        adjacency.setdefault(link.b.device, set()).add(link.a.device)
+
+    role_by_id = {d.id: str(d.role.value) for d in spec.devices}
+
+    def _end_devices(neighbour: str) -> int:
+        """End devices reachable from ``neighbour`` without crossing the ASA."""
+        seen = {neighbour}
+        stack = [neighbour]
+        while stack:
+            node = stack.pop()
+            for peer in adjacency.get(node, ()):
+                if peer == device.id or peer in seen:
+                    continue
+                seen.add(peer)
+                stack.append(peer)
+        return sum(1 for node in seen if role_by_id.get(node) in _END_DEVICE_ROLES)
+
+    # interface (as the spec spells it) -> how many end devices are behind it
+    behind: dict[str, int] = {}
+    for link in links:
+        side = link.a if link.a.device == device.id else link.b
+        far = link.b.device if side is link.a else link.a.device
+        if side.interface_hint:
+            behind[side.interface_hint] = _end_devices(far)
+
+    if len(behind) < 2:
+        return None
+    counts = sorted(behind.values())
+    if counts[0] == counts[-1]:
+        return None  # a tie names no edge; fall back rather than guess
+
+    guarded = min(behind, key=lambda iface: behind[iface])
+    for assignment in plan.assignments:
+        if assignment.device == device.id and assignment.interface_hint == guarded:
+            return assignment.subnet_id
+    return None
+
+
 def _build_firewall_commands(
     spec: NetworkSpec,
     plan: AddressPlan,
@@ -1317,6 +1403,12 @@ def _build_firewall_commands(
 
     acl_targets: list[str] = []  # nameif values that need the ICMP ACL
     policy_targets: list[str] = []  # nameif values a spec policy binds to
+    # The name of an ASA interface is policy, not decoration: PT's ASA denies
+    # traffic from the level-0 interface to the level-100 one, so calling the
+    # WAN port "inside" turns the perimeter into a wall against its own LAN.
+    # The name therefore comes from the topology (which side the ASA guards),
+    # never from the order the assignments happen to be listed in.
+    outside_subnet = _asa_outside_subnet(spec, plan, device)
     # #37: a spec may name its own zones. Keyed by the interface it configures,
     # so `nameif dmz` on GigabitEthernet1/2 means exactly that interface.
     declared_asa = {
@@ -1358,12 +1450,19 @@ def _build_firewall_commands(
             declared = declared_asa.get(config_iface) or declared_asa.get(physical)
             if declared is not None:
                 nameif, level = declared
+            elif outside_subnet is not None:
+                # Topology-derived (S1.19): the port the default route exits
+                # is the outside; every other addressed port is inside.
+                if assignment.subnet_id == outside_subnet:
+                    nameif, level = "outside", 0
+                else:
+                    nameif, level = "inside", 100
             elif index == 0:
                 nameif, level = "inside", 100
             else:
                 nameif = "outside" if index == 1 else f"outside{index}"
                 level = 0
-            if index != 0:
+            if level == 0:
                 acl_targets.append(nameif)
             nameif_by_subnet[assignment.subnet_id] = nameif
             cmds += [

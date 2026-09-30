@@ -1,7 +1,7 @@
 {
  "spec_version": "1",
  "name": "enterprise-campus-eval",
- "description": "Multi-site enterprise network: HQ campus with router-on-a-stick inter-VLAN routing (VLAN 10/20/30) and DHCP, perimeter + data-center + branch ASA firewalls, branch office over a serial DCE WAN link, Internet via Cloud-PT + DSL modem, VLANs 10/20/30 with DHCP, IoT switch, wireless router with wireless laptops. 4 routers, 3 ASA, 6 switches, 16 PCs, 5 laptops, 5 IoT, 3 servers.",
+ "description": "Multi-site enterprise network: HQ campus with router-on-a-stick inter-VLAN routing (VLAN 10/20/30) and DHCP, perimeter + data-center + branch ASA firewalls, branch office over a serial DCE WAN link, Internet via a direct fwhq-risp WAN link, VLANs 10/20/30 with DHCP, IoT switch, wireless router with wireless laptops. 4 routers, 3 ASA, 6 switches, 16 PCs, 5 laptops, 5 IoT, 3 servers.",
  "provenance": {
   "author": "user",
   "generator": "network_autopilot",
@@ -26,7 +26,7 @@
   },
   {
    "id": "R-004",
-   "statement": "All sites reach the Internet server through the Cloud/DSL path.",
+   "statement": "All sites reach the Internet server through the perimeter firewall (fwhq) to the ISP router.",
    "kind": "connectivity"
   },
   {
@@ -476,20 +476,6 @@
    "description": "Branch access switch"
   },
   {
-   "id": "cloud1",
-   "role": "cloud",
-   "model_hint": "Cloud-PT",
-   "floor": "WAN",
-   "description": "Internet cloud (DSL)"
-  },
-  {
-   "id": "dsl1",
-   "role": "modem",
-   "model_hint": "DSL-Modem-PT",
-   "floor": "ISP",
-   "description": "ISP DSL modem (phone cable to Cloud)"
-  },
-  {
    "id": "wr1",
    "role": "wireless_router",
    "model_hint": "Linksys-WRT300N",
@@ -665,64 +651,42 @@
    "description": "Wireless laptop (associates to wr1)"
   },
   {
-    "id": "iot1",
-    "role": "iot",
+   "id": "iot1",
+   "role": "iot",
    "model_hint": "Smart LED",
    "floor": "HQ",
    "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
   },
   {
-    "id": "iot2",
-    "role": "iot",
+   "id": "iot2",
+   "role": "iot",
    "model_hint": "Smart LED",
    "floor": "HQ",
    "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
   },
   {
-    "id": "iot3",
-    "role": "iot",
+   "id": "iot3",
+   "role": "iot",
    "model_hint": "Smart LED",
    "floor": "HQ",
    "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
   },
   {
-    "id": "iot4",
-    "role": "iot",
+   "id": "iot4",
+   "role": "iot",
    "model_hint": "Smart LED",
    "floor": "HQ",
    "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
   },
   {
-    "id": "iot5",
-    "role": "iot",
+   "id": "iot5",
+   "role": "iot",
    "model_hint": "Smart LED",
    "floor": "HQ",
    "description": "IoT Smart LED (cabled; provisioned by an IoT server, not by IP config)"
   }
  ],
  "links": [
-  {
-   "id": "l-edge-fwhq",
-   "a": {
-    "device": "redge",
-    "interface_hint": "FastEthernet0/0"
-   },
-   "b": {
-    "device": "fwhq",
-    "interface_hint": "GigabitEthernet1/1"
-   }
-  },
-  {
-   "id": "l-fwhq-rhq",
-   "a": {
-    "device": "fwhq",
-    "interface_hint": "GigabitEthernet1/2"
-   },
-   "b": {
-    "device": "rhq",
-    "interface_hint": "GigabitEthernet0/1"
-   }
-  },
   {
    "id": "l-rhq-swcore",
    "a": {
@@ -823,6 +787,39 @@
    "media": "wireless"
   },
   {
+   "id": "l-fwhq-risp",
+   "a": {
+    "device": "fwhq",
+    "interface_hint": "GigabitEthernet1/1"
+   },
+   "b": {
+    "device": "risp",
+    "interface_hint": "FastEthernet0/0"
+   }
+  },
+  {
+   "id": "l-fwhq-redge",
+   "a": {
+    "device": "fwhq",
+    "interface_hint": "GigabitEthernet1/2"
+   },
+   "b": {
+    "device": "redge",
+    "interface_hint": "FastEthernet0/0"
+   }
+  },
+  {
+   "id": "l-redge-rhq",
+   "a": {
+    "device": "redge",
+    "interface_hint": "FastEthernet1/0"
+   },
+   "b": {
+    "device": "rhq",
+    "interface_hint": "GigabitEthernet0/1"
+   }
+  },
+  {
    "id": "l-serial",
    "a": {
     "device": "redge",
@@ -833,35 +830,6 @@
     "interface_hint": "Serial2/0"
    },
    "media": "serial"
-  },
-  {
-   "id": "l-edge-cloud",
-   "a": {
-    "device": "redge",
-    "interface_hint": "FastEthernet1/0"
-   },
-   "b": {
-    "device": "cloud1"
-   }
-  },
-  {
-   "id": "l-cloud-dsl",
-   "a": {
-    "device": "cloud1"
-   },
-   "b": {
-    "device": "dsl1"
-   }
-  },
-  {
-   "id": "l-dsl-isp",
-   "a": {
-    "device": "dsl1"
-   },
-   "b": {
-    "device": "risp",
-    "interface_hint": "FastEthernet0/0"
-   }
   },
   {
    "id": "l-isp-srv",
@@ -882,14 +850,14 @@
    },
    "b": {
     "device": "fwbr",
-    "interface_hint": "Ethernet0/0"
+    "interface_hint": "Ethernet0/1"
    }
   },
   {
    "id": "l-fwbr-swbr",
    "a": {
     "device": "fwbr",
-    "interface_hint": "Ethernet0/1"
+    "interface_hint": "Ethernet0/0"
    },
    "b": {
     "device": "swbr",
@@ -1236,13 +1204,13 @@
   },
   {
    "id": "net-t-edge-fwhq",
-   "purpose": "Transit redge-fwhq",
+   "purpose": "Transit fwhq-redge",
    "cidr": "10.0.0.0/30",
    "dhcp": false
   },
   {
    "id": "net-t-fwhq-rhq",
-   "purpose": "Transit fwhq-rhq",
+   "purpose": "Transit redge-rhq",
    "cidr": "10.0.0.4/30",
    "dhcp": false
   },
@@ -1266,7 +1234,7 @@
   },
   {
    "id": "net-wan-internet",
-   "purpose": "Internet uplink via Cloud/DSL",
+   "purpose": "Internet uplink fwhq-risp",
    "cidr": "203.0.113.0/30",
    "dhcp": false
   },
@@ -1287,15 +1255,15 @@
   },
   {
    "device": "fwhq",
-   "interface_hint": "GigabitEthernet1/1",
+   "interface_hint": "GigabitEthernet1/2",
    "subnet": "net-t-edge-fwhq",
    "ip": "10.0.0.2"
   },
   {
    "device": "fwhq",
-   "interface_hint": "GigabitEthernet1/2",
-   "subnet": "net-t-fwhq-rhq",
-   "ip": "10.0.0.5"
+   "interface_hint": "GigabitEthernet1/1",
+   "subnet": "net-wan-internet",
+   "ip": "203.0.113.1"
   },
   {
    "device": "rhq",
@@ -1342,8 +1310,8 @@
   {
    "device": "redge",
    "interface_hint": "FastEthernet1/0",
-   "subnet": "net-wan-internet",
-   "ip": "203.0.113.1"
+   "subnet": "net-t-fwhq-rhq",
+   "ip": "10.0.0.5"
   },
   {
    "device": "risp",
@@ -1512,22 +1480,17 @@
    {
     "device": "redge",
     "destination": "10.10.0.0/16",
-    "next_hop": "10.0.0.2"
+    "next_hop": "10.0.0.6"
    },
    {
     "device": "redge",
     "destination": "10.20.0.0/16",
-    "next_hop": "10.0.0.2"
-   },
-   {
-    "device": "redge",
-    "destination": "10.0.0.4/30",
-    "next_hop": "10.0.0.2"
+    "next_hop": "10.0.0.6"
    },
    {
     "device": "redge",
     "destination": "10.0.0.8/30",
-    "next_hop": "10.0.0.2"
+    "next_hop": "10.0.0.6"
    },
    {
     "device": "redge",
@@ -1542,27 +1505,32 @@
    {
     "device": "redge",
     "destination": "0.0.0.0/0",
-    "next_hop": "203.0.113.2"
+    "next_hop": "10.0.0.2"
    },
    {
     "device": "fwhq",
     "destination": "0.0.0.0/0",
-    "next_hop": "10.0.0.1"
+    "next_hop": "203.0.113.2"
    },
    {
     "device": "fwhq",
     "destination": "10.10.0.0/16",
-    "next_hop": "10.0.0.6"
+    "next_hop": "10.0.0.1"
    },
    {
     "device": "fwhq",
     "destination": "10.20.0.0/16",
-    "next_hop": "10.0.0.6"
+    "next_hop": "10.0.0.1"
    },
    {
     "device": "fwhq",
     "destination": "10.0.0.8/30",
-    "next_hop": "10.0.0.6"
+    "next_hop": "10.0.0.1"
+   },
+   {
+    "device": "fwhq",
+    "destination": "10.30.0.0/16",
+    "next_hop": "10.0.0.1"
    },
    {
     "device": "rhq",
@@ -1631,7 +1599,6 @@
   }
  ],
  "assumptions": [
-  "Cloud-PT DSL mapping (Modem <-> Ethernet) is set in the Cloud config after the build.",
   "ISP router needs no NAT because it has a return route to 10.0.0.0/8.",
   "Wireless laptops are associated after the build with associate_wireless_client."
  ],
@@ -1673,8 +1640,9 @@
   },
   {
    "id": "D-007",
-   "statement": "ISP router is a Router-PT so the DSL modem uses the verified DSL-Modem-PT <-> Router-PT cable pair.",
-   "source": "user"
+   "statement": "The ISP uplink is a direct fwhq<->risp cable: PT's Cloud-PT DSL pass-through cannot be driven from the scripting API, so the Cloud and DSL modem are not used.",
+   "source": "user",
+   "rationale": "A direct link is deterministic and fully verifiable; the Cloud-PT needs a GUI-only DSL mapping row."
   }
  ],
  "constraints": [

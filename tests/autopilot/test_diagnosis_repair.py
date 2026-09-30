@@ -677,3 +677,54 @@ def test_rollback_in_read_only_mode_never_touches_the_adapter():
     assert pushed == [], f"adapter was written in READ_ONLY mode: {pushed}"
     assert outcome.blocked_reason, "a blocked rollback must say why"
     assert "READ_ONLY" in outcome.blocked_reason, outcome.blocked_reason
+
+
+def test_a_down_logical_nic_is_not_diagnosed_as_the_fault():
+    """A down Bluetooth NIC (every PT host has one) is not a fault.
+
+    Live S1.19: the reference run's failing flows were diagnosed as
+    "interface(s) down on the path: pc1:Bluetooth" and the repair pushed
+    `interface Bluetooth / no shutdown` on eight hosts until the attempt
+    budget ran out (3/3, 14 blocked plans). Bluetooth is a logical NIC that
+    PT reports down with 0.0.0.0 on every PC, so the diagnosis was a phantom
+    and the real cause was never named.
+    """
+    from src.network_autopilot.core.actual_state import PortObservation
+    from src.network_autopilot.core.observability import Observable
+    from src.network_autopilot.core.requirements import FlowOutcome, FlowResult
+
+    spec, plan, dag = _golden()
+    adapter = NullAdapter()
+    _execution, state = _observe_full(adapter, spec, dag)
+
+    # PT enumerates a Bluetooth NIC on every host and reports it down/0.0.0.0.
+    for host in ("pc1", "pc4"):
+        state.devices[host].ports["Bluetooth"] = PortObservation(
+            name="Bluetooth",
+            state=Observable.known("down"),
+            ip=Observable.known("0.0.0.0"),
+        )
+
+    # The flow fails for a reason that is NOT the Bluetooth NIC.
+    flow_results = {
+        ("pc1", "pc4"): FlowResult(
+            source="pc1",
+            destination="pc4",
+            outcome=FlowOutcome.BLOCKED,
+            detail="ping pc1->pc4: none",
+        )
+    }
+    report = VerificationEngine(adapter).verify(
+        spec, plan, state, flow_results,
+        link_endpoints=_endpoints(dag), observations_complete=True,
+    )
+    diagnoses = diagnose(spec, report, state)
+
+    invented = [d for d in diagnoses if "Bluetooth" in d.root_cause]
+    assert not invented, [d.root_cause for d in invented]
+    assert not any("Bluetooth" in str(d.proposed_repair) for d in diagnoses)
+    # With no real state anomaly the engine must say so and propose nothing.
+    assert any("no state anomaly" in d.root_cause for d in diagnoses), [
+        d.root_cause for d in diagnoses
+    ]
+    assert all(not d.repairable for d in diagnoses if "no state anomaly" in d.root_cause)

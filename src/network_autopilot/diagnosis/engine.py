@@ -19,6 +19,7 @@ from ..core.ids import new_id
 from ..core.network_spec import NetworkSpec
 from ..core.observability import Observable
 from ..core.requirements import Verdict
+from ..pt.catalog import is_logical_port
 from ..verification.engine import VerificationReport
 
 _EMPTY_READ = "runtime returned an empty value"
@@ -214,7 +215,15 @@ def diagnose(
                 down = [
                     f"{endpoint}:{p.name}"
                     for p in device.ports.values()
-                    if p.state.is_known and p.state.value == "down"
+                    if p.state.is_known
+                    and p.state.value == "down"
+                    # A logical NIC (Bluetooth, Wireless radio, ...) reads
+                    # down on a healthy device, so it is never the fault.
+                    # Live S1.19: treating them as faults diagnosed eight
+                    # hosts with "interface(s) down: pc1:Bluetooth" and spent
+                    # the whole repair budget on `interface Bluetooth /
+                    # no shutdown` while the real cause went unreported.
+                    and not is_logical_port(p.name)
                 ]
                 if down:
                     # One "no shutdown" pair per down port. `down` entries are

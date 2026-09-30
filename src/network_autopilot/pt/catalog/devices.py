@@ -28,6 +28,7 @@ Design notes that matter to callers:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from ..enums import PortSpeed
@@ -620,6 +621,43 @@ def get_valid_ports(model_name: str) -> set[str]:
     if model is None:
         return set()
     return {p.full_name for p in model.ports}
+
+
+#: PT's virtual interfaces: enumerated by the port API but never cableable, so
+#: never a valid port — unless the catalog declares one on purpose (the ASA
+#: 5505's Vlan SVIs, which its routed config addresses). Measured live on PT
+#: 9.0.1 (S1.12): a fresh chassis reports its cableable ports plus, depending
+#: on model, Vlan SVIs, Bluetooth, Wireless radios, PPP Dialer/Virtual-Access,
+#: cellular stubs, a "Backbone" trunk and Meraki's numbered "Internet N" WAN
+#: stubs. Kept here rather than in the probe script so every consumer — the
+#: probe, and the diagnosis engine — classifies a port the same way.
+LOGICAL_PORT_RE = (
+    r"(?:Vlan|VLAN|Loopback|Null)\d*"
+    r"|Bluetooth"
+    r"|Wireless[\s\d/]*"
+    r"|Dialer\d*"
+    r"|Virtual-Access\d*"
+    r"|Cellular.*"
+    r"|Backbone"
+    r"|3G/4G Cell\d*"
+    r"|Internet \d+"
+)
+
+_LOGICAL_PORT = re.compile(LOGICAL_PORT_RE)
+
+
+def is_logical_port(name: str) -> bool:
+    """True for a PT virtual interface (``Bluetooth``, ``Wireless0``, ...).
+
+    PT enumerates these through the port API but they are not cableable, and
+    they are not a fault when they read ``down``: every PC reports a down
+    Bluetooth NIC holding ``0.0.0.0``. Anything that judges a device by its
+    down ports must exclude them or it invents faults — live S1.19, the
+    reference run's failing flows were diagnosed as "interface(s) down on the
+    path: pc1:Bluetooth" and eight hosts were "repaired" with
+    ``interface Bluetooth / no shutdown`` until the attempt budget ran out.
+    """
+    return bool(_LOGICAL_PORT.fullmatch(name))
 
 
 # Named chassis the tests and probes reach for directly, so a test can state

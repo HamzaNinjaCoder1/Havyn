@@ -8,12 +8,14 @@ lives in focused modules (``devices``, ``modules``, ``cables``).
 from __future__ import annotations
 
 from .devices import (
+    LOGICAL_PORT_RE,
     DeviceModel,
     PortSpec,
     all_models,
     category_of_model,
     get_ports_by_speed,
     get_valid_ports,
+    is_logical_port,
     resolve_model,
 )
 from .modules import (
@@ -29,12 +31,14 @@ from .modules import (
 from .cables import CABLE_RULES, infer_cable, infer_cable_for_models
 
 __all__ = [
+    "LOGICAL_PORT_RE",
     "DeviceModel",
     "PortSpec",
     "all_models",
     "category_of_model",
     "get_ports_by_speed",
     "get_valid_ports",
+    "is_logical_port",
     "resolve_model",
     "ModuleSpec",
     "all_modules",

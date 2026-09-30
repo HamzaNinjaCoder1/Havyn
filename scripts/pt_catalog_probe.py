@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from network_autopilot.core.observability import Observable
+from network_autopilot.pt.catalog import LOGICAL_PORT_RE
 
 PROBE_PREFIX = "zz-probe-"
 
@@ -217,24 +218,9 @@ def probe_model(adapter, model: str, index: int) -> ModelProbe:
 
 #: PT's virtual interfaces: reported by port enumeration but never cableable,
 #: so never catalog valid ports — unless the catalog declares one on purpose
-#: (the ASA 5505's Vlan SVIs, which its routed config addresses). Measured
-#: live on PT 9.0.1 (S1.12): a fresh chassis enumerates its cableable ports
-#: plus, depending on model, Vlan SVIs, Bluetooth, Wireless radios, PPP
-#: Dialer/Virtual-Access, cellular stubs, a "Backbone" trunk and Meraki's
-#: numbered "Internet N" WAN stubs.
-LOGICAL_PORT_RE = (
-    r"(?:Vlan|VLAN|Loopback|Null)\d*"
-    r"|Bluetooth"
-    r"|Wireless[\s\d/]*"
-    r"|Dialer\d*"
-    r"|Virtual-Access\d*"
-    r"|Cellular.*"
-    r"|Backbone"
-    r"|3G/4G Cell\d*"
-    r"|Internet \d+"
-)
-
-
+#: (the ASA 5505's Vlan SVIs, which its routed config addresses). The pattern
+#: lives in the catalog (`is_logical_port`) so the probe and the diagnosis
+#: engine classify a port the same way.
 def _split_logical(ports: set[str]) -> tuple[set[str], set[str]]:
     """(physical, logical) split of PT-reported ports."""
     import re

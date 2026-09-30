@@ -67,3 +67,6 @@ Havyn_Production_Tracking.html
 # S1.12 catalog probe output and S1.19 runner results are generated artifacts
 probe.json
 runner_s119/results/
+
+# Per-machine CodeBuddy overrides (documented as not-for-git local scope)
+.codebuddy/settings.local.json
