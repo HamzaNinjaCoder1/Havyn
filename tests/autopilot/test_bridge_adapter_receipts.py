@@ -1085,3 +1085,56 @@ def test_expected_ios_vlans_are_parsed_from_the_pushed_block():
     assert _expected_ios_vlans(["hostname R1"]) is None
     assert _expected_ios_vlans(_IOS_CMDS) is None
 
+
+def test_configure_ios_retries_missing_routes_as_a_separate_call():
+    """Step 4 / S1.19 retry: the first push dropped the routes (PT returns
+    ``true`` but ``show ip route`` is empty for them). The retry pushes the
+    routes alone; the second read-back shows them and the receipt flips back
+    to SUCCESS. Without the retry this same scenario fails the build.
+    """
+    state = {"arm_count": 0, "collect_count": 0}
+    first_routes = (
+        "Codes: C - connected, S - static\n"
+        "C    10.0.0.0/30 is directly connected, FastEthernet0/0\n"
+        # NB: the default route was silently dropped by PT on this round.
+    )
+    second_routes = (
+        "Codes: C - connected, S - static\n"
+        "C    10.0.0.0/30 is directly connected, FastEthernet0/0\n"
+        "S*   0.0.0.0/0 [1/0] via 10.0.0.2\n"
+        "S    10.10.0.0/16 [1/0] via 10.0.0.6\n"
+    )
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+
+    def fake_send(expression, *, statements=None, wait=None):
+        text = " ".join(statements or []) + " " + str(expression)
+        if "devices" in text and "JSON.stringify" in text:
+            return Observable.known(
+                '{"devices":[{"name":"R1","model":"2911","ports":'
+                '[{"name":"GigabitEthernet0/0","ip":"10.0.0.1"}]}]}'
+            )
+        is_arm = bool(statements) and any("enterCommand" in s for s in statements)
+        if is_arm:
+            state["arm_count"] += 1
+            return Observable.known("BASE:0")
+        if "configureIosDevice" in text:
+            return Observable.known("true")
+        # Collect pass: track which read we're in. The first collect surfaces
+        # the *empty* table (silent drop); the second surfaces the *populated*
+        # one (the retry landed).
+        state["collect_count"] += 1
+        current = first_routes if state["collect_count"] <= 1 else second_routes
+        return Observable.known("DONE:" + current)
+
+    adapter.send_expression = fake_send  # type: ignore[method-assign]
+
+    receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
+    assert state["arm_count"] >= 2, (
+        f"retry should have triggered exactly one extra arm (got {state['arm_count']})"
+    )
+    assert receipt.result is OperationResult.SUCCESS
+    route_post = next(
+        p for p in receipt.postconditions if p.name == "configured_routes_present"
+    )
+    assert route_post.passed is True
+

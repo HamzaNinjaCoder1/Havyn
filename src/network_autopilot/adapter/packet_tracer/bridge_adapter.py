@@ -204,6 +204,18 @@ def _expected_ios_routes(commands: list[str]) -> list[dict]:
     return expected
 
 
+def _mask_from_prefix(prefix: int) -> str:
+    """Translate a CIDR prefix to the dotted-quad mask ``ip route`` requires.
+
+    ``configureIosDevice`` accepts either form on the wire but the read-back
+    parser, the receipt, and the spec all use ``255.255.255.0`` style masks -
+    so for the retry (Step 4) we want to round-trip identically to the original
+    push rather than introduce a second shape for the engine to keep straight.
+    """
+    import ipaddress
+    return str(ipaddress.IPv4Network((0, prefix)).netmask)
+
+
 def _expected_ios_addresses(commands: list[str]) -> dict[str, str]:
     """The interface -> address pairs a config script is asking IOS for.
 
@@ -2221,15 +2233,72 @@ class BridgeAdapter(PacketTracerAdapter):
             )
             postconditions.append(route_post)
         if route_missing:
-            detail = "routes not observed after the push: " + "; ".join(
-                f"{r['network']}/{r['prefix']} via {r['next_hop']}"
+            # Step 4 / S1.19: PT regularly drops ``ip route`` lines on a heavy
+            # config push (the receipt above is ``true`` but ``show ip route``
+            # is empty). Rather than fail the whole op we push the dropped
+            # routes in their own, smaller call so the device only sees
+            # ``route ...`` lines and not a 40-command prefix; this is the
+            # retry pattern upstream confirmed live. The retry is best-effort:
+            # if it still does not land we keep the failure so the caller can
+            # diagnose, but in practice the smaller payload is what makes
+            # PT actually install the routes.
+            mask_for = {r["network"]: _mask_from_prefix(r["prefix"]) for r in route_missing}
+            route_lines = [
+                f"ip route {r['network']} {mask_for[r['network']]} {r['next_hop']}"
                 for r in route_missing
+            ]
+            route_stmts, route_final = js.js_configure_ios_statements(
+                device, "\n".join(route_lines)
+            ) if hasattr(js, "js_configure_ios_statements") else (
+                None, js.js_configure_ios(device, "\n".join(route_lines))
             )
-            if result is OperationResult.SUCCESS:
-                result = OperationResult.FAILED
-                error = f"configuration did not take effect - {detail}"
+            if route_stmts is not None:
+                second_answer = self.send_expression(
+                    route_final, statements=route_stmts, wait=8.0
+                )
             else:
-                error = f"{error or 'configuration failed'} - {detail}"
+                second_answer = self.send_expression(route_final)
+            second_ok = bool(second_answer.is_known and str(second_answer.value).strip() == "true")
+            if second_ok:
+                retry_missing = self._missing_ios_routes(device, route_expected)
+                if not retry_missing:
+                    # Recovered. Drop the failed postcondition we appended
+                    # above and replace it with a passing one keyed to the
+                    # retry path so verification sees a consistent PASS.
+                    postconditions = [
+                        pc for pc in postconditions
+                        if pc.name != "configured_routes_present"
+                    ]
+                    postconditions.append(CheckResult(
+                        name="configured_routes_present",
+                        expected=json.dumps(route_expected, sort_keys=True),
+                        actual=Observable.known([], source="file-bridge-retry"),
+                        passed=True,
+                    ))
+                    detail = "routes not observed after the push; recovered on retry"
+                    result = OperationResult.SUCCESS
+                    error = None
+                    route_missing = []
+                else:
+                    detail = "routes still missing after retry: " + "; ".join(
+                        f"{r['network']}/{r['prefix']} via {r['next_hop']}"
+                        for r in retry_missing
+                    )
+                    if result is OperationResult.SUCCESS:
+                        result = OperationResult.FAILED
+                        error = f"configuration did not take effect - {detail}"
+                    else:
+                        error = f"{error or 'configuration failed'} - {detail}"
+            else:
+                detail = "routes not observed after the push: " + "; ".join(
+                    f"{r['network']}/{r['prefix']} via {r['next_hop']}"
+                    for r in route_missing
+                )
+                if result is OperationResult.SUCCESS:
+                    result = OperationResult.FAILED
+                    error = f"configuration did not take effect - {detail}"
+                else:
+                    error = f"{error or 'configuration failed'} - {detail}"
         statuses = (
             _command_statuses(commands, expected, missing)
             if read_back
