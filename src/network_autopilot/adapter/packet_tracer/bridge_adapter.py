@@ -144,6 +144,64 @@ _LINK_RETRY_BASE_S = 1.5
 
 _IOS_INTERFACE_RE = re.compile(r"^\s*interface\s+(\S+)", re.IGNORECASE)
 _IOS_ADDRESS_RE = re.compile(r"^\s*ip\s+address\s+(\d+\.\d+\.\d+\.\d+)", re.IGNORECASE)
+#: Matches an IOS static route: `ip route <dst> <mask> <next-hop> [<metric>]`.
+#: The optional metric is tolerated but not surfaced: the read-back returns the
+#: route without it, so the postcondition would be a spurious contradiction if
+#: we kept it on the expectation.
+_IOS_ROUTE_RE = re.compile(
+    r"^\s*ip\s+route\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)",
+    re.IGNORECASE,
+)
+#: Matches an ASA static route: `route <nameif> <dst> <mask> <next-hop>`.
+#: The nameif carries no routing-table read-back signal, but skipping the line
+#: altogether would let a wrong-nameif install slip through; we record the
+#: nameif and only treat the (dst, mask, next-hop) tuple as the postcondition.
+_ASA_ROUTE_RE = re.compile(
+    r"^\s*route\s+(\S+)\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)",
+    re.IGNORECASE,
+)
+
+
+def _expected_ios_routes(commands: list[str]) -> list[dict]:
+    """The static routes a config script is asking for, parsed from the commands.
+
+    Mirrors ``_expected_ios_addresses``: the expectation travels with the
+    script so every caller gets the read-back check for free. Returns an empty
+    list when the script defines no static route - the ordinary switch/host
+    case, which has no ``show ip route`` to look at.
+
+    The IOS and ASA forms coexist (``ip route ...`` and ``route <nameif> ...``).
+    Both surface as ``{network, prefix, next_hop}`` tuples so the read-back
+    check is a single compare against ``read_routing_table``'s output. The
+    nameif is dropped: PT's route read-back omits it too, so keeping it on the
+    expectation would always look like a contradiction.
+    """
+    import ipaddress
+
+    expected: list[dict] = []
+    for command in commands:
+        m = _IOS_ROUTE_RE.match(command)
+        if m:
+            dst, mask, nhop = m.group(1), m.group(2), m.group(3)
+        else:
+            m2 = _ASA_ROUTE_RE.match(command)
+            if m2:
+                dst, mask, nhop = m2.group(2), m2.group(3), m2.group(4)
+            else:
+                continue
+        try:
+            net = ipaddress.ip_network(f"{dst}/{mask}", strict=False)
+        except ValueError:
+            continue
+        # `str(net)` carries the prefix (`0.0.0.0/0`); the read-back parser
+        # gives just the address. Normalise to the address so a single compare
+        # against `obs.value` lines up.
+        expected.append({
+            "network": str(net.network_address),
+            "prefix": net.prefixlen,
+            "next_hop": nhop,
+        })
+    return expected
 
 
 def _expected_ios_addresses(commands: list[str]) -> dict[str, str]:
@@ -2122,6 +2180,56 @@ class BridgeAdapter(PacketTracerAdapter):
                 error = f"configuration did not take effect - {detail}"
             else:
                 error = f"{error or 'configuration failed'} - {detail}"
+        # Silent-route-drop gate (Step 4 / S1.19): PT reports ``true`` for an
+        # ``ip route ...`` / ``route <nameif> ...`` line that never installs.
+        # The address read-back caught the IP / no-URL class of bug; this is the
+        # parallel for routes. Only runs when the script asked for at least one
+        # route, and only fails the receipt when the read-back succeeded AND
+        # the expected entry is absent.
+        route_expected = _expected_ios_routes(commands)
+        route_missing: list[dict] = []
+        route_passed: bool | None = None
+        if route_expected and pushed_ok:
+            # The read itself is reported honestly: a ``show ip route`` that
+            # could not run (UNKNOWN) means we cannot prove presence OR
+            # absence, so the postcondition stays `passed=None` - same shape
+            # as the address half when the topology snapshot is stale.
+            table = self.read_routing_table(device)
+            if table.is_known and table.value is not None:
+                observed = {
+                    (r["network"], r["prefix"], r.get("next_hop"))
+                    for r in table.value
+                }
+                route_missing = [
+                    r for r in route_expected
+                    if (r["network"], r["prefix"], r["next_hop"]) not in observed
+                ]
+                route_passed = not route_missing
+                route_actual: Observable = Observable.known(
+                    route_missing, source="file-bridge"
+                )
+            else:
+                route_passed = None
+                route_actual = Observable.unknown(
+                    table.detail or table.status.value
+                )
+            route_post = CheckResult(
+                name="configured_routes_present",
+                expected=json.dumps(route_expected, sort_keys=True),
+                actual=route_actual,
+                passed=route_passed,
+            )
+            postconditions.append(route_post)
+        if route_missing:
+            detail = "routes not observed after the push: " + "; ".join(
+                f"{r['network']}/{r['prefix']} via {r['next_hop']}"
+                for r in route_missing
+            )
+            if result is OperationResult.SUCCESS:
+                result = OperationResult.FAILED
+                error = f"configuration did not take effect - {detail}"
+            else:
+                error = f"{error or 'configuration failed'} - {detail}"
         statuses = (
             _command_statuses(commands, expected, missing)
             if read_back
@@ -2142,6 +2250,8 @@ class BridgeAdapter(PacketTracerAdapter):
                    if missing else {}),
                 **({"missing_vlans": json.dumps(vlan_missing, sort_keys=True)}
                    if vlan_missing else {}),
+                **({"missing_routes": json.dumps(route_missing, sort_keys=True)}
+                   if route_missing else {}),
             },
             started_at=utc_now_iso(),
             finished_at=utc_now_iso(),
@@ -2159,6 +2269,37 @@ class BridgeAdapter(PacketTracerAdapter):
             actual = port.ip.value if port is not None and port.ip.is_known else None
             if actual != ip:
                 missing[iface] = ip
+        return missing
+
+    def _missing_ios_routes(
+        self, device: str, expected: list[dict]
+    ) -> list[dict]:
+        """Which static routes the script asked for are not on the device.
+
+        Silent route drop (S1.19 / Step 4): ``configureIosDevice`` answers
+        ``true`` for ``ip route ...`` even when the route never lands (measured:
+        ``ip route 0.0.0.0 0.0.0.0 10.0.0.5`` on a busy 2911 right after a
+        heavy push came back SUCCESS with no entry in ``show ip route``). The
+        receipt then claims success and the DAG inherits a phantom. The check is
+        the same shape as the address one: parse the expectation from the
+        script, read the table back, fail on a contradiction.
+
+        An UNKNOWN read-back (the device is still booting, the channel is stale,
+        the platform does not support ``show ip route``) is NOT a contradiction
+        - the function returns an empty list, the caller decides whether to
+        treat the absent verdict as a PASS. Only a table we DID read and that
+        is missing one of the expected entries surfaces a problem.
+        """
+        obs = self.read_routing_table(device)
+        if not obs.is_known or not obs.value:
+            return []
+        observed = {(r["network"], r["prefix"], r.get("next_hop"))
+                    for r in obs.value}
+        missing: list[dict] = []
+        for want in expected:
+            key = (want["network"], want["prefix"], want["next_hop"])
+            if key not in observed:
+                missing.append(want)
         return missing
 
     def configure_gateway_lan(

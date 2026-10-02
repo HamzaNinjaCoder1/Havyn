@@ -357,6 +357,154 @@ def test_configure_ios_without_addressable_commands_is_unconfirmed_not_failed():
     assert receipt.postconditions[0].passed is None
 
 
+#: Static routes scripted into the device. The address + route pair is the
+#: minimum of what an S1.19 script asks for, so the read-back check has to
+#: catch a silent drop on either side.
+_ROUTE_CMDS = [
+    "interface GigabitEthernet0/0",
+    "ip address 10.0.0.1 255.255.255.252",
+    "no shutdown",
+    "exit",
+    "ip route 0.0.0.0 0.0.0.0 10.0.0.2",
+    "ip route 10.10.0.0 255.255.0.0 10.0.0.6",
+]
+
+
+def _route_adapter(
+    *,
+    ports_json: str = '{"devices":[{"name":"R1","model":"2911","ports":[]}]}',
+    route_json: str = "",
+    ok: str = "OK",
+) -> BridgeAdapter:
+    """Fake PT that applies the config, returns ports and (optional) routes.
+
+    ``route_json`` is the verbatim tail PT would print for ``show ip route``;
+    empty string means "no read-back performed" (UNKNOWN). The fixture detects
+    route reads by sniffing the JS string for ``show ip route`` so an
+    address-only test above never accidentally returns a route table. The
+    arm/collect dance that ``_console_show`` runs is faked: the arm call returns
+    ``BASE:0`` and the subsequent collect returns ``DONE:<route_json>``.
+    """
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+
+    def fake_send(expression, *, statements=None, wait=None):
+        text = " ".join(statements or []) + " " + str(expression)
+        if "devices" in text and "JSON.stringify" in text:
+            return Observable.known(ports_json)
+        # ``_console_show`` runs an arm/collect dance:
+        #   arm  = ``enterCommand('show ip route')`` then ``'BASE:' + base``
+        #   collect = IIFE returning ``DONE:<tail>`` / ``WAIT`` / ``ERR:``
+        # The configure_ios push has no enterCommand, so it falls through.
+        is_arm = bool(statements) and any("enterCommand" in s for s in statements)
+        if not route_json:
+            if is_arm:
+                return Observable.unknown("console unavailable")
+            return Observable.known(ok)
+        if is_arm:
+            return Observable.known("BASE:0")
+        # collect pass (only reached when ``show ip route`` already armed and
+        # produced output past BASE; the configure_ios push never gets here).
+        return Observable.known("DONE:" + route_json)
+
+    adapter.send_expression = fake_send  # type: ignore[method-assign]
+    return adapter
+
+
+def test_expected_ios_routes_parses_ios_and_asa_forms():
+    """Step 4 / S1.19: the read-back expectation covers both ``ip route`` and
+    ASA's ``route <nameif>`` form. The nameif is dropped on purpose: PT's
+    `show ip route` does not carry it, so keeping it on would always look like a
+    contradiction. Subnet masks are normalised to the canonical prefix so a
+    /24 written as ``255.255.255.0`` matches the read-back's ``10.0.0.0/24``.
+    """
+    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import (
+        _expected_ios_routes,
+    )
+
+    assert _expected_ios_routes([
+        "ip route 0.0.0.0 0.0.0.0 10.0.0.5",
+        "ip route 10.10.0.0 255.255.0.0 10.0.0.6",
+        "ip route 10.20.0.0 255.255.0.0 10.0.0.10 200",  # metric is tolerated
+    ]) == [
+        {"network": "0.0.0.0", "prefix": 0, "next_hop": "10.0.0.5"},
+        {"network": "10.10.0.0", "prefix": 16, "next_hop": "10.0.0.6"},
+        {"network": "10.20.0.0", "prefix": 16, "next_hop": "10.0.0.10"},
+    ]
+
+    # ASA form: ``route <nameif> <dst> <mask> <next-hop>``.
+    asa = _expected_ios_routes([
+        "route outside 0.0.0.0 0.0.0.0 10.0.0.17",
+        "route inside 10.30.50.0 255.255.255.0 10.0.0.18",
+    ])
+    assert asa == [
+        {"network": "0.0.0.0", "prefix": 0, "next_hop": "10.0.0.17"},
+        {"network": "10.30.50.0", "prefix": 24, "next_hop": "10.0.0.18"},
+    ]
+    # Scripts that ask for no static route return nothing.
+    assert _expected_ios_routes(["hostname R1", "exit"]) == []
+
+
+def test_configure_ios_fails_when_static_routes_silently_drop():
+    """The S1.19 silent-drop bug: ``ip route 0.0.0.0 0.0.0.0 10.0.0.5`` reports
+    SUCCESS on the wire but the route is not in ``show ip route``. A receipt
+    that calls itself CONFIRMED in that case is the failure mode Step 4 is
+    about. The route read-back has to flag the missing entry as a FAILED op,
+    not a green one."""
+    adapter = _route_adapter(
+        ports_json='{"devices":[{"name":"R1","model":"2911","ports":'
+                   '[{"name":"GigabitEthernet0/0","ip":"10.0.0.1"}]}]}',
+        route_json=(
+            "Codes: C - connected, S - static\n"
+            "S    10.10.0.0/16 [1/0] via 10.0.0.6\n"
+            # NB: the default route (S* 0.0.0.0/0) is MISSING.
+        ),
+    )
+    receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
+    assert receipt.result is OperationResult.FAILED
+    assert receipt.executed_ok is False
+    assert receipt.error and "0.0.0.0/0 via 10.0.0.2" in receipt.error
+    # The named postcondition is appended to the address one.
+    names = [p.name for p in receipt.postconditions]
+    assert "configured_routes_present" in names
+    route_post = next(p for p in receipt.postconditions if p.name == "configured_routes_present")
+    assert route_post.passed is False
+
+
+def test_configure_ios_succeeds_when_every_static_route_reads_back():
+    """The fix must not overreach: a config whose routes are all observed is
+    still SUCCESS, still confirmed."""
+    adapter = _route_adapter(
+        ports_json='{"devices":[{"name":"R1","model":"2911","ports":'
+                   '[{"name":"GigabitEthernet0/0","ip":"10.0.0.1"}]}]}',
+        route_json=(
+            "Codes: C - connected, S - static\n"
+            "S*   0.0.0.0/0 [1/0] via 10.0.0.2\n"
+            "S    10.10.0.0/16 [1/0] via 10.0.0.6\n"
+        ),
+    )
+    receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
+    assert receipt.result is OperationResult.SUCCESS
+    assert receipt.confirmed
+    route_post = next(p for p in receipt.postconditions if p.name == "configured_routes_present")
+    assert route_post.passed is True
+
+
+def test_configure_ios_route_check_skips_when_show_ip_route_unavailable():
+    """No read-back signal is not a contradiction. A device whose console is
+    still settling after a heavy push can answer ``configureIosDevice`` and
+    not yet answer ``show ip route``: that case must stay SUCCESS/UNCONFIRMED,
+    not flip to FAILED on missing evidence."""
+    adapter = _route_adapter(
+        ports_json='{"devices":[{"name":"R1","model":"2911","ports":'
+                   '[{"name":"GigabitEthernet0/0","ip":"10.0.0.1"}]}]}',
+        route_json="",  # no read-back performed
+    )
+    receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
+    assert receipt.result is OperationResult.SUCCESS
+    route_post = next(p for p in receipt.postconditions if p.name == "configured_routes_present")
+    assert route_post.passed is None
+
+
 def test_device_exists_retries_a_dropped_poll_before_saying_unknown():
     """Callers fail closed on UNKNOWN, and PT's script engine drops the odd
     poll while it is busy. Without a retry that turns into a spurious
