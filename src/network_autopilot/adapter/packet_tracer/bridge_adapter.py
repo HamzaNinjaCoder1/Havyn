@@ -470,6 +470,16 @@ class BridgeAdapter(PacketTracerAdapter):
         # send so a dead channel is re-probed instead of trusted.
         self._channel: str | None = None
         self._channel_cached_at: float | None = None
+        # Negative cache for the HTTP half of the channel probe. Probing it
+        # costs a real round trip, and on a machine with no bridge listening
+        # that is a refused loopback connect measured at 2.03 s (plus 0.36 s
+        # of getaddrinfo). A build sends ~440 commands and the positive cache
+        # only lasts 4 s, so re-discovering the same absence dominated the
+        # wall clock of the 20-minute reference build. Remembering the absence
+        # is behaviour-preserving: the answer with HTTP down is the file
+        # channel or "", exactly as before — only the cost changes.
+        # See _HTTP_ABSENT_TTL_SECONDS.
+        self._http_absent_until: float = 0.0
         # Short-lived topology snapshot, shared by the burst of existence
         # checks a build makes. Invalidated whenever a mutation runs, so a
         # read after a create/link/config always sees the change.
@@ -549,9 +559,12 @@ class BridgeAdapter(PacketTracerAdapter):
         self.last_launch = result
         if result.usable:
             # The channel cache predates the launch; drop it so the next send
-            # re-probes and actually picks up the now-live file channel.
+            # re-probes and actually picks up the now-live file channel. The
+            # remembered HTTP absence goes too: a fresh launch is the one
+            # moment a bridge is plausibly newly reachable.
             self._channel = None
             self._channel_cached_at = None
+            self._http_absent_until = 0.0
         return result
 
     def _resolve_channel(self) -> str:
@@ -600,8 +613,18 @@ class BridgeAdapter(PacketTracerAdapter):
         # — NOT when the file channel alone is alive. Using ping() here would
         # pick "http" whenever the Script Engine heartbeat is fresh and then
         # every send would hit a refused connection.
-        if self._http_ping().reachable:
-            return "http"
+        #
+        # The probe is not free: a refused loopback connect measures 2.03 s on
+        # this machine (plus 0.36 s of getaddrinfo), and the positive channel
+        # cache only lives 4 s — so re-proving the same absence before every
+        # command was the largest fixed cost of a build (build-dcca6bd4ab7f:
+        # 435 sends, every one on the file channel, none ever on HTTP). A
+        # bridge proved absent stays absent for _HTTP_ABSENT_TTL_SECONDS. The
+        # verdict is unchanged with or without the cache; only the cost moves.
+        if time.time() >= self._http_absent_until:
+            if self._http_ping().reachable:
+                return "http"
+            self._http_absent_until = time.time() + self._HTTP_ABSENT_TTL_SECONDS
         try:
             if self._file_bridge.pt_alive():
                 return "file"
@@ -651,9 +674,17 @@ class BridgeAdapter(PacketTracerAdapter):
         )
 
     def _invalidate_channel(self) -> None:
-        """Drop the cached channel so the next send re-probes."""
+        """Drop the cached channel so the next send re-probes.
+
+        Also forgets a remembered HTTP absence: this runs when a send failed,
+        which is exactly the moment the other channel deserves another look
+        (the bridge may have come up). It cannot thrash — `_send_http` only
+        runs on a channel whose HTTP probe just succeeded, so the negative
+        cache is already clear there.
+        """
         self._channel = None
         self._channel_cached_at = None
+        self._http_absent_until = 0.0
 
     def _send_http(self, expression: str, statements: list[str] | None, wait: float) -> Observable[str]:
         rid = next_rid()
@@ -740,6 +771,12 @@ class BridgeAdapter(PacketTracerAdapter):
     # still recovered: a failed send clears the cache and the next command
     # re-probes.
     _CHANNEL_CACHE_TTL_SECONDS: float = 4.0
+
+    #: How long a proven HTTP-bridge absence is remembered. The refused
+    #: connect costs 2.03 s on this machine, so re-probing it every channel
+    #: TTL was the single largest fixed cost in a build; 30 s bounds the
+    #: discovery delay for a bridge that appears mid-run to one probe.
+    _HTTP_ABSENT_TTL_SECONDS: float = 30.0
 
     # -- probing ----------------------------------------------------------
 

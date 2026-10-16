@@ -1891,7 +1891,35 @@ def compile_spec(
         DeviceRole.FIREWALL,
         DeviceRole.WIRELESS_ROUTER,
     )
-    for device in spec.devices:
+    # PT installs an IOS static route only while its next hop is resolvable,
+    # and it drops the route from `show ip route` the moment the interface
+    # carrying that next hop goes down (measured live on risp: shutting
+    # FastEthernet0/0 removed `S 10.0.0.0/8 via 203.0.113.1`, and bringing it
+    # back up re-installed it). `configureIosDevice` accepts the `ip route`
+    # line either way, so only the read-back notices — and it can only answer
+    # truthfully once the far end of the link has been configured.
+    #
+    # The firewalls are therefore emitted before the routing layer. In
+    # build-dcca6bd4ab7f the routers (redge, rhq, rbr, risp) were configured
+    # four ops BEFORE the ASAs (fwhq, fwdc, fwbr), so risp asked for a route
+    # whose next hop was fwhq's not-yet-configured outside address: the next
+    # hop was unresolvable, the route was not installed, and op-config-risp
+    # failed with "routes still missing after retry" on a device that does
+    # carry the route. An ASA's own `route` has no such read-back (its
+    # consoles reject `show`), so only the IOS postcondition needs this
+    # ordering, and only the firewalls have to move.
+    #
+    # Spec order is preserved within each class — this moves the fabric, not
+    # the routing layer's own relative order.
+    _FABRIC_ROLES = (DeviceRole.FIREWALL,)
+    _ios_devices = [
+        (index, device)
+        for index, device in enumerate(spec.devices)
+        if device.role in IOS_CONFIG_ROLES
+    ]
+    # Fabric first: non-fabric sorts True (later), so the key is the negation.
+    _ios_devices.sort(key=lambda pair: (pair[1].role not in _FABRIC_ROLES, pair[0]))
+    for _index, device in _ios_devices:
         if device.role not in IOS_CONFIG_ROLES:
             continue
         firewall = _resolve_firewall_model(spec, device)

@@ -185,19 +185,7 @@ class DagExecutor:
                 not in (OpStatus.SUCCEEDED, OpStatus.SKIPPED)
             ]
             if unmet:
-                waived = (
-                    op.operation_type in _PROBE_TYPES
-                    and self.gate.mode not in _NON_EXECUTING_MODES
-                )
-                if waived:
-                    # S1.2/F-2: a read-only probe must report the half-built
-                    # network, not hide behind an unrelated config op's
-                    # blockage - that cascade turned 11 real flows into
-                    # UNKNOWN in the reference run (flows-unknown.md §2).
-                    # The probe runs; its own result carries the truth.
-                    # READ_ONLY/DRY_RUN stay exempt: that build never
-                    # executed, so probing a network nobody tried to build
-                    # is noise (and a live ping storm in a "dry" run).
+                if self._probe_waives_unmet(op, unmet):
                     if self.evidence is not None:
                         self.evidence.record(
                             "probe_waived_dependencies",
@@ -260,6 +248,32 @@ class DagExecutor:
         """Attribute monotonic wall time since ``started`` to ``op_type``."""
         elapsed = time.monotonic() - started
         result.op_seconds[op_type] = result.op_seconds.get(op_type, 0.0) + elapsed
+
+    def _probe_waives_unmet(self, op, unmet) -> bool:
+        """May this operation run even though ``unmet`` dependencies did not?
+
+        S1.2/F-2: a read-only probe must report the half-built network, not
+        hide behind an unrelated config op's blockage — that cascade turned 11
+        real flows into UNKNOWN in the reference run (flows-unknown.md §2).
+        READ_ONLY/DRY_RUN stay exempt: that build never executed, so probing a
+        network nobody tried to build is noise (and a live ping storm in a
+        "dry" run). An empty ``unmet`` is always waivable — the caller is only
+        asking what to do about a satisfied graph.
+
+        This is ONE rule for every caller. The serial dependency gate and the
+        parallel flow batching used to hold two copies of it, and they drifted:
+        the gate waived a probe past a failed configure while the batching
+        refused to batch the same probe, so every partially-failed build
+        silently fell back to twelve serial ping windows (measured in
+        build-859ca11f4988 — ``probe_waived_dependencies`` present 13 times,
+        ``parallel`` absent from all twelve flow records).
+        """
+        if not unmet:
+            return True
+        return (
+            op.operation_type in _PROBE_TYPES
+            and self.gate.mode not in _NON_EXECUTING_MODES
+        )
 
     # The minimum run length that makes batching worth it. Below this the
     # serial path is already cheap and a batch would add a read-back for no
@@ -384,10 +398,15 @@ class DagExecutor:
             op = node.operation
             if op.operation_type != "verify_flow" or node.status is not OpStatus.PENDING:
                 break
-            if any(
-                dag.nodes[dep].status not in (OpStatus.SUCCEEDED, OpStatus.SKIPPED)
-                for dep in op.dependencies
-            ):
+            # Same waiver as the serial dependency gate (see
+            # _probe_waives_unmet): a probe that the gate let through must
+            # batch too, or a partially-failed build pays serial ping windows.
+            unmet = [
+                dep for dep in op.dependencies
+                if dag.nodes[dep].status
+                not in (OpStatus.SUCCEEDED, OpStatus.SKIPPED)
+            ]
+            if not self._probe_waives_unmet(op, unmet):
                 break
             run.append((topo[position], node, op))
             position += 1
