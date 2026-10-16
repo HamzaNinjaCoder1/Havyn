@@ -208,6 +208,22 @@ class PacketTracerAdapter(ABC):
         prevent (P1-5).
         """
 
+    def run_flow_tests_bulk(
+        self, specs: list[dict[str, object]]
+    ) -> list[FlowResult] | None:
+        """Run many flows concurrently; one ``FlowResult`` per spec, in order.
+
+        Returns ``None`` when the adapter cannot batch (the caller then runs
+        each spec through ``run_flow_test`` serially). ``None`` is the
+        base-class answer, so an adapter that has no data plane to parallelise
+        keeps the exact serial semantics and verdicts it already had.
+
+        Flows that share a source device share one console, so a caller may
+        batch them; the adapter is free to serialise per source internally —
+        only the transport is shared, never the verdicts.
+        """
+        return None
+
     def read_routing_table(self, device: str) -> Observable[list]:
         """Structured route table for one device, or an honest UNKNOWN.
 

@@ -370,6 +370,74 @@ _ROUTE_CMDS = [
 ]
 
 
+def _console_step_payload(
+    *, route_text: str, typed: bool, prompt: str = "R1#"
+) -> str:
+    """One answer in the `js_console_show_expr` wire format.
+
+    The route read is a step protocol, not an arm/collect pair any more: PT's
+    console buffer is capped and pages on `--More--`, so the reader types one
+    command and then polls until this command's own echo has come back complete
+    (see `js_console_show_expr`). Format:
+    `S:<echoes>|<pager_at_end>|<at_prompt>|<settled>|<queued>|<prompt>|<tail>`
+    """
+    echo_count = 1 if typed else 0
+    return (
+        f"S:{echo_count}|0|1|1|{int(typed)}|"
+        f"{json.dumps(prompt)}|show ip route\n{route_text}\nR1#"
+    )
+
+
+def _is_console_read(expression: str) -> bool:
+    """Sniff the shipped JS so an address-only test never returns a table."""
+    return "pager_at_end" in str(expression) and "var echoes=o.split(" in str(expression)
+
+
+def _console_read_fake(route_text: str, reads: dict, *, prompt: str = "R1#"):
+    """A send_expression body answering the console-read protocol."""
+
+    def fake(expression, *, statements=None, wait=None):
+        if not _is_console_read(expression):
+            return None
+        reads["count"] = reads.get("count", 0) + 1
+        action = _console_action(expression)
+        if action == "type":
+            reads["typed"] = True
+            return Observable.known(
+                _console_step_payload(route_text="", typed=False, prompt=prompt)
+            )
+        reads.setdefault("typed", False)
+        if action == "settle":
+            return Observable.known(
+                _console_step_payload(route_text="", typed=False, prompt=prompt)
+            )
+        return Observable.known(
+            _console_step_payload(
+                route_text=_nth_read(route_text, reads["count"]),
+                typed=True,
+                prompt=prompt,
+            )
+        )
+
+    return fake
+
+
+def _console_action(expression: str) -> str:
+    """Pull the action argument out of the shipped JS expression."""
+    marker = "==='type'"
+    if marker not in expression:
+        return "state"
+    head = expression[: expression.index(marker)]
+    return json.loads(head[head.rindex("if(") + 3:])
+
+
+def _nth_read(route_text: str, count: int) -> str:
+    """Reads 1 and 2 differ when a test models a retry."""
+    if isinstance(route_text, (list, tuple)):
+        return route_text[min(count, len(route_text)) - 1]
+    return route_text
+
+
 def _route_adapter(
     *,
     ports_json: str = '{"devices":[{"name":"R1","model":"2911","ports":[]}]}',
@@ -379,32 +447,22 @@ def _route_adapter(
     """Fake PT that applies the config, returns ports and (optional) routes.
 
     ``route_json`` is the verbatim tail PT would print for ``show ip route``;
-    empty string means "no read-back performed" (UNKNOWN). The fixture detects
-    route reads by sniffing the JS string for ``show ip route`` so an
-    address-only test above never accidentally returns a route table. The
-    arm/collect dance that ``_console_show`` runs is faked: the arm call returns
-    ``BASE:0`` and the subsequent collect returns ``DONE:<route_json>``.
+    an empty string means "no read-back performed" (UNKNOWN). Console reads are
+    detected by sniffing the shipped JS for the step protocol, so an
+    address-only test above never accidentally returns a route table.
     """
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    reads: dict = {}
 
     def fake_send(expression, *, statements=None, wait=None):
         text = " ".join(statements or []) + " " + str(expression)
         if "devices" in text and "JSON.stringify" in text:
             return Observable.known(ports_json)
-        # ``_console_show`` runs an arm/collect dance:
-        #   arm  = ``enterCommand('show ip route')`` then ``'BASE:' + base``
-        #   collect = IIFE returning ``DONE:<tail>`` / ``WAIT`` / ``ERR:``
-        # The configure_ios push has no enterCommand, so it falls through.
-        is_arm = bool(statements) and any("enterCommand" in s for s in statements)
-        if not route_json:
-            if is_arm:
+        if _is_console_read(expression):
+            if not route_json:
                 return Observable.unknown("console unavailable")
-            return Observable.known(ok)
-        if is_arm:
-            return Observable.known("BASE:0")
-        # collect pass (only reached when ``show ip route`` already armed and
-        # produced output past BASE; the configure_ios push never gets here).
-        return Observable.known("DONE:" + route_json)
+            return _console_read_fake(route_json, reads)(expression)
+        return Observable.known(ok)
 
     adapter.send_expression = fake_send  # type: ignore[method-assign]
     return adapter
@@ -1090,9 +1148,7 @@ def test_configure_ios_retries_missing_routes_as_a_separate_call():
     """Step 4 / S1.19 retry: the first push dropped the routes (PT returns
     ``true`` but ``show ip route`` is empty for them). The retry pushes the
     routes alone; the second read-back shows them and the receipt flips back
-    to SUCCESS. Without the retry this same scenario fails the build.
-    """
-    state = {"arm_count": 0, "collect_count": 0}
+    to SUCCESS. Without the retry this same scenario fails the build."""
     first_routes = (
         "Codes: C - connected, S - static\n"
         "C    10.0.0.0/30 is directly connected, FastEthernet0/0\n"
@@ -1105,6 +1161,8 @@ def test_configure_ios_retries_missing_routes_as_a_separate_call():
         "S    10.10.0.0/16 [1/0] via 10.0.0.6\n"
     )
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    reads: dict = {}
+    console_fake = _console_read_fake([first_routes, second_routes], reads)
 
     def fake_send(expression, *, statements=None, wait=None):
         text = " ".join(statements or []) + " " + str(expression)
@@ -1113,28 +1171,21 @@ def test_configure_ios_retries_missing_routes_as_a_separate_call():
                 '{"devices":[{"name":"R1","model":"2911","ports":'
                 '[{"name":"GigabitEthernet0/0","ip":"10.0.0.1"}]}]}'
             )
-        is_arm = bool(statements) and any("enterCommand" in s for s in statements)
-        if is_arm:
-            state["arm_count"] += 1
-            return Observable.known("BASE:0")
+        if _is_console_read(expression):
+            return console_fake(expression)
         if "configureIosDevice" in text:
             return Observable.known("true")
-        # Collect pass: track which read we're in. The first collect surfaces
-        # the *empty* table (silent drop); the second surfaces the *populated*
-        # one (the retry landed).
-        state["collect_count"] += 1
-        current = first_routes if state["collect_count"] <= 1 else second_routes
-        return Observable.known("DONE:" + current)
+        return Observable.known("OK")
 
     adapter.send_expression = fake_send  # type: ignore[method-assign]
 
     receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
-    assert state["arm_count"] >= 2, (
-        f"retry should have triggered exactly one extra arm (got {state['arm_count']})"
+    assert reads.get("count", 0) >= 2, (
+        f"retry should have triggered exactly one extra route read "
+        f"(got {reads.get('count')})"
     )
     assert receipt.result is OperationResult.SUCCESS
     route_post = next(
         p for p in receipt.postconditions if p.name == "configured_routes_present"
     )
     assert route_post.passed is True
-

@@ -36,11 +36,14 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
 import re
+import sys
 import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from ...core.actual_state import ActualNetworkState, DeviceObservation
 from ...core.ids import new_id, utc_now_iso
@@ -52,6 +55,31 @@ from ...pt.catalog.devices import category_of_model
 from ..base import AdapterError, AdapterInfo, PacketTracerAdapter
 from . import js_commands as js
 from .pt_launcher import LaunchResult, ensure_packet_tracer, find_packet_tracer
+
+@dataclass(frozen=True)
+class _ConsoleStep:
+    """One measured PT console state, as `js_console_show_expr` reports it."""
+
+    #: how many times this command's text appears in the buffer; a read is
+    #: only trusted once the count rises past what it was when we typed it,
+    #: which is what makes a repeated command unambiguous without flush()
+    #: (PT rejects flush outright: `Invalid arguments for IPC call "flush"`).
+    echo_count: int
+    #: `--More--` is the LAST thing in the buffer, i.e. PT is paging right now.
+    pager_at_end: bool
+    #: the device is back at a CLI prompt (`...#` / `...>`).
+    at_prompt: bool
+    #: the device is not paging, not in a `[yes/no]` dialog and not parked at
+    #: `Press RETURN to get started`, so a command is worth typing. Measured:
+    #: `getPrompt()` is "" while the console is idle, so readiness cannot be
+    #: taken from it.
+    settled: bool
+    #: this call queued something on the device.
+    typed: bool
+    prompt: str
+    #: everything the buffer holds from this command's own echo onwards.
+    tail: str
+
 
 try:
     from ...pt.http_bridge import (
@@ -3042,6 +3070,317 @@ class BridgeAdapter(PacketTracerAdapter):
             ),
         )
 
+    # -- parallel data-plane flows --------------------------------------------
+
+    #: Set HAVYN_BULK_FLOWS_DEBUG=1 to trace rounds on stderr.
+    _BULK_DEBUG = os.environ.get("HAVYN_BULK_FLOWS_DEBUG", "") == "1"
+
+    #: Sleep between the SHARED polls of an armed round. The whole round is
+    #: polled in one Script Engine round trip, so this only paces those shared
+    #: calls; it is deliberately well below one ping window.
+    _BULK_POLL_INTERVAL_S = 0.5
+    #: Per-attempt quiet window for the batched path, mirroring the serial
+    #: `_FLOW_ATTEMPT_TIMEOUTS`. PT prints a 0%-loss stat block for a dead path
+    #: once its four echoes time out (~8 s), so the first window must out-last
+    #: that; the last keeps the serial path's 25 s patience for a slow console.
+    _BULK_ATTEMPT_TIMEOUTS: tuple[float, ...] = (9.0, 16.0, 25.0)
+
+    def run_flow_tests_bulk(
+        self, specs: list[dict[str, object]]
+    ) -> list[FlowResult] | None:
+        """Run every flow concurrently: one armed ping per source device.
+
+        Flows are grouped by ``source``: one console holds one in-flight ping
+        (the stat-block counter is per console), so a source's own flows run as
+        sequential rounds while DIFFERENT sources run at the same time. Arming
+        and polling each cost ONE Script Engine round trip per round, so twelve
+        flows cost roughly one ping window instead of twelve.
+
+        Verdicts are identical to ``run_flow_test``: the same classifier, the
+        same transport honesty (non-ICMP is UNKNOWN, never an echo verdict),
+        the same bounded ARP-convergence retries with the converged result
+        reported and every attempt kept as evidence.
+        """
+        if not specs:
+            return []
+        from collections import deque
+
+        #: source -> queue of (slot, spec, target_ip, attempts). The attempts
+        #: list travels WITH the flow: a re-armed flow must keep its history so
+        #: the retry budget advances, otherwise a retryable flow would loop
+        #: forever on a fresh counter.
+        pending: dict[str, deque] = {}
+        #: source -> in-flight record
+        armed: dict[str, dict] = {}
+        results: list[FlowResult | None] = [None] * len(specs)
+
+        for slot, spec in enumerate(specs):
+            transport = str(spec.get("transport") or "icmp").strip().lower()
+            src, dest = str(spec["source"]), str(spec["destination"])
+            port = spec.get("port")
+            if transport not in ("icmp", "", "ping"):
+                results[slot] = FlowResult(
+                    source=src, destination=dest, transport=transport, port=port,
+                    outcome=FlowOutcome.UNKNOWN,
+                    detail=(
+                        f"transport {transport!r} has no verified PT probe: ICMP "
+                        "echo is real, but proving a TCP/UDP criterion with echo "
+                        "would be a false positive. Outcome stays UNKNOWN."
+                    ),
+                    evidence={"transport": transport, "port": port, "icmp_only": True},
+                )
+                continue
+            dest_ip = spec.get("destination_ip")
+            if dest_ip:
+                target: Observable = Observable[str].known(
+                    str(dest_ip), source="caller-specified destination"
+                )
+            else:
+                target = self._resolve_destination_ip(dest)
+            if not target.is_known:
+                results[slot] = FlowResult(
+                    source=src, destination=dest, transport=transport, port=port,
+                    outcome=FlowOutcome.UNKNOWN,
+                    detail=target.detail or target.status.value,
+                )
+                continue
+            pending.setdefault(src, deque()).append(
+                (slot, spec, str(target.value), [])
+            )
+
+        while pending or armed:
+            if self._BULK_DEBUG:
+                print(
+                    f"[bulk] round: armed={sorted(armed)} "
+                    f"pending={ {k: len(v) for k, v in pending.items()} }",
+                    file=sys.stderr, flush=True,
+                )
+            self._arm_pending(pending, armed, results)
+            if not armed:
+                break
+            deadline = time.time() + max(
+                self._BULK_ATTEMPT_TIMEOUTS[
+                    min(len(r["attempts"]), len(self._BULK_ATTEMPT_TIMEOUTS) - 1)
+                ]
+                for r in armed.values()
+            )
+            if self._BULK_DEBUG:
+                print(
+                    f"[bulk]   deadline in {deadline - time.time():.0f}s, "
+                    f"attempts={ {k: len(r['attempts']) for k, r in armed.items()} }",
+                    file=sys.stderr, flush=True,
+                )
+            self._poll_armed(armed, results, deadline, pending)
+            # A source whose flow resolved keeps its remaining queue; a flow
+            # that resolved retryable and still has budget is re-queued itself.
+            for src in [s for s in list(pending) if s not in armed and not pending[s]]:
+                del pending[src]
+
+        # Every spec must land a result; an empty queue with no verdict is a
+        # logic gap, never a silent PASS.
+        for slot, result in enumerate(results):
+            if result is None:
+                results[slot] = FlowResult(
+                    source=str(specs[slot]["source"]),
+                    destination=str(specs[slot]["destination"]),
+                    transport=str(specs[slot].get("transport") or "icmp"),
+                    port=specs[slot].get("port"),
+                    outcome=FlowOutcome.UNKNOWN,
+                    detail="no ping attempt produced an answer",
+                )
+        return results
+
+    def _arm_pending(self, pending, armed, results) -> None:
+        """Arm the next pending flow on every idle source in one round trip."""
+        jobs: list[tuple[str, str]] = []
+        slots: list[int] = []
+        for src in sorted(pending):
+            if src in armed or not pending[src]:
+                continue
+            slot, spec, target, attempts = pending[src].popleft()
+            jobs.append((src, target))
+            slots.append(slot)
+            armed[src] = {
+                "slot": slot, "spec": spec, "target": target,
+                "base": None, "attempts": attempts,
+            }
+        if not jobs:
+            return
+        answer = self.send_expression(js.js_console_ping_arm_multi_expr(jobs), wait=12.0)
+        bases: dict[int, int] = {}
+        errors: dict[int, str] = {}
+        if answer.is_known:
+            try:
+                for entry in json.loads(str(answer.value)):
+                    idx = int(entry["i"])
+                    if "err" in entry:
+                        errors[idx] = str(entry["err"])
+                    else:
+                        bases[idx] = int(entry["base"])
+            except (ValueError, TypeError, KeyError):
+                pass  # a malformed answer leaves bases unset: the poll retries
+        for job_index, (src, _target) in enumerate(jobs):
+            slot = slots[job_index]
+            record = armed[src]
+            if slot in errors:
+                record["attempts"].append(
+                    FlowResult(
+                        source=src,
+                        destination=str(record["spec"]["destination"]),
+                        transport="icmp",
+                        port=record["spec"].get("port"),
+                        outcome=FlowOutcome.UNKNOWN,
+                        detail=f"ping could not be armed: {errors[slot]}",
+                    )
+                )
+                self._settle_flow(src, record, results, pending, terminal=True)
+                # An arm failure is terminal: leave the armed table so the
+                # record is not re-polled, and take it out of the pending
+                # queue for good.
+                armed.pop(src, None)
+                continue
+            record["base"] = bases.get(slot)
+
+    def _poll_armed(self, armed, results, deadline: float, pending) -> None:
+        """Poll every armed flow in shared round trips until the deadline."""
+        while armed:
+            time.sleep(self._BULK_POLL_INTERVAL_S)
+            live = [
+                (src, rec["base"])
+                for src, rec in armed.items()
+                if rec["base"] is not None
+            ]
+            timed_out = time.time() >= deadline
+            if not live:
+                if timed_out:
+                    for src, rec in list(armed.items()):
+                        rec["attempts"].append(self._quiet_flow_result(rec, deadline))
+                        self._settle_flow(src, rec, results, pending)
+                    armed.clear()
+                    return
+                continue
+            answer = self.send_expression(js.js_console_poll_multi_expr(live), wait=8.0)
+            resolved: list[str] = []
+            if answer.is_known:
+                try:
+                    polled = json.loads(str(answer.value))
+                except (ValueError, TypeError):
+                    polled = []
+                for entry in polled:
+                    src = live[int(entry["i"])][0]
+                    rec = armed.get(src)
+                    if rec is None:
+                        continue
+                    value = str(entry.get("r", "WAIT"))
+                    if value.startswith("DONE:"):
+                        rec["attempts"].append(self._flow_result_from_stat(rec, value[5:]))
+                        resolved.append(src)
+                    elif value.startswith("ERR:"):
+                        rec["attempts"].append(
+                            FlowResult(
+                                source=src,
+                                destination=str(rec["spec"]["destination"]),
+                                transport="icmp",
+                                port=rec["spec"].get("port"),
+                                outcome=FlowOutcome.UNKNOWN,
+                                detail=f"console unavailable: {value}",
+                            )
+                        )
+                        resolved.append(src)
+            for src in resolved:
+                self._settle_flow(src, armed[src], results, pending)
+                del armed[src]
+            if timed_out:
+                for src, rec in list(armed.items()):
+                    rec["attempts"].append(self._quiet_flow_result(rec, deadline))
+                    self._settle_flow(src, rec, results, pending)
+                armed.clear()
+                return
+
+    def _quiet_flow_result(self, record: dict, deadline: float) -> FlowResult:
+        timeout = max(
+            self._BULK_ATTEMPT_TIMEOUTS[
+                min(len(record["attempts"]), len(self._BULK_ATTEMPT_TIMEOUTS) - 1)
+            ],
+            1.0,
+        )
+        return FlowResult(
+            source=str(record["spec"]["source"]),
+            destination=str(record["spec"]["destination"]),
+            transport="icmp",
+            port=record["spec"].get("port"),
+            outcome=FlowOutcome.UNKNOWN,
+            detail=(
+                f"no new ping statistics appeared on "
+                f"{record['spec']['source']!r} within {timeout:.0f}s"
+            ),
+        )
+
+    def _settle_flow(
+        self, src: str, record: dict, results, pending, *, terminal: bool = False
+    ) -> None:
+        """Finish a flow, or re-queue it when the outcome is still retryable.
+
+        A BLOCKED/PARTIAL/quiet attempt on a freshly built path is ARP
+        convergence, not a verdict: while the flow has attempts left it goes
+        back to its source's queue and is re-armed next round. Arm/console
+        failures are terminal (``terminal=True``) because a retry changes
+        nothing about them.
+        """
+        last = record["attempts"][-1]
+        budget_left = len(record["attempts"]) < _FLOW_MAX_ATTEMPTS
+        if not terminal and budget_left and _flow_is_retryable(last):
+            queue = pending[src] if pending is not None and src in pending else None
+            if queue is not None:
+                # The attempts list travels back into the queue so the next
+                # arm inherits the history and the retry budget advances.
+                queue.append(
+                    (record["slot"], record["spec"], record["target"],
+                     record["attempts"])
+                )
+                return
+        self._finish_flow(record, results)
+
+    def _flow_result_from_stat(self, record: dict, stat: str) -> FlowResult:
+        verdict = classify_ping(stat)
+        outcome = {
+            "ok": FlowOutcome.REACHABLE,
+            "partial": FlowOutcome.PARTIAL,
+            "none": FlowOutcome.BLOCKED,
+        }[verdict]
+        return FlowResult(
+            source=str(record["spec"]["source"]),
+            destination=str(record["spec"]["destination"]),
+            transport="icmp",
+            port=record["spec"].get("port"),
+            outcome=outcome,
+            detail=f"ping {record['spec']['source']}->{record['target']}: {verdict}",
+            evidence={"ping_stat": stat},
+        )
+
+    def _finish_flow(self, record: dict, results: list) -> None:
+        """Fold the attempt list into the converged verdict at its slot."""
+        attempts = record["attempts"]
+        slot = int(record["slot"])
+        best = best_flow_of(attempts)
+        if len(attempts) > 1:
+            detail = best.detail or ""
+            if best is not attempts[-1]:
+                detail += " (after ARP convergence)"
+            best = FlowResult(
+                source=best.source,
+                destination=best.destination,
+                outcome=best.outcome,
+                transport=best.transport,
+                port=best.port,
+                detail=detail,
+                evidence={**best.evidence, "attempts": [
+                    {"attempt": i + 1, "outcome": a.outcome.value, "detail": a.detail}
+                    for i, a in enumerate(attempts)
+                ]},
+            )
+        results[slot] = best
+
     # -- control-plane read-back (console) -----------------------------------
 
     def _console_show(
@@ -3089,21 +3428,217 @@ class BridgeAdapter(PacketTracerAdapter):
             f"{command!r} produced no prompt on {device!r} within {timeout:.0f}s"
         )
 
+    # -- console read-back: one honest, pager-safe `show` -------------------
+
+    #: Live-measured PT limits this read is built around (see
+    #: `.zwork/logs/probe_*.out` and `js_console_show_expr`'s docstring):
+    #: the console buffer is capped, long output pages on `--More--`, a fresh
+    #: router parks at the initial-config dialog, and a burst of
+    #: `enterCommand` calls merges into one garbled input line.
+    _CONSOLE_POLL_S = 0.5
+    _CONSOLE_SETTLE_S = 12.0
+    _CONSOLE_READ_S = 25.0
+    #: A booting device answers with ROMMON/bootloader text instead of a table.
+    #: Parsing that yields an empty table, which reads as "no routes" - the R3
+    #: lie. Recognised instead and reported UNKNOWN with the text as evidence.
+    _CONSOLE_BOOT_MARKERS = (
+        "System Bootstrap",
+        "Cisco IOS Software",
+        "Evaluating BIOS Options",
+        "Launching BootLoader",
+        "initial configuration dialog",
+        "Press RETURN to get started",
+    )
+
+    def _console_step(
+        self, device: str, command: str, action: str = "state"
+    ) -> Observable[_ConsoleStep]:
+        """One round trip against a PT console. Never guesses a signature."""
+        answer = self.send_expression(
+            js.js_console_show_expr(device, command, action), wait=8.0
+        )
+        if not answer.is_known:
+            return Observable[_ConsoleStep].unknown(
+                answer.detail or answer.status.value
+            )
+        text = str(answer.value)
+        if text.startswith("E:"):
+            return Observable[_ConsoleStep].unknown(text[2:])
+        if not text.startswith("S:"):
+            return Observable[_ConsoleStep].unknown(f"unexpected console answer {text[:120]!r}")
+        parts = text[2:].split("|", 6)
+        if len(parts) < 7:
+            return Observable[_ConsoleStep].unknown(f"short console answer {text[:120]!r}")
+        try:
+            echo_count, pager, at_prompt, settled, typed = (
+                int(part) for part in parts[:5]
+            )
+        except ValueError:
+            return Observable[_ConsoleStep].unknown(f"malformed console answer {text[:120]!r}")
+        try:
+            prompt = json.loads(parts[5])
+        except (TypeError, ValueError):
+            prompt = parts[5]
+        return Observable.known(
+            _ConsoleStep(
+                echo_count=echo_count,
+                pager_at_end=bool(pager),
+                at_prompt=bool(at_prompt),
+                settled=bool(settled),
+                typed=bool(typed),
+                prompt=str(prompt),
+                tail=parts[6],
+            ),
+            source=f"console:{device}",
+        )
+
+    def _console_settle(self, device: str, command: str) -> Observable[_ConsoleStep]:
+        """Get the console to a usable CLI prompt before typing anything.
+
+        A freshly added PT router parks at `initial configuration dialog?
+        [yes/no]:` and a console left mid-page sits on `--More--`; typing into
+        either produces garbage (`Router#nable` / `Translating "nable"...`,
+        measured live). One command at a time, and the prompt decides.
+        """
+        deadline = time.time() + self._CONSOLE_SETTLE_S
+        last: _ConsoleStep | None = None
+        while time.time() < deadline:
+            step = self._console_step(device, command, "settle")
+            if not step.is_known:
+                return Observable[_ConsoleStep].unknown(
+                    step.detail or "console unreachable"
+                )
+            last = step.value
+            if step.value.settled:
+                return step
+            time.sleep(self._CONSOLE_POLL_S)
+        detail = (
+            f"console on {device!r} never became usable "
+            f"(last prompt {last.prompt!r})" if last else "console unreachable"
+        )
+        return Observable[_ConsoleStep].unknown(detail)
+
+    def _console_show_once(
+        self, device: str, command: str, *, timeout: float
+    ) -> Observable[str]:
+        """Type ONE command and return its complete output, pager included."""
+        settled = self._console_settle(device, command)
+        if not settled.is_known:
+            return Observable[str].unknown(settled.detail or "console unreachable")
+
+        armed = self._console_step(device, command, "type")
+        if not armed.is_known:
+            return Observable[str].unknown(
+                f"could not type {command!r} on {device!r}: "
+                f"{armed.detail or armed.status.value}"
+            )
+        baseline = armed.value.echo_count
+
+        deadline = time.time() + timeout
+        last_tail = ""
+        stuck_on_pager = False
+        while time.time() < deadline:
+            step = self._console_step(device, command, "state")
+            if not step.is_known:
+                time.sleep(self._CONSOLE_POLL_S)
+                continue
+            state = step.value
+            if state.tail:
+                last_tail = state.tail
+            fresh = state.echo_count > baseline
+            stuck_on_pager = fresh and state.pager_at_end
+            if fresh and state.at_prompt and not state.pager_at_end:
+                return Observable.known(state.tail, source=f"console:{device}")
+            if stuck_on_pager:
+                # The read itself landed on `--More--`. This call queues the
+                # space; the next poll collects the page behind it (Q3).
+                self._console_step(device, command, "state")
+            time.sleep(self._CONSOLE_POLL_S)
+        if stuck_on_pager:
+            reason = (
+                f"{command!r} on {device!r} is still paging -- the console never "
+                f"cleared --More-- within {timeout:.0f}s; output so far "
+                f"{last_tail[-80:]!r}"
+            )
+        else:
+            reason = (
+                f"{command!r} never returned to a prompt on {device!r} within "
+                f"{timeout:.0f}s"
+                + (f"; last output ended {last_tail[-80:]!r}" if last_tail else "")
+            )
+        return Observable[str].unknown(reason)
+
+    def _console_show_full(
+        self,
+        device: str,
+        command: str,
+        *,
+        timeout: float | None = None,
+        attempts: int = 2,
+    ) -> Observable[str]:
+        """Read one `show ...` off a PT console, completely, and retry once.
+
+        Distinct from `_console_show`, which keeps the strict-growth rule for
+        the serial-controller read-back (that one needs a caller-supplied
+        completion rule on a saturated console). This one owns the pager.
+
+        The retry exists because a device that is still booting answers with
+        ROMMON text (R3). One retry turns a transient boot answer into real
+        data instead of a permanent UNKNOWN; if it still fails, the verdict is
+        UNKNOWN with the reason - never an empty table pretending to be one.
+        """
+        limit = self._CONSOLE_READ_S if timeout is None else timeout
+        detail = ""
+        for _attempt in range(max(1, attempts)):
+            result = self._console_show_once(device, command, timeout=limit)
+            if result.is_known:
+                return result
+            detail = result.detail or result.status.value
+        return Observable[str].unknown(f"{detail} (after {attempts} attempts)")
+
+    @staticmethod
+    def _looks_like_boot_text(output: str) -> str:
+        """The boot marker in `output`, or '' when it is a normal capture."""
+        for marker in BridgeAdapter._CONSOLE_BOOT_MARKERS:
+            if marker.lower() in output.lower():
+                return marker
+        return ""
+
     def read_routing_table(self, device: str) -> Observable[list]:
-        """Structured `show ip route` read-back; empty table is KNOWN []."""
-        tail = self._console_show(device, "show ip route")
+        """Structured `show ip route` read-back; empty table is KNOWN [].
+
+        UNKNOWN - never a fabricated empty table - whenever the route table
+        could not be observed: no console, a device that never returned to its
+        prompt, or output that is boot text rather than a routing table. An
+        ASA is the measured case: `getCommandLine()` is null on it and
+        `getConsoleLine()` rejects `show route` with `% Invalid input detected`
+        (probe_asa_api3.out / probe_asa_final.out), so an ASA route table is
+        UNOBSERVABLE through PT and says so.
+        """
+        tail = self._console_show_full(device, "show ip route")
         if not tail.is_known:
             return Observable[list].unknown(tail.detail or tail.status.value)
+        raw = tail.value
+        marker = self._looks_like_boot_text(raw)
+        if marker and "Codes:" not in raw:
+            return Observable[list].unknown(
+                f"{device!r} returned boot text, not a route table ({marker!r}): "
+                f"{raw[:160]!r}"
+            )
+        if "% Invalid input" in raw or "% Ambiguous" in raw:
+            return Observable[list].unknown(
+                f"{device!r} rejected 'show ip route': {raw[-160:]!r}"
+            )
         try:
-            routes = js.parse_show_ip_route(tail.value)
+            routes = js.parse_show_ip_route(raw)
         except Exception as exc:  # unparseable output stays honest
-            return Observable[list].unknown(f"unparseable route table: {exc}: {tail.value[:200]!r}")
+            return Observable[list].unknown(f"unparseable route table: {exc}: {raw[:200]!r}")
         # Observable is frozen; the raw console output travels in `detail` so the
         # evidence chain keeps the verbatim PT output without mutating the object.
         return Observable(
             status=ObservationStatus.KNOWN,
             value=routes,
-            detail=tail.value,
+            detail=raw,
             source=tail.source,
             observed_at=None,
         )
@@ -3177,7 +3712,7 @@ class BridgeAdapter(PacketTracerAdapter):
 
     def read_vlans(self, device: str) -> Observable[list]:
         """Structured `show vlan brief` read-back (switches)."""
-        tail = self._console_show(device, "show vlan brief")
+        tail = self._console_show_full(device, "show vlan brief")
         if not tail.is_known:
             return Observable[list].unknown(tail.detail or tail.status.value)
         try:

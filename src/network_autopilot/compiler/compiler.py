@@ -1398,6 +1398,13 @@ def _build_firewall_commands(
             cmds += [
                 f"interface {physical}",
                 f"switchport access vlan {vlan_id}",
+                # The 5505 physical ports default to shutdown. The switchport
+                # line puts them in the right VLAN, but the link stays down
+                # until we explicitly bring them up - without this, ICMP from
+                # the inside Vlan SVI never crosses to the outside VLAN's
+                # neighbour (A-005..A-008 were all blocked because Ethernet0/1
+                # stayed ``up=False`` despite being cabled).
+                "no shutdown",
                 "exit",
             ]
 

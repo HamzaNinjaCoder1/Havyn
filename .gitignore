@@ -68,5 +68,15 @@ Havyn_Production_Tracking.html
 probe.json
 runner_s119/results/
 
+# Throwaway PT-debugging probes (underscore-prefixed) and the console captures
+# they print. `scripts/audit_routes.py` and the other non-underscore scripts are
+# real deliverables and stay tracked.
+scripts/_*
+Prompt.txt
+fwbr_js.txt
+live*_out.txt
+live*_err.txt
+live*_pid.txt
+
 # Per-machine CodeBuddy overrides (documented as not-for-git local scope)
 .codebuddy/settings.local.json

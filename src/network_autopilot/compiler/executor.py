@@ -224,6 +224,20 @@ class DagExecutor:
                     index += consumed
                     continue
 
+            # Parallel flows: independent verify_flow ops are armed together so
+            # PT runs their pings concurrently in its simulation thread. Twelve
+            # serial ping windows (~80 s) become one (~10 s); the verdicts are
+            # unchanged because the adapter reports one real console stat block
+            # per flow. Falls back to the serial path when the adapter cannot
+            # batch, so an adapter's verdicts never depend on the transport.
+            if op.operation_type == "verify_flow":
+                t_op = time.monotonic()
+                consumed = self._try_parallel_flows(topo, index, dag, result)
+                self._time_op(result, op.operation_type, t_op)
+                if consumed:
+                    index += consumed
+                    continue
+
             t_op = time.monotonic()
             try:
                 self._execute_one(op, node, result)
@@ -348,6 +362,70 @@ class DagExecutor:
             else:
                 self._fail(node, op_id, result,
                            receipt.error or f"{op_type} failed")
+        return len(run)
+
+    #: The smallest group worth batching. Two flows already halve the wait, and
+    #: a spec with a single flow pays only the shared round trip.
+    _FLOW_PARALLEL_MIN = 2
+
+    def _try_parallel_flows(self, topo, index, dag, result: ExecutionResult) -> int:
+        """Run a leading group of independent verify_flow ops concurrently.
+
+        Returns how many topological entries were consumed (0 when the fast
+        path does not apply, so the caller falls back to the per-op path).
+        Every flow's verdict is produced the same way as the serial path: the
+        adapter runs a real console ping per flow and reports the observed stat
+        block. Only the transport is shared.
+        """
+        run: list = []
+        position = index
+        while position < len(topo):
+            node = dag.nodes[topo[position]]
+            op = node.operation
+            if op.operation_type != "verify_flow" or node.status is not OpStatus.PENDING:
+                break
+            if any(
+                dag.nodes[dep].status not in (OpStatus.SUCCEEDED, OpStatus.SKIPPED)
+                for dep in op.dependencies
+            ):
+                break
+            run.append((topo[position], node, op))
+            position += 1
+
+        bulk = getattr(self.adapter, "run_flow_tests_bulk", None)
+        if bulk is None or len(run) < self._FLOW_PARALLEL_MIN:
+            return 0
+
+        specs = [dict(op.inputs) for _, _, op in run]
+        try:
+            flows = bulk(specs)
+        except Exception:
+            return 0  # a crash here must not kill the run; the serial path retries
+        if flows is None or len(flows) != len(run):
+            return 0
+
+        for (op_id, node, op), flow in zip(run, flows):
+            source = op.inputs["source"]
+            destination = op.inputs["destination"]
+            result.flow_results[(source, destination)] = flow
+            if self.evidence is not None:
+                self.evidence.record(
+                    "flow_result",
+                    {
+                        "criterion_id": op.inputs.get("criterion_id"),
+                        "source": source,
+                        "destination": destination,
+                        "expect": op.inputs.get("expect"),
+                        "outcome": flow.outcome.value,
+                        "detail": flow.detail,
+                        "evidence": flow.evidence,
+                        "parallel": True,
+                    },
+                    component="executor",
+                )
+            node.status = OpStatus.SUCCEEDED
+            note = f"flow observed: {flow.outcome.value}"
+            node.note = f"{node.note}; {note}" if node.note else note
         return len(run)
 
     # -- dispatch -------------------------------------------------------------

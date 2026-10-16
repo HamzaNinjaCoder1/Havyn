@@ -663,6 +663,79 @@ def js_console_poll_expr(device: str, base: int) -> str:
     )
 
 
+def js_console_ping_arm_multi_expr(jobs: list[tuple[str, str]]) -> str:
+    """Arm one ping per device in a SINGLE Script Engine round trip.
+
+    ``jobs`` is a list of ``(device, target)``. Each device's console is
+    primed and its pre-ping stat-block count recorded before ``ping <target>``
+    is entered, so every device starts its ping before we leave the Script
+    Engine: PT runs them concurrently in its simulation thread even though the
+    channel itself is serial.
+
+    Returns a JSON array, one entry per job in order:
+    ``{"i": <job index>, "base": <stat blocks>}`` or
+    ``{"i": <job index>, "err": "..."}`` when that device has no console.
+
+    Only ONE job per device is allowed: two pings in one console would make the
+    shared stat-block counter ambiguous. The caller groups by source device.
+    """
+    jobs_js = "[" + ",".join(
+        "[" + _q(device) + "," + _q(str(target).strip()) + "]"
+        for device, target in jobs
+    ) + "]"
+    return (
+        "(function(){"
+        "var jobs=" + jobs_js + ";"
+        "var out=[];"
+        "for(var i=0;i<jobs.length;i++){"
+        "var cl=ipc.network().getDevice(jobs[i][0]).getCommandLine();"
+        "if(!cl){out.push({i:i,err:'device without console'});continue;}"
+        "var p=String(cl.getPrompt()||'');"
+        "if(p.indexOf('[yes/no]')>=0){cl.enterCommand('no');}"
+        "cl.enterCommand('');"
+        "var o=String(cl.getOutput());"
+        "var m=o.match(" + _PING_STAT_MARKERS + ");"
+        "out.push({i:i,base:m?m.length:0});"
+        "cl.enterCommand('ping '+jobs[i][1]);"
+        "}"
+        "return JSON.stringify(out);"
+        "})()"
+    )
+
+
+def js_console_poll_multi_expr(jobs: list[tuple[str, int]]) -> str:
+    """Poll every armed ping in a SINGLE Script Engine round trip.
+
+    ``jobs`` is a list of ``(device, base)``. Returns a JSON array, one entry
+    per job in order: ``{"i": <job index>, "r": "DONE:<stat>" | "WAIT" |
+    "ERR:..."}``. A device that finished is reported once and the caller stops
+    polling it; the shared round trip is what makes a twelve-flow verification
+    cost one ping window instead of twelve.
+    """
+    jobs_js = "[" + ",".join(
+        "[" + _q(device) + "," + str(int(base)) + "]"
+        for device, base in jobs
+    ) + "]"
+    return (
+        "(function(){"
+        "var jobs=" + jobs_js + ";"
+        "var out=[];"
+        "for(var i=0;i<jobs.length;i++){"
+        "var cl=ipc.network().getDevice(jobs[i][0]).getCommandLine();"
+        "if(!cl){out.push({i:i,r:'ERR:device without console'});continue;}"
+        "var o=String(cl.getOutput());"
+        "var m=o.match(" + _PING_STAT_MARKERS + ");"
+        "var cur=m?m.length:0;"
+        "if(cur>jobs[i][1]){"
+        "var stat=o.match(" + _PING_STAT_BLOCK + ");"
+        "out.push({i:i,r:'DONE:'+(stat?stat[stat.length-1]:'no stats')});"
+        "}else{out.push({i:i,r:'WAIT'});}"
+        "}"
+        "return JSON.stringify(out);"
+        "})()"
+    )
+
+
 # -- console show-command read-back (routing / VLAN control plane) -------------
 #
 # Verified live on PT 9.0.1: only getCommandLine() exposes the routing table
@@ -717,6 +790,96 @@ def js_console_collect_expr(device: str, base: int) -> str:
         "var tail=o.slice(" + str(int(base)) + ");"
         "return 'DONE:'+tail;"
         "}return 'WAIT';"
+        "})()"
+    )
+
+
+def js_console_show_expr(device: str, command: str, action: str = "state") -> str:
+    """One step of a PT console read: settle, type, or collect. Measured live.
+
+    This replaces `js_console_collect_expr`'s "did the buffer grow?" rule. Every
+    reason is measured, not guessed - probe logs in `.zwork/logs/`:
+
+    * **The buffer is capped** (5 213 chars on a wedged console, 7 931 on a busy
+      one), so `o.length > base` never becomes true for a long table and the old
+      collect answered UNKNOWN for a table that was sitting right there.
+    * **Long output PAGES on `--More--`.** Page 1 of rhq's table held only the
+      C/L lines; the `S* 0.0.0.0/0 via 10.0.0.5` default and every static route
+      behind it were on page 2. A read that stops at the pager reports real
+      routes as MISSING. One typed space advances exactly one page (measured
+      6 572 -> 7 852), so the reader drains the pager instead of guessing.
+    * **A whole-buffer `--More--` test is always true** once the pager has ever
+      fired, because the marker stays in the scrollback. Only the tail says
+      whether PT is paging RIGHT NOW.
+    * **`getPrompt()` is empty when the console is idle** and returns `rhq>`
+      only while something is typed, so it cannot decide "is this device ready".
+      Readiness is decided from the buffer instead.
+    * **A device that has just rebooted** parks at `Press RETURN to get
+      started`, and a freshly added one at `initial configuration dialog?
+      [yes/no]:`. Both have to be answered before a command is worth typing.
+    * **Batching `enterCommand` calls garbles them** - PT merges the burst into
+      one input line, measured verbatim as `Router#nable` followed by
+      `Translating "nable"...domain server (255.255.255.255)`. So this queues at
+      most ONE command per call.
+
+    `action`:
+        "type"  - queue `command` exactly once
+        "settle"- answer a dialog / wake a RETURN prompt / advance the pager
+        "state" - read only (but still advances a pager that is live NOW)
+
+    Returns
+    `S:<echoes>|<pager_at_end>|<at_prompt>|<settled>|<queued>|<prompt>|<tail>`,
+    or `E:...` when the device or its console cannot be reached.
+    """
+    return (
+        "(function(){"
+        "var d=ipc.network().getDevice(" + _q(device) + ");"
+        "if(!d){return 'E:no device';}"
+        "var cl=null,err='';"
+        # getCommandLine() is null on an ASA; getConsoleLine() is its console.
+        "try{cl=d.getCommandLine();}catch(e){err=String(e);}"
+        "if(!cl){try{cl=d.getConsoleLine();}catch(e){err=String(e);}}"
+        "if(!cl){return 'E:no console '+err;}"
+        "var o=String(cl.getOutput());"
+        "var prompt=String(cl.getPrompt()||'');"
+        # STATE, not text presence: `Press RETURN to get started` and
+        # `[yes/no]` stay in the scrollback forever, so testing the last line
+        # of the buffer is the only honest way to ask whether PT is waiting on
+        # one right now. (Same trap as the pager marker - see the docstring.)
+        "var blines=o.split('\\n');"
+        "var bufLast='';"
+        "for(var b=blines.length-1;b>=0;b--){"
+        "  var bs=blines[b].replace(/[\\r ]/g,'');"
+        "  if(bs){bufLast=bs;break;}"
+        "}"
+        "var pager_at_end=/--More--\\s*$/.test(o);"
+        "var dialog=/\\[yes\\/no\\]/.test(bufLast)||prompt.indexOf('[yes/no]')>=0;"
+        # `bufLast` has CR and SPACES stripped (above), so the marker has to be
+        # matched in that same spaceless form. Matching the spaced phrase here
+        # tested a string with spaces against a string without them: it was
+        # always false, so a device parked at `Press RETURN to get started`
+        # was never woken and the read typed into a console that was not
+        # listening (measured on rbr/redge after a build - both had rebooted).
+        "var needs_return=/PressRETURNtogetstarted/i.test(bufLast);"
+        "var echoes=o.split(" + _q(command) + ").length-1;"
+        "var i=o.lastIndexOf(" + _q(command) + ");"
+        "var tail=i<0?'':o.slice(i);"
+        "var lines=tail.split('\\n');"
+        "var last='';"
+        "for(var k=lines.length-1;k>=0;k--){"
+        "  var s=lines[k].replace(/[\\r ]/g,'');"
+        "  if(s){last=s;break;}"
+        "}"
+        "var at_prompt=last.length>0&&/[#>]$/.test(last);"
+        "var settled=!pager_at_end&&!dialog&&!needs_return;"
+        "var act=false,send='';"
+        "if(" + _q(action) + "==='type'){act=true;send=" + _q(command) + ";}"
+        "else if(pager_at_end){act=true;send=' ';}"
+        "else if(dialog){act=true;send='no';}"
+        "else if(needs_return){act=true;send='';}"
+        "if(act){cl.enterCommand(send);}"
+        "return 'S:'+echoes+'|'+(pager_at_end?1:0)+'|'+(at_prompt?1:0)"
+        "+'|'+(settled?1:0)+'|'+(act?1:0)+'|'+JSON.stringify(prompt)+'|'+tail;"
         "})()"
     )
 

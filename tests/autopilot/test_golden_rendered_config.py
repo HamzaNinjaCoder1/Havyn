@@ -399,9 +399,15 @@ ASA_GOLDEN = {
     "5505": [
         "interface Ethernet0/0",
         "switchport access vlan 1",
+        # A 5505's physical ports default to shutdown: the switchport line
+        # files the port in the right VLAN but leaves the link down, so the
+        # inside Vlan SVI never reaches the outside neighbour (measured - the
+        # port reported up=False despite being cabled). Bring it up here.
+        "no shutdown",
         "exit",
         "interface Ethernet0/1",
         "switchport access vlan 2",
+        "no shutdown",
         "exit",
         "interface Vlan1",
         "ip address 192.168.10.1 255.255.255.0",
