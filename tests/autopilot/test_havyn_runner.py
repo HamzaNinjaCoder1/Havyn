@@ -250,3 +250,91 @@ def test_runner_runs_as_a_script_from_the_repo_root(tmp_path):
         f"runner did not produce a result\nstdout:\n{proc.stdout}\n"
         f"stderr:\n{proc.stderr}"
     )
+
+
+def test_a_cleaning_crash_is_a_case_error_not_a_dead_queue(tmp_path, monkeypatch):
+    """One case's fault must never abandon the rest of the queue.
+
+    The S1.19 exit run died inside run06 with results for run01-run05 on disk
+    and nothing for run06: whatever escaped ``run_case`` escaped ``run_queue``
+    too and took the process with it, so a ten-case gate could never finish.
+    ``run_case`` claims "never raises for case-level faults"; this pins it.
+    """
+    spec = _write_spec(tmp_path)
+    from scripts import pt_clean_workspace
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("channel died mid-clean")
+
+    monkeypatch.setattr(pt_clean_workspace, "clean", _boom)
+
+    summary = havyn_runner.run_queue(
+        _queue([{"id": "T1", "spec": spec}, {"id": "T2", "spec": spec}]),
+        NullAdapter,
+        tmp_path / "results",
+        tmp_path / "evidence",
+    )
+
+    assert summary.ran == 2, (
+        "the queue stopped early: a case-level fault escaped run_case"
+    )
+    for case_id in ("T1", "T2"):
+        result = json.loads(
+            (tmp_path / "results" / f"{case_id}.json").read_text(encoding="utf-8")
+        )
+        assert result["status"] == "error", result
+        assert "channel died mid-clean" in (result["detail"] or ""), result
+    assert (tmp_path / "results" / "summary.json").exists()
+
+
+def test_a_crashing_adapter_factory_is_a_case_error_not_a_dead_queue(tmp_path):
+    """The factory runs per case, so its failures are per case too."""
+    spec = _write_spec(tmp_path)
+
+    def _factory():
+        raise RuntimeError("the mailbox directory vanished")
+
+    summary = havyn_runner.run_queue(
+        _queue([{"id": "A", "spec": spec}, {"id": "B", "spec": spec}]),
+        _factory,
+        tmp_path / "results",
+        tmp_path / "evidence",
+    )
+
+    assert summary.ran == 2, summary.to_dict()
+    for case_id in ("A", "B"):
+        result = json.loads(
+            (tmp_path / "results" / f"{case_id}.json").read_text(encoding="utf-8")
+        )
+        assert result["status"] == "error", result
+        assert "the mailbox directory vanished" in (result["detail"] or ""), result
+
+
+def test_a_crash_writes_a_result_so_a_restart_resumes_past_it(tmp_path, monkeypatch):
+    """A dead case must still leave a result, or restart redoes the work."""
+    spec = _write_spec(tmp_path)
+    from scripts import pt_clean_workspace
+
+    calls = {"n": 0}
+
+    def _boom(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient transport fault")
+        return _real_clean(*args, **kwargs)
+
+    _real_clean = pt_clean_workspace.clean
+    monkeypatch.setattr(pt_clean_workspace, "clean", _boom)
+
+    cases = _queue([{"id": "T1", "spec": spec}, {"id": "T2", "spec": spec}])
+    havyn_runner.run_queue(cases, NullAdapter, tmp_path / "results",
+                           tmp_path / "evidence")
+
+    prior = json.loads((tmp_path / "results" / "T1.json").read_text(encoding="utf-8"))
+    assert prior["status"] == "error"
+
+    # A restart must treat that terminal status as done, not rebuild it.
+    summary = havyn_runner.run_queue(cases, NullAdapter, tmp_path / "results",
+                                     tmp_path / "evidence")
+    assert summary.resumed == 2, summary.to_dict()
+    assert summary.ran == 0

@@ -1223,6 +1223,71 @@ _END_DEVICE_ROLES = frozenset(
 )
 
 
+def _asa_outside_by_default_route(
+    spec: NetworkSpec, plan: AddressPlan, device
+) -> str | None:
+    """Subnet id of the interface the ASA's own default route leaves through.
+
+    An ASA's default route has to leave through its ``outside``. PT's ASA is
+    directional (see ``_asa_outside_subnet``), so ``inside`` is what the
+    device protects and ``outside`` is the edge it guards, and a spec policy
+    binds to ``outside`` by name - a firewall that calls its guarded edge
+    ``inside`` puts its ACL on the wrong side of the network it exists to
+    protect, and inverts which direction is filtered.
+
+    The end-device count alone cannot see this. In the reference campus both
+    fwdc and fwbr emitted ``route inside 0.0.0.0 0.0.0.0 <hop>``: that count
+    names an ISP edge correctly for a perimeter firewall, because the ISP side
+    reaches one host and the protected side reaches the whole campus, but at a
+    branch or a data centre the *smaller* side is the site's own LAN - so fwbr
+    called the branch LAN ``outside``/0 and its transit to the branch router
+    ``inside``/100, which blocks the very flows A-005/A-008/A-011 require,
+    since the branch reaching campus is outside -> inside.
+
+    Returns ``None`` when no route decides it (no routing section, no default
+    route for this device, or a next hop that is on none of its own subnets),
+    so the caller keeps its existing fallback rather than guessing.
+    """
+    routing = getattr(spec, "routing", None)
+    if routing is None:
+        return None
+    defaults = [
+        route
+        for route in (routing.static_routes or [])
+        if route.device == device.id and route.next_hop
+        and _is_default_destination(route.destination)
+    ]
+    if not defaults:
+        return None
+    own = [a for a in plan.assignments if a.device == device.id]
+    for route in defaults:
+        try:
+            hop = ipaddress.ip_address(route.next_hop)
+        except ValueError:
+            continue
+        for assignment in own:
+            allocation = plan.allocation_by_subnet(assignment.subnet_id)
+            if allocation is None:
+                continue
+            try:
+                net = ipaddress.ip_network(
+                    f"{allocation.network}/{allocation.prefix_len}", strict=False
+                )
+            except ValueError:
+                continue
+            if hop in net:
+                return assignment.subnet_id
+    return None
+
+
+def _is_default_destination(destination: str) -> bool:
+    """True for ``0.0.0.0/0`` and any other catch-all prefix."""
+    try:
+        return ipaddress.ip_network(destination, strict=False).prefixlen == 0
+    except ValueError:
+        return False
+
+
 def _asa_outside_subnet(
     spec: NetworkSpec, plan: AddressPlan, device
 ) -> str | None:
@@ -1252,6 +1317,14 @@ def _asa_outside_subnet(
     ]
     if not links:
         return None
+
+    # The default route decides first when it can: the interface it leaves
+    # through is the edge the device guards. See
+    # _asa_outside_by_default_route for why the count below gets this
+    # backwards at a branch or a data centre.
+    routed = _asa_outside_by_default_route(spec, plan, device)
+    if routed is not None:
+        return routed
 
     adjacency: dict[str, set[str]] = {}
     for link in spec.links:

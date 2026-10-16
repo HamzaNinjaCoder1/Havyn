@@ -561,10 +561,21 @@ def _asa_route_spec() -> NetworkSpec:
 def test_asa_static_route_uses_asa_syntax_not_ip_route():
     """PT's ASA silently ignores `ip route`; it needs
     `route <nameif> <net> <mask> <next_hop> <metric>` with the nameif the
-    next hop is reachable through (live root cause, S1.19)."""
+    next hop is reachable through (live root cause, S1.19).
+
+    The nameif is `outside` because the default route is what *decides* which
+    interface is the outside (compiler._asa_outside_by_default_route). This
+    spec's fw reaches the default route's next hop 10.0.0.9 through r1's
+    subnet, so that side is the edge the device guards. The line used to read
+    `route inside ...` - a default route leaving through the trusted
+    interface, which is the defect that fix removes, not a detail to restore.
+    """
     commands = _ios_commands(_asa_route_spec(), "fw")
-    assert "route inside 0.0.0.0 0.0.0.0 10.0.0.9 1" in commands, commands
+    assert "route outside 0.0.0.0 0.0.0.0 10.0.0.9 1" in commands, commands
     assert not any(c.startswith("ip route") for c in commands), commands
+    assert not any(
+        c.startswith("route inside ") and c.split()[2] == "0.0.0.0" for c in commands
+    ), "a default route must never leave through the trusted interface"
 
 
 def test_router_static_route_keeps_the_ios_form():

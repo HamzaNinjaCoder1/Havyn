@@ -131,7 +131,34 @@ def _criteria_summary(report) -> dict[str, int]:
 
 def run_case(case: dict[str, Any], adapter, results_dir: Path,
              evidence_root: Path, keep_evidence: int) -> CaseResult:
-    """Clean → build → verify one case. Never raises for case-level faults."""
+    """Clean → build → verify one case. Never raises for case-level faults.
+
+    "Never raises" is load-bearing, not a nicety. A case that dies has to
+    leave a result behind, or it takes the queue with it and a multi-case
+    gate can never finish: the S1.19 exit run stopped inside run06 with
+    results written for run01-run05 and nothing at all for run06. Anything
+    that escapes here escapes ``run_queue`` too, so the wrapper below is the
+    last line of defence — it converts an unexpected fault into a case-level
+    ``error`` result that a restart then resumes past.
+    """
+    case_id = str(case["id"])
+    t0 = time.monotonic()
+    try:
+        return _clean_build_verify(
+            case, adapter, results_dir, evidence_root, keep_evidence
+        )
+    except Exception as exc:
+        return CaseResult(
+            case_id, str(case["spec"]), "error",
+            finished_at=_utc_now(),
+            detail=f"case crashed: {type(exc).__name__}: {exc}",
+            elapsed_s=time.monotonic() - t0,
+        )
+
+
+def _clean_build_verify(case: dict[str, Any], adapter, results_dir: Path,
+                        evidence_root: Path, keep_evidence: int) -> CaseResult:
+    """The per-case work; ``run_case`` wraps it so nothing escapes the queue."""
     from network_autopilot.core.build_errors import PreflightBlocked
     from network_autopilot.core.network_spec import NetworkSpec
     from network_autopilot.core.safety import MutationBudget, SafetyGate, SafetyMode
@@ -229,9 +256,20 @@ def run_queue(
                     continue
             except (ValueError, OSError):
                 pass  # a torn write is not a result; re-run the case
-        adapter = adapter_factory()
-        result = run_case(case, adapter, results_dir, evidence_root,
-                          keep_evidence)
+        # The factory runs per case — a fresh adapter each time, so a channel
+        # fault in one case cannot leak into the next. Its failure is that
+        # case's failure, never the queue's.
+        try:
+            adapter = adapter_factory()
+        except Exception as exc:
+            result = CaseResult(
+                str(case["id"]), str(case["spec"]), "error",
+                finished_at=_utc_now(),
+                detail=f"adapter unavailable: {type(exc).__name__}: {exc}",
+            )
+        else:
+            result = run_case(case, adapter, results_dir, evidence_root,
+                              keep_evidence)
         summary.ran += 1
         if result.status == "pass":
             summary.passed += 1
