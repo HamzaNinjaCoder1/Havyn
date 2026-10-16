@@ -232,6 +232,52 @@ def solve_ports(
                 "interface is reserved by another link"
             )
 
+        # Refuse before anything is created: PT cannot carry this link.
+        #
+        # Measured live on PT 9.0.1 (2026-10-17), six ways, on a spare port
+        # pair so the built topology was never disturbed:
+        #   - a 5505's Ethernet ports are switchports. `switchport access vlan
+        #     1` and `vlan 2`, applied before and after the vlan was created,
+        #     never raised the peer's line protocol.
+        #   - `ip address` and `no switchport` on the port are answered
+        #     `true` and land nowhere; only the Vlan SVIs take addresses.
+        #   - a straight-through cable is refused outright by PT.
+        #   - a crossover - the only media PT accepts here - stays `up down`
+        #     and carries no ping (`pc13 -> 10.30.50.50` blocked).
+        #   - the same switchport, talking to a 2960, carries traffic normally
+        #     (`pc13 -> 10.30.50.1` reachable on that canvas), and a 5506-X's
+        #     routed ports link to routers normally (`fwhq <-> risp`, `up up`).
+        #
+        # So both cable choices are already proven unusable for a router peer,
+        # and no third option exists. The switch and pc peers are NOT refused:
+        # their straight-through pairing was measured working. This names the
+        # one shape that cannot be built rather than guessing about the rest.
+        a_is_switched_asa = (
+            a_model.category == "firewall" and _pt_type_of(a_model) == "5505"
+            and a_iface is not None and a_iface.startswith("Ethernet")
+        )
+        b_is_switched_asa = (
+            b_model.category == "firewall" and _pt_type_of(b_model) == "5505"
+            and b_iface is not None and b_iface.startswith("Ethernet")
+        )
+        if a_is_switched_asa or b_is_switched_asa:
+            if a_model.category == "router" or b_model.category == "router":
+                dev_id, iface = (
+                    (link.a.device, a_iface) if a_is_switched_asa
+                    else (link.b.device, b_iface)
+                )
+                peer = link.b.device if dev_id == link.a.device else link.a.device
+                plan_out.incompatible.append(
+                    f"link {link.id} {dev_id}:{iface} - unbuildable_link: "
+                    f"PT's ASA 5505 carries no link to {peer}, whatever the "
+                    "cable (measured 2026-10-17, PT 9.0.1: the straight-"
+                    "through is refused outright, the crossover - the only "
+                    "media PT accepts - never raises line protocol and "
+                    "carries no ping, while the same switchport reaches a "
+                    "switch normally). Terminate this end on a switch, or "
+                    "use a firewall whose ports are routed (5506-X)."
+                )
+
         # Validate port exists on the model (onboard or via the module it needs)
         a_valid = _port_exists(a_model, a_iface) or (a_module is not None)
         b_valid = _port_exists(b_model, b_iface) or (b_module is not None)
