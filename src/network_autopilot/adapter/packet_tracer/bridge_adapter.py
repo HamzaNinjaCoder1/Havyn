@@ -113,14 +113,19 @@ class BridgeUnreachable(AdapterError):
 # the settle between attempts gives the convergence room to happen.
 _FLOW_MAX_ATTEMPTS = 3
 _FLOW_CONVERGE_SETTLE_S = 1.0
-# Per-attempt quiet-window schedule (S1.6a): healthy paths answer inside the
-# first second and PT prints a 0%-loss stat block on a dead path within a few
-# seconds, so reserving 25 s on attempt 1 buys nothing but wall-clock (F-7:
-# 31 such windows cost ~775 s of one reference run). Each window may be
-# shorter, the LAST one keeps the old 25 s patience for a genuinely slow
-# console, and callers that pass an explicit timeout= keep it for every
-# attempt — the schedule only replaces the default.
-_FLOW_ATTEMPT_TIMEOUTS: tuple[float, ...] = (8.0, 15.0, 25.0)
+# Per-attempt quiet-window schedule (S1.6a, re-measured 2026-10-16): a WARM
+# path (ARP already resolved) answers inside the first second, and PT prints a
+# 0%-loss stat block on a dead path within ~8 s. But the FIRST ping on a freshly
+# built cross-fabric path is COLD: measured single-ping latencies were 14.3 s
+# (pc16->srv1), 16.1 s (pc9->srvisp) and 24.3 s (pc1->pc7) — the first echo pays
+# ARP resolution and, on a lossy path, per-echo timeouts. A first window shorter
+# than that (the old 8 s) never caught a cold ping, forced a re-arm that threw
+# the ARP convergence away, and cost MORE wall-clock (F-7's 775 s of doomed
+# windows) than one window long enough to finish the job. So attempt 1 covers
+# the measured worst cold ping (24.3 s + margin); attempts 2/3 are ARP-warm and
+# cheap. Callers that pass an explicit timeout= keep it for every attempt — the
+# schedule only replaces the default.
+_FLOW_ATTEMPT_TIMEOUTS: tuple[float, ...] = (30.0, 15.0, 25.0)
 # A large build configures dozens of interfaces right up to the flow test; the
 # control plane needs this brief settle before the first echo or it loses the
 # first packets to ARP/CDP convergence rather than to a real fault.
@@ -3201,10 +3206,20 @@ class BridgeAdapter(PacketTracerAdapter):
     #: calls; it is deliberately well below one ping window.
     _BULK_POLL_INTERVAL_S = 0.5
     #: Per-attempt quiet window for the batched path, mirroring the serial
-    #: `_FLOW_ATTEMPT_TIMEOUTS`. PT prints a 0%-loss stat block for a dead path
-    #: once its four echoes time out (~8 s), so the first window must out-last
-    #: that; the last keeps the serial path's 25 s patience for a slow console.
-    _BULK_ATTEMPT_TIMEOUTS: tuple[float, ...] = (9.0, 16.0, 25.0)
+    #: `_FLOW_ATTEMPT_TIMEOUTS`. Sized from a live measurement on
+    #: build-ef996a15797f's canvas (2026-10-16): a single clean ping on a freshly
+    #: built cross-fabric path printed its `Packets: Sent` stat block after
+    #: 14.3 s (pc16->srv1), 24.3 s (pc1->pc7) and 16.1 s (pc9->srvisp) — the
+    #: first echo pays ARP resolution and, on a lossy cold path, per-echo
+    #: timeouts. The old first window (9 s) was sized only to out-last a DEAD
+    #: path's 0%-loss block (~8 s), so it timed out on every live cold ping,
+    #: forced a re-arm (a fresh ping that discarded the first's ARP convergence)
+    #: and left 5 flows in build-ef996a15797f with no stat block in 9+16+25 s.
+    #: The first window now covers the measured worst cold ping (24.3 s) plus
+    #: margin so a cold ping finishes inside ONE attempt; after it, the second
+    #: ping is ARP-warm and fast (15 s is ample), and the last keeps 25 s
+    #: patience for a slow console.
+    _BULK_ATTEMPT_TIMEOUTS: tuple[float, ...] = (30.0, 15.0, 25.0)
 
     def run_flow_tests_bulk(
         self, specs: list[dict[str, object]]

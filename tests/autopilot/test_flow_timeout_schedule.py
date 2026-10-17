@@ -1,12 +1,21 @@
-"""S1.6a — adaptive per-attempt ping timeouts (F-7), offline.
+"""S1.6a — adaptive per-attempt ping timeouts (F-7), re-measured 2026-10-16.
 
 A quiet attempt costs its full deadline (measured live: 25 s x 3 attempts on
-dead paths — 31 such windows in one reference run). PT answers healthy paths
-in well under a second and prints a 0%-loss stat block within ~4-8 s on dead
-ones, so the FIRST quiet window can be short and only later attempts pay the
-old patience. Verdict stability is the contract: the schedule may shrink the
-wait, never change the outcome — the matrix test pins every scripted attempt
-pattern's final verdict across the change.
+dead paths — 31 such windows in one reference run). PT answers a WARM path
+(ARP already resolved) in well under a second and prints a 0%-loss stat block
+within ~4-8 s on dead ones. BUT the first ping on a freshly built cross-fabric
+path is COLD: measured single-ping latencies on build-ef996a15797f's canvas
+were 14.3 s (pc16->srv1), 16.1 s (pc9->srvisp) and 24.3 s (pc1->pc7) — the
+first echo pays ARP resolution and, on a lossy path, per-echo timeouts. The
+original schedule's 8 s first window never caught a cold ping, so every flow
+in build-ef996a15797f paid a doomed first attempt, was re-armed (discarding the
+ARP convergence), and five flows printed no stat block in 8+15+25 s at all.
+
+The first window is therefore sized to cover the measured worst cold ping
+(24.3 s + margin); after it the second ping is ARP-warm and cheap, and the
+last keeps 25 s patience for a slow console. Verdict stability is still the
+contract: the schedule changes the waits, never the outcome — the matrix test
+pins every scripted attempt pattern's final verdict across the change.
 """
 
 from __future__ import annotations
@@ -44,16 +53,18 @@ def _adapter_with_script(monkeypatch, answers: list[FlowResult]) -> list[float]:
     return adapter, calls  # type: ignore[return-value]
 
 
-def test_quiet_windows_shrink_on_early_attempts(monkeypatch):
-    """Failing-first for S1.6a: the first attempt must not reserve the full
-    25 s window. All three attempts are retryable so the whole schedule is
-    observable."""
+def test_the_first_window_covers_a_cold_ping_and_the_middle_one_shrinks(monkeypatch):
+    """Failing-first for the 2026-10-16 re-measurement: the first attempt must
+    reserve enough room for a COLD cross-fabric ping (14-24 s measured), not the
+    old 8 s that timed out on every freshly built path; the middle attempt is
+    ARP-warm and may be short. All three attempts are retryable so the whole
+    schedule is observable."""
     adapter, calls = _adapter_with_script(
         monkeypatch,
         [_attempt(FlowOutcome.PARTIAL, "Success rate is 60 percent")] * 3,
     )
     adapter.run_flow_test("pc1", "r1", destination_ip="10.0.0.1")
-    assert calls == [8.0, 15.0, 25.0], calls
+    assert calls == [30.0, 15.0, 25.0], calls
 
 
 def test_an_explicit_timeout_still_applies_to_every_attempt(monkeypatch):

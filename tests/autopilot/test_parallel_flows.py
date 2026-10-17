@@ -228,3 +228,113 @@ def test_batched_flows_are_recorded_as_parallel_evidence(tmp_path):
     parallel = [r for r in store.read_all() if r.kind == "flow_result"]
     assert len(parallel) == 2, parallel
     assert all(r.payload.get("parallel") is True for r in parallel), parallel
+
+
+# ==========================================================================
+# The first ping window must cover a COLD cross-fabric ping (build-ef996a15797f)
+# ==========================================================================
+#
+# Measured live on build-ef996a15797f's canvas (2026-10-16, PT 9.0.1): a single
+# clean `ping` typed on a freshly built path printed its `Packets: Sent` stat
+# block 14.3 s (pc16->srv1), 24.3 s (pc1->pc7) and 16.1 s (pc9->srvisp) later —
+# the first echo pays ARP resolution and, on a lossy cold path, per-echo
+# timeouts. The old first window was 9 s (bulk) / 8 s (serial), sized only to
+# out-last a DEAD path's 0%-loss block (~8 s) and never a live cold one. So
+# every flow's first attempt timed out, was re-armed (a fresh `ping` that threw
+# away the ARP convergence the first had begun), and in build-ef996a15797f five
+# flows never printed a stat block in 9+16+25 s at all. The window has to cover
+# the measured worst case (24.3 s) plus margin so a cold ping finishes inside
+# ONE attempt and does not depend on a re-arm.
+
+
+def test_first_ping_window_covers_the_measured_cold_path_latency():
+    """The first bulk/serial ping window must out-last a measured cold ping.
+
+    The values are the live single-ping latencies measured on the reference
+    canvas (pc16->srv1 14.3 s, pc9->srvisp 16.1 s, pc1->pc7 24.3 s); the window
+    must cover the worst of them plus margin, or every flow pays a doomed first
+    attempt and a convergence-discarding re-arm.
+    """
+    worst_measured_cold_ping_s = 24.3
+    margin_s = 5.0
+    import src.network_autopilot.adapter.packet_tracer.bridge_adapter as bridge_mod
+    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import (
+        BridgeAdapter,
+    )
+
+    assert BridgeAdapter._BULK_ATTEMPT_TIMEOUTS[0] >= worst_measured_cold_ping_s + margin_s, (
+        "the bulk first ping window is shorter than a measured cold ping "
+        f"({worst_measured_cold_ping_s}s): "
+        f"{BridgeAdapter._BULK_ATTEMPT_TIMEOUTS}"
+    )
+    assert bridge_mod._FLOW_ATTEMPT_TIMEOUTS[0] >= worst_measured_cold_ping_s + margin_s, (
+        "the serial first ping window is shorter than a measured cold ping "
+        f"({worst_measured_cold_ping_s}s): "
+        f"{bridge_mod._FLOW_ATTEMPT_TIMEOUTS}"
+    )
+
+
+class _FakeClock:
+    """A stand-in for the time module: sleeps advance an in-test clock so a
+    12-second ping completes instantly in wall-clock terms."""
+
+    def __init__(self) -> None:
+        self.now = 1_000.0
+
+    def time(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += max(float(seconds), 0.0)
+
+
+def test_a_cold_ping_is_caught_by_the_first_window_not_a_rearm(monkeypatch):
+    """RED pre-fix: a ping that finishes inside the first window was abandoned.
+
+    The fake console prints the stat block `COMPLETION_DELAY_S` after the ping is
+    armed (12 s — a scaled stand-in for the measured 14-24 s cold latency, chosen
+    to sit INSIDE the fixed first window and OUTSIDE the old 9 s one). With the
+    first window too short the flow timed out, was re-armed (a fresh ping that
+    discards the first's ARP convergence), and only the second attempt caught
+    it; the fix must give the cold ping ONE window so it resolves on the first
+    arm.
+    """
+    import json as _json
+
+    from src.network_autopilot.adapter.packet_tracer import bridge_adapter as bridge_mod
+    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
+    from src.network_autopilot.core.observability import Observable
+
+    clock = _FakeClock()
+    monkeypatch.setattr(bridge_mod.time, "time", clock.time)
+    monkeypatch.setattr(bridge_mod.time, "sleep", clock.sleep)
+
+    completion_delay_s = 12.0
+    arm_times: list[float] = []
+
+    def fake_send(expression, **_kw):
+        # The arm expression is the only one that types `ping ` (the poll JS
+        # matches on `Packets: Sent`, never the bare command).
+        if "ping " in expression:
+            arm_times.append(clock.now)
+            return Observable[str].known(_json.dumps([{"i": 0, "base": 0}]))
+        if arm_times and (clock.now - arm_times[-1]) >= completion_delay_s:
+            return Observable[str].known(_json.dumps([{
+                "i": 0,
+                "r": "DONE:Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),",
+            }]))
+        return Observable[str].known(_json.dumps([{"i": 0, "r": "WAIT"}]))
+
+    adapter = BridgeAdapter(port=59999, token="t" * 40, host_bridge=False)
+    monkeypatch.setattr(adapter, "send_expression", fake_send)
+
+    results = adapter.run_flow_tests_bulk([
+        {"source": "pc1", "destination": "srv1", "transport": "icmp",
+         "port": None, "destination_ip": "10.20.40.10"},
+    ])
+
+    assert results[0].outcome is FlowOutcome.REACHABLE, results[0].detail
+    assert len(arm_times) == 1, (
+        "the cold ping was abandoned and re-armed instead of being given one "
+        f"window long enough to finish: {len(arm_times)} arms"
+    )
