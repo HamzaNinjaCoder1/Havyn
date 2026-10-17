@@ -381,3 +381,140 @@ def test_delete_settles_existence_before_fail_closed(monkeypatch):
         receipt.error,
     )
     assert reads["n"] >= 3, reads
+
+
+# ==========================================================================
+# A channel outage is survived, not concluded from (build-81df879ad555)
+# ==========================================================================
+
+
+def _outage_adapter(monkeypatch, *, recover_after_probes, ever_live=True):
+    """A bridge whose channel probes see darkness for N rounds, then `file`.
+
+    Models PT's measured stall pattern: the mailbox heartbeat stops ticking
+    (so `_probe_channels` answers "") for a stretch, then comes back — the
+    repairs minutes after the stall proved PT had been open the whole time.
+    """
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    adapter._ever_live_channel = ever_live
+    probes = {"n": 0}
+
+    def probe():
+        probes["n"] += 1
+        if recover_after_probes is None or probes["n"] < recover_after_probes:
+            return ""
+        return "file"
+
+    monkeypatch.setattr(adapter, "_probe_channels", probe)
+    monkeypatch.setattr(
+        adapter, "_send_file",
+        lambda expression, statements, wait: Observable[str].known("OK:ride-out"),
+    )
+    monkeypatch.setattr(bridge_mod.time, "sleep", lambda s: None)
+    return adapter, probes
+
+
+def test_send_rides_out_a_channel_outage_this_adapter_once_survived(monkeypatch):
+    """RED pre-fix: one dark probe decided for everyone.
+
+    build-81df879ad555, measured on the evidence timeline: PT's Script
+    Engine stopped answering for 215 s (20:39:11 -> 20:42:55). Inside that
+    window 8 `device_present` preconditions read "no live channel" and were
+    BLOCKED, the 22-host batch never left the machine (no `__mcpHostResults`
+    in any of 246 sends), and the build fell to 102/123 — while the repair
+    pushes minutes later succeeded, proving PT had been open all along. A
+    send on an adapter that HAS seen a live channel waits one bounded
+    window for the channel to come back.
+    """
+    adapter, probes = _outage_adapter(monkeypatch, recover_after_probes=3)
+
+    answer = adapter.send_expression("'x'", wait=0.2)
+
+    assert answer.is_known and answer.value == "OK:ride-out", answer.detail
+    assert probes["n"] >= 3, probes
+
+
+def test_a_channel_this_adapter_never_had_fails_fast_without_waiting(monkeypatch):
+    """Boundary control: the window is for an outage of a PT that proved
+    itself, never for an adapter that has never seen one. Live-gated tests
+    and CLI runs against a closed PT keep their immediate answer."""
+    adapter, _ = _outage_adapter(monkeypatch, recover_after_probes=None, ever_live=False)
+    slept: list[float] = []
+    monkeypatch.setattr(bridge_mod.time, "sleep", slept.append)
+
+    answer = adapter.send_expression("'x'", wait=0.2)
+
+    assert not answer.is_known
+    assert "no live channel" in (answer.detail or "")
+    assert slept == [], "an adapter that never saw PT must not wait for it"
+
+
+def test_one_outage_gets_one_window_not_one_per_send(monkeypatch):
+    """Bounded: a PT that never comes back costs the window ONCE; every
+    later send fails fast with the same honest UNKNOWN instead of
+    re-waiting 240 s per operation."""
+    adapter, _ = _outage_adapter(monkeypatch, recover_after_probes=None)
+    adapter._CHANNEL_OUTAGE_BUDGET_S = 0.05
+    slept: list[float] = []
+    monkeypatch.setattr(bridge_mod.time, "sleep", slept.append)
+
+    first = adapter.send_expression("'x'", wait=0.2)
+    waited = len(slept)
+    slept.clear()
+    second = adapter.send_expression("'x'", wait=0.2)
+
+    assert not first.is_known and not second.is_known
+    assert waited > 0, (
+        "the first send must ride the window, not conclude UNKNOWN on the "
+        "first dark probe"
+    )
+    assert len(slept) == 0, f"a spent window must not be re-opened: {slept}"
+
+
+# ==========================================================================
+# An unanswered batch is UNKNOWN — it may not blame the device (rule 7/8)
+# ==========================================================================
+
+
+def test_bulk_batch_that_never_reached_PT_is_unknown_not_blame(monkeypatch):
+    """RED pre-fix: build-81df879ad555's host batch never left the machine
+    (`__mcpHostResults` absent from all 246 sends), yet all 22 receipts
+    claimed `address not observed after configure` — blaming the device for
+    a transport failure. An unanswered round trip is UNKNOWN with the
+    channel detail; only a KNOWN answer can fail a host."""
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    adapter.device_exists = lambda name: Observable[bool].known(True)  # type: ignore[method-assign]
+    adapter.send_expression = lambda expr, **kw: Observable[str].unknown(  # type: ignore[method-assign]
+        "no live channel: HTTP bridge sees no PT poll and the file mailbox "
+        "heartbeat is stale (is PT open with the extension installed?)"
+    )
+    monkeypatch.setattr(
+        adapter, "_live_devices",
+        lambda *, fresh=True: Observable[list[dict]].known([]),
+    )
+
+    receipts = adapter.configure_hosts_bulk(_BULK_SPEC)
+
+    assert receipts[0].result is OperationResult.UNKNOWN, receipts[0].error
+    assert "never reached PT" in (receipts[0].error or ""), receipts[0].error
+    assert "not observed" not in (receipts[0].error or ""), receipts[0].error
+
+
+def test_bulk_receipt_names_PT_omission_instead_of_blaming_the_address(monkeypatch):
+    """A KNOWN batch answer that omits the device is reported for what it is:
+    PT ran the batch and said nothing about this host."""
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    adapter.device_exists = lambda name: Observable[bool].known(True)  # type: ignore[method-assign]
+    adapter.send_expression = lambda expr, **kw: Observable[str].known(  # type: ignore[method-assign]
+        json.dumps([{"device": "somebody-else", "ok": True}])
+    )
+    monkeypatch.setattr(
+        adapter, "_live_devices",
+        lambda *, fresh=True: Observable[list[dict]].known([]),
+    )
+
+    receipts = adapter.configure_hosts_bulk(_BULK_SPEC)
+
+    assert receipts[0].result is OperationResult.FAILED, receipts[0].result
+    assert "without a result for this device" in (receipts[0].error or ""), receipts[0].error
+    assert "not observed" not in (receipts[0].error or ""), receipts[0].error

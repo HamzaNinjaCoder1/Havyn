@@ -470,6 +470,15 @@ class BridgeAdapter(PacketTracerAdapter):
         # send so a dead channel is re-probed instead of trusted.
         self._channel: str | None = None
         self._channel_cached_at: float | None = None
+        # Channel-outage ride-out (see _resolve_channel): True once this
+        # adapter has actually seen a live channel, i.e. PT was open and
+        # answering during THIS session. An adapter that has never seen one
+        # keeps failing fast — live-gated tests and CLI runs against a
+        # closed PT depend on that immediate answer.
+        self._ever_live_channel: bool = False
+        # The shared deadline of the current outage (None while healthy,
+        # past when a window was spent and PT never came back).
+        self._outage_deadline: float | None = None
         # Negative cache for the HTTP half of the channel probe. Probing it
         # costs a real round trip, and on a machine with no bridge listening
         # that is a refused loopback connect measured at 2.03 s (plus 0.36 s
@@ -573,15 +582,58 @@ class BridgeAdapter(PacketTracerAdapter):
         send() calls this instead of _pick_channel() directly so that an
         adapter built with auto_launch=True can satisfy its own precondition
         instead of answering every command with UNKNOWN while PT is closed.
+
+        A send on an adapter that HAS seen a live channel also rides out a
+        channel outage (see _CHANNEL_OUTAGE_BUDGET_S): auto-launch answers
+        "PT is closed", this window answers "PT was open moments ago and its
+        Script Engine has gone quiet" — the measured stall class.
         """
         channel = self._pick_channel()
-        if channel or not self._auto_launch:
+        if not channel and self._auto_launch:
+            # No live channel and launching is permitted: open PT, then
+            # re-probe exactly once. A launch that does not produce a
+            # heartbeat falls through to the same UNKNOWN the caller would
+            # have got anyway.
+            self.launch()
+            channel = self._pick_channel()
+        if channel:
+            self._ever_live_channel = True
+            self._outage_deadline = None
             return channel
-        # No live channel and launching is permitted: open PT, then re-probe
-        # exactly once. A launch that does not produce a heartbeat falls
-        # through to the same UNKNOWN the caller would have got anyway.
-        self.launch()
-        return self._pick_channel()
+        if self._ever_live_channel:
+            return self._await_channel_recovery()
+        return ""
+
+    def _await_channel_recovery(self) -> str:
+        """'file' | 'http' | '' — one shared, bounded wait per outage.
+
+        PT's Script Engine stops answering for stretches of variable length
+        while the mailbox heartbeat only ticks between executions; inside
+        such a stretch a single dark probe is not evidence that PT is gone
+        (build-81df879ad555: 8 preconditions were BLOCKED and 22 host
+        configs failed on one 215 s stall, and the repairs minutes later
+        proved PT had been open all along). The FIRST waiter opens the
+        window; every later waiter in the same outage shares that deadline,
+        so a PT that never returns costs the budget once — after it is
+        spent, sends fail fast with the honest "no live channel" UNKNOWN
+        until a probe succeeds again (the gate always re-probes first, so a
+        late recovery is still picked up).
+        """
+        now = time.time()
+        if self._outage_deadline is None:
+            self._outage_deadline = now + self._CHANNEL_OUTAGE_BUDGET_S
+        while True:
+            remaining = self._outage_deadline - time.time()
+            if remaining <= 0:
+                return ""
+            time.sleep(min(self._CHANNEL_RECOVERY_POLL_S, remaining))
+            # Bypass the channel cache: this is the moment to re-probe.
+            channel = self._probe_channels()
+            if channel:
+                self._channel = channel
+                self._channel_cached_at = time.time()
+                self._outage_deadline = None
+                return channel
 
     # -- command pipeline -----------------------------------------------
 
@@ -771,6 +823,22 @@ class BridgeAdapter(PacketTracerAdapter):
     # still recovered: a failed send clears the cache and the next command
     # re-probes.
     _CHANNEL_CACHE_TTL_SECONDS: float = 4.0
+
+    #: One stalled PT session must not decide the build. PT's Script Engine
+    #: stops answering for stretches of variable length while the mailbox
+    #: heartbeat only ticks between executions. Measured twice on the
+    #: reference build's evidence timeline: ~10 s in build-e77b084cd8b8
+    #: (absorbed by luck of timing — 1 op blocked) and 215 s in
+    #: build-81df879ad555 (20:39:11 → 20:42:55 UTC — 8 preconditions
+    #: BLOCKED, the 22-host batch never left the machine, 102/123). A send
+    #: on an adapter that HAS seen a live channel therefore shares one
+    #: bounded wait for the channel to return instead of concluding UNKNOWN
+    #: on the first dark probe (see _await_channel_recovery). Bounded at
+    #: 240 s: the measured worst case was 215 s, and a build that has truly
+    #: lost PT pays the window once — every later send fails fast.
+    _CHANNEL_OUTAGE_BUDGET_S: float = 240.0
+    #: How often the recovery window re-probes. One heartbeat poll each.
+    _CHANNEL_RECOVERY_POLL_S: float = 1.0
 
     #: How long a proven HTTP-bridge absence is remembered. The refused
     #: connect costs 2.03 s on this machine, so re-probing it every channel
@@ -2795,7 +2863,9 @@ class BridgeAdapter(PacketTracerAdapter):
 
         for spec in specs:
             device = spec["device"]
-            row = per_device.get(device, {})
+            row = per_device.get(device)
+            reported = row is not None
+            row = row or {}
             ok = bool(row.get("ok"))
             postconditions: list[CheckResult] = []
             ip = spec.get("ip")
@@ -2810,11 +2880,25 @@ class BridgeAdapter(PacketTracerAdapter):
                         f"configured ip {ip!r} not observed on {device!r}"
                     ),
                 ))
-            if not ok:
-                result = OperationResult.FAILED
-                error: str | None = (
-                    row.get("error") or "address not observed after configure"
+            error: str | None
+            if not answer.is_known:
+                # The batch never reached PT (or PT never answered the round
+                # trip): nothing was pushed and nothing was observed. That is
+                # UNKNOWN with the transport reason — never a FAILED verdict
+                # that blames the device for our channel (rule 7/8:
+                # build-81df879ad555's 22 receipts all claimed "address not
+                # observed" for a batch that never left the machine).
+                result = OperationResult.UNKNOWN
+                error = (
+                    "the host batch never reached PT: "
+                    f"{answer.detail or answer.status.value}"
                 )
+            elif not reported:
+                result = OperationResult.FAILED
+                error = "PT answered the batch without a result for this device"
+            elif not ok:
+                result = OperationResult.FAILED
+                error = row.get("error") or "PT reported the configure failed"
             elif needs_readback and not snapshot.is_known:
                 result = OperationResult.UNKNOWN
                 error = (
