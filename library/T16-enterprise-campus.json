@@ -429,9 +429,9 @@
   {
    "id": "fwbr",
    "role": "firewall",
-   "model_hint": "5505",
+   "model_hint": "5506-X",
    "floor": "Branch",
-   "description": "Branch firewall (ASA 5505)"
+   "description": "Branch firewall (ASA 5506-X). Was a 5505: PT's 5505 Ethernet ports are switchports and refuse any working link to a Router-PT - measured 2026-10-17 (straight-through rejected, crossed cable never raises line protocol; the same switchport reaches a 2960 fine). The 5506-X's routed Gigabit ports link to rbr normally."
   },
   {
    "id": "swcore",
@@ -850,14 +850,14 @@
    },
    "b": {
     "device": "fwbr",
-    "interface_hint": "Ethernet0/1"
+    "interface_hint": "GigabitEthernet1/1"
    }
   },
   {
    "id": "l-fwbr-swbr",
    "a": {
     "device": "fwbr",
-    "interface_hint": "Ethernet0/0"
+    "interface_hint": "GigabitEthernet1/2"
    },
    "b": {
     "device": "swbr",
@@ -1303,7 +1303,7 @@
   },
   {
    "device": "fwbr",
-   "interface_hint": "Vlan2",
+   "interface_hint": "GigabitEthernet1/1",
    "subnet": "net-t-rbr-fwbr",
    "ip": "10.0.0.18"
   },
@@ -1357,7 +1357,7 @@
   },
   {
    "device": "fwbr",
-   "interface_hint": "Vlan1",
+   "interface_hint": "GigabitEthernet1/2",
    "subnet": "net-br-lan",
    "ip": "10.30.50.1"
   },

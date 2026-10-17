@@ -350,18 +350,26 @@ def test_5505_policy_lands_on_its_vlan2_nameif():
 
 def test_5505_refuses_more_than_two_zones():
     """PT's 5505 only exposes Vlan1/Vlan2, so a third zone cannot be configured
-    and the build must say so instead of emitting a config that half-applies."""
+    and the build must say so instead of emitting a config that half-applies.
+
+    The third zone's peer must be a HOST, not a router: since 9848c9f a
+    5505-Ethernet <-> router link is refused even earlier, at port preflight
+    (`unbuildable_link`), which would shadow this zone refusal. A 5505 <-> host
+    link is buildable (measured working), so preflight passes and the zone
+    limit is what names the failure."""
     raw = {k: v for k, v in ASA_LAB.items()}
     raw["name"] = "asa-5505-three"
     raw["devices"] = [dict(d) for d in ASA_LAB["devices"]]
     raw["devices"][0] = {"id": "fw", "role": "router", "model_hint": "5505"}
+    # host peer for the third zone (router peer would trip unbuildable_link first)
+    raw["devices"].append({"id": "pc-c", "role": "pc"})
     raw["links"] = [
         {"id": "l-in", "a": {"device": "fw", "interface_hint": "Ethernet0/0"},
          "b": {"device": "pc-a"}},
         {"id": "l-out", "a": {"device": "fw", "interface_hint": "Ethernet0/1"},
          "b": {"device": "pc-b"}},
-        {"id": "l-r", "a": {"device": "fw", "interface_hint": "Ethernet0/2"},
-         "b": {"device": "r1"}},
+        {"id": "l-third", "a": {"device": "fw", "interface_hint": "Ethernet0/2"},
+         "b": {"device": "pc-c"}},
     ]
     raw["subnets"] = [
         {"id": "net-in", "cidr": "192.168.10.0/24"},
