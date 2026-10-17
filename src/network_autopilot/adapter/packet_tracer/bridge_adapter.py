@@ -3329,13 +3329,11 @@ class BridgeAdapter(PacketTracerAdapter):
     def _arm_pending(self, pending, armed, results) -> None:
         """Arm the next pending flow on every idle source in one round trip."""
         jobs: list[tuple[str, str]] = []
-        slots: list[int] = []
         for src in sorted(pending):
             if src in armed or not pending[src]:
                 continue
             slot, spec, target, attempts = pending[src].popleft()
             jobs.append((src, target))
-            slots.append(slot)
             armed[src] = {
                 "slot": slot, "spec": spec, "target": target,
                 "base": None, "attempts": attempts,
@@ -3355,10 +3353,18 @@ class BridgeAdapter(PacketTracerAdapter):
                         bases[idx] = int(entry["base"])
             except (ValueError, TypeError, KeyError):
                 pass  # a malformed answer leaves bases unset: the poll retries
+        # The JS keys every entry by the job's index WITHIN THIS BATCH, never
+        # by the flow's slot in the whole spec list (js_commands: "for(var i=0;
+        # i<jobs.length;i++)", docstring {"i": <job index>}). The two only match
+        # while the batch is as large as the spec. Keying by slot left any flow
+        # whose slot fell outside the batch with base=None, so _poll_armed
+        # dropped it from `live` and it was NEVER polled - a guaranteed false
+        # "no new ping statistics" for a path that actually answers (measured in
+        # build-1d2dd0140a1e: round 2 armed 9, polled 6, and A-010/A-011/A-024
+        # reported no stats while a live probe pinged them in 9.8-18.4 s).
         for job_index, (src, _target) in enumerate(jobs):
-            slot = slots[job_index]
             record = armed[src]
-            if slot in errors:
+            if job_index in errors:
                 record["attempts"].append(
                     FlowResult(
                         source=src,
@@ -3366,7 +3372,7 @@ class BridgeAdapter(PacketTracerAdapter):
                         transport="icmp",
                         port=record["spec"].get("port"),
                         outcome=FlowOutcome.UNKNOWN,
-                        detail=f"ping could not be armed: {errors[slot]}",
+                        detail=f"ping could not be armed: {errors[job_index]}",
                     )
                 )
                 self._settle_flow(src, record, results, pending, terminal=True)
@@ -3375,7 +3381,7 @@ class BridgeAdapter(PacketTracerAdapter):
                 # queue for good.
                 armed.pop(src, None)
                 continue
-            record["base"] = bases.get(slot)
+            record["base"] = bases.get(job_index)
 
     def _poll_armed(self, armed, results, deadline: float, pending) -> None:
         """Poll every armed flow in shared round trips until the deadline."""

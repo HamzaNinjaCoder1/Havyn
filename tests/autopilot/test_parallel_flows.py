@@ -338,3 +338,86 @@ def test_a_cold_ping_is_caught_by_the_first_window_not_a_rearm(monkeypatch):
         "the cold ping was abandoned and re-armed instead of being given one "
         f"window long enough to finish: {len(arm_times)} arms"
     )
+
+
+# ==========================================================================
+# The arm's `i` is the JOB index within the batch, never the flow's slot
+# ==========================================================================
+#
+# js_console_ping_arm_multi_expr returns {"i": <job index>} — the position of
+# that job WITHIN THIS ROUND's `jobs` array (js_commands.py: "for(var i=0;
+# i<jobs.length;i++)", docstring "i": <job index>). _arm_pending keyed those
+# entries by the flow's `slot` (its index in the WHOLE spec list) instead.
+#
+# The two only coincide by luck. Whenever a flow's slot >= the number of armed
+# jobs, bases.get(slot) is None, so the source is dropped from `live` in
+# _poll_armed (it only keeps records whose base is not None) and is NEVER
+# POLLED — a guaranteed "no new ping statistics" verdict for a path that works.
+# When slot < n but != job_index it silently gets ANOTHER source's base.
+#
+# Measured in build-1d2dd0140a1e: round 2 armed 9 jobs but polled only 6, and
+# the three never-polled flows (A-010 slot 9, A-011 slot 10, A-024 slot 11)
+# are exactly the ones that reported "no new ping statistics" — while a live
+# probe pinged pc13->srvisp in 9.8 s and srvisp->pc9 in 18.4 s, both fine.
+
+
+def test_the_arm_base_is_keyed_by_job_index_not_by_flow_slot(monkeypatch):
+    """RED pre-fix: a flow whose slot >= the armed-job count was never polled.
+
+    Three flows, two sources, so ``srv9``'s only flow sits at spec index 2
+    while round 1 arms just TWO jobs (one per idle source). Keyed by ``slot``,
+    ``bases.get(2)`` is None, ``srv9`` is excluded from ``live``, and it times
+    out as "no new ping statistics" even though the fake console reports DONE
+    for EVERY polled job. Keyed by job index, ``srv9`` is job 1 and is polled
+    exactly like ``pc1``.
+    """
+    import json as _json
+    import re as _re
+
+    from src.network_autopilot.adapter.packet_tracer import bridge_adapter as bridge_mod
+    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
+    from src.network_autopilot.core.observability import Observable
+
+    clock = _FakeClock()
+    monkeypatch.setattr(bridge_mod.time, "time", clock.time)
+    monkeypatch.setattr(bridge_mod.time, "sleep", clock.sleep)
+
+    done_stat = "DONE:Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
+
+    def _jobs_in(expression: str) -> int:
+        """How many [device,target] jobs this arm/poll expression carries."""
+        m = _re.search(r"var jobs=\[(.*)\];", expression)
+        if not m or not m.group(1):
+            return 0
+        return m.group(1).count("],[") + 1
+
+    def fake_send(expression, **_kw):
+        # Only the ARM expression types `ping `; the poll matches on stat text.
+        n = _jobs_in(expression)
+        if "ping " in expression:
+            # Bases keyed by JOB index 0..n-1, exactly as the real JS returns.
+            return Observable[str].known(
+                _json.dumps([{"i": k, "base": 0} for k in range(n)])
+            )
+        # Every polled job reports a clean, converged ping.
+        return Observable[str].known(
+            _json.dumps([{"i": k, "r": done_stat} for k in range(n)])
+        )
+
+    adapter = BridgeAdapter(port=59999, token="t" * 40, host_bridge=False)
+    monkeypatch.setattr(adapter, "send_expression", fake_send)
+
+    results = adapter.run_flow_tests_bulk([
+        {"source": "pc1", "destination": "srv1", "transport": "icmp",
+         "port": None, "destination_ip": "10.20.40.10"},
+        {"source": "pc1", "destination": "srv2", "transport": "icmp",
+         "port": None, "destination_ip": "10.20.40.11"},
+        {"source": "srv9", "destination": "pc1", "transport": "icmp",
+         "port": None, "destination_ip": "10.10.20.3"},
+    ])
+
+    for i, r in enumerate(results):
+        assert r.outcome is FlowOutcome.REACHABLE, (
+            f"flow {i} ({r.source}->{r.destination}) was never polled — its "
+            f"slot fell outside the armed-job batch: {r.detail}"
+        )
