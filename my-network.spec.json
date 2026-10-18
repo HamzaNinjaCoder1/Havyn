@@ -1583,17 +1583,25 @@
     {
      "action": "permit",
      "protocol": "icmp",
+     "source": "10.0.0.0/8",
+     "destination": "any",
+     "description": "R-010: inside-initiated ICMP may leave - the source must be an internal 10/8 address, so an outside host cannot originate a ping into the enterprise"
+    },
+    {
+     "action": "permit",
+     "protocol": "icmp",
      "source": "any",
      "destination": "any",
-     "description": "Allow ICMP (ping) through the firewalls"
+     "icmp_type": "echo-reply",
+     "description": "R-010: the echo-reply of an inside-initiated ping may return - PT's ASA is stateless, so the return path has to be allowed explicitly; an echo-reply is return traffic, not an initiation"
     },
     {
      "action": "permit",
      "protocol": "tcp",
-     "source": "any",
+     "source": "10.0.0.0/8",
      "destination": "any",
      "dest_port": 80,
-     "description": "Allow HTTP to web services"
+     "description": "R-010/R-006: inside-initiated HTTP may leave; outside-initiated HTTP is dropped by the implicit deny"
     }
    ]
   }

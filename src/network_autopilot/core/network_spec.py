@@ -375,6 +375,18 @@ class AclRuleSpec(SpecModel):
     source: str
     destination: str
     dest_port: int | None = Field(default=None, ge=1, le=65535)
+    # An ASA/IOS ICMP type operand (``echo-reply``, ``echo``, ... or a number
+    # 0-255), rendered after the addresses. Only meaningful on icmp, which the
+    # policy compiler enforces (never here - this is shape, not policy).
+    #
+    # It exists because PT's ASA is stateless (live probe S1.19): with a plain
+    # ``permit icmp <inside> any`` the echo-reply of an inside-initiated ping
+    # arrives with an outside source and is dropped, so the ping fails. The
+    # only way to let that return path back in while still blocking an
+    # outside-initiated request is to match on ICMP type -
+    # ``permit icmp any any echo-reply`` was measured to pass A-010 and block
+    # A-024 on the same firewall at the same time.
+    icmp_type: str | None = None
     description: str | None = None
 
 

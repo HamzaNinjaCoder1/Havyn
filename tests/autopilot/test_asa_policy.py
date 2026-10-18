@@ -112,6 +112,60 @@ def test_each_protocol_maps_to_its_own_cli_keyword():
         assert rule_to_cli("p", 0, rule).split()[4] == proto
 
 
+# -- ICMP type operand (S1.19 live: PT's ASA is STATELESS) --------------------
+#
+# A live probe bound `permit icmp 10/8 any` on a 5506-X between an inside and an
+# outside host: the inside->outside ping came back 100% loss, because the
+# echo-reply carries an outside source and a stateless ACL has no return state
+# to admit it. Adding `permit icmp any any echo-reply` made the same ping pass
+# (4/4) while an outside->inside ping stayed blocked (100% loss) - the exact
+# A-010-passes / A-024-blocks split the spec's R-010 requires. That is only
+# expressible by matching ICMP type, so the model carries `icmp_type` and the
+# renderer emits it.
+
+
+def test_icmp_type_is_rendered_as_the_asa_type_operand():
+    rule = AclRuleSpec(action="permit", protocol="icmp", source="any",
+                       destination="any", icmp_type="echo-reply")
+    assert rule_to_cli("p", 0, rule) == (
+        "access-list p extended permit icmp any any echo-reply"
+    )
+
+
+def test_icmp_type_is_rendered_on_the_ios_router_path_too():
+    rule = AclRuleSpec(action="permit", protocol="icmp", source="any",
+                       destination="any", icmp_type="echo-reply")
+    assert rule_to_ios_cli("100", 0, rule) == (
+        "access-list 100 permit icmp any any echo-reply"
+    )
+
+
+def test_numeric_icmp_type_is_accepted():
+    rule = AclRuleSpec(action="permit", protocol="icmp", source="any",
+                       destination="any", icmp_type="0")
+    assert rule_to_cli("p", 0, rule) == (
+        "access-list p extended permit icmp any any 0"
+    )
+
+
+def test_icmp_type_on_a_non_icmp_protocol_is_refused():
+    rule = AclRuleSpec(action="permit", protocol="tcp", source="any",
+                       destination="any", icmp_type="echo-reply")
+    with pytest.raises(PolicyCompileError) as exc:
+        rule_to_cli("p", 0, rule)
+    assert "only to icmp" in str(exc.value)
+
+
+def test_junk_icmp_type_is_refused_by_name():
+    """PT accepts a junk ICMP operand and then matches nothing, so it is
+    refused rather than emitted as a line that looks right and does nothing."""
+    rule = AclRuleSpec(action="permit", protocol="icmp", source="any",
+                       destination="any", icmp_type="not-a-type")
+    with pytest.raises(PolicyCompileError) as exc:
+        rule_to_cli("p", 0, rule)
+    assert "icmp_type" in str(exc.value)
+
+
 # -- address-scoped rules ARE enforced (S1.16 live probe A/B/C) ---------------
 
 
@@ -309,6 +363,60 @@ def test_interface_addresses_precede_the_acl():
 def test_build_policy_commands_is_empty_without_a_policy():
     spec = _spec()
     assert build_policy_commands(spec, "fw") == ([], [])
+
+
+def test_stateless_asa_inside_outside_split_renders_both_icmp_lines():
+    """S1.19 live: PT's ASA is stateless, so `permit icmp <inside> any` alone
+    drops the echo-reply of an inside-initiated ping (measured 100% loss). The
+    two-rule form - a source-scoped permit plus `permit icmp any any
+    echo-reply` - is what lets the inside->outside ping pass while an
+    outside->inside ping stays blocked. A blanket `permit icmp any any` must
+    NOT appear: that is what used to let the outside ping through."""
+    spec = _spec(policies=[{
+        "id": "split", "apply_to": ["fw"],
+        "rules": [
+            {"action": "permit", "protocol": "icmp",
+             "source": "10.0.0.0/8", "destination": "any"},
+            {"action": "permit", "protocol": "icmp",
+             "source": "any", "destination": "any", "icmp_type": "echo-reply"},
+        ],
+    }])
+    cmds = _ios_commands(spec)
+    assert "access-list split extended permit icmp 10.0.0.0 255.0.0.0 any" in cmds, cmds
+    assert "access-list split extended permit icmp any any echo-reply" in cmds, cmds
+    # a blanket any/any permit (the pre-fix line) would re-allow A-024
+    assert not any(
+        c.strip() == "access-list split extended permit icmp any any" for c in cmds
+    ), cmds
+
+
+def test_reference_spec_firewall_blocks_outside_initiated_icmp():
+    """The A-024 fix, pinned to the golden spec: `acl-fw-transit` used to emit
+    `permit icmp any any`, which let srvisp->pc9 through and failed the
+    'outside cannot initiate to inside' criterion. It must compile to the
+    source-scoped permit + echo-reply return path on every perimeter."""
+    from pathlib import Path
+
+    ref_path = Path(__file__).resolve().parents[2] / "my-network.spec.json"
+    ref = NetworkSpec.from_json(ref_path.read_text(encoding="utf-8"))
+    compiled = compile_spec(ref, plan_addressing(ref))
+    cmds = None
+    for node in compiled.dag.nodes.values():
+        op = node.operation
+        if op.operation_type == "configure_ios" and op.inputs.get("device") == "fwhq":
+            cmds = list(op.inputs["commands"])
+            break
+    assert cmds is not None, "no configure_ios op for fwhq in the reference spec"
+    assert (
+        "access-list acl-fw-transit extended permit icmp 10.0.0.0 255.0.0.0 any" in cmds
+    ), cmds
+    assert (
+        "access-list acl-fw-transit extended permit icmp any any echo-reply" in cmds
+    ), cmds
+    assert not any(
+        c.strip() == "access-list acl-fw-transit extended permit icmp any any"
+        for c in cmds
+    ), cmds
 
 
 # -- model-specific behaviour -------------------------------------------------

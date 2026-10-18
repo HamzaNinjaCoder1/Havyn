@@ -57,6 +57,18 @@ PROTOCOL_KEYWORDS = {
     "udp": "udp",
 }
 
+#: ICMP type operands PT's ASA accepts after the addresses. These are the
+#: standard ASA extended-ACL ICMP type names; ``echo-reply`` is the one live-
+#: proven here (S1.19) - ``permit icmp any any echo-reply`` passed the
+#: inside-initiated ping and blocked the outside-initiated one on the same
+#: firewall. A bare number 0-255 is also accepted (the numeric ICMP type).
+ASA_ICMP_TYPES = frozenset({
+    "unreachable", "echo", "echo-reply", "source-quench", "redirect",
+    "alternate-address", "parameter-problem", "timestamp-request",
+    "timestamp-reply", "information-request", "information-reply",
+    "address-mask-request", "address-mask-reply", "traceroute",
+})
+
 
 class PolicyCompileError(ValueError):
     """The requested policy cannot be enforced by Packet Tracer's ASA."""
@@ -82,6 +94,32 @@ def _check_rule_is_enforceable(policy_id: str, index: int, rule: AclRuleSpec) ->
             f"{where}: protocol {rule.protocol!r} is not one of "
             f"{sorted(PROTOCOL_KEYWORDS)}."
         )
+    if rule.icmp_type is not None:
+        if rule.protocol != "icmp":
+            raise PolicyCompileError(
+                f"{where}: icmp_type applies only to icmp, not {rule.protocol!r}."
+            )
+        _check_icmp_type(where, rule.icmp_type)
+
+
+def _check_icmp_type(where: str, value: str) -> None:
+    """Refuse an ICMP type operand PT would accept and then never match.
+
+    ``echo-reply`` is live-proven (S1.19); the rest are the standard ASA type
+    names, and a bare 0-255 is the numeric form. Anything else is a junk
+    operand PT silently accepts and matches nothing, so it is refused by name
+    rather than emitted as a line that looks right and does nothing.
+    """
+    text = value.strip()
+    if text in ASA_ICMP_TYPES:
+        return
+    if text.isdigit() and 0 <= int(text) <= 255:
+        return
+    raise PolicyCompileError(
+        f"{where}: icmp_type {value!r} is not a known ASA ICMP type "
+        f"({', '.join(sorted(ASA_ICMP_TYPES))}) nor a number 0-255. PT accepts "
+        "a junk operand and then matches nothing, so it is refused by name."
+    )
 
 
 def _asa_address(value: str) -> str:
@@ -156,11 +194,16 @@ def rule_to_cli(policy_id: str, index: int, rule: AclRuleSpec) -> str:
     """
     _check_rule_is_enforceable(policy_id, index, rule)
     protocol = PROTOCOL_KEYWORDS[rule.protocol]
-    port = f" eq {rule.dest_port}" if rule.dest_port is not None else ""
+    if rule.protocol == "icmp":
+        # `eq <port>` is invalid on icmp (PT aborts the block); an ICMP type
+        # keyword/number is the operand the ASA matches on instead.
+        tail = f" {rule.icmp_type.strip()}" if rule.icmp_type else ""
+    else:
+        tail = f" eq {rule.dest_port}" if rule.dest_port is not None else ""
     return (
         f"access-list {policy_id} extended {rule.action} "
         f"{protocol} {_asa_address(rule.source)} "
-        f"{_asa_address(rule.destination)}{port}"
+        f"{_asa_address(rule.destination)}{tail}"
     )
 
 
@@ -255,11 +298,20 @@ def rule_to_ios_cli(acl_number: str, index: int, rule: AclRuleSpec) -> str:
             f"{where}: protocol {rule.protocol!r} is not one of "
             f"{sorted(PROTOCOL_KEYWORDS)}."
         )
+    if rule.icmp_type is not None:
+        if rule.protocol != "icmp":
+            raise PolicyCompileError(
+                f"{where}: icmp_type applies only to icmp, not {rule.protocol!r}."
+            )
+        _check_icmp_type(where, rule.icmp_type)
     protocol = PROTOCOL_KEYWORDS[rule.protocol]
-    port = f" eq {rule.dest_port}" if rule.dest_port is not None else ""
+    if rule.protocol == "icmp":
+        tail = f" {rule.icmp_type.strip()}" if rule.icmp_type else ""
+    else:
+        tail = f" eq {rule.dest_port}" if rule.dest_port is not None else ""
     return (
         f"access-list {acl_number} {rule.action} {protocol} "
-        f"{_ios_address(rule.source)} {_ios_address(rule.destination)}{port}"
+        f"{_ios_address(rule.source)} {_ios_address(rule.destination)}{tail}"
     )
 
 
