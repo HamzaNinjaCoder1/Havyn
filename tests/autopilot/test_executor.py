@@ -8,6 +8,7 @@ from src.network_autopilot.adapter import NullAdapter
 from src.network_autopilot.compiler import compile_spec
 from src.network_autopilot.compiler.dag import OpStatus
 from src.network_autopilot.compiler.executor import DagExecutor
+from src.network_autopilot.core.receipts import CheckResult, OperationResult
 from src.network_autopilot.core.safety import MutationBudget, SafetyGate, SafetyMode
 from src.network_autopilot.evidence import EvidenceStore
 from src.network_autopilot.ipam import plan_addressing
@@ -214,3 +215,157 @@ def test_receipts_carry_operation_ids(tmp_path):
     ids = {r.payload["operation_id"] for r in receipts}
     assert "op-create-r1" in ids
     assert "op-save" in ids
+
+
+# ---------------------------------------------------------------------------
+# Deferred route confirmation - a route held because its next hop's peer is
+# configured by a LATER operation is re-read once every interface is up, not
+# frozen as a failure. (root cause of "NOT SUCCESS / Blocked: 2" on the
+# reference build: redge's routes pointed at rhq/rbr, which were configured
+# after it, so the in-op read-back ran before the far end of the link existed.)
+# ---------------------------------------------------------------------------
+
+#: The GOLDEN_SPEC devices that carry static routes (switches do not).
+_ROUTE_DEVICES = frozenset({"r1", "r2"})
+
+
+class _RoutesHeldAdapter(NullAdapter):
+    """A configure whose routes are held on the first attempt, then present.
+
+    Models PT's behaviour exactly: the first ``configure_ios`` for a routing
+    device reports FAILED *only* because the ``ip route`` lines were held as an
+    unresolvable next hop (the far end of the link is configured by a later op)
+    while its addresses landed. Every later call succeeds, standing in for the
+    peer having come up by the time the deferred reconciliation re-reads.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "route-hold-stub"
+        self._held: set[str] = set()
+        self.configure_calls: dict[str, int] = {}
+
+    def configure_ios(self, device, commands, operation_id=None):
+        self.configure_calls[device] = self.configure_calls.get(device, 0) + 1
+        if device in _ROUTE_DEVICES and device not in self._held:
+            self._held.add(device)
+            return self._route_held_receipt(device, commands, operation_id)
+        return super().configure_ios(device, commands, operation_id)
+
+    def _route_held_receipt(self, device, commands, operation_id):
+        requested = {"device": device, "command_count": len(commands)}
+        pre = [CheckResult.of("device_present", "True", self.device_exists(device))]
+        missing = [{"network": "10.0.2.0", "next_hop": "10.0.0.2"}]
+        post = [
+            # addresses landed ...
+            CheckResult(
+                name="configured_addresses_present",
+                expected="{}",
+                actual=Observable.known({}, source="stub"),
+                passed=True,
+            ),
+            # ... only the routes were held as an unresolvable next hop
+            CheckResult(
+                name="configured_routes_present",
+                expected="[]",
+                actual=Observable.known(missing, source="stub"),
+                passed=False,
+            ),
+        ]
+        return self._receipt(
+            "configure_ios", requested, operation_id, OperationResult.FAILED,
+            preconditions=pre, postconditions=post,
+            error=(
+                "configuration did not take effect - routes still missing after "
+                "retry: 10.0.2.0/24 via 10.0.0.2"
+            ),
+        )
+
+
+def test_route_only_failure_is_confirmed_once_peers_are_up(tmp_path):
+    """A held route is re-read (not frozen) once every interface is configured.
+
+    Without the deferred reconciliation this fails: r1/r2 stay FAILED, so
+    op-verify-state and op-save remain blocked and the whole build reports
+    NOT SUCCESS even though the routes are genuinely installed by then.
+    """
+    spec, _plan, dag = _golden_dag()
+    adapter = _RoutesHeldAdapter()
+    executor = DagExecutor(
+        adapter,
+        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        EvidenceStore(tmp_path),
+    )
+    result = executor.execute(dag)
+    # the held routes reconcile once the peers are up -> nothing failed/blocked
+    assert not result.failed, result.failed
+    assert not result.blocked, result.blocked
+    for op_id in ("op-config-r1", "op-config-r2", "op-verify-state", "op-save"):
+        assert dag.nodes[op_id].status is OpStatus.SUCCEEDED, op_id
+    # each route-failed configure was re-run exactly once to confirm it, and
+    # the switch configs (which carry no routes) were never re-run
+    assert adapter.configure_calls["r1"] == 2
+    assert adapter.configure_calls["r2"] == 2
+    assert adapter.configure_calls["s1"] == 1
+    assert adapter.configure_calls["s2"] == 1
+
+
+def test_real_address_failure_is_not_deferred_or_masked(tmp_path):
+    """An address that never landed is a real failure; reconcile must not retry it.
+
+    Only a route-only failure is deferrable. When BOTH the address and the route
+    postconditions fail, the deferred path must leave the op FAILED - re-running
+    it and calling the result success would mask a genuine misconfiguration.
+    """
+    spec, _plan, dag = _golden_dag()
+
+    class _AddressHeldAdapter(NullAdapter):
+        """r1's addresses AND routes both never landed (a real failure)."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.name = "address-hold-stub"
+            self.configure_calls: dict[str, int] = {}
+
+        def configure_ios(self, device, commands, operation_id=None):
+            self.configure_calls[device] = self.configure_calls.get(device, 0) + 1
+            if device != "r1":
+                return super().configure_ios(device, commands, operation_id)
+            requested = {"device": device, "command_count": len(commands)}
+            pre = [CheckResult.of("device_present", "True", self.device_exists(device))]
+            post = [
+                CheckResult(
+                    name="configured_addresses_present",
+                    expected="{}",
+                    actual=Observable.known(
+                        [{"interface": "GigabitEthernet0/0"}], source="stub"
+                    ),
+                    passed=False,
+                ),
+                CheckResult(
+                    name="configured_routes_present",
+                    expected="[]",
+                    actual=Observable.known(
+                        [{"network": "10.0.2.0", "next_hop": "10.0.0.2"}], source="stub"
+                    ),
+                    passed=False,
+                ),
+            ]
+            return self._receipt(
+                "configure_ios", requested, operation_id, OperationResult.FAILED,
+                preconditions=pre, postconditions=post,
+                error="not observed after 1 attempt(s): GigabitEthernet0/0",
+            )
+
+    adapter = _AddressHeldAdapter()
+    executor = DagExecutor(
+        adapter,
+        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        EvidenceStore(tmp_path),
+    )
+    result = executor.execute(dag)
+    # r1's address failure is real: it stays FAILED and is NOT re-run by the
+    # deferred path (one call only) - the misconfiguration is not masked.
+    assert "op-config-r1" in result.failed, result.failed
+    assert dag.nodes["op-config-r1"].status is OpStatus.FAILED
+    assert adapter.configure_calls["r1"] == 1, adapter.configure_calls

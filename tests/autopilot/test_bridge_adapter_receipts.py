@@ -5,12 +5,25 @@ a passing read-back postcondition confirms."""
 from __future__ import annotations
 
 import json
+import time
+
+import pytest
 
 from src.network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
 from src.network_autopilot.core.observability import Observable
 from src.network_autopilot.core.receipts import OperationReceipt, OperationResult
 
 TEST_TOKEN = "test-token-long-enough-0123456789abcdef"
+
+
+@pytest.fixture(autouse=True)
+def _record_sleeps(monkeypatch):
+    """Offline fake-adapter tests: the transport is mocked, so a real settle
+    would only add wall-clock. Record the requested durations instead so a test
+    can assert a settle happened without paying for it."""
+    sleeps: list[float] = []
+    monkeypatch.setattr(time, "sleep", lambda s: sleeps.append(float(s)))
+    return sleeps
 
 
 def _adapter_with_answers(*answers: str, exists: str | None = "no") -> BridgeAdapter:
@@ -1184,6 +1197,72 @@ def test_configure_ios_retries_missing_routes_as_a_separate_call():
         f"retry should have triggered exactly one extra route read "
         f"(got {reads.get('count')})"
     )
+    assert receipt.result is OperationResult.SUCCESS
+    route_post = next(
+        p for p in receipt.postconditions if p.name == "configured_routes_present"
+    )
+    assert route_post.passed is True
+
+
+def test_route_retry_settles_before_readback_and_recovers(_record_sleeps, monkeypatch):
+    """PT applies a pushed ``ip route`` asynchronously: a ``show ip route``
+    typed a moment after the push reads the table *before* PT installs the
+    route and falsely reports it missing. Measured on redge, where the retry
+    re-pushed the five dropped routes but read them back a millisecond later -
+    all five still absent - so the build went NOT SUCCESS even though the
+    routes were installable. The retry must SETTLE before each read-back and
+    re-round while routes are still missing, so the read sees the installed
+    routes. The gate is not weakened: a route is still only reported present
+    when ``show ip route`` actually shows it."""
+    from src.network_autopilot.adapter.packet_tracer import bridge_adapter as ba
+
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+
+    def fake_send(expression, *, statements=None, wait=None):
+        text = " ".join(statements or []) + " " + str(expression)
+        if "devices" in text and "JSON.stringify" in text:
+            return Observable.known(
+                '{"devices":[{"name":"R1","model":"2911","ports":'
+                '[{"name":"GigabitEthernet0/0","ip":"10.0.0.1"}]}]}'
+            )
+        if "configureIosDevice" in text:
+            return Observable.known("true")
+        return Observable.known("OK")
+
+    adapter.send_expression = fake_send  # type: ignore[method-assign]
+
+    # The routing table: the first read (right after the heavy push) has not
+    # yet applied the two static routes; the read after the retry's settle
+    # shows them. Monkeypatching the table read (instead of the console-send
+    # fake) keeps the scenario deterministic.
+    tables = [
+        Observable.known([{"network": "10.0.0.0", "prefix": 30, "next_hop": None}]),
+        Observable.known([
+            {"network": "10.0.0.0", "prefix": 30, "next_hop": None},
+            {"network": "0.0.0.0", "prefix": 0, "next_hop": "10.0.0.2"},
+            {"network": "10.10.0.0", "prefix": 16, "next_hop": "10.0.0.6"},
+        ]),
+    ]
+    reads = {"n": 0}
+
+    def fake_routes(device):
+        table = tables[min(reads["n"], len(tables) - 1)]
+        reads["n"] += 1
+        return table
+
+    monkeypatch.setattr(adapter, "read_routing_table", fake_routes)
+
+    receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
+
+    # The retry settled before reading the routes back - this is the fix: a
+    # read typed immediately after the push would catch the table mid-install.
+    # The main config push already settles once, so the retry settle is what
+    # takes the count to two (main + retry); without it only one settle runs.
+    assert _record_sleeps.count(ba._IOS_SETTLE_SECONDS) >= 2, (
+        f"the route retry must settle before its read-back (main settle + retry "
+        f"settle = 2); recorded sleeps: {_record_sleeps}"
+    )
+    assert reads["n"] >= 2, "the retry must have re-read the routing table"
     assert receipt.result is OperationResult.SUCCESS
     route_post = next(
         p for p in receipt.postconditions if p.name == "configured_routes_present"

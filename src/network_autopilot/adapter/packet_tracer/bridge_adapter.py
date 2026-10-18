@@ -159,6 +159,17 @@ _BULK_READ_RETRIES = 3
 _IOS_CONFIG_ATTEMPTS = 3
 _IOS_SETTLE_SECONDS = 2.5
 
+# A heavy config push types `ip route ...` while the route's exit interface is
+# still coming up, so IOS discards the line (the push answers `true` anyway).
+# The retry re-pushes just the dropped routes in a small call - by then the
+# interfaces are up - and settles before each `show ip route` read-back: a read
+# typed a moment after the push catches the table mid-install and falsely
+# reports the route missing (measured on redge: the default route read back
+# fine but the other five were read before PT applied them). Two rounds make
+# the install reliable; the gate is not weakened because a route is only
+# reported present when `show ip route` actually shows it.
+_IOS_ROUTE_RETRY_ROUNDS = 2
+
 # Existence is checked before and after every mutation, and an UNKNOWN answer
 # makes the caller fail closed. PT's script engine drops the occasional poll
 # while it is busy, so a single hiccup would reject a safe create. Two extra
@@ -2373,64 +2384,68 @@ class BridgeAdapter(PacketTracerAdapter):
         if route_missing:
             # Step 4 / S1.19: PT regularly drops ``ip route`` lines on a heavy
             # config push (the receipt above is ``true`` but ``show ip route``
-            # is empty). Rather than fail the whole op we push the dropped
-            # routes in their own, smaller call so the device only sees
-            # ``route ...`` lines and not a 40-command prefix; this is the
-            # retry pattern upstream confirmed live. The retry is best-effort:
-            # if it still does not land we keep the failure so the caller can
-            # diagnose, but in practice the smaller payload is what makes
-            # PT actually install the routes.
-            mask_for = {r["network"]: _mask_from_prefix(r["prefix"]) for r in route_missing}
-            route_lines = [
-                f"ip route {r['network']} {mask_for[r['network']]} {r['next_hop']}"
-                for r in route_missing
-            ]
-            route_stmts, route_final = js.js_configure_ios_statements(
-                device, "\n".join(route_lines)
-            ) if hasattr(js, "js_configure_ios_statements") else (
-                None, js.js_configure_ios(device, "\n".join(route_lines))
-            )
-            if route_stmts is not None:
-                second_answer = self.send_expression(
-                    route_final, statements=route_stmts, wait=8.0
+            # does not show them) - the routes are typed while their exit
+            # interfaces are still coming up, so the next-hop is not yet
+            # reachable and IOS discards the line. Rather than fail the whole op
+            # we re-push the dropped routes in their own, smaller call (by then
+            # the interfaces are up) and SETTLE before reading back: a
+            # ``show ip route`` typed a moment after ``ip route`` reads the
+            # table before PT applies it and falsely reports the route missing
+            # (measured on redge). Bounded push+settle+read rounds make the
+            # install reliable without weakening the gate - a route is only
+            # reported present when ``show ip route`` actually shows it.
+            pending = list(route_missing)
+            retry_missing: list[dict] = list(route_missing)
+            for _round in range(_IOS_ROUTE_RETRY_ROUNDS):
+                if not pending:
+                    break
+                mask_for = {r["network"]: _mask_from_prefix(r["prefix"]) for r in pending}
+                route_body = "\n".join(
+                    f"ip route {r['network']} {mask_for[r['network']]} {r['next_hop']}"
+                    for r in pending
                 )
-            else:
-                second_answer = self.send_expression(route_final)
-            second_ok = bool(second_answer.is_known and str(second_answer.value).strip() == "true")
-            if second_ok:
+                route_stmts, route_final = js.js_configure_ios_statements(
+                    device, route_body
+                ) if hasattr(js, "js_configure_ios_statements") else (
+                    None, js.js_configure_ios(device, route_body)
+                )
+                if route_stmts is not None:
+                    answer = self.send_expression(
+                        route_final, statements=route_stmts, wait=8.0
+                    )
+                else:
+                    answer = self.send_expression(route_final)
+                if not (answer.is_known and str(answer.value).strip() == "true"):
+                    break  # the push itself failed; keep the failure below
+                # PT applies a pushed `ip route` asynchronously: settle before
+                # the read-back or `show ip route` catches the table mid-install.
+                time.sleep(_IOS_SETTLE_SECONDS)
                 retry_missing = self._missing_ios_routes(device, route_expected)
                 if not retry_missing:
-                    # Recovered. Drop the failed postcondition we appended
-                    # above and replace it with a passing one keyed to the
-                    # retry path so verification sees a consistent PASS.
-                    postconditions = [
-                        pc for pc in postconditions
-                        if pc.name != "configured_routes_present"
-                    ]
-                    postconditions.append(CheckResult(
-                        name="configured_routes_present",
-                        expected=json.dumps(route_expected, sort_keys=True),
-                        actual=Observable.known([], source="file-bridge-retry"),
-                        passed=True,
-                    ))
-                    detail = "routes not observed after the push; recovered on retry"
-                    result = OperationResult.SUCCESS
-                    error = None
-                    route_missing = []
-                else:
-                    detail = "routes still missing after retry: " + "; ".join(
-                        f"{r['network']}/{r['prefix']} via {r['next_hop']}"
-                        for r in retry_missing
-                    )
-                    if result is OperationResult.SUCCESS:
-                        result = OperationResult.FAILED
-                        error = f"configuration did not take effect - {detail}"
-                    else:
-                        error = f"{error or 'configuration failed'} - {detail}"
+                    break
+                pending = list(retry_missing)
+            if not retry_missing:
+                # Recovered. Drop the failed postcondition we appended
+                # above and replace it with a passing one keyed to the
+                # retry path so verification sees a consistent PASS.
+                postconditions = [
+                    pc for pc in postconditions
+                    if pc.name != "configured_routes_present"
+                ]
+                postconditions.append(CheckResult(
+                    name="configured_routes_present",
+                    expected=json.dumps(route_expected, sort_keys=True),
+                    actual=Observable.known([], source="file-bridge-retry"),
+                    passed=True,
+                ))
+                detail = "routes not observed after the push; recovered on retry"
+                result = OperationResult.SUCCESS
+                error = None
+                route_missing = []
             else:
-                detail = "routes not observed after the push: " + "; ".join(
+                detail = "routes still missing after retry: " + "; ".join(
                     f"{r['network']}/{r['prefix']} via {r['next_hop']}"
-                    for r in route_missing
+                    for r in retry_missing
                 )
                 if result is OperationResult.SUCCESS:
                     result = OperationResult.FAILED

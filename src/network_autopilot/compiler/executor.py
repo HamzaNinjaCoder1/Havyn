@@ -46,6 +46,15 @@ _PROBE_TYPES = frozenset({"verify_flow", "wait_dhcp"})
 #: refusal, not a failure, and a "dry" run must not start pinging live PTs.
 _NON_EXECUTING_MODES = frozenset({SafetyMode.READ_ONLY, SafetyMode.DRY_RUN})
 
+#: How many times a deferred route confirmation may resume the dependents it
+#: unblocked. Reconciling one configure op typically unblocks ``op-verify-state``
+#: first and then ``op-save`` (which waits on verify), so the chain has depth 2
+#: in the reference spec; the bound is a safety net so a pathological graph can
+#: never spin the resume loop forever. Each pass re-runs only the operations the
+#: previous pass newly made runnable, so the loop terminates the moment no new
+#: operation becomes eligible.
+_MAX_RESUME_PASSES = 5
+
 
 @dataclass
 class ExecutionResult:
@@ -168,6 +177,44 @@ class DagExecutor:
             node.note = f"already confirmed in {prior_build} (resumed)"
             result.resumed.append(op_id)
         topo = list(dag.topo_order())
+        self._run_pending(topo, dag, result)
+
+        # Deferred route confirmation (circular next-hop bring-up): a configure
+        # op whose static routes point at a peer configured by a LATER op cannot
+        # read them back inside its own window - the far end of the link is still
+        # down, PT holds the route as an unresolvable next hop, and the in-op
+        # read-back reports the device's own route missing even though the push
+        # landed (measured: redge before rhq/rbr, then present once both came up).
+        # Every interface is configured by now, so re-run those route-only
+        # failures: configure_ios is idempotent and its read-back is the honest
+        # confirmation. If the routes still are not there the failure was real and
+        # the op stays FAILED - this only flips what a fresh read-back proves.
+        if self._reconcile_deferred_routes(topo, dag, result):
+            # Reconciling unblocked the dependents it was gating (verify-state,
+            # then save). Resume them one "level" at a time: each pass runs only
+            # what the previous pass made runnable, bounded so the loop ends.
+            for _ in range(_MAX_RESUME_PASSES):
+                if not self._requeue_unblocked(topo, dag):
+                    break
+                self._run_pending(topo, dag, result)
+
+        # The DAG is the single source of truth for outcomes; the result lists
+        # are derived from it so mark_failed's transitive blocking is included.
+        result.failed = [op_id for op_id in topo if dag.nodes[op_id].status is OpStatus.FAILED]
+        result.blocked = [op_id for op_id in topo if dag.nodes[op_id].status is OpStatus.BLOCKED]
+        self.state.observed_at = utc_now_iso()
+        return result
+
+    def _run_pending(self, topo, dag, result: ExecutionResult) -> None:
+        """Execute every PENDING operation the graph currently allows.
+
+        One left-to-right pass over ``topo``: the dependency gate blocks anything
+        whose deps are not met (probes are waived past a failed dep so they report
+        the half-built network), the bulk/parallel fast paths batch independent
+        runs, and everything else goes through ``_execute_one``. Re-entered by the
+        deferred-route resume loop, where it picks up exactly the operations a
+        prior pass flipped back to PENDING.
+        """
         index = 0
         while index < len(topo):
             op_id = topo[index]
@@ -236,12 +283,103 @@ class DagExecutor:
                 self._time_op(result, op.operation_type, t_op)
             index += 1
 
-        # The DAG is the single source of truth for outcomes; the result lists
-        # are derived from it so mark_failed's transitive blocking is included.
-        result.failed = [op_id for op_id in topo if dag.nodes[op_id].status is OpStatus.FAILED]
-        result.blocked = [op_id for op_id in topo if dag.nodes[op_id].status is OpStatus.BLOCKED]
-        self.state.observed_at = utc_now_iso()
-        return result
+    @staticmethod
+    def _is_route_only_failure(receipt: OperationReceipt | None) -> bool:
+        """Is this receipt FAILED *solely* because its routes were not read back?
+
+        A configure op that landed its addresses but whose ``ip route`` lines were
+        held as an unresolvable next hop (the peer that carries that hop is
+        configured by a later op) is the one case worth deferring. An address or
+        VLAN that never landed is a real failure this must never paper over, so
+        every other postcondition has to be non-failing before we treat the route
+        miss as deferrable. ``passed=None`` (unobservable, e.g. an ASA's route
+        table) is not a contradiction and does not disqualify.
+        """
+        if receipt is None or receipt.result is not OperationResult.FAILED:
+            return False
+        postconditions = list(receipt.postconditions or [])
+        route_pc = next(
+            (pc for pc in postconditions if pc.name == "configured_routes_present"),
+            None,
+        )
+        if route_pc is None or route_pc.passed is not False:
+            return False  # routes did not actually fail (or are unobservable)
+        return all(
+            pc.passed is not False
+            for pc in postconditions
+            if pc.name != "configured_routes_present"
+        )
+
+    def _reconcile_deferred_routes(self, topo, dag, result: ExecutionResult) -> bool:
+        """Re-run configure ops that failed only on routes, now that peers are up.
+
+        Returns True when at least one op flipped to SUCCEEDED. Each re-run goes
+        through ``_execute_one`` so the idempotency guard, preconditions, safety
+        gate and read-back postconditions all apply exactly as they did the first
+        time - the confirmation is a genuine fresh read of ``show ip route``, not
+        an assumption. A route that still does not appear keeps the failure.
+        """
+        confirmed = False
+        for op_id in topo:
+            node = dag.nodes[op_id]
+            if node.status is not OpStatus.FAILED:
+                continue
+            op = node.operation
+            if op.operation_type != "configure_ios":
+                continue
+            if not self._is_route_only_failure(node.receipt):
+                continue
+            self._execute_one(op, node, result)
+            if node.status is OpStatus.SUCCEEDED:
+                confirmed = True
+                if self.evidence is not None:
+                    self.evidence.record(
+                        "deferred_route_confirmation",
+                        {
+                            "operation_id": op_id,
+                            "device": op.inputs.get("device"),
+                            "reason": (
+                                "static routes re-read after every interface was "
+                                "configured; the next hop is resolvable now"
+                            ),
+                        },
+                        component="executor",
+                    )
+        return confirmed
+
+    def _requeue_unblocked(self, topo, dag) -> bool:
+        """Flip dependency-blocked ops whose dependencies are now all met back to PENDING.
+
+        Returns True when at least one op was requeued. Only operations the
+        dependency gate blocked are eligible: a preflight, precondition or safety
+        -gate refusal is a real stop and must not be silently resumed. The pass
+        walks ``topo`` so a chain (verify-state, then save which waits on it)
+        resolves one level per resume round rather than all at once.
+        """
+        requeued = False
+        for op_id in topo:
+            node = dag.nodes[op_id]
+            if node.status is not OpStatus.BLOCKED:
+                continue
+            note = node.note or ""
+            if not (
+                note.startswith("dependencies not satisfied")
+                or note.startswith("blocked by failed dependency")
+            ):
+                continue  # preflight / precondition / gate block: not ours to resume
+            op = node.operation
+            unmet = [
+                dep
+                for dep in op.dependencies
+                if dag.nodes[dep].status
+                not in (OpStatus.SUCCEEDED, OpStatus.SKIPPED)
+            ]
+            if unmet:
+                continue
+            node.status = OpStatus.PENDING
+            node.note = ""
+            requeued = True
+        return requeued
 
     @staticmethod
     def _time_op(result: ExecutionResult, op_type: str, started: float) -> None:
