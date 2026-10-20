@@ -49,27 +49,63 @@ TERMINAL_STATUSES = ("pass", "fail", "error", "blocked")
 
 @dataclass
 class CaseResult:
-    """One case's outcome, JSON-serialisable."""
+    """One case's outcome, JSON-serialisable.
+
+    The field set is the runner's contract with everything downstream (the
+    scorecard S2.4, the capability map S2.6, a human at 8am). A result that
+    cannot say WHICH topology it was, WHICH run produced it, whether it was
+    live or offline, and where its evidence lives is a result nobody can act
+    on — so those are first-class fields, not something a reader has to
+    reconstruct from the file path.
+
+    ``status`` is the verdict and is never upgraded: ``refused`` and
+    ``pending`` are separate booleans beside it rather than extra statuses,
+    because "blocked" already means different things (preflight refusal vs a
+    dirty workspace) and collapsing those into one word is how a refusal
+    starts reading as a failure of the network.
+    """
 
     case_id: str
     spec: str
     status: str  # pass | fail | error | blocked | skipped-clean
+    topology_id: str | None = None
+    run_id: str = ""
+    mode: str = "offline"  # live | offline
+    started_at: str = ""
     criteria: dict[str, int] = field(default_factory=dict)
+    #: Per-criterion verdicts (`VT-...`/`A-...` -> pass|fail|unknown), so a
+    #: failure can be read without opening the evidence store.
+    criteria_detail: dict[str, str] = field(default_factory=dict)
     elapsed_s: float = 0.0
     build_id: str | None = None
+    evidence_dir: str | None = None
     detail: str | None = None
+    #: True when the engine refused to act (rule 9) — a decision, not a fault.
+    refused: bool = False
+    refusal_reason: str | None = None
+    #: True when the case was cut short by a deadline rather than answered.
+    timed_out: bool = False
     finished_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "case_id": self.case_id,
+            "topology_id": self.topology_id,
             "spec": self.spec,
+            "run_id": self.run_id,
+            "mode": self.mode,
             "status": self.status,
-            "criteria": dict(self.criteria),
-            "elapsed_s": round(self.elapsed_s, 1),
-            "build_id": self.build_id,
-            "detail": self.detail,
+            "started_at": self.started_at,
             "finished_at": self.finished_at,
+            "elapsed_s": round(self.elapsed_s, 1),
+            "criteria": dict(self.criteria),
+            "criteria_detail": dict(self.criteria_detail),
+            "build_id": self.build_id,
+            "evidence_dir": self.evidence_dir,
+            "detail": self.detail,
+            "refused": self.refused,
+            "refusal_reason": self.refusal_reason,
+            "timed_out": self.timed_out,
         }
 
 
@@ -103,6 +139,12 @@ def _utc_now() -> str:
     return utc_now_iso()
 
 
+def new_id(prefix: str) -> str:
+    from network_autopilot.core.ids import new_id as _new_id
+
+    return _new_id(prefix)
+
+
 def _result_path(results_dir: Path, case_id: str) -> Path:
     return results_dir / f"{case_id}.json"
 
@@ -129,8 +171,55 @@ def _criteria_summary(report) -> dict[str, int]:
     }
 
 
+def _criteria_detail(report) -> dict[str, str]:
+    """Per-criterion verdicts, keyed by the acceptance criterion where known.
+
+    The report's tests are what a reader greps for in the evidence store, but
+    the criterion is what the spec promised, so a test that belongs to one is
+    filed under it. A criterion backed by several tests takes the worst of
+    them (FAIL over UNKNOWN over PASS) — the honest summary, and one that
+    never upgrades a verdict this runner did not observe.
+    """
+    if report is None:
+        return {}
+    detail: dict[str, str] = {}
+    for test in report.verification.tests:
+        verdict = getattr(test.verdict, "value", str(test.verdict))
+        key = test.source_acceptance_criterion or test.test_id
+        previous = detail.get(key)
+        if previous is None or _verdict_rank(verdict) > _verdict_rank(previous):
+            detail[key] = verdict
+    return detail
+
+
+#: Ordering for collapsing several tests onto one criterion. Higher wins.
+_VERDICT_RANK = {"pass": 0, "not_run": 1, "unknown": 2, "fail": 3}
+
+
+def _verdict_rank(verdict: str) -> int:
+    return _VERDICT_RANK.get(verdict.lower(), 2)
+
+
+def _identity(case: dict[str, Any], *, mode: str, run_id: str,
+              started_at: str) -> dict[str, Any]:
+    """The fields every result must carry, whatever happened to the case.
+
+    ``topology_id`` falls back to the spec's file stem, which is what the
+    library manifest names its specs by: a result from a queue that forgot to
+    label its case is still attributable to a topology.
+    """
+    spec = str(case["spec"])
+    return {
+        "topology_id": case.get("topology") or Path(spec).stem,
+        "run_id": run_id,
+        "mode": mode,
+        "started_at": started_at,
+    }
+
+
 def run_case(case: dict[str, Any], adapter, results_dir: Path,
-             evidence_root: Path, keep_evidence: int) -> CaseResult:
+             evidence_root: Path, keep_evidence: int, *,
+             mode: str = "offline", run_id: str = "") -> CaseResult:
     """Clean → build → verify one case. Never raises for case-level faults.
 
     "Never raises" is load-bearing, not a nicety. A case that dies has to
@@ -142,14 +231,17 @@ def run_case(case: dict[str, Any], adapter, results_dir: Path,
     ``error`` result that a restart then resumes past.
     """
     case_id = str(case["id"])
+    started_at = _utc_now()
     t0 = time.monotonic()
     try:
         return _clean_build_verify(
-            case, adapter, results_dir, evidence_root, keep_evidence
+            case, adapter, results_dir, evidence_root, keep_evidence,
+            mode=mode, run_id=run_id, started_at=started_at,
         )
     except Exception as exc:
         return CaseResult(
             case_id, str(case["spec"]), "error",
+            **_identity(case, mode=mode, run_id=run_id, started_at=started_at),
             finished_at=_utc_now(),
             detail=f"case crashed: {type(exc).__name__}: {exc}",
             elapsed_s=time.monotonic() - t0,
@@ -157,7 +249,9 @@ def run_case(case: dict[str, Any], adapter, results_dir: Path,
 
 
 def _clean_build_verify(case: dict[str, Any], adapter, results_dir: Path,
-                        evidence_root: Path, keep_evidence: int) -> CaseResult:
+                        evidence_root: Path, keep_evidence: int, *,
+                        mode: str = "offline", run_id: str = "",
+                        started_at: str = "") -> CaseResult:
     """The per-case work; ``run_case`` wraps it so nothing escapes the queue."""
     from network_autopilot.core.build_errors import PreflightBlocked
     from network_autopilot.core.network_spec import NetworkSpec
@@ -167,13 +261,15 @@ def _clean_build_verify(case: dict[str, Any], adapter, results_dir: Path,
     from scripts.pt_clean_workspace import clean
 
     case_id = str(case["id"])
+    started_at = started_at or _utc_now()
+    ident = _identity(case, mode=mode, run_id=run_id, started_at=started_at)
     t0 = time.monotonic()
     try:
         spec = NetworkSpec.from_json(
             Path(case["spec"]).read_text(encoding="utf-8")
         )
     except Exception as exc:
-        return CaseResult(case_id, str(case["spec"]), "error",
+        return CaseResult(case_id, str(case["spec"]), "error", **ident,
                           finished_at=_utc_now(),
                           detail=f"spec unreadable: {exc}",
                           elapsed_s=time.monotonic() - t0)
@@ -184,8 +280,12 @@ def _clean_build_verify(case: dict[str, Any], adapter, results_dir: Path,
     # leftover that should have been deleted means the canvas is still dirty.
     leftovers = [n for n in cleaning.remaining if n not in set(cleaning.protected)]
     if cleaning.read_failed or cleaning.failed or leftovers:
+        # Not a refusal by the engine: the canvas could not be made safe, so
+        # no case ran. `refused` stays False and the reason says which of the
+        # two it was, because a blocked workspace is an environment fault and
+        # a preflight refusal is a decision about the spec.
         return CaseResult(
-            case_id, str(case["spec"]), "blocked",
+            case_id, str(case["spec"]), "blocked", **ident,
             finished_at=_utc_now(),
             detail=(
                 "workspace could not be cleaned: "
@@ -205,23 +305,32 @@ def _clean_build_verify(case: dict[str, Any], adapter, results_dir: Path,
             adapter, gate, evidence, keep_evidence=keep_evidence
         ).build(spec)
     except Exception as exc:  # an engine crash is a case error, not a runner crash
-        return CaseResult(case_id, str(case["spec"]), "error",
+        return CaseResult(case_id, str(case["spec"]), "error", **ident,
                           finished_at=_utc_now(),
                           detail=f"engine crash: {type(exc).__name__}: {exc}",
                           elapsed_s=time.monotonic() - t0)
     elapsed = time.monotonic() - t0
     if error is not None:
-        status = "blocked" if isinstance(error, PreflightBlocked) else "error"
-        return CaseResult(case_id, str(case["spec"]), status,
+        # A preflight refusal is the engine refusing by name (rule 9): the
+        # spec asked for something PT cannot do, and NOTHING was mutated.
+        # Recording it as `refused` next to the status keeps the scorecard
+        # able to separate "the network is wrong" from "we declined to try".
+        refused = isinstance(error, PreflightBlocked)
+        return CaseResult(case_id, str(case["spec"]),
+                          "blocked" if refused else "error", **ident,
                           finished_at=_utc_now(), detail=str(error)[:500],
-                          elapsed_s=elapsed)
+                          elapsed_s=elapsed,
+                          refused=refused,
+                          refusal_reason=str(error)[:500] if refused else None)
     assert report is not None
     return CaseResult(
         case_id, str(case["spec"]),
-        "pass" if report.success else "fail",
+        "pass" if report.success else "fail", **ident,
         criteria=_criteria_summary(report),
+        criteria_detail=_criteria_detail(report),
         elapsed_s=elapsed,
         build_id=report.build_id,
+        evidence_dir=str(Path(evidence_root) / report.build_id),
         finished_at=_utc_now(),
     )
 
@@ -235,8 +344,15 @@ def run_queue(
     keep_evidence: int = 20,
     prune_every: int = 10,
     uploader: Callable[[Path], dict[str, Any]] | None = None,
+    mode: str = "offline",
 ) -> RunnerSummary:
-    """Run the queue with crash-resume. Finished cases are skipped by id."""
+    """Run the queue with crash-resume. Finished cases are skipped by id.
+
+    ``mode`` is stamped onto every result. It is a caller fact, not something
+    the runner can infer: the same queue over the NullAdapter and over the
+    bridge produce identical-looking verdicts, and a scorecard that cannot
+    tell them apart would let an offline run stand in for a live one.
+    """
     from network_autopilot.evidence.store import prune_evidence
 
     summary = RunnerSummary(total=len(cases))
@@ -256,6 +372,11 @@ def run_queue(
                     continue
             except (ValueError, OSError):
                 pass  # a torn write is not a result; re-run the case
+        # Every attempt gets its own run id: two results for the same case id
+        # are two executions (the first was replaced, or a restart re-ran it),
+        # and the evidence store keeps both under their own build ids.
+        run_id = new_id("run")
+        started_at = _utc_now()
         # The factory runs per case — a fresh adapter each time, so a channel
         # fault in one case cannot leak into the next. Its failure is that
         # case's failure, never the queue's.
@@ -264,12 +385,14 @@ def run_queue(
         except Exception as exc:
             result = CaseResult(
                 str(case["id"]), str(case["spec"]), "error",
+                **_identity(case, mode=mode, run_id=run_id,
+                            started_at=started_at),
                 finished_at=_utc_now(),
                 detail=f"adapter unavailable: {type(exc).__name__}: {exc}",
             )
         else:
             result = run_case(case, adapter, results_dir, evidence_root,
-                              keep_evidence)
+                              keep_evidence, mode=mode, run_id=run_id)
         summary.ran += 1
         if result.status == "pass":
             summary.passed += 1
@@ -306,6 +429,60 @@ def _maybe_upload(uploader, results_dir: Path) -> dict[str, Any]:
                 "reason": f"{type(exc).__name__}: {exc}"}
 
 
+def _sha256(path: Path) -> str:
+    import hashlib
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def make_dir_uploader(destination: Path) -> Callable[[Path], dict[str, Any]]:
+    """A real, verifiable upload: copy the results, then read them back.
+
+    The destination is a directory the operator controls (a network share, a
+    synced folder, a mounted bucket). "Uploaded" has to mean the bytes
+    ARRIVED, so every copied file is hashed on both sides afterwards; a
+    short or corrupt copy downgrades the whole upload to ``uploaded: False``
+    with the file named. Nothing here can turn a failed upload into a
+    successful one, and a missing destination is reported as such.
+    """
+
+    def _upload(results_dir: Path) -> dict[str, Any]:
+        import shutil
+
+        if not destination.is_dir():
+            return {"uploaded": False,
+                    "detail": f"destination {destination} is not a directory"}
+        copied: list[str] = []
+        for source in sorted(results_dir.glob("*.json")):
+            target = destination / f"{results_dir.name}-{source.name}"
+            shutil.copy2(source, target)
+            if _sha256(source) != _sha256(target):
+                return {"uploaded": False,
+                        "detail": f"read-back mismatch on {target.name}"}
+            copied.append(target.name)
+        if not copied:
+            return {"uploaded": False, "detail": "no results to upload"}
+        return {"uploaded": True,
+                "detail": f"{len(copied)} file(s) verified in {destination}"}
+
+    return _upload
+
+
+def _uploader_from_args(args) -> Callable[[Path], dict[str, Any]] | None:
+    """The uploader this run is configured with, or None — never a pretence.
+
+    ``--upload-dir`` wins over ``HAVYN_UPLOAD_DIR``; with neither set there is
+    no uploader and every cadence point records "no uploader configured"
+    instead of a success nobody performed.
+    """
+    import os
+
+    destination = args.upload_dir or os.environ.get("HAVYN_UPLOAD_DIR")
+    if not destination:
+        return None
+    return make_dir_uploader(Path(destination))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="havyn-runner", description="Build a queue of specs unattended.")
@@ -315,6 +492,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adapter", default="null", choices=("null", "bridge"))
     parser.add_argument("--prune-every", type=int, default=10)
     parser.add_argument("--keep-evidence", type=int, default=20)
+    parser.add_argument(
+        "--upload-dir", default=None,
+        help=("directory to upload each batch of results to (verified by "
+              "read-back); defaults to $HAVYN_UPLOAD_DIR, and with neither "
+              "set the run records that no uploader is configured"),
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -344,6 +527,8 @@ def main(argv: list[str] | None = None) -> int:
     summary = run_queue(
         cases, _factory, Path(args.results_dir), Path(args.evidence_dir),
         keep_evidence=args.keep_evidence, prune_every=args.prune_every,
+        uploader=_uploader_from_args(args),
+        mode="live" if args.adapter == "bridge" else "offline",
     )
     print(json.dumps(summary.to_dict(), indent=1))
     if summary.stopped:

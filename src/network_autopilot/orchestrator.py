@@ -1,7 +1,7 @@
 ﻿"""The end-to-end autopilot: spec -> plan -> compile -> execute -> verify.
 
 One pipeline for both the offline contract environment (NullAdapter) and the
-real Packet Tracer bridge â€” only the adapter differs, by design.
+real Packet Tracer bridge — only the adapter differs, by design.
 
 The orchestrator records every stage into the evidence store and produces the
 BuildReport. It never upgrades a verdict: if verification could not check
@@ -24,7 +24,7 @@ from .compiler.firewall_policy import PolicyCompileError
 from .core.build_errors import PreflightBlocked
 from .core.network_spec import FlowTestSpec, NetworkSpec
 from .core.observability import Observable
-from .core.actual_state import LinkObservation
+from .core.actual_state import ActualNetworkState, LinkObservation
 from .core.requirements import FlowOutcome, FlowResult
 from .core.safety import MutationBudget, SafetyGate, SafetyMode
 from .diff.engine import diff_expected_vs_actual
@@ -230,7 +230,7 @@ class BuildReport:
     def human_text(self) -> str:
         v = self.verification.summary
         lines = [
-            "AI NETWORK AUTOPILOT â€” BUILD REPORT",
+            "AI NETWORK AUTOPILOT — BUILD REPORT",
             "",
             f"Build:          {self.build_id}",
             f"Spec:           {self.spec_name} ({self.spec_hash[:12]})",
@@ -290,7 +290,7 @@ class BuildReport:
         counts = self.layers.get(key) or {}
         total = counts.get("total", 0)
         if not total:
-            return "0 criteria â€” not exercised"
+            return "0 criteria — not exercised"
         passed = counts.get("pass", 0)
         parts = [f"{passed}/{total} PASS"]
         for verdict, label in (("fail", "FAIL"), ("unknown", "UNKNOWN"),
@@ -314,10 +314,10 @@ class BuildReport:
     def _acceptance_line(self) -> str:
         a = self.verification.acceptance
         if a.satisfied is True:
-            return f"{a.summary.get('pass', 0)}/{len(a.results)} criteria PASS â€” requirements satisfied"
+            return f"{a.summary.get('pass', 0)}/{len(a.results)} criteria PASS — requirements satisfied"
         if a.satisfied is False:
             return f"requirements NOT satisfied ({a.summary})"
-        return f"requirements UNKNOWN â€” {a.summary}"
+        return f"requirements UNKNOWN — {a.summary}"
 
     def _drift_line(self) -> str:
         if self.diff.get("drift_count", 0) == 0 and self.diff.get("unknown_count", 0) == 0:
@@ -422,7 +422,7 @@ class Autopilot:
         # The DIFF has a different bar: absence is itself an observable fact.
         # When the adapter enumerated the workspace and answered for every spec
         # device (present in devices OR recorded as confirmed-absent in
-        # metadata), a missing device is a real REMOVE â€” drift â€” not UNKNOWN.
+        # metadata), a missing device is a real REMOVE — drift — not UNKNOWN.
         # Without this, an empty workspace reported zero drift and hid a
         # completely missing topology.
         diff_observations_complete = all(
@@ -501,22 +501,55 @@ class Autopilot:
         """Observe + verify + diff WITHOUT mutating anything.
 
         Returns (report, diff, error). This is the drift-check path: "does the
-        workspace still match the design?" â€” pure reads through the adapter.
+        workspace still match the design?" — pure reads through the adapter.
         """
+        report, diff, _state, _diagnoses, error = self.inspect_diagnosable(spec)
+        return report, diff, error
+
+    def inspect_diagnosable(
+        self, spec: NetworkSpec
+    ) -> tuple[
+        VerificationReport | None,
+        dict | None,
+        ActualNetworkState | None,
+        tuple[Any, ...],
+        str | None,
+    ]:
+        """`inspect`, plus the state it observed and the causes it supports.
+
+        Returns (report, diff, state, diagnoses, error). The fault-injection
+        lab (S2.5) needs the read-only verdict AND the observation behind it:
+        ``diagnose()`` reads the state, and re-observing after the fact would
+        explain the report with a different moment's evidence. One pass, one
+        state, one verdict — the cause it names belongs to the failure it
+        was recorded against.
+
+        Diagnostics are only produced when the observation completed; a
+        partial observation would let the engine name a cause from a missing
+        half of the network, which is the speculation this layer exists to
+        avoid. An inspection that failed returns no diagnoses rather than an
+        empty list that could be read as "nothing wrong".
+        """
+        from .diagnosis import diagnose
+
+        empty: tuple[Any, ...] = ()
         try:
             plan = plan_addressing(spec)
         except Exception as exc:
-            return None, None, f"addressing failed: {exc}"
+            return None, None, None, empty, f"addressing failed: {exc}"
         issues = validate_plan(plan, spec)
         if has_errors(issues):
-            return None, None, "addressing validation failed: " + "; ".join(
-                f"{i.resource}: {i.problem}" for i in issues if i.severity == "error"
+            return None, None, None, empty, (
+                "addressing validation failed: " + "; ".join(
+                    f"{i.resource}: {i.problem}" for i in issues
+                    if i.severity == "error"
+                )
             )
         self.adapter.ping()
         try:
             compiled = compile_spec(spec, plan, packet_tracer_version="unknown")
         except Exception as exc:
-            return None, None, f"compilation refused: {exc}"
+            return None, None, None, empty, f"compilation refused: {exc}"
         # Probe first, then observe: the state should reflect whatever the
         # probes did to link/ARP state, not the other way round.
         flows = self._collect_flows(spec)
@@ -525,12 +558,19 @@ class Autopilot:
         if self.evidence is not None:
             self.evidence.record("verification", report.to_dict(), component="orchestrator")
             self.evidence.record("diff", diff.to_dict(), component="orchestrator")
-        return report, diff, None
+        diagnoses = diagnose(spec, report, state)
+        if self.evidence is not None:
+            self.evidence.record(
+                "diagnosis",
+                {"diagnoses": [d.to_dict() for d in diagnoses]},
+                component="orchestrator",
+            )
+        return report, diff, state, diagnoses, None
 
     def build(
         self, spec: NetworkSpec, *, resume_from: str | None = None
     ) -> tuple[BuildReport | None, str | None]:
-        """Run the full pipeline. Returns (report, error) â€” error blocks the build."""
+        """Run the full pipeline. Returns (report, error) — error blocks the build."""
         evidence = self.evidence
         phases: dict[str, float] = {}
         t_build = time.monotonic()
@@ -563,7 +603,7 @@ class Autopilot:
         if evidence is not None:
             evidence.record("addressing_planned", plan.to_dict(), component="orchestrator")
 
-        # 2. Compile + preflight (preflight is a HARD gate â€” Â§G)
+        # 2. Compile + preflight (preflight is a HARD gate — §G)
         from .compiler import net_build
         try:
             # adapter forwarded for the S1.4 workspace collision check
@@ -653,7 +693,7 @@ class Autopilot:
         )
         phases["execute"] = time.monotonic() - t_execute
         # Family breakdown inside execute (create/cable/configure/flows vs
-        # the rest) from the executor's monotonic clock â€” S1.5.
+        # the rest) from the executor's monotonic clock — S1.5.
         phases.update(_families_from_op_seconds(execution.op_seconds))
         if evidence is not None:
             evidence.record("execution_summary", execution.to_dict(), component="orchestrator")
@@ -670,7 +710,7 @@ class Autopilot:
 
         # 7. Diagnose + repair (bounded) when needed. Diagnosis is for
         # FAILURES and drift: an UNKNOWN test means the flow could not be
-        # observed, so there is no evidence-backed cause to diagnose â€”
+        # observed, so there is no evidence-backed cause to diagnose —
         # attempting repairs on it would be speculation.
         t_repair = time.monotonic()
         repairs: list[dict[str, Any]] = []
@@ -692,7 +732,7 @@ class Autopilot:
                 # S1.2/F-1: the repair's own probes are the freshest
                 # observation of the data plane. Without this merge they die
                 # in repair_function_check records and the re-verify reads
-                # the stale DAG-era result (flows-unknown.md Â§3: three real
+                # the stale DAG-era result (flows-unknown.md §3: three real
                 # PASSes discarded 42s before UNKNOWN was printed).
                 for flow in outcome.function_flow_results:
                     execution.flow_results[
@@ -776,3 +816,4 @@ class Autopilot:
         self.evidence.record(
             "evidence_pruned", summary, component="orchestrator"
         )
+

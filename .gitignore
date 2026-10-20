@@ -68,6 +68,12 @@ Havyn_Production_Tracking.html
 probe.json
 runner_s119/results/
 
+# S2.2/S2.5 runtime output: the runner's per-case results and the fault lab's
+# evidence are per-machine run artifacts. What gets published is the scorecard
+# (docs/reports/), generated FROM these — never the raw run files themselves.
+runner_results/
+fault_lab_results/
+
 # Throwaway PT-debugging probes (underscore-prefixed) and the console captures
 # they print. `scripts/audit_routes.py` and the other non-underscore scripts are
 # real deliverables and stay tracked.
