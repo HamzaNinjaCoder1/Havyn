@@ -1268,3 +1268,137 @@ def test_route_retry_settles_before_readback_and_recovers(_record_sleeps, monkey
         p for p in receipt.postconditions if p.name == "configured_routes_present"
     )
     assert route_post.passed is True
+
+
+def test_route_recovery_does_not_mask_a_failed_address_readback(
+    _record_sleeps, monkeypatch
+):
+    """Recovering the ROUTES may not turn a receipt green for a device whose
+    ADDRESS never landed (rule 7/8).
+
+    The recovery branch used to run `result = SUCCESS; error = None`
+    unconditionally, so a device that failed its address read-back (FAILED,
+    "not observed after N attempt(s)") came out of the route retry as a plain
+    SUCCESS with no error at all — the mask this product exists to prevent.
+    Routes present + address absent must stay FAILED, with the address named.
+    """
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+
+    def fake_send(expression, *, statements=None, wait=None):
+        text = " ".join(statements or []) + " " + str(expression)
+        if "devices" in text and "JSON.stringify" in text:
+            # The device exists but the address NEVER takes (every read-back).
+            return Observable.known(
+                '{"devices":[{"name":"R1","model":"2911","ports":'
+                '[{"name":"GigabitEthernet0/0"}]}]}'
+            )
+        if "configureIosDevice" in text:
+            return Observable.known("true")
+        return Observable.known("OK")
+
+    adapter.send_expression = fake_send  # type: ignore[method-assign]
+
+    # Routes: missing on the first read (mid-install), present after the
+    # retry settles — so the route half genuinely recovers.
+    tables = [
+        Observable.known([{"network": "10.10.0.0", "prefix": 16,
+                           "next_hop": "10.0.0.6"}]),
+        Observable.known([
+            {"network": "10.10.0.0", "prefix": 16, "next_hop": "10.0.0.6"},
+            {"network": "0.0.0.0", "prefix": 0, "next_hop": "10.0.0.2"},
+        ]),
+    ]
+    reads = {"n": 0}
+
+    def fake_routes(device):
+        table = tables[min(reads["n"], len(tables) - 1)]
+        reads["n"] += 1
+        return table
+
+    monkeypatch.setattr(adapter, "read_routing_table", fake_routes)
+
+    receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
+
+    assert reads["n"] >= 2, "the route retry must actually have recovered"
+    route_post = next(
+        p for p in receipt.postconditions if p.name == "configured_routes_present"
+    )
+    assert route_post.passed is True, "routes really did read back"
+    # The address failure is the verdict; the route recovery must not erase it.
+    assert receipt.result is OperationResult.FAILED, (
+        "route recovery masked the failed address read-back: "
+        f"{receipt.result} {receipt.error!r}"
+    )
+    assert receipt.error and "not observed" in receipt.error, receipt.error
+
+
+def test_route_retry_never_turns_a_dark_or_empty_read_into_a_recovery(
+    _record_sleeps, monkeypatch
+):
+    """UNKNOWN is never PASS (rule 7/8) - not even after a route retry.
+
+    The retry's re-read used to be compared with a helper that returns `[]`
+    both when every route IS present and when the table could not be read at
+    all (and an empty known table reads the same). The recovery branch
+    treated that `[]` as "recovered" and replaced the failed postcondition
+    with a passing one - turning an unreadable table into a confirmed PASS.
+    A dark retry read (or one that contradicts the push with an empty table)
+    must keep the missing-entries verdict.
+    """
+    from src.network_autopilot.adapter.packet_tracer import bridge_adapter as ba
+
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+
+    def fake_send(expression, *, statements=None, wait=None):
+        text = " ".join(statements or []) + " " + str(expression)
+        if "devices" in text and "JSON.stringify" in text:
+            # Device and address read back fine; only the routes are held.
+            return Observable.known(
+                '{"devices":[{"name":"R1","model":"2911","ports":'
+                '[{"name":"GigabitEthernet0/0","ip":"10.0.0.1"}]}]}'
+            )
+        if "configureIosDevice" in text:
+            return Observable.known("true")  # the retry push lands
+        return Observable.known("OK")
+
+    adapter.send_expression = fake_send  # type: ignore[method-assign]
+
+    full = [
+        {"network": "10.10.0.0", "prefix": 16, "next_hop": "10.0.0.6"},
+        {"network": "0.0.0.0", "prefix": 0, "next_hop": "10.0.0.2"},
+    ]
+    dark_then_empty = [
+        Observable[dict].unknown("console read timed out"),
+        Observable.known([]),  # a known EMPTY table contradicts the push too
+        Observable.known([]),
+    ]
+    reads = {"n": 0}
+
+    def fake_routes(device):
+        if reads["n"] == 0:
+            # First read: the routes really are missing, so the retry path
+            # engages.
+            reads["n"] += 1
+            return Observable.known([full[0]])
+        table = dark_then_empty[min(reads["n"], len(dark_then_empty) - 1)]
+        reads["n"] += 1
+        return table
+
+    monkeypatch.setattr(adapter, "read_routing_table", fake_routes)
+
+    receipt = adapter.configure_ios("R1", _ROUTE_CMDS)
+
+    assert reads["n"] >= 2, "the retry must actually have re-read the table"
+    route_post = next(
+        p for p in receipt.postconditions if p.name == "configured_routes_present"
+    )
+    assert route_post.passed is not True, (
+        "an unreadable (or empty) retry read was counted as a recovery"
+    )
+    assert receipt.result is OperationResult.FAILED, (
+        f"a route the read-back never confirmed came out {receipt.result}: "
+        f"{receipt.error!r}"
+    )
+    assert receipt.error and "still missing after retry" in receipt.error, (
+        receipt.error
+    )

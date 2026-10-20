@@ -2280,10 +2280,56 @@ class BridgeAdapter(PacketTracerAdapter):
             read_back = True
             if not missing:
                 break
-        # Captured before the address verdict below can flip `result`: the
-        # VLAN read-back still runs (and still reports) on a push PT accepted
-        # but whose addresses never landed.
-        pushed_ok = result is OperationResult.SUCCESS
+        return self._finish_ios_receipt(
+            device,
+            commands,
+            operation_id=operation_id,
+            pre=pre,
+            # Captured before the address verdict below can flip `result`: the
+            # VLAN read-back still runs (and still reports) on a push PT
+            # accepted but whose addresses never landed.
+            pushed_ok=result is OperationResult.SUCCESS,
+            result=result,
+            executed=executed,
+            error=error,
+            attempts=attempts,
+            expected=expected,
+            missing=missing,
+            read_back=read_back,
+        )
+
+    def _finish_ios_receipt(
+        self,
+        device: str,
+        commands: list[str],
+        *,
+        operation_id: str | None,
+        pre: list[CheckResult],
+        pushed_ok: bool,
+        result: OperationResult,
+        executed: dict | None,
+        error: str | None,
+        attempts: int,
+        expected: dict[str, str],
+        missing: dict[str, str],
+        read_back: bool,
+        snapshot: Observable[list[dict]] | None = None,
+    ) -> OperationReceipt:
+        """Everything `configure_ios` does AFTER the push: read-backs + receipt.
+
+        Shared verbatim with `configure_ios_bulk` so a batch cannot carry
+        weaker semantics than the serial path: the same address verdict, the
+        same VLAN and route read-backs (rule 8), the same honest UNKNOWNs.
+
+        `pushed_ok` is the JS push's own verdict (PT said `true`), kept apart
+        from `result` because the address verdict below can turn a pushed op
+        into FAILED - the read-backs still run for it, because the config may
+        well be half-applied and that is exactly what they report. `snapshot`
+        is the batch's shared topology read (None = a fresh read of its own,
+        the serial behaviour); it only feeds `_verify_ios_vlans`, which would
+        otherwise pay a second full read for a device the batch already read.
+        """
+        requested = {"device": device, "command_count": len(commands)}
         if expected:
             post = CheckResult(
                 name="configured_addresses_present",
@@ -2331,7 +2377,9 @@ class BridgeAdapter(PacketTracerAdapter):
         vlan_missing: list[str] = []
         postconditions = [post]
         if vlan_expected is not None and pushed_ok:
-            vlan_post, vlan_missing = self._verify_ios_vlans(device, vlan_expected)
+            vlan_post, vlan_missing = self._verify_ios_vlans(
+                device, vlan_expected, snapshot=snapshot
+            )
             if vlan_post is not None:
                 postconditions.append(vlan_post)
         if vlan_missing:
@@ -2341,117 +2389,28 @@ class BridgeAdapter(PacketTracerAdapter):
                 error = f"configuration did not take effect - {detail}"
             else:
                 error = f"{error or 'configuration failed'} - {detail}"
-        # Silent-route-drop gate (Step 4 / S1.19): PT reports ``true`` for an
-        # ``ip route ...`` / ``route <nameif> ...`` line that never installs.
-        # The address read-back caught the IP / no-URL class of bug; this is the
-        # parallel for routes. Only runs when the script asked for at least one
-        # route, and only fails the receipt when the read-back succeeded AND
-        # the expected entry is absent.
+        # Silent-route-drop gate (Step 4 / S1.19), including its bounded
+        # recovery - see `_confirm_ios_routes`. The recovery may only repair
+        # the ROUTE half: if this receipt already failed (an address that
+        # never landed), that failure is real and survives, because a route
+        # that came back does not put the address on the interface.
         route_expected = _expected_ios_routes(commands)
         route_missing: list[dict] = []
-        route_passed: bool | None = None
         if route_expected and pushed_ok:
-            # The read itself is reported honestly: a ``show ip route`` that
-            # could not run (UNKNOWN) means we cannot prove presence OR
-            # absence, so the postcondition stays `passed=None` - same shape
-            # as the address half when the topology snapshot is stale.
-            table = self.read_routing_table(device)
-            if table.is_known and table.value is not None:
-                observed = {
-                    (r["network"], r["prefix"], r.get("next_hop"))
-                    for r in table.value
-                }
-                route_missing = [
-                    r for r in route_expected
-                    if (r["network"], r["prefix"], r["next_hop"]) not in observed
-                ]
-                route_passed = not route_missing
-                route_actual: Observable = Observable.known(
-                    route_missing, source="file-bridge"
-                )
-            else:
-                route_passed = None
-                route_actual = Observable.unknown(
-                    table.detail or table.status.value
-                )
-            route_post = CheckResult(
-                name="configured_routes_present",
-                expected=json.dumps(route_expected, sort_keys=True),
-                actual=route_actual,
-                passed=route_passed,
+            route_post, route_missing = self._confirm_ios_routes(
+                device, route_expected
             )
             postconditions.append(route_post)
         if route_missing:
-            # Step 4 / S1.19: PT regularly drops ``ip route`` lines on a heavy
-            # config push (the receipt above is ``true`` but ``show ip route``
-            # does not show them) - the routes are typed while their exit
-            # interfaces are still coming up, so the next-hop is not yet
-            # reachable and IOS discards the line. Rather than fail the whole op
-            # we re-push the dropped routes in their own, smaller call (by then
-            # the interfaces are up) and SETTLE before reading back: a
-            # ``show ip route`` typed a moment after ``ip route`` reads the
-            # table before PT applies it and falsely reports the route missing
-            # (measured on redge). Bounded push+settle+read rounds make the
-            # install reliable without weakening the gate - a route is only
-            # reported present when ``show ip route`` actually shows it.
-            pending = list(route_missing)
-            retry_missing: list[dict] = list(route_missing)
-            for _round in range(_IOS_ROUTE_RETRY_ROUNDS):
-                if not pending:
-                    break
-                mask_for = {r["network"]: _mask_from_prefix(r["prefix"]) for r in pending}
-                route_body = "\n".join(
-                    f"ip route {r['network']} {mask_for[r['network']]} {r['next_hop']}"
-                    for r in pending
-                )
-                route_stmts, route_final = js.js_configure_ios_statements(
-                    device, route_body
-                ) if hasattr(js, "js_configure_ios_statements") else (
-                    None, js.js_configure_ios(device, route_body)
-                )
-                if route_stmts is not None:
-                    answer = self.send_expression(
-                        route_final, statements=route_stmts, wait=8.0
-                    )
-                else:
-                    answer = self.send_expression(route_final)
-                if not (answer.is_known and str(answer.value).strip() == "true"):
-                    break  # the push itself failed; keep the failure below
-                # PT applies a pushed `ip route` asynchronously: settle before
-                # the read-back or `show ip route` catches the table mid-install.
-                time.sleep(_IOS_SETTLE_SECONDS)
-                retry_missing = self._missing_ios_routes(device, route_expected)
-                if not retry_missing:
-                    break
-                pending = list(retry_missing)
-            if not retry_missing:
-                # Recovered. Drop the failed postcondition we appended
-                # above and replace it with a passing one keyed to the
-                # retry path so verification sees a consistent PASS.
-                postconditions = [
-                    pc for pc in postconditions
-                    if pc.name != "configured_routes_present"
-                ]
-                postconditions.append(CheckResult(
-                    name="configured_routes_present",
-                    expected=json.dumps(route_expected, sort_keys=True),
-                    actual=Observable.known([], source="file-bridge-retry"),
-                    passed=True,
-                ))
-                detail = "routes not observed after the push; recovered on retry"
-                result = OperationResult.SUCCESS
-                error = None
-                route_missing = []
+            detail = "routes still missing after retry: " + "; ".join(
+                f"{r['network']}/{r['prefix']} via {r['next_hop']}"
+                for r in route_missing
+            )
+            if result is OperationResult.SUCCESS:
+                result = OperationResult.FAILED
+                error = f"configuration did not take effect - {detail}"
             else:
-                detail = "routes still missing after retry: " + "; ".join(
-                    f"{r['network']}/{r['prefix']} via {r['next_hop']}"
-                    for r in retry_missing
-                )
-                if result is OperationResult.SUCCESS:
-                    result = OperationResult.FAILED
-                    error = f"configuration did not take effect - {detail}"
-                else:
-                    error = f"{error or 'configuration failed'} - {detail}"
+                error = f"{error or 'configuration failed'} - {detail}"
         statuses = (
             _command_statuses(commands, expected, missing)
             if read_back
@@ -2480,6 +2439,341 @@ class BridgeAdapter(PacketTracerAdapter):
             error=error,
         )
 
+    def _confirm_ios_routes(
+        self, device: str, route_expected: list[dict]
+    ) -> tuple[CheckResult, list[dict]]:
+        """`show ip route` read-back with the bounded silent-drop recovery.
+
+        PT reports ``true`` for an ``ip route`` line that never installs (on a
+        heavy push the routes are typed while their exit interfaces are still
+        coming up, so IOS discards the line). Read the table back; if an
+        expected entry is missing, re-push just the dropped routes in a
+        smaller call, SETTLE, and re-read - bounded by
+        ``_IOS_ROUTE_RETRY_ROUNDS``. A read typed a moment after the push
+        catches the table mid-install and falsely reports the route missing
+        (measured on redge), hence the settle.
+
+        Returns ``(postcondition, routes-still-missing)``. This function never
+        touches the receipt's result: the caller owns the verdict, so a
+        recovered route cannot erase a failure found elsewhere (an address
+        that never landed is still FAILED), and a retry read that came back
+        UNKNOWN or EMPTY is not a recovery - UNKNOWN never becomes a PASS
+        (rule 7/8) and an empty table is a read that contradicted the push.
+        """
+        table = self.read_routing_table(device)
+        if not (table.is_known and table.value is not None):
+            # The read itself is reported honestly: a ``show ip route`` that
+            # could not run (UNKNOWN) means we cannot prove presence OR
+            # absence, so the postcondition stays `passed=None` - same shape
+            # as the address half when the topology snapshot is stale.
+            return CheckResult(
+                name="configured_routes_present",
+                expected=json.dumps(route_expected, sort_keys=True),
+                actual=Observable.unknown(table.detail or table.status.value),
+                passed=None,
+            ), []
+        observed = {
+            (r["network"], r["prefix"], r.get("next_hop")) for r in table.value
+        }
+        route_missing = [
+            r for r in route_expected
+            if (r["network"], r["prefix"], r["next_hop"]) not in observed
+        ]
+        post = CheckResult(
+            name="configured_routes_present",
+            expected=json.dumps(route_expected, sort_keys=True),
+            actual=Observable.known(route_missing, source="file-bridge"),
+            passed=not route_missing,
+        )
+        if not route_missing:
+            return post, []
+        pending = list(route_missing)
+        for _round in range(_IOS_ROUTE_RETRY_ROUNDS):
+            if not pending:
+                break
+            mask_for = {r["network"]: _mask_from_prefix(r["prefix"]) for r in pending}
+            route_body = "\n".join(
+                f"ip route {r['network']} {mask_for[r['network']]} {r['next_hop']}"
+                for r in pending
+            )
+            route_stmts, route_final = js.js_configure_ios_statements(
+                device, route_body
+            ) if hasattr(js, "js_configure_ios_statements") else (
+                None, js.js_configure_ios(device, route_body)
+            )
+            if route_stmts is not None:
+                answer = self.send_expression(
+                    route_final, statements=route_stmts, wait=8.0
+                )
+            else:
+                answer = self.send_expression(route_final)
+            if not (answer.is_known and str(answer.value).strip() == "true"):
+                break  # the push itself failed; the missing routes stand
+            # PT applies a pushed `ip route` asynchronously: settle before
+            # the read-back or `show ip route` catches the table mid-install.
+            time.sleep(_IOS_SETTLE_SECONDS)
+            table = self.read_routing_table(device)
+            if not (table.is_known and table.value is not None):
+                # A dark (or empty) retry read proves nothing: the missing
+                # entries stand. The old code read "could not read" as
+                # "recovered", which is exactly how an UNKNOWN became a PASS.
+                break
+            observed = {
+                (r["network"], r["prefix"], r.get("next_hop")) for r in table.value
+            }
+            pending = [
+                r for r in route_expected
+                if (r["network"], r["prefix"], r["next_hop"]) not in observed
+            ]
+            if not pending:
+                break  # recovered
+        if not pending:
+            # Recovered. Replace the failing postcondition with a passing one
+            # keyed to the retry path so verification sees a consistent PASS.
+            return CheckResult(
+                name="configured_routes_present",
+                expected=json.dumps(route_expected, sort_keys=True),
+                actual=Observable.known([], source="file-bridge-retry"),
+                passed=True,
+            ), []
+        return post, list(pending)
+
+    def configure_ios_bulk(
+        self, specs: list[dict], operation_id_prefix: str = "batch-config"
+    ) -> list[OperationReceipt]:
+        """Configure many IOS devices in ONE push / ONE settle / ONE snapshot.
+
+        Thirteen serial `configure_ios` calls cost thirteen pushes, thirteen
+        2.5 s settles and thirteen FRESH topology reads (measured 2.7-66.4 s
+        each on the idle 43-device canvas) - that was 237 s of the reference
+        build's configure phase. The devices' configs are independent, so the
+        transport carries them together; the SEMANTICS stay the serial ones:
+
+        * an absent device leaves through `configure_ios`'s own precondition
+          receipt and is never pushed (refuse by name, rule 9);
+        * addresses are read back from ONE shared snapshot; a known snapshot
+          without an address re-pushes THAT device only, bounded by
+          `_IOS_CONFIG_ATTEMPTS` exactly like the serial loop, with the same
+          settle before every read-back;
+        * a batch (or a re-push) that never reached PT is UNKNOWN with the
+          channel's detail (rule 7) - never an "address not observed" verdict
+          that blames the device for our channel, and never a push the serial
+          path would have bounded differently;
+        * route and VLAN read-backs still run per device through the same
+          `_finish_ios_receipt` the serial path finishes with (rule 8), so a
+          batch cannot confirm what the serial path would only accept after
+          reading it back.
+        """
+        receipts: list[OperationReceipt] = []
+        if not specs:
+            return receipts
+
+        # Presence first: one (snapshot-cached) topology answer decides who may
+        # be pushed. An absent or unreadable device exits exactly like the
+        # serial path - its own precondition receipt, no push.
+        pre_by: dict[str, list[CheckResult]] = {}
+        pushable: list[dict] = []
+        for spec in specs:
+            device = spec["device"]
+            exists = self.device_exists(device)
+            pre_by[device] = [CheckResult.of("device_present", "True", exists)]
+            if exists.is_known and exists.value:
+                pushable.append(spec)
+            else:
+                receipts.append(self.configure_ios(
+                    device,
+                    spec["commands"],
+                    operation_id=f"{operation_id_prefix}-{device}",
+                ))
+        if not pushable:
+            return receipts
+
+        expected_by = {
+            spec["device"]: _expected_ios_addresses(spec["commands"])
+            for spec in pushable
+        }
+        state: dict[str, dict] = {
+            spec["device"]: {
+                "answered": False,  # a KNOWN batch answer covered it
+                "row": None,        # PT's own verdict for this device
+                "dark": False,      # its last push got no answer at all
+                "attempts": 0,
+                "missing": dict(expected_by[spec["device"]]),
+                "read_back": False,
+            }
+            for spec in pushable
+        }
+        channel_detail = ""
+        snapshot_detail = "workspace snapshot not read"
+        snapshot: Observable[list[dict]] = Observable[list[dict]].unknown(
+            snapshot_detail
+        )
+        pending = list(pushable)
+        push_round = 0
+
+        while True:
+            push_round += 1
+            stmts: list[str] = ["var __mcpCfgResults=[];"]
+            for spec in pending:
+                device = spec["device"]
+                call = js.js_configure_ios(device, "\n".join(spec["commands"]))
+                stmts.append("try{")
+                stmts.append(
+                    f"  __mcpCfgResults.push({{device:{json.dumps(device)},"
+                    f"ok:!!{call[:-1]}}});"
+                )
+                stmts.append("}catch(e){")
+                stmts.append(
+                    f"  __mcpCfgResults.push({{device:{json.dumps(device)},"
+                    "ok:false,error:''+e});"
+                )
+                stmts.append("}")
+            answer = self.send_expression(
+                "JSON.stringify(__mcpCfgResults)", statements=stmts,
+                wait=max(30.0, 4.0 * len(pending)),
+            )
+            for spec in pending:
+                state[spec["device"]]["attempts"] += 1
+            rows: dict[str, dict] = {}
+            if answer.is_known:
+                try:
+                    loaded = json.loads(str(answer.value))
+                    rows = {str(r.get("device")): r for r in loaded}
+                except (json.JSONDecodeError, ValueError, AttributeError, TypeError):
+                    # An answer we cannot parse is not an answer: same bounded
+                    # re-send as a dark channel, never a device verdict.
+                    answer = Observable[str].unknown(
+                        "unparseable configure batch answer: "
+                        f"{str(answer.value)[:120]!r}"
+                    )
+            if not answer.is_known:
+                # The channel class: bounded re-send like the serial path,
+                # then UNKNOWN with the channel's reason (rule 7).
+                channel_detail = answer.detail or answer.status.value
+                if push_round < _IOS_CONFIG_ATTEMPTS:
+                    time.sleep(_IOS_SETTLE_SECONDS)
+                    continue
+                for spec in pending:
+                    state[spec["device"]]["dark"] = True
+                break
+            for spec in pending:
+                st = state[spec["device"]]
+                st["answered"] = True
+                st["row"] = rows.get(spec["device"])
+            need_readback = [
+                spec for spec in pending
+                if (rows.get(spec["device"]) or {}).get("ok")
+                and expected_by[spec["device"]]
+            ]
+            if not need_readback:
+                break  # nothing to verify: no settle, no read (serial parity)
+            self._invalidate_snapshot()
+            time.sleep(_IOS_SETTLE_SECONDS)
+            snapshot = Observable[list[dict]].unknown(snapshot_detail)
+            for read_attempt in range(1, _BULK_READ_RETRIES + 1):
+                snapshot = self._live_devices()
+                if snapshot.is_known:
+                    break
+                if read_attempt < _BULK_READ_RETRIES:
+                    time.sleep(_BULK_READ_SETTLE_S)
+            if not snapshot.is_known:
+                snapshot_detail = snapshot.detail or snapshot.status.value
+                break  # a dark read cannot be fixed by pushing again
+            observed_by_name = {
+                str(d.get("name")): d for d in (snapshot.value or [])
+            }
+            for spec in need_readback:
+                st = state[spec["device"]]
+                st["read_back"] = True
+                ports = {
+                    str(p.get("name")): p
+                    for p in ((observed_by_name.get(spec["device"]) or {})
+                              .get("ports") or [])
+                }
+                st["missing"] = {
+                    iface: ip for iface, ip in expected_by[spec["device"]].items()
+                    if str((ports.get(iface) or {}).get("ip") or "") != ip
+                }
+            still_missing = [
+                spec for spec in need_readback
+                if state[spec["device"]]["missing"]
+            ]
+            if not still_missing or push_round >= _IOS_CONFIG_ATTEMPTS:
+                break
+            pending = still_missing  # re-push only what did not take
+
+        for spec in pushable:
+            device = spec["device"]
+            st = state[device]
+            expected = expected_by[device]
+            missing = st["missing"]
+            read_back = st["read_back"]
+            pushed_ok = bool(st["row"] and st["row"].get("ok"))
+            attempts = st["attempts"]
+            result = OperationResult.NOT_EXECUTED
+            executed: dict | None = {"batched": True, "js_ok": pushed_ok}
+            error: str | None = None
+            if st["dark"] and not st["answered"]:
+                # Never a verdict: the push never reached PT (rule 7).
+                result = OperationResult.UNKNOWN
+                error = f"the configure batch never reached PT: {channel_detail}"
+                pushed_ok = False
+                read_back = False
+                missing = dict(expected)
+                executed = None
+            elif st["dark"]:
+                # A re-push went dark after an earlier read: UNKNOWN with the
+                # channel reason; the earlier read-back facts still travel and
+                # the shared finisher names them exactly like the serial loop.
+                result = OperationResult.UNKNOWN
+                error = f"the configure batch never reached PT: {channel_detail}"
+                executed = None
+            elif st["row"] is None:
+                # PT ran the batch and said nothing about this device.
+                result = OperationResult.FAILED
+                error = "PT answered the batch without a result for this device"
+                pushed_ok = False
+                read_back = False
+                missing = dict(expected)
+            elif not pushed_ok:
+                result = OperationResult.FAILED
+                error = st["row"].get("error") or "PT reported the configure failed"
+                read_back = False
+                missing = dict(expected)
+            elif not expected:
+                result = OperationResult.SUCCESS
+                read_back = False
+                missing = {}
+            elif not read_back:
+                # Push accepted but the snapshot never came back: UNKNOWN with
+                # the channel reason - a FAILED verdict here would blame the
+                # device for our read (rule 7/8).
+                result = OperationResult.UNKNOWN
+                error = (
+                    "workspace snapshot unavailable after configure: "
+                    f"{snapshot_detail}"
+                )
+            else:
+                # Read back and known: the shared finisher runs the same
+                # address verdict the serial path runs.
+                result = OperationResult.SUCCESS
+            receipts.append(self._finish_ios_receipt(
+                device,
+                spec["commands"],
+                operation_id=f"{operation_id_prefix}-{device}",
+                pre=pre_by[device],
+                pushed_ok=pushed_ok,
+                result=result,
+                executed=executed,
+                error=error,
+                attempts=attempts,
+                expected=expected,
+                missing=missing,
+                read_back=read_back,
+                snapshot=snapshot if snapshot.is_known else None,
+            ))
+        return receipts
+
     def _missing_ios_addresses(
         self, device: str, expected: dict[str, str]
     ) -> dict[str, str]:
@@ -2491,37 +2785,6 @@ class BridgeAdapter(PacketTracerAdapter):
             actual = port.ip.value if port is not None and port.ip.is_known else None
             if actual != ip:
                 missing[iface] = ip
-        return missing
-
-    def _missing_ios_routes(
-        self, device: str, expected: list[dict]
-    ) -> list[dict]:
-        """Which static routes the script asked for are not on the device.
-
-        Silent route drop (S1.19 / Step 4): ``configureIosDevice`` answers
-        ``true`` for ``ip route ...`` even when the route never lands (measured:
-        ``ip route 0.0.0.0 0.0.0.0 10.0.0.5`` on a busy 2911 right after a
-        heavy push came back SUCCESS with no entry in ``show ip route``). The
-        receipt then claims success and the DAG inherits a phantom. The check is
-        the same shape as the address one: parse the expectation from the
-        script, read the table back, fail on a contradiction.
-
-        An UNKNOWN read-back (the device is still booting, the channel is stale,
-        the platform does not support ``show ip route``) is NOT a contradiction
-        - the function returns an empty list, the caller decides whether to
-        treat the absent verdict as a PASS. Only a table we DID read and that
-        is missing one of the expected entries surfaces a problem.
-        """
-        obs = self.read_routing_table(device)
-        if not obs.is_known or not obs.value:
-            return []
-        observed = {(r["network"], r["prefix"], r.get("next_hop"))
-                    for r in obs.value}
-        missing: list[dict] = []
-        for want in expected:
-            key = (want["network"], want["prefix"], want["next_hop"])
-            if key not in observed:
-                missing.append(want)
         return missing
 
     def configure_gateway_lan(
@@ -2606,7 +2869,10 @@ class BridgeAdapter(PacketTracerAdapter):
         )
 
     def _verify_ios_vlans(
-        self, device: str, expected: dict[str, dict]
+        self,
+        device: str,
+        expected: dict[str, dict],
+        snapshot: Observable[list[dict]] | None = None,
     ) -> tuple[CheckResult | None, list[str]]:
         """Read back the VLAN state the pushed script asked for (#5).
 
@@ -2625,6 +2891,11 @@ class BridgeAdapter(PacketTracerAdapter):
         directly. `observe_vlans=False` (#20) skips everything, including the
         postcondition: a caller that asked for no VLAN observation gets the
         receipt it had before this check existed.
+
+        `snapshot` is the batch caller's own shared topology read: the same
+        read-back the address check trusts, already post-mutation, so
+        `configure_ios_bulk` verifies VLANs without paying a second fresh
+        read. None keeps the serial behaviour - a fresh read of its own.
         """
         if not self._observe_vlans:
             return None, []

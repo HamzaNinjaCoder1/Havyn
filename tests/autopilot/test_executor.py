@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from src.network_autopilot.adapter import NullAdapter
 from src.network_autopilot.compiler import compile_spec
+from src.network_autopilot.compiler import executor as executor_mod
+from src.network_autopilot.compiler import checks as checks_mod
 from src.network_autopilot.compiler.dag import OpStatus
 from src.network_autopilot.compiler.executor import DagExecutor
-from src.network_autopilot.core.receipts import CheckResult, OperationResult
+from src.network_autopilot.compiler.operations import Check
+from src.network_autopilot.core.receipts import CheckResult, OperationReceipt, OperationResult
 from src.network_autopilot.core.safety import MutationBudget, SafetyGate, SafetyMode
 from src.network_autopilot.evidence import EvidenceStore
 from src.network_autopilot.ipam import plan_addressing
@@ -369,3 +374,199 @@ def test_real_address_failure_is_not_deferred_or_masked(tmp_path):
     assert "op-config-r1" in result.failed, result.failed
     assert dag.nodes["op-config-r1"].status is OpStatus.FAILED
     assert adapter.configure_calls["r1"] == 1, adapter.configure_calls
+
+
+# ---------------------------------------------------------------------------
+# configure_ios batching (S1.19 runtime): the bulk TRANSPORT must not cost
+# any serial SEMANTICS - the precondition gate, the serial-clock proof and
+# the postcondition evaluation all still run for batched ops.
+# ---------------------------------------------------------------------------
+
+
+class _BulkConfigureAdapter(NullAdapter):
+    """A bulk configure path, and a serial one that REFUSES to run.
+
+    The refusal is the test's red: if the executor does not route
+    configure_ios through configure_ios_bulk, the serial call raises, the
+    op fails with "executor exception", and every assertion below goes red
+    naming exactly what is missing.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.bulk_batches: list[list[dict]] = []
+
+    def configure_ios_bulk(self, specs, operation_id_prefix="batch-config"):
+        self.bulk_batches.append([dict(s) for s in specs])
+        return [
+            OperationReceipt(
+                operation_id=f"{operation_id_prefix}-{s['device']}",
+                operation="configure_ios",
+                requested={
+                    "device": s["device"],
+                    "command_count": len(s["commands"]),
+                },
+                executed={"batched": True},
+                result=OperationResult.SUCCESS,
+                postconditions=[
+                    CheckResult.of(
+                        "configured_addresses_present", "True",
+                        Observable.known(True),
+                    )
+                ],
+            )
+            for s in specs
+        ]
+
+    def configure_ios(self, device, commands, operation_id=None):
+        raise AssertionError(
+            "configure_ios ran serially - the bulk path (configure_ios_bulk) "
+            "was not used"
+        )
+
+
+def test_configure_ios_ops_batch_through_the_bulk_transport(tmp_path):
+    """Wiring red: without `configure_ios` in the executor's bulk handlers the
+    four consecutive configure ops fall back to serial — the serial path must
+    refuse, so this cannot pass on the unfixed code."""
+    spec, _plan, dag = _golden_dag()
+    adapter = _BulkConfigureAdapter()
+    executor = DagExecutor(
+        adapter,
+        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        EvidenceStore(tmp_path),
+    )
+    result = executor.execute(dag)
+
+    assert not result.failed, result.failed
+    assert len(adapter.bulk_batches) == 1, (
+        "the four consecutive configure ops must travel as ONE batch, got "
+        f"{len(adapter.bulk_batches)}"
+    )
+    pushed = {s["device"] for s in adapter.bulk_batches[0]}
+    assert pushed == {"r1", "r2", "s1", "s2"}, pushed
+    for op_id in ("op-config-r1", "op-config-r2",
+                  "op-vlan-switch-s1", "op-vlan-switch-s2"):
+        assert dag.nodes[op_id].status is OpStatus.SUCCEEDED, (
+            op_id, dag.nodes[op_id].status, dag.nodes[op_id].note
+        )
+
+
+def test_batched_configure_keeps_the_serial_clock_proof(tmp_path, monkeypatch):
+    """Batching merges transport, not verification: a configure op carrying
+    `serial_clocks` still gets its DCE/DTE read-back through the batch path,
+    and a PROVEN mismatch still fails the op. Red on unfixed code (serial
+    path refuses) and red if the bulk path skips the proof (mutation: drop
+    the serial-clock hook and op-config-r1 ends SUCCEEDED)."""
+    spec, _plan, dag = _golden_dag()
+    dag.nodes["op-config-r1"].operation.inputs["serial_clocks"] = [
+        {"device": "r1", "interface": "Serial2/0"},
+    ]
+
+    def fake_clock_evidence(adapter, entries):
+        return [{
+            "device": "r1", "interface": "Serial2/0", "status": "fail",
+            "detail": "clock roles mismatch on r1:Serial2/0",
+        }]
+
+    monkeypatch.setattr(
+        executor_mod, "read_serial_clock_evidence", fake_clock_evidence
+    )
+    adapter = _BulkConfigureAdapter()
+    executor = DagExecutor(
+        adapter,
+        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        EvidenceStore(tmp_path),
+    )
+    executor.execute(dag)
+
+    node = dag.nodes["op-config-r1"]
+    assert node.status is OpStatus.FAILED, (
+        "a proven serial-clock mismatch must fail the batched op, got "
+        f"{node.status} ({node.note})"
+    )
+    assert "clock roles mismatch" in (node.note or ""), node.note
+
+
+def test_batched_op_with_unsatisfiable_precondition_is_blocked_not_pushed(
+    tmp_path, monkeypatch
+):
+    """The precondition gate is not optional because the op is batched: a
+    configure op whose `device_present` cannot be satisfied is BLOCKED before
+    any push, exactly like the serial path (rule 9: refuse, never
+    half-configure).
+
+    Red on unfixed code (the bulk path is never reached, so `bulk_batches` is
+    empty) and red if the bulk path pushes the op anyway (mutation: drop the
+    dry precondition gate and r1 sails into the batch).
+    """
+    # Excluding r1 leaves three configure ops: keep them batchable so the
+    # batch path under test is the one that makes the exclusion.
+    monkeypatch.setattr(DagExecutor, "_BULK_MIN_RUN", 2)
+    monkeypatch.setattr(checks_mod, "_PRECONDITION_SETTLE_S", 0.0, raising=False)
+
+    spec, _plan, dag = _golden_dag()
+    # Fail r1's presence check surgically: a device that is never in the
+    # workspace, so r1's own creates and links (which legitimately need r1
+    # present) are untouched and the configure op is the only one blocked.
+    # NetworkOperation is frozen, so the op is replaced on the node.
+    node_r1 = dag.nodes["op-config-r1"]
+    node_r1.operation = replace(
+        node_r1.operation,
+        preconditions=(*node_r1.operation.preconditions,
+                       Check(kind="device_present",
+                             target="ghost-that-never-existed",
+                             expected="True")),
+    )
+    adapter = _BulkConfigureAdapter()
+    executor = DagExecutor(
+        adapter,
+        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        EvidenceStore(tmp_path),
+    )
+    result = executor.execute(dag)
+
+    assert adapter.bulk_batches, (
+        "the other configure ops must still batch (the exclusion happens "
+        "inside the batch decision)"
+    )
+    pushed = {s["device"] for batch in adapter.bulk_batches for s in batch}
+    assert "r1" not in pushed, (
+        f"a device whose precondition fails was pushed anyway: {pushed}"
+    )
+    node = dag.nodes["op-config-r1"]
+    assert node.status is OpStatus.BLOCKED, (node.status, node.note)
+    assert (node.note or "").startswith("preconditions not satisfied"), node.note
+    assert "op-config-r1" in result.blocked, result.blocked
+
+
+def test_batched_ops_record_postcondition_evidence(tmp_path):
+    """Evidence parity: a batched configure op gets the same read-back
+    evaluation the serial path records (`postcondition_evaluation`), so the
+    evidence chain never has a hole where the batch was. Red on unfixed code
+    (serial path refuses → no receipt → no evaluation) and red if the bulk
+    path skips the hook (mutation: drop `_evaluate_postconditions` from the
+    batch finisher)."""
+    spec, _plan, dag = _golden_dag()
+    adapter = _BulkConfigureAdapter()
+    evidence = EvidenceStore(tmp_path)
+    executor = DagExecutor(
+        adapter,
+        SafetyGate(SafetyMode.AUTONOMOUS, MutationBudget(max_mutations=100)),
+        evidence,
+    )
+    result = executor.execute(dag)
+
+    assert not result.failed, result.failed
+    batched = {"op-config-r1", "op-config-r2",
+               "op-vlan-switch-s1", "op-vlan-switch-s2"}
+    evaluated = {
+        r.payload["operation_id"]
+        for r in evidence.read_all()
+        if r.kind == "postcondition_evaluation"
+        and r.payload.get("operation_id") in batched
+    }
+    assert evaluated == batched, (
+        f"every batched configure op needs its postconditions evaluated, "
+        f"missing: {batched - evaluated}"
+    )

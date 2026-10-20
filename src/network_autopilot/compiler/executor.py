@@ -4,13 +4,13 @@ Contract:
 - every mutating batch passes the SafetyGate first (READ_ONLY rejects,
   DRY_RUN plans, APPROVAL_REQUIRED waits, AUTONOMOUS consumes budget);
 - operations run in the DAG's deterministic topological order;
-- a failed operation BLOCKS its dependents â€” they are recorded, never tried;
+- a failed operation BLOCKS its dependents — they are recorded, never tried;
 - create operations are idempotent: the executor observes first and REUSES an
   existing device instead of blindly recreating it;
 - every executed operation leaves a receipt in the evidence chain;
 - after mutations the executor re-observes the workspace into the shared
   ActualNetworkState. A receipt is "the command was accepted"; the
-  observation is "what is actually visible" â€” both are kept, never merged.
+  observation is "what is actually visible" — both are kept, never merged.
 """
 
 from __future__ import annotations
@@ -430,6 +430,7 @@ class DagExecutor:
             "create_device": getattr(self.adapter, "create_devices_bulk", None),
             "create_link": getattr(self.adapter, "create_links_bulk", None),
             "configure_host": getattr(self.adapter, "configure_hosts_bulk", None),
+            "configure_ios": getattr(self.adapter, "configure_ios_bulk", None),
         }.get(op_type)
 
     def _try_bulk(self, topo, index, dag, result, op_type: str, bulk) -> int:
@@ -437,8 +438,19 @@ class DagExecutor:
 
         Returns how many topological entries were consumed (0 when the fast
         path does not apply, so the caller falls back to the per-op path).
-        The per-item receipts, safety-gate decisions and read-backs match the
-        serial path; only the transport is shared.
+        Batching merges the TRANSPORT, not the semantics: the per-item
+        receipts, safety-gate decisions and read-backs match the serial path.
+
+        The semantics gate below is why that claim can be made at all. The
+        serial path refuses to run an op whose idempotency key already
+        succeeded (P2-4) or whose preconditions cannot be answered TRUE
+        (P2-2), and after a successful push it records the key, evaluates the
+        postconditions and - for configure_ios - re-reads serial clocks.
+        All of that has to happen for a BATCHED op too, or a batch is a
+        quieter way to half-configure. The membership decision is made
+        without mutating anything; the exclusions are recorded only once the
+        batch is certain to run, so a run that ends up too small still falls
+        back to the fully serial path.
         """
         run: list = []
         position = index
@@ -480,11 +492,61 @@ class DagExecutor:
                 result.blocked.remove(op_id)
             return 0
 
-        specs = [dict(op.inputs) for _, _, op in authorized]
+        # Serial parity, decided WITHOUT mutating: an already-satisfied
+        # idempotency key (P2-4) and an unsatisfiable precondition (P2-2)
+        # exclude an op from the batch exactly as _execute_one would exclude
+        # it from serial execution. Nothing is marked yet - if the batch ends
+        # up too small, the serial path redoes every decision properly.
+        evaluator = self._check_evaluator()
+        eligible: list[tuple] = []
+        guard_hits: list[tuple] = []
+        precondition_blocks: list[tuple] = []
+        for op_id, node, op in authorized:
+            if op.classification is not MutationClassification.OBSERVE:
+                key = getattr(op, "idempotency_key", None)
+                previous = self.executed_keys.get(key) if key else None
+                if previous and previous != op.operation_id:
+                    guard_hits.append((op_id, node, op))
+                    continue
+                if op.preconditions:
+                    holds, outcomes = evaluator.all_hold(op.preconditions)
+                    if not holds:
+                        failed = [
+                            o.to_dict() for o in outcomes if o.passed is not True
+                        ]
+                        precondition_blocks.append((op_id, node, op, failed))
+                        continue
+            eligible.append((op_id, node, op))
+        if len(eligible) < self._BULK_MIN_RUN:
+            for op_id, node, op in refused:
+                node.status = OpStatus.PENDING
+                result.blocked.remove(op_id)
+            return 0
+
+        # The batch will run: record the exclusions the way the serial path
+        # records them (SKIPPED with a receipt; BLOCKED with the reason and
+        # the refunded reservation). authorize() above reserved the budget,
+        # so an op that will not mutate returns its reservation either way.
+        for op_id, node, op in guard_hits:
+            self.gate.budget.refund(1)
+            self._idempotency_guard(op, node, result)
+        for op_id, node, op, failed in precondition_blocks:
+            node.status = OpStatus.BLOCKED
+            node.note = f"preconditions not satisfied: {failed}"
+            result.blocked.append(op_id)
+            self.gate.budget.refund(1)
+            if self.evidence is not None:
+                self.evidence.record(
+                    "precondition_blocked",
+                    {"operation_id": op_id, "preconditions": failed},
+                    component="executor",
+                )
+
+        specs = [dict(op.inputs) for _, _, op in eligible]
         try:
             receipts = bulk(specs)
         except Exception:
-            for op_id, node, op in authorized:
+            for op_id, node, op in eligible:
                 node.status = OpStatus.PENDING
             return 0
 
@@ -493,15 +555,16 @@ class DagExecutor:
         # DAG id is restored afterwards and the result lists stay keyed by op.
         key_field = {"create_device": "name",
                      "configure_host": "device",
-                     "create_link": "link_id"}[op_type]
+                     "create_link": "link_id",
+                     "configure_ios": "device"}[op_type]
         by_item = {}
         for r in receipts:
-            for op_id, node, op in authorized:
+            for op_id, node, op in eligible:
                 if r.operation_id.endswith(str(op.inputs.get(key_field, ""))):
                     by_item[op.inputs[key_field]] = r
                     break
 
-        for op_id, node, op in authorized:
+        for op_id, node, op in eligible:
             receipt = by_item.get(op.inputs.get(key_field))
             if receipt is None:
                 self._execute_one(op, node, result)  # unusual; do it properly
@@ -511,6 +574,24 @@ class DagExecutor:
             node.receipt = receipt
             if receipt.executed_ok and receipt.result is OperationResult.SUCCESS:
                 node.status = OpStatus.SUCCEEDED
+                if op_type == "configure_ios" and not receipt.confirmed:
+                    # Byte-identical to the serial note in _op_configure_ios
+                    # (the same literal U+2014, so a diff of the two notes
+                    # shows no divergence).
+                    node.note = (
+                        "executed; IOS acceptance not observable "
+                        "— judged by verification"
+                    )
+                # The same finisher _execute_one runs after a serial handler:
+                # a proven serial-clock mismatch still fails the op, and only
+                # a still-SUCCEEDED op records its key and gets its
+                # postconditions evaluated into the evidence chain.
+                if node.status is OpStatus.SUCCEEDED:
+                    if op_type == "configure_ios":
+                        self._prove_serial_clocks(op, node, result)
+                    if node.status is OpStatus.SUCCEEDED:
+                        self._remember_key(op)
+                        self._evaluate_postconditions(op, node)
             else:
                 self._fail(node, op_id, result,
                            receipt.error or f"{op_type} failed")
@@ -639,13 +720,13 @@ class DagExecutor:
             self._remember_key(op)
             # Postconditions decide whether the mutation is CONFIRMED (P2-2):
             # a receipt that ran is not evidence that the intended state now
-            # holds â€” the read-back is.
+            # holds — the read-back is.
             self._evaluate_postconditions(op, node)
 
     def _authorize(self, op) -> bool:
         """Pass the operation through the safety gate. Returns execute?
 
-        For link operations, also enforce port reservations (Â§9/Â§16): a port
+        For link operations, also enforce port reservations (§9/§16): a port
         already reserved by another in-flight operation is a hard stop.
         """
         permission = self.gate.authorize([op.to_dict()])
@@ -709,8 +790,8 @@ class DagExecutor:
         """Enforce an operation's idempotency key (P2-4).
 
         Returns True when the operation may proceed. A key that already
-        succeeded in this run is a reused no-op â€” recorded SKIPPED, not
-        re-executed â€” so a repeated build never duplicates its own work.
+        succeeded in this run is a reused no-op — recorded SKIPPED, not
+        re-executed — so a repeated build never duplicates its own work.
         """
         key = getattr(op, "idempotency_key", None)
         if not key:
@@ -768,7 +849,7 @@ class DagExecutor:
 
         Mutating the receipt in place keeps the DAG's receipt honest: it is
         CONFIRMED exactly when the postconditions were observable and TRUE.
-        An unobservable postcondition leaves it unconfirmed â€” never a pass.
+        An unobservable postcondition leaves it unconfirmed — never a pass.
         """
         if not op.expected_postconditions or node.receipt is None:
             return
@@ -782,7 +863,7 @@ class DagExecutor:
         evidence["confirmed_by_read_back"] = confirmed
         if unknown:
             evidence["postcondition_note"] = (
-                "at least one postcondition could not be observed â€” receipt "
+                "at least one postcondition could not be observed — receipt "
                 "stays unconfirmed, verification decides"
             )
         # Receipts are immutable records of what happened; we replace the
@@ -822,7 +903,7 @@ class DagExecutor:
         name = op.inputs["name"]
         exists = self.adapter.device_exists(name)
         if exists.is_known and exists.value:
-            # IDEMPOTENT REUSE: observe â†’ compare â†’ reconcile â†’ reuse.
+            # IDEMPOTENT REUSE: observe → compare → reconcile → reuse.
             # Never recreate a device that already exists.
             self.gate.budget.refund(1)
             reconciliation = self._reconcile_device(op)
@@ -1255,13 +1336,13 @@ class DagExecutor:
         )
         self._record(receipt)
         node.receipt = receipt
-        # IOS acceptance may be unobservable (receipt unconfirmed) â€” that is
+        # IOS acceptance may be unobservable (receipt unconfirmed) — that is
         # still a SUCCESS for DAG purposes; verification will judge reality.
         if receipt.executed_ok:
             node.status = OpStatus.SUCCEEDED
             if not receipt.confirmed:
                 node.note = (
-                    "executed; IOS acceptance not observable â€” judged by verification"
+                    "executed; IOS acceptance not observable — judged by verification"
                 )
             self._prove_serial_clocks(op, node, result)
         else:
@@ -1298,7 +1379,7 @@ class DagExecutor:
         if unknown:
             node.note = (
                 f"serial clock roles not observable on {unknown[0]['device']}"
-                f":{unknown[0]['interface']} â€” judged by verification"
+                f":{unknown[0]['interface']} — judged by verification"
             )
 
     def _op_configure_gateway_lan(self, op, node, result: ExecutionResult) -> None:
@@ -1325,7 +1406,7 @@ class DagExecutor:
             node.status = OpStatus.SUCCEEDED
             if not receipt.confirmed:
                 node.note = (
-                    "executed; gateway LAN address not observable â€” "
+                    "executed; gateway LAN address not observable — "
                     "judged by verification"
                 )
         else:
@@ -1361,7 +1442,7 @@ class DagExecutor:
         source = op.inputs["source"]
         destination = op.inputs["destination"]
         # The criterion's declared protocol reaches the adapter so it can
-        # choose a real probe â€” and honestly report when it has none (P1-5).
+        # choose a real probe — and honestly report when it has none (P1-5).
         transport = str(op.inputs.get("transport") or "icmp")
         port = op.inputs.get("port")
         flow = self.adapter.run_flow_test(

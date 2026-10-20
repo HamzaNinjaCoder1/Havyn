@@ -104,8 +104,13 @@ UPLINKS: list[tuple[int, int, str, int]] = [
 # 4 of the 10 router uplinks are ASA-guarded (2 more ASAs sit at the WAN edge).
 # An ASA is a firewall: it does not forward until it is configured, and this
 # test does not configure one. The guarded uplinks are therefore kept off the
-# paths whose flows are verified, while the cabling of a 5505/5506-X inline is
-# still exercised.
+# paths whose flows are verified, while the cabling of an ASA inline is still
+# exercised - in a shape PT can actually build. A 5506-X has routed ports, so
+# it may sit next to a router; a 5505's Ethernet ports are switchports, so the
+# lab's ONE 5505 (asa3) sits between two switches, where that exact shape was
+# measured carrying traffic. The compiler refuses a 5505 Ethernet against a
+# router by name (unbuildable_link, measured six ways on PT 9.0.1), and this
+# spec never asks for that shape.
 GUARDED_UPLINK = {1, 2, 3, 4}
 
 # The two extra access switches are L2 extensions, so they share a subnet with
@@ -146,13 +151,16 @@ def scale_spec(p: str) -> dict:
         assigns.append({"device": rtr(b), "interface_hint": bi,
                         "subnet": f"rt{k}", "ip": f"10.1.{k}.2"})
 
-    # WAN: cloud -> ASA -> border router
+    # WAN: cloud -> ASA -> border router. The inline ASA is a 5506-X: its
+    # routed port faces the router (a 5505 Ethernet there is refused by name,
+    # because PT will not cable that shape to a router at all).
     for k, (cloud, asa, border) in enumerate(
         [("cld1", "asa1", 1), ("cld2", "asa2", 2)]
     ):
         subnets.append({"id": f"wan{k + 1}", "cidr": f"10.0.{k}.0/30"})
         devices.append({"id": f"{p}{cloud}", "role": "cloud"})
-        devices.append({"id": f"{p}{asa}", "role": "other", "model_hint": "5505"})
+        devices.append({"id": f"{p}{asa}", "role": "other",
+                        "model_hint": "5506-X"})
         links.append({"id": f"{p}wk{k}", "a": {"device": f"{p}{cloud}"},
                       "b": {"device": f"{p}{asa}"}})
         links.append({"id": f"{p}wb{k}", "a": {"device": f"{p}{asa}"},
@@ -173,13 +181,25 @@ def scale_spec(p: str) -> dict:
                         "subnet": f"lan{lan}", "ip": f"10.200.{lan}.1"})
         if idx in GUARDED_UPLINK:
             asa_n = 3 + list(GUARDED_UPLINK).index(idx)
+            model = "5505" if asa_n == 3 else "5506-X"
             devices.append({"id": f"{p}asa{asa_n}", "role": "other",
-                            "model_hint": "5505" if asa_n % 2 else "5506-X"})
-            links.append({"id": f"{p}ug{idx}",
-                          "a": {"device": rtr(r_i), "interface_hint": lan_if},
-                          "b": {"device": f"{p}asa{asa_n}"}})
-            links.append({"id": f"{p}ugx{idx}", "a": {"device": f"{p}asa{asa_n}"},
-                          "b": {"device": sw(s_i)}})
+                            "model_hint": model})
+            if model == "5506-X":
+                # Routed ports: legal inline between the router and its
+                # access switch (measured up/up and carrying traffic).
+                links.append({"id": f"{p}ug{idx}",
+                              "a": {"device": rtr(r_i), "interface_hint": lan_if},
+                              "b": {"device": f"{p}asa{asa_n}"}})
+                links.append({"id": f"{p}ugx{idx}", "a": {"device": f"{p}asa{asa_n}"},
+                              "b": {"device": sw(s_i)}})
+            else:
+                # asa3 is the lab's 5505: its Ethernet ports are switchports,
+                # so the router uplinks straight (a 5505 Ethernet against a
+                # router is refused by name) and the ASA rehomes onto its L2
+                # extension below, between two switches.
+                links.append({"id": f"{p}ug{idx}",
+                              "a": {"device": rtr(r_i), "interface_hint": lan_if},
+                              "b": {"device": sw(s_i)}})
         else:
             links.append({"id": f"{p}ug{idx}",
                           "a": {"device": rtr(r_i), "interface_hint": lan_if},
@@ -187,9 +207,23 @@ def scale_spec(p: str) -> dict:
 
     for i in range(12):
         devices.append({"id": sw(i), "role": "switch"})
+    # The lab's one 5505 inlines on an L2 extension: both ends are switches,
+    # the one peer a 5505's switchport Ethernet ports were measured reaching
+    # normally (a 5505 switchport to a 2960 carried pings on the QA canvas).
+    # The sw6 <-> sw11 extension stays direct because a verified flow
+    # (pc19 -> r9) crosses it and an unconfigured ASA is not asked to forward
+    # anything this test claims.
+    EXTENSION_ASA = {5: 3}
     for s_i, up_s, _lan in L2_EXTENSIONS:
-        links.append({"id": f"{p}ext{s_i}", "a": {"device": sw(up_s)},
-                      "b": {"device": sw(s_i)}})
+        asa_n = EXTENSION_ASA.get(up_s)
+        if asa_n is None:
+            links.append({"id": f"{p}ext{s_i}", "a": {"device": sw(up_s)},
+                          "b": {"device": sw(s_i)}})
+        else:
+            links.append({"id": f"{p}ext{up_s}", "a": {"device": sw(up_s)},
+                          "b": {"device": f"{p}asa{asa_n}"}})
+            links.append({"id": f"{p}extx{s_i}", "a": {"device": f"{p}asa{asa_n}"},
+                          "b": {"device": sw(s_i)}})
 
     for i, (s_i, lan, host) in enumerate(PCS):
         devices.append({"id": f"{p}pc{i}", "role": "pc"})
