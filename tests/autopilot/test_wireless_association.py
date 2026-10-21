@@ -333,6 +333,15 @@ def test_association_to_a_different_ap_is_not_accepted():
         wireless.associate_wireless_client(adapter, "lap", "ap", timeout_seconds=0.2)
 
 
+def test_association_without_resolved_peer_is_not_accepted():
+    adapter = _FakeAdapter(
+        {"lap": {"Wireless0": _FakePort("Wireless0", "Antenna", peer="", up=True)}},
+        radio_installs=False,
+    )
+    with pytest.raises(wireless.WirelessAssociationError):
+        wireless.associate_wireless_client(adapter, "lap", "ap", timeout_seconds=0.2)
+
+
 # --------------------------------------------------------------------------
 # Verification: a criterion passes only on PT's own antenna evidence
 # --------------------------------------------------------------------------

@@ -242,8 +242,7 @@ def js_wireless_association(device: str, interface: str) -> str:
         "try{var n=l.getReceiverCount();out.receiver_count=Number(n);"
         "if(n>0){var r=l.getReceiverAt(0);var rp=r.getPort();"
         "out.peer_device=String(rp.getOwnerDevice().getName());"
-        "out.peer_interface=String(rp.getName());}}catch(e){out.peer_error=String(e);}"
-        "out.associated=true;"
+        "out.peer_interface=String(rp.getName());out.associated=true;}else{out.reason='no-receiver';}}catch(e){out.peer_error=String(e);}"
         "return 'MCPWIFIASSOC:'+JSON.stringify(out);})();"
     )
 

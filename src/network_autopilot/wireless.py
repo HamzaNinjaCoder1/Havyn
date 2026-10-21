@@ -183,12 +183,16 @@ def associate_wireless_client(
     while True:
         association = read_association(adapter, client, interface)
         if association is not None and association.associated:
-            if association.access_point and association.access_point != access_point:
+            if association.access_point == access_point:
+                return association
+            elif association.access_point:
                 last_detail = (
                     f"associated to {association.access_point}, not {access_point}"
                 )
             else:
-                return association
+                last_detail = (
+                    f"antenna link active on {client}:{interface} but peer AP not yet resolved"
+                )
         else:
             last_detail = f"PT shows no antenna link on {client}:{interface}"
         if time.time() >= deadline:
