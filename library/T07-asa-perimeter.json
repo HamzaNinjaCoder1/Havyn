@@ -176,8 +176,17 @@
     {
      "action": "permit",
      "protocol": "icmp",
+     "source": "10.0.1.0/24",
+     "destination": "any",
+     "description": "R-1: inside-initiated ICMP may leave - the source must be the inside subnet, so an outside host cannot originate a ping into the perimeter"
+    },
+    {
+     "action": "permit",
+     "protocol": "icmp",
      "source": "any",
-     "destination": "any"
+     "destination": "any",
+     "icmp_type": "echo-reply",
+     "description": "R-1: the echo-reply of an inside-initiated ping may return - PT's ASA is stateless, so the return path must be allowed explicitly; an echo-reply is return traffic, not an initiation"
     }
    ]
   }

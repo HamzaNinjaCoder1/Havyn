@@ -105,6 +105,19 @@
      "default": null,
      "title": "Dest Port"
     },
+    "icmp_type": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Icmp Type",
+     "description": "An ASA/IOS ICMP type operand (echo-reply, echo, ... or a number 0-255), rendered after the addresses. Only meaningful on icmp; the policy compiler enforces that, never this schema."
+    },
     "description": {
      "anyOf": [
       {
