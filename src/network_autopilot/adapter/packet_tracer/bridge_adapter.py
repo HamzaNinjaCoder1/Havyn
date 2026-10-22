@@ -1383,6 +1383,43 @@ class BridgeAdapter(PacketTracerAdapter):
                 str(d.get("name")) for d in (snapshot.value or [])
             }
 
+        # A freshly started PT can answer the batch with `ok:true` for every
+        # device and still place none of them (observed live on a scheduled
+        # night: all four T06 creates "succeeded" and the read-back was
+        # empty). Re-send ONLY the missing devices once, then let the
+        # read-back decide. This is safe: present names are never re-added,
+        # and an unknown snapshot is not retried (it would duplicate work).
+        retried: set[str] = set()
+        if snapshot.is_known:
+            missing = [
+                (spec, item) for spec, item in prepared if item[0] not in present
+            ]
+            if missing:
+                retried = {item[0] for _, item in missing}
+                self._settle_until_published(
+                    sorted(retried), timeout=10.0
+                )
+                retry_batch = [item for _, item in missing]
+                stmts2, final2 = js.js_batch_add_devices(retry_batch)
+                answer2 = self.send_expression(
+                    final2,
+                    statements=stmts2,
+                    wait=max(15.0, 2.0 * len(retry_batch)),
+                )
+                self._invalidate_snapshot()
+                self._settle_until_published(sorted(retried), timeout=45.0)
+                if answer2.is_known:
+                    try:
+                        for row in json.loads(str(answer2.value)):
+                            per_device[str(row.get("name"))] = row
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                snapshot = self._live_devices()
+                if snapshot.is_known:
+                    present = {
+                        str(d.get("name")) for d in (snapshot.value or [])
+                    }
+
         for spec, (name, type_code, model, x, y) in prepared:
             row = per_device.get(name, {})
             ok = bool(row.get("ok"))
@@ -1402,7 +1439,8 @@ class BridgeAdapter(PacketTracerAdapter):
                 operation_id=f"{operation_id_prefix}-{name}",
                 operation="create_device",
                 requested=spec,
-                executed={"batched": True, "model": model, "js_ok": ok},
+                executed={"batched": True, "model": model, "js_ok": ok,
+                          "retry_batch": name in retried},
                 result=result,
                 postconditions=post,
                 evidence={"model": model, "batch": True,

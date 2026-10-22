@@ -46,6 +46,12 @@ HEARTBEAT_FRESH_S = 6.0
 # How often a response file is polled while waiting for it.
 _POLL_INTERVAL_S = 0.1
 
+# Windows can briefly refuse to replace a file another handle has open; the
+# Script Engine opens each request as it polls. Bounded, so a genuinely
+# locked file still fails instead of hanging the build.
+_REPLACE_RETRIES = 50
+_REPLACE_DELAY = 0.02
+
 
 def _heartbeat_fresh(directory: Path) -> bool:
     """True while the Script Engine is refreshing this dir's heartbeat."""
@@ -133,7 +139,18 @@ class FileMailbox:
         """
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_bytes(text.encode("utf-8"))
-        os.replace(tmp, path)
+        # Windows refuses os.replace while another handle has the destination
+        # open. The Script Engine legitimately opens the request to read it,
+        # so retry the replace briefly instead of losing the command (a
+        # PermissionError here became a silent send_and_wait timeout).
+        for attempt in range(_REPLACE_RETRIES):
+            try:
+                os.replace(tmp, path)
+                return
+            except PermissionError:
+                if attempt + 1 >= _REPLACE_RETRIES:
+                    raise
+                time.sleep(_REPLACE_DELAY)
 
     def send(self, js_code: str) -> bool:
         """Queue a command without waiting for a reply."""

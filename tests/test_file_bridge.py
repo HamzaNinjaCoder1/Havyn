@@ -133,20 +133,46 @@ def test_newlines_are_written_as_exact_bytes(bridge_dir):
 
 
 def test_no_partial_reads_under_concurrency(bridge_dir):
-    """La escritura atómica: el SE nunca ve un req a medio escribir.
+    """La escritura atómica: nadie ve un req a medio escribir.
 
-    Se encadenan muchos round-trips con un payload grande; si hubiera lecturas
-    parciales, el eco no coincidiría.
+    A concurrent reader hammers the target while 50 large payloads are
+    written through `_write_atomic`; every observed byte string must be a
+    complete payload. This is the invariant directly, without a fake-engine
+    thread whose scheduling made the old round-trip flaky on a loaded Windows
+    CI runner. The one-round-trip test above still exercises the protocol.
     """
     payload = "configureIosDevice('R1', '" + "x" * 5000 + "');"
+    encoded = payload.encode("utf-8")
     fb = FileMailbox(bridge_dir)
-    se = FakeScriptEngine(bridge_dir, handler=lambda js: str(len(js)))
-    se.start()
+    fb._ensure_dir()
+    target = bridge_dir / "probe.js"
+    fb._write_atomic(target, payload)
+
+    seen: list[bytes] = []
+    failures: list[bytes] = []
+    stop = threading.Event()
+
+    def reader():
+        while not stop.is_set():
+            try:
+                data = target.read_bytes()
+            except OSError:
+                # FileNotFoundError while absent, PermissionError while the
+                # writer replaces it: retry, never a partial read.
+                continue
+            seen.append(data)
+            if data != encoded:
+                failures.append(data)
+                return
+
+    thread = threading.Thread(target=reader, daemon=True)
+    thread.start()
     try:
-        # Ten 5 KB round-trips are enough to catch a partial read; the 15 s
-        # window is for a loaded shared CI runner, not a protocol concession.
-        for _ in range(10):
-            r = fb.send_and_wait(payload, timeout=15)
-            assert r == str(len(payload)), "lectura parcial detectada"
+        for _ in range(50):
+            fb._write_atomic(target, payload)
     finally:
-        se.stop()
+        stop.set()
+        thread.join(timeout=5)
+
+    assert seen, "the reader never observed the file"
+    assert not failures, f"lectura parcial detectada: {len(failures[0])} bytes"

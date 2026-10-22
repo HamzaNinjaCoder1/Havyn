@@ -146,7 +146,7 @@ def test_foreign_bridge_is_reported_by_ping_identity():
     assert "foreign bridge" in (info.detail.value or "")
 
 
-def test_bulk_create_honours_the_model_the_dag_planned():
+def test_bulk_create_honours_the_model_the_dag_planned(monkeypatch):
     """Regression: the executor feeds create_devices_bulk the raw DAG op
     inputs, where the planned model is under "model" - not "model_hint".
     Reading only "model_hint" silently built a Router-PT for an op whose ports
@@ -156,6 +156,13 @@ def test_bulk_create_honours_the_model_the_dag_planned():
     dropped keyword."""
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
     sent: list[str] = []
+    monkeypatch.setattr(adapter, "_settle_until_published", lambda *a, **k: True)
+    monkeypatch.setattr(
+        adapter, "_live_devices",
+        lambda **k: Observable.known(
+            [{"name": "R1", "ports": [{"name": "GigabitEthernet0/0"}]}]
+        ),
+    )
 
     def capture(expression, *, statements=None, wait=None):
         sent.append(" ".join(statements or []) + " " + str(expression))
@@ -170,9 +177,16 @@ def test_bulk_create_honours_the_model_the_dag_planned():
     assert "Router-PT" not in joined, joined
 
 
-def test_bulk_create_still_accepts_model_hint_for_direct_callers():
+def test_bulk_create_still_accepts_model_hint_for_direct_callers(monkeypatch):
     adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
     sent: list[str] = []
+    monkeypatch.setattr(adapter, "_settle_until_published", lambda *a, **k: True)
+    monkeypatch.setattr(
+        adapter, "_live_devices",
+        lambda **k: Observable.known(
+            [{"name": "R1", "ports": [{"name": "GigabitEthernet0/0"}]}]
+        ),
+    )
 
     def capture(expression, *, statements=None, wait=None):
         sent.append(" ".join(statements or []) + " " + str(expression))
@@ -183,6 +197,48 @@ def test_bulk_create_still_accepts_model_hint_for_direct_callers():
         [{"name": "R1", "role": "router", "model_hint": "2911", "position": [10, 20]}]
     )
     assert '"2911"' in " ".join(sent)
+
+
+def test_a_bulk_create_that_places_nothing_is_retried_once(monkeypatch):
+    """A fresh PT can answer `ok:true` and place none of the devices.
+
+    The read-back is the truth, so the adapter re-sends only the missing
+    devices once; present names are never duplicated. Live scheduled night:
+    all four T06 creates "succeeded" and the workspace was empty.
+    """
+    from src.network_autopilot.core.receipts import OperationResult
+
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    batch_sends: list[str] = []
+    live_reads = {"n": 0}
+
+    monkeypatch.setattr(adapter, "_settle_until_published", lambda *a, **k: True)
+
+    def fake_live(**kwargs):
+        live_reads["n"] += 1
+        if live_reads["n"] == 1:
+            return Observable.known([])
+        return Observable.known(
+            [{"name": "R1", "ports": [{"name": "GigabitEthernet0/0"}]}]
+        )
+
+    monkeypatch.setattr(adapter, "_live_devices", fake_live)
+
+    def fake_send(expression, *, statements=None, wait=None):
+        text = " ".join(statements or []) + " " + str(expression)
+        if "lwAddDevice" in text:
+            batch_sends.append(text)
+        return Observable.known('[{"name":"R1","ok":true}]')
+
+    monkeypatch.setattr(adapter, "send_expression", fake_send)
+
+    receipts = adapter.create_devices_bulk(
+        [{"name": "R1", "role": "router", "model": "2911", "position": [10, 20]}]
+    )
+
+    assert len(batch_sends) == 2, batch_sends
+    assert receipts[0].result is OperationResult.SUCCESS
+    assert receipts[0].executed["retry_batch"] is True
 
 
 def _ios_adapter(ports_json: str, *, ok: str = "OK") -> BridgeAdapter:
