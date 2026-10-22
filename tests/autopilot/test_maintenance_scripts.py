@@ -106,6 +106,44 @@ def test_clean_removes_everything_but_the_protected_devices():
     assert report.remaining == ["Power Distribution Device0"]
 
 
+def test_a_transiently_unreadable_canvas_is_retried(monkeypatch):
+    """One UNKNOWN from the mailbox is not "the canvas is unreadable".
+
+    S1.19 run04 refused to start at 3.3 s on a canvas the next read saw
+    normally. The read retries a bounded few times before failing closed.
+    """
+    monkeypatch.setattr(pt_clean.time, "sleep", lambda seconds: None)
+
+    class Flaky(FakeWorkspace):
+        def __init__(self, names):
+            super().__init__(names)
+            self.reads = 0
+
+        def list_device_names(self):
+            self.reads += 1
+            if self.reads == 1:
+                return Observable(
+                    status=ObservationStatus.UNKNOWN, value=None,
+                    detail="mailbox busy", source="fake",
+                )
+            return super().list_device_names()
+
+    ws = Flaky(["r1", "Power Distribution Device0"])
+    report = pt_clean.clean(ws)
+    assert report.read_failed is False
+    assert report.deleted == ["r1"]
+    assert ws.reads >= 2
+
+
+def test_a_persistently_unreadable_canvas_still_fails_closed(monkeypatch):
+    monkeypatch.setattr(pt_clean.time, "sleep", lambda seconds: None)
+    ws = FakeWorkspace(["r1"])
+    ws.readable = False
+    report = pt_clean.clean(ws)
+    assert report.read_failed is True
+    assert ws.bulk_calls == [], "nothing may be deleted on an unreadable canvas"
+
+
 def test_clean_retries_a_device_the_batch_left_behind():
     """A batch that reports "still present" must not be believed."""
     ws = FakeWorkspace(["r1", "pc1"], bulk_fails=["r1"])

@@ -67,6 +67,9 @@ Havyn_Production_Tracking.html
 # S1.12 catalog probe output and S1.19 runner results are generated artifacts
 probe.json
 runner_s119/results/
+# Per-run one-case queues and Tee-Object console captures. The gate summary
+# (runner_s119/s119-gate-summary.json) is the committed evidence and names them.
+runner_s119/gate-logs/
 
 # S2.2/S2.5 runtime output: the runner's per-case results and the fault lab's
 # evidence are per-machine run artifacts. What gets published is the scorecard

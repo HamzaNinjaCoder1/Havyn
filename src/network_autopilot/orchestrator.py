@@ -531,6 +531,7 @@ class Autopilot:
         empty list that could be read as "nothing wrong".
         """
         from .diagnosis import diagnose
+        from .diagnosis.engine import fill_missing_routes, fill_trunk_allowed
 
         empty: tuple[Any, ...] = ()
         try:
@@ -558,6 +559,17 @@ class Autopilot:
         if self.evidence is not None:
             self.evidence.record("verification", report.to_dict(), component="orchestrator")
             self.evidence.record("diff", diff.to_dict(), component="orchestrator")
+        # The route-missing and trunk rules need observed tables. The build
+        # path fills routes on failure; the read-only diagnosis path must do
+        # the same or a removed route/trunk VLAN is invisible to the rule.
+        # UNKNOWN counts: a probe that could not read a stat block still
+        # needs the state evidence, and that is exactly when the lab's trunk
+        # fault produced "no state anomaly" (live).
+        if report.summary.get("fail", 0) or report.summary.get("unknown", 0):
+            fill_missing_routes(spec, state, self.adapter.read_routing_table)
+            fill_trunk_allowed(
+                spec, state, getattr(self.adapter, "read_trunk_allowed", None)
+            )
         diagnoses = diagnose(spec, report, state)
         if self.evidence is not None:
             self.evidence.record(

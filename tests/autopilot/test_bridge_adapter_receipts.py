@@ -774,6 +774,48 @@ def test_a_terminal_arm_failure_is_not_retried(monkeypatch):
     assert len(calls) == 1, calls
 
 
+def test_a_partial_on_the_last_attempt_gets_one_confirmation_try(monkeypatch):
+    """Live fault lab: blocked -> unknown -> partial (1/4 echoes) is a path
+    that is coming up, not a broken one. The extra attempt is only for
+    progress; a blocked chain still stops at the normal budget."""
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    monkeypatch.setattr(_ba, "_FLOW_PRE_SETTLE_S", 0.0)
+    monkeypatch.setattr(_ba, "_FLOW_CONVERGE_SETTLE_S", 0.0)
+    answers = [
+        _attempt(FlowOutcome.BLOCKED, "none"),
+        _attempt(FlowOutcome.UNKNOWN, "no new ping statistics appeared"),
+        _attempt(FlowOutcome.PARTIAL, "Success rate is 25 percent"),
+        _attempt(FlowOutcome.REACHABLE, "Success rate is 100 percent"),
+    ]
+    calls = []
+
+    def fake(source, destination, target, timeout):
+        calls.append(timeout)
+        return answers.pop(0)
+
+    monkeypatch.setattr(adapter, "_single_ping_flow", fake)
+    result = adapter.run_flow_test("pc1", "r1", destination_ip="10.0.0.1")
+    assert result.outcome is FlowOutcome.REACHABLE
+    assert len(calls) == 4, calls
+    assert len(result.evidence["attempts"]) == 4
+
+
+def test_a_blocked_chain_keeps_the_three_attempt_budget(monkeypatch):
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    monkeypatch.setattr(_ba, "_FLOW_PRE_SETTLE_S", 0.0)
+    monkeypatch.setattr(_ba, "_FLOW_CONVERGE_SETTLE_S", 0.0)
+    calls = []
+
+    def fake(source, destination, target, timeout):
+        calls.append(timeout)
+        return _attempt(FlowOutcome.BLOCKED, "none")
+
+    monkeypatch.setattr(adapter, "_single_ping_flow", fake)
+    result = adapter.run_flow_test("pc1", "r1", destination_ip="10.0.0.1")
+    assert result.outcome is FlowOutcome.BLOCKED
+    assert len(calls) == 3, calls
+
+
 # ---------------------------------------------------------------------------
 # Bug #20 - VLAN membership and trunk state must be observed
 # ---------------------------------------------------------------------------
@@ -786,6 +828,34 @@ SHOW_VLAN_BRIEF = """VLAN Name                             Status    Ports
 10   users                            active    Fa0/3
 20   voice                            active    Fa0/3
 1002 fddi-default                     act/unsup
+"""
+
+SHOW_INTERFACES_TRUNK = """Port        Mode         Encapsulation  Status        Native vlan
+Fa0/24      on           802.1q         trunking      1
+
+Port        Vlans allowed on trunk
+Fa0/24      1-5,10,20
+
+Port        Vlans allowed and active in management domain
+Fa0/24      1,10,20
+
+Port        Vlans in spanning tree forwarding state and not pruned
+Fa0/24      1,10,20
+"""
+
+# Measured after `switchport trunk allowed vlan remove 10` on the lab's only
+# allowed VLAN: PT keeps the port in the table with a blank allowed list.
+SHOW_INTERFACES_TRUNK_EMPTY = """Port        Mode         Encapsulation  Status        Native vlan
+Fa0/24      on           802.1q         trunking      1
+
+Port        Vlans allowed on trunk
+Fa0/24      
+
+Port        Vlans allowed and active in management domain
+Fa0/24      none
+
+Port        Vlans in spanning tree forwarding state and not pruned
+Fa0/24      none
 """
 
 _SWITCH_MATCH = {
@@ -867,6 +937,80 @@ def test_the_vlan_read_can_be_switched_off_for_specs_that_ask_for_no_vlan(monkey
     observation = adapter._observation_from_live(_SWITCH_MATCH)
     assert asked == []
     assert not observation.ports["FastEthernet0/1"].vlan.is_known
+
+
+def test_show_interfaces_trunk_parses_the_allowed_list():
+    from src.network_autopilot.adapter.packet_tracer.js_commands import (
+        parse_show_interfaces_trunk,
+    )
+
+    table = parse_show_interfaces_trunk(SHOW_INTERFACES_TRUNK)
+    assert table == {"FastEthernet0/24": [1, 2, 3, 4, 5, 10, 20]}
+
+
+def test_an_empty_allowed_list_is_still_a_listed_trunk_port():
+    from src.network_autopilot.adapter.packet_tracer.js_commands import (
+        parse_show_interfaces_trunk,
+    )
+
+    table = parse_show_interfaces_trunk(SHOW_INTERFACES_TRUNK_EMPTY)
+    assert table == {"FastEthernet0/24": []}, (
+        "dropping the blank row made the trunk-fault diagnosis blind"
+    )
+
+
+def test_short_interface_names_are_normalized_for_joining_state():
+    from src.network_autopilot.adapter.packet_tracer.js_commands import (
+        full_interface_name,
+    )
+
+    assert full_interface_name("Fa0/24") == "FastEthernet0/24"
+    assert full_interface_name("Gi1/0/1") == "GigabitEthernet1/0/1"
+    assert full_interface_name("FastEthernet0/24") == "FastEthernet0/24"
+
+
+def test_the_live_trunk_reader_returns_allowed_vlans_not_forwarding_state(monkeypatch):
+    adapter = BridgeAdapter(port=59999, token=TEST_TOKEN, host_bridge=False)
+    monkeypatch.setattr(
+        adapter, "_console_show_full",
+        lambda device, command: Observable.known(SHOW_INTERFACES_TRUNK),
+    )
+    table = adapter.read_trunk_allowed("s1")
+    assert table.is_known
+    assert table.value == {"FastEthernet0/24": [1, 2, 3, 4, 5, 10, 20]}
+
+
+def test_fill_trunk_allowed_writes_observed_membership_onto_the_ports():
+    from src.network_autopilot.core.actual_state import (
+        ActualNetworkState, DeviceObservation,
+    )
+    from src.network_autopilot.core.network_spec import NetworkSpec
+    from src.network_autopilot.diagnosis.engine import fill_trunk_allowed
+
+    spec = NetworkSpec.model_validate({
+        "name": "trunk-fill",
+        "devices": [
+            {"id": "s1", "role": "switch"},
+            {"id": "r1", "role": "router"},
+        ],
+        "links": [{"id": "l1", "trunk": True,
+                   "a": {"device": "s1"}, "b": {"device": "r1"}}],
+        "subnets": [{"id": "users", "cidr": "10.0.10.0/24", "vlan_id": 10}],
+        "vlans": [{"vlan_id": 10, "name": "USERS"}],
+    })
+    state = ActualNetworkState(source="test", observed_at="now")
+    s1 = DeviceObservation(name="s1")
+    s1.port("FastEthernet0/24")
+    state.observe_device(s1)
+
+    filled = fill_trunk_allowed(
+        spec, state, lambda device: Observable.known({"FastEthernet0/24": [1, 10]})
+    )
+
+    assert filled == 1
+    port = state.device("s1").port("FastEthernet0/24")
+    assert port.trunk.value is True
+    assert port.vlan.value == "1,10"
 
 
 def test_a_port_holder_that_is_not_http_rules_out_the_http_channel():

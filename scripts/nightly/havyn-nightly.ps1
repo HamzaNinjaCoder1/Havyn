@@ -18,7 +18,7 @@ param()
 
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $Queue = $env:HAVYN_QUEUE
 if (-not $Queue) { $Queue = Join-Path $PSScriptRoot "nightly-queue.json" }
 $Results = $env:HAVYN_RESULTS
@@ -30,8 +30,8 @@ function Test-Heartbeat {
     # runtime dirs its extension resolved at load. A guessed subdir here makes
     # the nightly always time out with PT wide awake.
     $candidates = @(
-        (Join-Path $env:LOCALAPPDATA "Havyn" "bridge" "alive.txt"),
-        (Join-Path $env:LOCALAPPDATA "packet-tracer-mcp" "bridge" "alive.txt")
+        (Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA "Havyn") "bridge") "alive.txt"),
+        (Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA "packet-tracer-mcp") "bridge") "alive.txt")
     )
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate) {

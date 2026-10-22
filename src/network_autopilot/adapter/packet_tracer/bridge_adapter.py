@@ -3373,7 +3373,13 @@ class BridgeAdapter(PacketTracerAdapter):
         # is retried and the converged verdict is the one reported.
         attempts: list[FlowResult] = []
         time.sleep(_FLOW_PRE_SETTLE_S)
-        for attempt_no in range(_FLOW_MAX_ATTEMPTS):
+        # A PARTIAL on the last budgeted attempt is convergence in progress
+        # (some echoes returned), not a verdict: give it exactly one
+        # confirmation attempt. BLOCKED-only chains keep the three-attempt
+        # budget, so a genuinely blocked flow does not pay extra wall time.
+        max_attempts = _FLOW_MAX_ATTEMPTS
+        attempt_no = 0
+        while attempt_no < max_attempts:
             attempt_timeout = (
                 timeout
                 if timeout is not None
@@ -3383,12 +3389,19 @@ class BridgeAdapter(PacketTracerAdapter):
             )
             result = self._single_ping_flow(source, destination, target, attempt_timeout)
             attempts.append(result)
+            attempt_no += 1
             if result.outcome is FlowOutcome.REACHABLE:
                 break
             if not _flow_is_retryable(result):
                 # Arm/console failures cannot improve with a retry, unlike a
                 # BLOCKED/PARTIAL loss or a ping still in flight.
                 break
+            if (
+                result.outcome is FlowOutcome.PARTIAL
+                and attempt_no >= max_attempts
+                and max_attempts == _FLOW_MAX_ATTEMPTS
+            ):
+                max_attempts += 1
             time.sleep(_FLOW_CONVERGE_SETTLE_S)
         best = best_flow_of(attempts)
         if len(attempts) > 1:
@@ -4151,6 +4164,38 @@ class BridgeAdapter(PacketTracerAdapter):
         return Observable(
             status=ObservationStatus.KNOWN,
             value=vlans,
+            detail=tail.value,
+            source=tail.source,
+            observed_at=None,
+        )
+
+    def read_trunk_allowed(self, device: str) -> Observable[dict[str, list[int]]]:
+        """Structured `show interfaces trunk` read-back: {port: allowed vlans}.
+
+        `show vlan brief` cannot see a trunk's allowed-VLAN list (only access
+        members), so a removed trunk VLAN was invisible to verification and
+        diagnosis. This is the one command that answers it. UNKNOWN on any
+        unreadable/rejected answer — never an empty map that would read as
+        "no trunk ports".
+        """
+        tail = self._console_show_full(device, "show interfaces trunk")
+        if not tail.is_known:
+            return Observable[dict[str, list[int]]].unknown(
+                tail.detail or tail.status.value
+            )
+        if "% Invalid input" in tail.value or "% Ambiguous" in tail.value:
+            return Observable[dict[str, list[int]]].unknown(
+                f"{device!r} rejected 'show interfaces trunk'"
+            )
+        try:
+            table = js.parse_show_interfaces_trunk(tail.value)
+        except Exception as exc:
+            return Observable[dict[str, list[int]]].unknown(
+                f"unparseable trunk table: {exc}: {tail.value[:200]!r}"
+            )
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=table,
             detail=tail.value,
             source=tail.source,
             observed_at=None,

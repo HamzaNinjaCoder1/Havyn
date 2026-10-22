@@ -58,6 +58,20 @@ def test_task_xml_is_well_formed_and_points_at_the_runner():
     assert "%REPOROOT%" in text, "absolute repo path is the importer's job"
 
 
+def test_nightly_repo_root_is_two_levels_above_the_script():
+    """The wrapper lives in scripts/nightly.
+
+    `Join-Path $PSScriptRoot ".."` is `scripts/`, so the runner path became
+    `scripts/scripts/havyn_runner.py` and every scheduled night died before
+    the first build. The repo root is two levels up.
+    """
+    ps1 = (REPO_ROOT / "scripts" / "nightly" / "havyn-nightly.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert '(Join-Path $PSScriptRoot "..\\..")' in ps1, ps1
+    assert '(Join-Path $PSScriptRoot "..")' not in ps1
+
+
 def test_nightly_heartbeat_path_matches_the_engine_mailbox():
     """The wrapper waits on the Script Engine heartbeat before it runs.
 
@@ -74,9 +88,24 @@ def test_nightly_heartbeat_path_matches_the_engine_mailbox():
     ps1 = (REPO_ROOT / "scripts" / "nightly" / "havyn-nightly.ps1").read_text(
         encoding="utf-8"
     )
+    gate = (REPO_ROOT / "scripts" / "s119_gate.ps1").read_text(encoding="utf-8")
 
-    assert f'"Havyn" "{subdir}" "alive.txt"' in ps1, ps1
-    assert f'"packet-tracer-mcp" "{subdir}" "alive.txt"' in ps1, ps1
+    # Windows PowerShell 5.1's Join-Path accepts exactly Path + ChildPath.
+    # The four-argument form is PS 6+ only and made the gate die at parse time
+    # before its first build ("A positional parameter cannot be found").
+    # Nest the joins so the task runs on the Windows the laptop actually has.
+    for script in (ps1, gate):
+        assert (
+            f'(Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA "Havyn") '
+            f'"{subdir}") "alive.txt")'
+        ) in script, script
+        assert (
+            f'(Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA '
+            f'"packet-tracer-mcp") "{subdir}") "alive.txt")'
+        ) in script, script
+        assert f'"Havyn" "{subdir}" "alive.txt"' not in script, (
+            "four-argument Join-Path breaks Windows PowerShell 5.1"
+        )
     assert '"mailbox" "alive.txt"' not in ps1, (
         "the nightly still probes a stale mailbox/ heartbeat path"
     )

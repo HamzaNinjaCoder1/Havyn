@@ -37,15 +37,23 @@
 .PARAMETER Spec
     Reference spec. Default my-network.spec.json.
 
-.PARAMETER Queue
-    Queue file the runner consumes. Default runner_s119/queue.json.
-
 .PARAMETER ResultsDir
     Where per-case result JSON is written. Default runner_s119/results.
 
 .PARAMETER NoRestart
     Do not restart the sweep on a failure; just report it. For diagnosis only —
     a -NoRestart run can never emit a PASS verdict.
+
+.PARAMETER RestartPT
+    Close and relaunch Packet Tracer before the sweep, then wait for a fresh
+    Script Engine heartbeat. A long-lived PT session accumulates UI state
+    (power-distribution devices, a frozen modal from an earlier failed script)
+    that can make a bulk create return true while placing nothing; a fresh
+    session is what the nightly gets every night.
+
+.PARAMETER PtExe
+    Packet Tracer executable for -RestartPT. Discovered from the process,
+    PATH, or Program Files when omitted.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\s119_gate.ps1
@@ -54,9 +62,11 @@ param(
     [int]    $Runs         = 10,
     [double] $LimitSeconds = 300,
     [string] $Spec         = "my-network.spec.json",
-    [string] $Queue        = "runner_s119/queue.json",
     [string] $ResultsDir   = "runner_s119/results",
-    [switch] $NoRestart
+    [string] $Python       = "python",
+    [string] $PtExe        = "",
+    [switch] $NoRestart,
+    [switch] $RestartPT
 )
 
 $ErrorActionPreference = "Stop"
@@ -66,7 +76,6 @@ Set-Location $RepoRoot
 
 $gateDir     = Join-Path $RepoRoot "runner_s119"
 $resultsPath = Join-Path $RepoRoot $ResultsDir
-$queuePath   = Join-Path $RepoRoot $Queue
 $specPath    = Join-Path $RepoRoot $Spec
 $logDir      = Join-Path $gateDir "gate-logs"
 $summaryPath = Join-Path $gateDir "s119-gate-summary.json"
@@ -80,11 +89,10 @@ Write-Host "=== S1.19 exit gate ===" -ForegroundColor Cyan
 Write-Host "runs        : $Runs"
 Write-Host "limit       : $LimitSeconds s wall clock per run"
 Write-Host "spec        : $Spec"
-Write-Host "queue       : $Queue"
 Write-Host "results dir : $ResultsDir"
 Write-Host ""
 
-foreach ($required in @($specPath, $queuePath)) {
+foreach ($required in @($specPath)) {
     if (-not (Test-Path -LiteralPath $required)) {
         Write-Error "missing required file: $required"
         exit 2
@@ -95,8 +103,8 @@ foreach ($required in @($specPath, $queuePath)) {
 # probe returns exit 4 otherwise, and a gate sweep that starts on a dead
 # channel produces N useless results.
 $heartbeatCandidates = @(
-    (Join-Path $env:LOCALAPPDATA "Havyn" "bridge" "alive.txt"),
-    (Join-Path $env:LOCALAPPDATA "packet-tracer-mcp" "bridge" "alive.txt")
+    (Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA "Havyn") "bridge") "alive.txt"),
+    (Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA "packet-tracer-mcp") "bridge") "alive.txt")
 )
 function Test-Heartbeat {
     foreach ($c in $heartbeatCandidates) {
@@ -112,6 +120,64 @@ if (-not (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA "packet-tracer-mcp
     Write-Host "note: legacy heartbeat path not present; relying on the runner's own probe" -ForegroundColor DarkYellow
 }
 
+if ($RestartPT) {
+    $running = Get-Process PacketTracer -ErrorAction SilentlyContinue
+    if ($running) {
+        $running | Stop-Process -Force
+        Start-Sleep -Seconds 5
+    }
+    if (-not $PtExe) {
+        $found = Get-Command PacketTracer -ErrorAction SilentlyContinue
+        if ($found) { $PtExe = $found.Source }
+    }
+    if (-not $PtExe) {
+        $pattern = Join-Path $env:ProgramFiles "Cisco Packet Tracer*\bin\PacketTracer.exe"
+        $PtExe = Get-ChildItem $pattern -ErrorAction SilentlyContinue |
+            Select-Object -First 1 -ExpandProperty FullName
+    }
+    if (-not $PtExe) {
+        Write-Error "Packet Tracer executable not found; pass -PtExe"
+        exit 2
+    }
+    Write-Host "starting Packet Tracer: $PtExe"
+    $startedAt = Get-Date
+    Start-Process -FilePath $PtExe
+    $deadline = (Get-Date).AddMinutes(5)
+    while ($true) {
+        $fresh = $false
+        foreach ($candidate in $heartbeatCandidates) {
+            if (Test-Path -LiteralPath $candidate) {
+                $item = Get-Item -LiteralPath $candidate
+                if ((Get-Date) - $item.LastWriteTime -lt [TimeSpan]::FromSeconds(30) -and
+                    $item.LastWriteTime -ge $startedAt.AddSeconds(-2)) {
+                    $fresh = $true
+                    break
+                }
+            }
+        }
+        if ($fresh) { break }
+        if ((Get-Date) -gt $deadline) {
+            Write-Error "no fresh Script Engine heartbeat within 5 minutes"
+            exit 3
+        }
+        Start-Sleep -Seconds 5
+    }
+    # The heartbeat is written by the extension as soon as it loads; the
+    # mailbox may need another moment before it can answer a command. Burn a
+    # bounded window probing the real channel, not just the file's mtime.
+    $reachable = $false
+    for ($i = 0; $i -lt 24; $i++) {
+        $probe = & $Python -c 'from network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter; from network_autopilot.pt.mailbox import FileMailbox; print(BridgeAdapter(host_bridge=False, file_bridge=FileMailbox()).ping(timeout=5.0).reachable)' 2>$null
+        if ("$probe".Trim() -eq "True") { $reachable = $true; break }
+        Start-Sleep -Seconds 5
+    }
+    if (-not $reachable) {
+        Write-Error "Packet Tracer restarted but the Script Engine channel never answered"
+        exit 4
+    }
+    Write-Host "Packet Tracer restarted; Script Engine channel is reachable." -ForegroundColor Green
+}
+
 # --------------------------------------------------------------- the sweep
 
 function Invoke-Sweep {
@@ -119,9 +185,15 @@ function Invoke-Sweep {
 
     # A fresh sweep starts from an empty results dir. The runner resumes past
     # any case whose result file already exists, so leaving prior results here
-    # would make run02..run10 no-ops reading yesterday's verdicts.
+    # would make run02..run10 no-ops reading yesterday's verdicts. The
+    # append-only history is cleared too: same-network consistency must
+    # describe THIS sweep, not a mixture with earlier attempts.
     Get-ChildItem -LiteralPath $resultsPath -Filter "*.json" -ErrorAction SilentlyContinue |
         Remove-Item -Force
+    $historyPath = Join-Path $resultsPath "history.jsonl"
+    if (Test-Path -LiteralPath $historyPath) {
+        Remove-Item -LiteralPath $historyPath -Force
+    }
 
     $records   = @()
     $sweepPass = $true
@@ -133,11 +205,38 @@ function Invoke-Sweep {
 
         Write-Host ("--- {0} (attempt {1}) ---" -f $id, $Attempt) -ForegroundColor Yellow
 
+        # One case per invocation. The runner executes every uncompleted case
+        # in a queue, so passing the 10-case queue here made invocation 1 run
+        # all ten builds and measured the sweep (~43 min) as a single "run".
+        # A per-run queue makes the stopwatch measure exactly this case.
+        $caseQueue = Join-Path $logDir ("queue-{0}.json" -f $id)
+        $caseJson = [ordered]@{
+            cases = @([ordered]@{
+                id          = $id
+                spec        = $Spec
+                safety_mode = "autonomous"
+            })
+        } | ConvertTo-Json -Depth 6
+        # -Encoding UTF8 on Windows PowerShell 5.1 writes a BOM. The runner
+        # accepts it now, but write the file without one so every consumer
+        # (and every human opening it) sees plain JSON.
+        [System.IO.File]::WriteAllText(
+            $caseQueue, $caseJson, (New-Object System.Text.UTF8Encoding($false))
+        )
+
         $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        & python scripts/havyn_runner.py $Queue `
+        # The runner writes real diagnostics to stderr ("STOPPED: workspace
+        # could not be cleaned: ...", "Packet Tracer is not reachable"). Under
+        # $ErrorActionPreference = "Stop", PowerShell 5.1 turns native stderr
+        # into a terminating NativeCommandError and the gate dies without its
+        # summary. The runner's exit code is the verdict; stderr is evidence.
+        $previousEap = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        & $Python scripts/havyn_runner.py $caseQueue `
               --results-dir $ResultsDir `
               --adapter bridge *>&1 | Tee-Object -FilePath $logFile
         $exit = $LASTEXITCODE
+        $ErrorActionPreference = $previousEap
         $sw.Stop()
 
         $wall = [math]::Round($sw.Elapsed.TotalSeconds, 1)
@@ -225,7 +324,12 @@ $summary = [ordered]@{
                       "it excludes the PT probe and the workspace clean, so it understates " +
                       "real elapsed time.")
 }
-$summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+$summaryJson = $summary | ConvertTo-Json -Depth 8
+# No BOM: this is the committed evidence, and every JSON reader in the repo
+# (and every `jq`) expects a plain UTF-8 document.
+[System.IO.File]::WriteAllText(
+    $summaryPath, $summaryJson, (New-Object System.Text.UTF8Encoding($false))
+)
 
 Write-Host ""
 Write-Host "=== S1.19 gate result ===" -ForegroundColor Cyan

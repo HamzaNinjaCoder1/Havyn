@@ -660,7 +660,11 @@ def _assign_router_ports(
     # PT's ASA 5505 carries addresses on the Vlan SVI the switchport joins,
     # not on Ethernet0/x itself — verification read-back must target the SVI.
     # The home gateway is the same story: its LAN address lives on Vlan1
-    # whichever "GigabitEthernet N" port a cable actually uses.
+    # whichever "GigabitEthernet N" port a cable actually uses. The Linksys
+    # wireless router is a `wireless_router` category in the catalog (not
+    # `home_gateway`) but its LAN address is also on Vlan1, set through the
+    # port API — leaving it out made verification look for FastEthernet0 on a
+    # device that only exposes Internet/Ethernet 1..4/Vlan1 (T06 live).
     from ..pt.catalog import resolve_model
 
     asa5505_ids: set[str] = set()
@@ -669,7 +673,7 @@ def _assign_router_ports(
         m = resolve_model(_model_for(spec, d.id, d.role))
         if m is not None and m.pt_type == "5505":
             asa5505_ids.add(d.id)
-        elif m is not None and m.category == "home_gateway":
+        elif m is not None and m.category in ("home_gateway", "wireless_router"):
             home_gateway_ids.add(d.id)
     for assignment in plan.assignments:
         if assignment.interface_hint or assignment.ip is None:

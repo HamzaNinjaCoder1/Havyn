@@ -61,10 +61,11 @@ def test_the_first_window_covers_a_cold_ping_and_the_middle_one_shrinks(monkeypa
     schedule is observable."""
     adapter, calls = _adapter_with_script(
         monkeypatch,
-        [_attempt(FlowOutcome.PARTIAL, "Success rate is 60 percent")] * 3,
+        [_attempt(FlowOutcome.PARTIAL, "Success rate is 60 percent")] * 4,
     )
     adapter.run_flow_test("pc1", "r1", destination_ip="10.0.0.1")
-    assert calls == [30.0, 15.0, 25.0], calls
+    # The fourth is the partial-confirmation attempt (same 25 s patience).
+    assert calls == [30.0, 15.0, 25.0, 25.0], calls
 
 
 def test_an_explicit_timeout_still_applies_to_every_attempt(monkeypatch):
@@ -72,10 +73,10 @@ def test_an_explicit_timeout_still_applies_to_every_attempt(monkeypatch):
     keep the old contract: their value is every attempt's deadline."""
     adapter, calls = _adapter_with_script(
         monkeypatch,
-        [_attempt(FlowOutcome.PARTIAL, "Success rate is 60 percent")] * 3,
+        [_attempt(FlowOutcome.PARTIAL, "Success rate is 60 percent")] * 4,
     )
     adapter.run_flow_test("pc1", "r1", destination_ip="10.0.0.1", timeout=3.0)
-    assert calls == [3.0, 3.0, 3.0], calls
+    assert calls == [3.0, 3.0, 3.0, 3.0], calls
 
 
 @pytest.mark.parametrize(
@@ -87,6 +88,9 @@ def test_an_explicit_timeout_still_applies_to_every_attempt(monkeypatch):
         (["QUIET", "QUIET", "QUIET"], FlowOutcome.UNKNOWN, 3),
         (["BLOCKED", "BLOCKED", "BLOCKED"], FlowOutcome.BLOCKED, 3),
         (["PARTIAL", "PARTIAL", "REACHABLE"], FlowOutcome.REACHABLE, 3),
+        # A PARTIAL on the last budgeted attempt earns one confirmation try.
+        (["PARTIAL", "PARTIAL", "PARTIAL", "REACHABLE"],
+         FlowOutcome.REACHABLE, 4),
     ],
 )
 def test_verdicts_are_stable_across_attempt_patterns(

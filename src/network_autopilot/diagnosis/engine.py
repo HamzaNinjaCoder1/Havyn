@@ -61,6 +61,50 @@ def fill_missing_routes(
     return filled
 
 
+def fill_trunk_allowed(
+    spec: NetworkSpec,
+    state: ActualNetworkState,
+    reader: Callable[[str], Observable] | None,
+) -> int:
+    """Fill switch trunk allowed-VLAN lists from `show interfaces trunk`.
+
+    `show vlan brief` cannot see a trunk's allowed list, so a removed trunk
+    VLAN is invisible to the L2 tests. This runs only on the failure path
+    (the healthy build never pays for the extra console read) and writes the
+    observed list onto the port, where the trunk diagnosis rule reads it.
+    A failed read leaves the port untouched — not-observed, never a guess.
+    """
+    if reader is None:
+        return 0
+    roles = {d.id: str(getattr(d.role, "value", d.role)) for d in spec.devices}
+    filled = 0
+    for device in spec.devices:
+        if roles.get(device.id) not in ("switch", "l3_switch"):
+            continue
+        observed = state.devices.get(device.id)
+        if observed is None:
+            continue
+        try:
+            table = reader(device.id)
+        except Exception:
+            continue
+        if table is None or not getattr(table, "is_known", False):
+            continue
+        for port_name, vlan_ids in (table.value or {}).items():
+            port = observed.ports.get(str(port_name))
+            if port is None:
+                continue
+            port.trunk = Observable.known(
+                True, source="show interfaces trunk"
+            )
+            port.vlan = Observable.known(
+                ",".join(str(v) for v in vlan_ids),
+                source="show interfaces trunk",
+            )
+            filled += 1
+    return filled
+
+
 @dataclass(frozen=True)
 class Diagnosis:
     diagnosis_id: str
@@ -192,17 +236,25 @@ def diagnose(
         source, target = test.source or "?", test.target
         evidence: list[str] = [f"flow {source}->{target} observed: {test.observed_result}"]
         # endpoint absence is a direct, evidence-backed cause
-        for endpoint in (source, target):
-            device = state.devices.get(endpoint)
+        # Down ports anywhere on the path, not only on the flow's endpoints:
+        # the fault lab shuts r1's transit interface, and a rule that looked
+        # only at pc1/srv1 reported "no state anomaly" on a network with a
+        # provably down port. The path comes from the spec's links, so the
+        # cause names a device the flow actually crosses.
+        for device_id in (_devices_on_path(spec, source, target)
+                          or [source, target]):
+            device = state.devices.get(device_id)
             if device is None:
+                if device_id not in (source, target):
+                    continue
                 candidates.append(
                     Diagnosis(
                         diagnosis_id=new_id("diag"),
                         failed_tests=(test.test_id,),
-                        root_cause=f"endpoint {endpoint!r} is absent from the observed workspace",
-                        evidence=(*evidence, f"{endpoint} not in observed state"),
+                        root_cause=f"endpoint {device_id!r} is absent from the observed workspace",
+                        evidence=(*evidence, f"{device_id} not in observed state"),
                         confidence="medium" if not report.observations_complete else "high",
-                        affected_resources=(endpoint,),
+                        affected_resources=(device_id,),
                         proposed_repair=(),
                         uncertainty=(
                             "endpoint absence inferred from a possibly-partial observation"
@@ -211,49 +263,66 @@ def diagnose(
                         ),
                     )
                 )
-            else:
-                down = [
-                    f"{endpoint}:{p.name}"
-                    for p in device.ports.values()
-                    if p.state.is_known
-                    and p.state.value == "down"
-                    # A logical NIC (Bluetooth, Wireless radio, ...) reads
-                    # down on a healthy device, so it is never the fault.
-                    # Live S1.19: treating them as faults diagnosed eight
-                    # hosts with "interface(s) down: pc1:Bluetooth" and spent
-                    # the whole repair budget on `interface Bluetooth /
-                    # no shutdown` while the real cause went unreported.
-                    and not is_logical_port(p.name)
-                ]
-                if down:
-                    # One "no shutdown" pair per down port. `down` entries are
-                    # already "device:port"; the port is the part after the
-                    # first colon (port names contain no colon).
-                    commands: list[str] = []
-                    for entry in down:
-                        commands.append(f"interface {entry.split(':', 1)[1]}")
-                        commands.append("no shutdown")
-                    candidates.append(
-                        Diagnosis(
-                            diagnosis_id=new_id("diag"),
-                            failed_tests=(test.test_id,),
-                            root_cause=f"interface(s) down on the path: {', '.join(down)}",
-                            evidence=(*evidence, f"observed state=down on {', '.join(down)}"),
-                            confidence="high",
-                            affected_resources=(endpoint, *down),
-                            proposed_repair=(
-                                {
-                                    "operation_type": "ios_command",
-                                    "inputs": {
-                                        "device": endpoint,
-                                        "commands": commands,
-                                    },
-                                    "reason": "interface administratively/physically down",
+                continue
+            # Endpoints: any down physical port is plausible. Transit devices:
+            # only ports the spec actually cables. PT reports every unused
+            # access port as "down", and reading those as faults diagnosed a
+            # clean topology with a wall of FastEthernet0/10.. failures.
+            allowed_ports = None
+            if device_id not in (source, target):
+                allowed_ports = {
+                    hint
+                    for link in spec.links
+                    for endpoint in (link.a, link.b)
+                    if endpoint.device == device_id
+                    for hint in (endpoint.interface_hint,)
+                    if hint
+                }
+                if not allowed_ports:
+                    continue
+            down = [
+                f"{device_id}:{p.name}"
+                for p in device.ports.values()
+                if p.state.is_known
+                and p.state.value == "down"
+                and (allowed_ports is None or p.name in allowed_ports)
+                # A logical NIC (Bluetooth, Wireless radio, ...) reads
+                # down on a healthy device, so it is never the fault.
+                # Live S1.19: treating them as faults diagnosed eight
+                # hosts with "interface(s) down: pc1:Bluetooth" and spent
+                # the whole repair budget on `interface Bluetooth /
+                # no shutdown` while the real cause went unreported.
+                and not is_logical_port(p.name)
+            ]
+            if down:
+                # One "no shutdown" pair per down port. `down` entries are
+                # already "device:port"; the port is the part after the
+                # first colon (port names contain no colon).
+                commands: list[str] = []
+                for entry in down:
+                    commands.append(f"interface {entry.split(':', 1)[1]}")
+                    commands.append("no shutdown")
+                candidates.append(
+                    Diagnosis(
+                        diagnosis_id=new_id("diag"),
+                        failed_tests=(test.test_id,),
+                        root_cause=f"interface(s) down on the path: {', '.join(down)}",
+                        evidence=(*evidence, f"observed state=down on {', '.join(down)}"),
+                        confidence="high",
+                        affected_resources=(device_id, *down),
+                        proposed_repair=(
+                            {
+                                "operation_type": "ios_command",
+                                "inputs": {
+                                    "device": device_id,
+                                    "commands": commands,
                                 },
-                            ),
-                            uncertainty=None,
-                        )
+                                "reason": "interface administratively/physically down",
+                            },
+                        ),
+                        uncertainty=None,
                     )
+                )
         if candidates:
             diagnoses.extend(candidates)
         else:
@@ -382,6 +451,80 @@ def diagnose(
             )
         )
 
+    # 4b. A trunk whose observed allowed list is missing a spec VLAN.
+    # `show vlan brief` cannot see trunk lists, so this evidence is filled by
+    # `fill_trunk_allowed` only on the failure path. Without it a removed
+    # trunk VLAN broke the flow while the engine reported "no state anomaly".
+    expected_trunk_vlans = sorted(
+        {str(s.vlan_id) for s in spec.subnets
+         if getattr(s, "vlan_id", None) is not None}
+        | {str(v.vlan_id) for v in spec.vlans}
+    )
+    if expected_trunk_vlans:
+        reported_ports: set[str] = set()
+        for test in report.tests:
+            if test.level != "connectivity" or test.verdict is Verdict.PASS:
+                continue
+            path = (_devices_on_path(spec, test.source or "", test.target)
+                    or [test.source or "", test.target])
+            for device_id in path:
+                observed = state.devices.get(device_id)
+                if observed is None:
+                    continue
+                for port in observed.ports.values():
+                    if not (
+                        port.trunk.is_known and port.trunk.value
+                        and port.vlan.is_known
+                    ):
+                        continue
+                    allowed = {
+                        v.strip() for v in str(port.vlan.value).split(",")
+                        if v.strip()
+                    }
+                    missing = [
+                        v for v in expected_trunk_vlans if v not in allowed
+                    ]
+                    if not missing:
+                        continue
+                    key = f"{device_id}:{port.name}"
+                    if key in reported_ports:
+                        continue
+                    reported_ports.add(key)
+                    diagnoses.append(
+                        Diagnosis(
+                            diagnosis_id=new_id("diag"),
+                            failed_tests=(test.test_id,),
+                            root_cause=(
+                                f"switch {device_id!r} does not report the "
+                                f"expected VLAN or trunk state for {key!r}: "
+                                f"the trunk does not allow VLAN(s) "
+                                f"{', '.join(missing)}"
+                            ),
+                            evidence=(
+                                f"flow {test.source}->{test.target}: "
+                                f"{test.observed_result}",
+                                f"show interfaces trunk on {device_id}: "
+                                f"{port.name} allows {','.join(sorted(allowed)) or 'none'}",
+                            ),
+                            confidence="high",
+                            affected_resources=(device_id, key),
+                            proposed_repair=(
+                                {
+                                    "operation_type": "ios_command",
+                                    "inputs": {
+                                        "device": device_id,
+                                        "source": "switch_vlan_config",
+                                    },
+                                    "reason": (
+                                        "re-push the switch's compiled "
+                                        "VLAN/trunk block"
+                                    ),
+                                },
+                            ),
+                            uncertainty=None,
+                        )
+                    )
+
     # 5. DHCP clients that never took a lease (#29). Only proposed when the
     # server end is actually observed to be addressed: with no evidence about
     # the pool, re-pushing a client config is a guess and stays blocked.
@@ -509,6 +652,38 @@ def _route_commands(route) -> list[str]:
 def _role_of(spec: NetworkSpec, device_id: str) -> str:
     device = spec.device_by_id(device_id)
     return str(getattr(getattr(device, "role", None), "value", ""))
+
+
+def _devices_on_path(spec: NetworkSpec, source: str, target: str) -> list[str]:
+    """Shortest device path between two endpoints, from the spec's links.
+
+    The diagnosis engine sees links and observed state, not the compiled DAG,
+    so this is the cheapest faithful way to ask "which devices does this flow
+    cross?". A spec that names an endpoint it does not connect returns [] and
+    the caller falls back to the two endpoints.
+    """
+    if not source or not target:
+        return []
+    if source == target:
+        return [source]
+    adjacency: dict[str, list[str]] = {}
+    for link in spec.links:
+        a, b = link.a.device, link.b.device
+        adjacency.setdefault(a, []).append(b)
+        adjacency.setdefault(b, []).append(a)
+    queue: list[list[str]] = [[source]]
+    seen = {source}
+    while queue:
+        path = queue.pop(0)
+        node = path[-1]
+        if node == target:
+            return path
+        for neighbour in adjacency.get(node, []):
+            if neighbour in seen:
+                continue
+            seen.add(neighbour)
+            queue.append([*path, neighbour])
+    return []
 
 
 def _switch_for_l2_failure(spec: NetworkSpec, target: str) -> str | None:

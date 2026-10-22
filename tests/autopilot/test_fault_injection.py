@@ -228,6 +228,102 @@ def test_same_failing_flow_without_any_fault_names_no_cause():
     assert all("is missing on" not in d.root_cause for d in diags)
 
 
+def test_a_trunk_missing_a_vlan_on_the_flow_path_is_named():
+    """`show vlan brief` cannot see trunk lists; the failure-path trunk read
+    fills them, and the diagnosis names the switch/port and the missing VLAN.
+    Live trunk-vlan-not-allowed fault: the flow broke and nothing was named
+    until this rule existed."""
+    spec = NetworkSpec.model_validate({
+        "name": "trunk-path",
+        "devices": [
+            {"id": "pc1", "role": "pc"},
+            {"id": "s1", "role": "switch"},
+            {"id": "r1", "role": "router"},
+            {"id": "srv", "role": "server"},
+        ],
+        "links": [
+            {"id": "l1", "a": {"device": "pc1"}, "b": {"device": "s1"}},
+            {"id": "l2", "trunk": True,
+             "a": {"device": "s1"}, "b": {"device": "r1"}},
+            {"id": "l3", "a": {"device": "r1"}, "b": {"device": "srv"}},
+        ],
+        "subnets": [{"id": "users", "cidr": "10.0.10.0/24", "vlan_id": 10}],
+        "vlans": [{"vlan_id": 10, "name": "USERS"}],
+    })
+    state = ActualNetworkState(source="test", observed_at="then")
+    for name in ("pc1", "r1", "srv"):
+        device = DeviceObservation(name=name)
+        device.port("FastEthernet0").state = _known("up")
+        state.observe_device(device)
+    s1 = DeviceObservation(name="s1")
+    s1.port("FastEthernet0/1").state = _known("up")
+    s1.port("FastEthernet0/1").vlan = _known("10")
+    s1.port("FastEthernet0/1").trunk = _known(False)
+    s1.port("FastEthernet0/24").state = _known("up")
+    s1.port("FastEthernet0/24").trunk = _known(True)
+    s1.port("FastEthernet0/24").vlan = _known("1")
+    state.observe_device(s1)
+
+    diags = diagnose(
+        spec, _report(_flow_test(source="pc1", target="srv")), state)
+
+    match = [
+        d for d in diags
+        if "does not report the expected VLAN or trunk state" in d.root_cause
+    ]
+    assert match, [d.root_cause for d in diags]
+    assert "VLAN(s) 10" in match[0].root_cause
+    assert "s1:FastEthernet0/24" in match[0].root_cause
+    assert match[0].repairable
+
+
+def test_a_down_transit_interface_on_the_flow_path_is_named():
+    """The lab shuts r1's transit port, not a flow endpoint.
+
+    A rule that only inspected pc1/srv1 reported "no state anomaly" on a
+    network with a provably down port in the middle. The path now comes from
+    the spec's links, so the cause names the device the flow crosses.
+    """
+    spec = NetworkSpec.model_validate({
+        "name": "linear-path",
+        "devices": [
+            {"id": "pc1", "role": "pc"},
+            {"id": "s1", "role": "switch"},
+            {"id": "r1", "role": "router"},
+            {"id": "srv", "role": "server"},
+        ],
+        "links": [
+            {"id": "l1", "a": {"device": "pc1", "interface_hint": "FastEthernet0"},
+             "b": {"device": "s1", "interface_hint": "FastEthernet0/1"}},
+            {"id": "l2", "a": {"device": "s1", "interface_hint": "FastEthernet0/2"},
+             "b": {"device": "r1", "interface_hint": "GigabitEthernet0/0"}},
+            {"id": "l3", "a": {"device": "r1", "interface_hint": "GigabitEthernet0/1"},
+             "b": {"device": "srv", "interface_hint": "FastEthernet0"}},
+        ],
+    })
+    state = ActualNetworkState(source="test", observed_at="then")
+    pc1 = DeviceObservation(name="pc1")
+    pc1.port("FastEthernet0").state = _known("up")
+    s1 = DeviceObservation(name="s1")
+    s1.port("FastEthernet0/1").state = _known("up")
+    s1.port("FastEthernet0/2").state = _known("up")
+    r1 = DeviceObservation(name="r1")
+    r1.port("GigabitEthernet0/0").state = _known("up")
+    r1.port("GigabitEthernet0/1").state = _known("down")
+    srv = DeviceObservation(name="srv")
+    srv.port("FastEthernet0").state = _known("up")
+    for device in (pc1, s1, r1, srv):
+        state.observe_device(device)
+
+    diags = diagnose(
+        spec, _report(_flow_test(source="pc1", target="srv")), state)
+
+    match = [d for d in diags if "interface(s) down on the path" in d.root_cause]
+    assert match, [d.root_cause for d in diags]
+    assert "r1:GigabitEthernet0/1" in match[0].root_cause
+    assert match[0].repairable
+
+
 def test_every_fault_carries_live_commands():
     faults = [
         port_shutdown_fault("r1", "GigabitEthernet0/0"),

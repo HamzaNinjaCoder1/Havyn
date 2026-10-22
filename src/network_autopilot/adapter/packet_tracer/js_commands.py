@@ -1056,6 +1056,88 @@ def parse_show_vlan_brief(output: str) -> list[dict]:
     return vlans
 
 
+def expand_vlan_list(text: str) -> list[int]:
+    """`"1-5,10"` -> `[1, 2, 3, 4, 5, 10]`; unparseable tokens are skipped."""
+    ids: set[int] = set()
+    for token in str(text).split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if "-" in token:
+            start, _, end = token.partition("-")
+            try:
+                ids.update(range(int(start), int(end) + 1))
+            except ValueError:
+                continue
+        else:
+            try:
+                ids.add(int(token))
+            except ValueError:
+                continue
+    return sorted(ids)
+
+
+_IFACE_LONG_NAMES = {
+    "Fa": "FastEthernet",
+    "Gi": "GigabitEthernet",
+    "Et": "Ethernet",
+    "Te": "TenGigabitEthernet",
+    "Po": "Port-channel",
+}
+
+
+def full_interface_name(name: str) -> str:
+    """`Fa0/24` -> `FastEthernet0/24` (the topology read-back's spelling).
+
+    `show interfaces trunk` abbreviates; the live device snapshot does not.
+    Joining them without this made the trunk evidence land on a port name the
+    state did not contain, so the diagnosis could never see it.
+    """
+    for short, long_name in _IFACE_LONG_NAMES.items():
+        if name.startswith(short) and not name.startswith(long_name):
+            return long_name + name[len(short):]
+    return name
+
+
+def parse_show_interfaces_trunk(output: str) -> dict[str, list[int]]:
+    """Parse `show interfaces trunk` -> {port: [allowed vlan ids]}.
+
+    Only the "Vlans allowed on trunk" section is read: that is the list a
+    `switchport trunk allowed vlan remove N` changes, and the list that
+    decides whether a VLAN can cross the link. The later sections describe
+    active/forwarding state, which can differ transiently while STP converges.
+
+    Live sample (PT, 2960):
+        Port        Mode         Encapsulation  Status        Native vlan
+        Fa0/24      on           802.1q         trunking      1
+
+        Port        Vlans allowed on trunk
+        Fa0/24      10
+    """
+    section = False
+    ports: dict[str, list[int]] = {}
+    for raw in output.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("Port"):
+            section = "Vlans allowed on trunk" in line
+            continue
+        if not section:
+            continue
+        # An empty allowed list is still a listed trunk port (PT prints the
+        # name and a blank remainder after `switchport trunk allowed vlan
+        # remove N` empties the list). Dropping the row made the reader return
+        # {} and the fault diagnosis could not see that VLAN 10 was gone.
+        match = re.match(r"^((?:Fa|Gi|Et|Te|Po)\S*)", line)
+        if not match:
+            continue
+        port = full_interface_name(match.group(1))
+        remainder = line[len(match.group(1)):].strip()
+        ports[port] = expand_vlan_list(remainder) if remainder else []
+    return ports
+
+
 def wrap_with_report(
     expression: str, report_fn_js: str, statements: list[str] | None = None
 ) -> str:

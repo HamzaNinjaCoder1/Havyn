@@ -959,6 +959,11 @@ def test_wireless_router_role_gets_the_gateway_config():
     result = _compile_raw(raw)
     op = _gateway_config_op(result)
     assert op is not None, "a wireless router must receive a config op"
+    # The Linksys has no FastEthernet0: its LAN address lives on Vlan1 (the
+    # port API addresses it there). Verification reads this map, so a missing
+    # entry made a live T06 run report the address UNKNOWN against an
+    # interface the device never had.
+    assert result.assignment_ports[("wr", "net-lan")] == "Vlan1"
     assert op.operation_type == "configure_gateway_lan"
     assert op.inputs["ip"] == "192.168.0.1"
     assert op.inputs["mask"] == "255.255.255.0"

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Protocol, Sequence
 
@@ -99,18 +100,31 @@ def plan(
     return sorted(drop), sorted(keep)
 
 
-def _read_names(workspace: DeletableWorkspace) -> list[str] | None:
+def _read_names(
+    workspace: DeletableWorkspace,
+    *,
+    attempts: int = 3,
+    delay: float = 0.5,
+) -> list[str] | None:
     """Device names from the workspace, or ``None`` when the read itself failed.
 
     ``None`` is the whole point: an unreadable workspace used to be reported as
     an empty list, which is byte-identical to "the canvas is clean, all clear".
     The caller treats ``None`` as REMAINING "unknown" and refuses to proceed,
     because "I could not read it" must never look like "nothing to delete".
+
+    A single UNKNOWN is not a verdict. PT's mailbox can be busy for a moment
+    right after a build (S1.19 run04 refused to start on a canvas it could read
+    two seconds later), so the read is retried a bounded few times before the
+    caller is told the workspace is unreadable.
     """
-    observed = workspace.list_device_names()
-    if not getattr(observed, "is_known", False):
-        return None
-    return [str(n) for n in (observed.value or [])]
+    for attempt in range(max(1, attempts)):
+        observed = workspace.list_device_names()
+        if getattr(observed, "is_known", False):
+            return [str(n) for n in (observed.value or [])]
+        if attempt + 1 < attempts:
+            time.sleep(delay)
+    return None
 
 
 def clean(

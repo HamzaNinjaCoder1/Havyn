@@ -44,7 +44,17 @@ EXIT_ERROR = 1
 EXIT_CASES_FAILED = 2
 EXIT_UNREACHABLE = 4
 
+#: Stamped into every result so a stored verdict can be attributed to the
+#: runner generation that produced it (the result schema is a contract).
+RUNNER_VERSION = "s2.2"
+
 TERMINAL_STATUSES = ("pass", "fail", "error", "blocked")
+
+#: Every execution is also appended here, so "same-network consistency" (S2.4)
+#: has repeated observations to compare. The per-case JSON is the current
+#: verdict and is replaced on a re-run; this file is the history that a
+#: re-run must not erase.
+HISTORY_FILE = "history.jsonl"
 
 
 @dataclass
@@ -88,11 +98,16 @@ class CaseResult:
     finished_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        failed = sorted(
+            key for key, verdict in self.criteria_detail.items()
+            if verdict in ("fail", "not_run")
+        )
         return {
             "case_id": self.case_id,
             "topology_id": self.topology_id,
             "spec": self.spec,
             "run_id": self.run_id,
+            "runner_version": RUNNER_VERSION,
             "mode": self.mode,
             "status": self.status,
             "started_at": self.started_at,
@@ -100,6 +115,7 @@ class CaseResult:
             "elapsed_s": round(self.elapsed_s, 1),
             "criteria": dict(self.criteria),
             "criteria_detail": dict(self.criteria_detail),
+            "failures": failed,
             "build_id": self.build_id,
             "evidence_dir": self.evidence_dir,
             "detail": self.detail,
@@ -149,8 +165,24 @@ def _result_path(results_dir: Path, case_id: str) -> Path:
     return results_dir / f"{case_id}.json"
 
 
+def append_history(results_dir: Path, result: CaseResult) -> None:
+    """Append one completed execution to the append-only run history.
+
+    Written after the per-case result so a torn history line can never be
+    the only record of a case: the result JSON first, then history. A
+    crash between the two loses one history entry (consistency then has one
+    fewer sample), never a verdict.
+    """
+    with (results_dir / HISTORY_FILE).open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(result.to_dict(), sort_keys=True) + "\n")
+
+
 def load_queue(queue_path: Path) -> list[dict[str, Any]]:
-    data = json.loads(Path(queue_path).read_text(encoding="utf-8"))
+    # utf-8-sig: PowerShell's Set-Content -Encoding UTF8 writes a BOM on
+    # Windows PowerShell 5.1, and a BOM-prefixed JSON file is still a valid
+    # queue to every human who opens it. Rejecting it was a launch-time failure
+    # with no case result to explain it.
+    data = json.loads(Path(queue_path).read_text(encoding="utf-8-sig"))
     cases = data.get("cases", [])
     if not isinstance(cases, list) or not cases:
         raise ValueError(f"queue {queue_path} has no cases")
@@ -399,6 +431,7 @@ def run_queue(
         else:
             summary.failed += 1
         path.write_text(json.dumps(result.to_dict(), indent=1), encoding="utf-8")
+        append_history(results_dir, result)
         if result.status == "blocked" and (result.detail or "").startswith(
             "workspace"
         ):
@@ -452,8 +485,15 @@ def make_dir_uploader(destination: Path) -> Callable[[Path], dict[str, Any]]:
         if not destination.is_dir():
             return {"uploaded": False,
                     "detail": f"destination {destination} is not a directory"}
+        sources = sorted(results_dir.glob("*.json"))
+        # History is part of the result set: the published scorecard derives
+        # same-network consistency from it, so an upload without it would
+        # leave the destination unable to reproduce the table.
+        history = results_dir / HISTORY_FILE
+        if history.is_file():
+            sources.append(history)
         copied: list[str] = []
-        for source in sorted(results_dir.glob("*.json")):
+        for source in sources:
             target = destination / f"{results_dir.name}-{source.name}"
             shutil.copy2(source, target)
             if _sha256(source) != _sha256(target):

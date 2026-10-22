@@ -13,6 +13,7 @@ enforces the same invariant at requirement level).
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -143,6 +144,9 @@ class VerificationEngine:
         tests: list[VerificationTest] = []
         tests.extend(self._structural_tests(spec, state, now, observations_complete))
         tests.extend(
+            self._l2_tests(spec, state, now, link_endpoints or {})
+        )
+        tests.extend(
             self._link_tests(spec, link_endpoints or {}, now, observations_complete)
         )
         tests.extend(
@@ -269,23 +273,164 @@ class VerificationEngine:
                 )
         return tests
 
+    def _l2_tests(
+        self,
+        spec: NetworkSpec,
+        state: ActualNetworkState,
+        now: str,
+        link_endpoints: dict[str, tuple[str, str, str, str]],
+    ) -> list[VerificationTest]:
+        """Access-VLAN and trunk-membership checks from observed switch state.
+
+        These are the tests the diagnosis engine's L2 rule has always expected
+        (`VT-struct-vlan-*` / `VT-struct-trunk-*`), but the engine never
+        emitted: the rule was dead code, so an injected wrong access VLAN or a
+        removed trunk VLAN broke the flow while no diagnosis could name it.
+
+        A check is emitted only when Packet Tracer actually reported the
+        membership. Absence of evidence is not a failed VLAN: the flow test
+        and the acceptance criterion still judge the network, and this layer
+        stays silent rather than inventing an UNKNOWN that would sink an
+        otherwise-green build.
+        """
+        roles = {
+            d.id: str(getattr(d.role, "value", d.role)) for d in spec.devices
+        }
+        vlan_by_subnet = {
+            str(s.id): str(s.vlan_id)
+            for s in spec.subnets
+            if getattr(s, "vlan_id", None) is not None
+        }
+        trunk_vlans = sorted(
+            {str(s.vlan_id) for s in spec.subnets
+             if getattr(s, "vlan_id", None) is not None}
+            | {str(v.vlan_id) for v in spec.vlans}
+        )
+
+        tests: list[VerificationTest] = []
+        for link in spec.links:
+            endpoints = link_endpoints.get(link.id)
+            for near, far in ((link.a, link.b), (link.b, link.a)):
+                if roles.get(near.device) not in ("switch", "l3_switch"):
+                    continue
+                switch = near.device
+                port_name = None
+                if endpoints:
+                    a_dev, a_port, b_dev, b_port = endpoints
+                    if a_dev == switch:
+                        port_name = a_port
+                    elif b_dev == switch:
+                        port_name = b_port
+                if not port_name:
+                    port_name = near.interface_hint
+                observed = state.devices.get(switch)
+                port = observed.ports.get(port_name) if observed and port_name else None
+                if port is None:
+                    continue
+
+                if link.trunk:
+                    if not (
+                        port.trunk.is_known and port.vlan.is_known
+                    ) or not trunk_vlans:
+                        continue
+                    observed_vlans = {
+                        v.strip() for v in str(port.vlan.value).split(",")
+                        if v.strip()
+                    }
+                    missing = [v for v in trunk_vlans if v not in observed_vlans]
+                    ok = bool(port.trunk.value) and not missing
+                    tests.append(VerificationTest(
+                        test_id=f"VT-struct-trunk-{link.id}",
+                        level="structural",
+                        source_requirement=None,
+                        source_acceptance_criterion=None,
+                        source=switch,
+                        target=link.id,
+                        expected_result=(
+                            "trunk carrying VLANs " + ", ".join(trunk_vlans)
+                        ),
+                        observed_result=(
+                            f"trunk={port.trunk.value} "
+                            f"vlans={','.join(sorted(observed_vlans)) or 'none'}"
+                        ),
+                        evidence=(
+                            f"show vlan brief on {switch}:{port_name}",
+                            f"missing VLAN(s): {', '.join(missing) or 'none'}",
+                        ),
+                        timestamp=now,
+                        verdict=Verdict.PASS if ok else Verdict.FAIL,
+                    ))
+                    break
+
+                if not port.vlan.is_known:
+                    continue
+                wanted = sorted({
+                    vlan_by_subnet[a.subnet]
+                    for a in spec.ip_assignments
+                    if a.device == far.device and a.subnet in vlan_by_subnet
+                })
+                if len(wanted) != 1:
+                    continue
+                expected = wanted[0]
+                observed_vlan = str(port.vlan.value).strip()
+                trunked = port.trunk.is_known and bool(port.trunk.value)
+                ok = observed_vlan == expected and not trunked
+                tests.append(VerificationTest(
+                    test_id=f"VT-struct-vlan-{link.id}",
+                    level="structural",
+                    source_requirement=None,
+                    source_acceptance_criterion=None,
+                    source=switch,
+                    target=link.id,
+                    expected_result=f"access VLAN {expected}",
+                    observed_result=(
+                        f"VLAN {observed_vlan}"
+                        + (" (port is trunking)" if trunked else "")
+                    ),
+                    evidence=(f"show vlan brief on {switch}:{port_name}",),
+                    timestamp=now,
+                    verdict=Verdict.PASS if ok else Verdict.FAIL,
+                ))
+                break
+        return tests
+
     def _wireless_link_test(self, spec: NetworkSpec, link, now: str) -> VerificationTest:
         """Structural check for an RF link: PT's own antenna link."""
+        from ..core.network_spec import DeviceRole, default_model_for_role
         from ..wireless import module_for_model
 
         def device_of(device_id: str):
             return next((d for d in spec.devices if d.id == device_id), None)
 
+        def is_wireless_host(device) -> bool:
+            """A device whose model takes a wireless *client* NIC.
+
+            The spec often names only a role (`laptop`), so the resolved
+            default model has to be checked too — T06 declared `lap1` with no
+            model_hint, and matching only the hint sent the check to the AP
+            end (`wr`), where `Wireless0` does not exist and the association
+            read could never succeed.
+            """
+            model = device.model_hint or default_model_for_role(device.role)
+            return module_for_model(model) is not None
+
         client = None
         for device_id in (link.a.device, link.b.device):
             device = device_of(device_id)
-            if device is None:
-                continue
-            if device.model_hint and module_for_model(device.model_hint) is not None:
+            if device is not None and is_wireless_host(device):
                 client = device_id
                 break
         if client is None:
+            # No role/model says "client": fall back to a radio-bearing device
+            # that is not itself an access point or wireless router.
             for device_id in (link.a.device, link.b.device):
+                device = device_of(device_id)
+                if device is None:
+                    continue
+                if device.role in (
+                    DeviceRole.ACCESS_POINT, DeviceRole.WIRELESS_ROUTER
+                ):
+                    continue
                 if self._device_has_radio(device_id):
                     client = device_id
                     break
@@ -304,7 +449,20 @@ class VerificationEngine:
                 verdict=Verdict.FAIL,
             )
         reader = getattr(self.adapter, "wireless_association", None)
-        association = reader(client, "Wireless0") if reader else None
+        # One stale mailbox answer is not "no association". The association
+        # operation itself has already proven the antenna link; verification
+        # re-reads it after flows/DHCP and can catch the channel mid-turn —
+        # a live T06 run saw the op confirm `Antenna` and this read answer
+        # None a second later. Retry a bounded few times, then judge.
+        association = None
+        attempts = 0
+        for attempt in range(3):
+            attempts = attempt + 1
+            association = reader(client, "Wireless0") if reader else None
+            if association is not None:
+                break
+            if attempt < 2:
+                time.sleep(0.5)
         peer = link.b.device if client == link.a.device else link.a.device
         if association is None:
             return VerificationTest(
@@ -316,7 +474,10 @@ class VerificationEngine:
                 target=link.id,
                 expected_result=f"associated to {peer}",
                 observed_result=None,
-                evidence=("PT shows no antenna link on the client radio",),
+                evidence=(
+                    "PT shows no antenna link on the client radio "
+                    f"(after {attempts} read attempt(s))",
+                ),
                 timestamp=now,
                 verdict=Verdict.FAIL,
             )

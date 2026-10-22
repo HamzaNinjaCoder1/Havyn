@@ -236,6 +236,7 @@ class _FakeAdapter:
         self.swapped: list[str] = []
         self.channels: list[tuple[str, int]] = []
         self.cycled: list[str] = []
+        self.association_reads: list[str] = []
 
     def ensure_wireless_radio(
         self, device, *, module="PT-LAPTOP-NM-1W", slot="0", interface="Wireless0"
@@ -251,6 +252,7 @@ class _FakeAdapter:
     def wireless_association(self, device, interface="Wireless0"):
         from src.network_autopilot.wireless import WirelessAssociation
 
+        self.association_reads.append(device)
         port = self._ports.get(device, {}).get(interface)
         if port is None or port.link_class is None:
             return None
@@ -429,4 +431,114 @@ def test_wireless_criterion_fails_on_a_cable_instead_of_an_antenna():
     )
     assert report.verifications[0].verdict.value == "fail", (
         "a wired link is not a wireless association"
+    )
+
+
+class _FlakyAssociationAdapter(_FakeAdapter):
+    """First association read is stale, the next one names the AP."""
+
+    def __init__(self):
+        super().__init__(
+            {"lap": {"Wireless0": _FakePort("Wireless0", "Antenna", "wr", up=True)}},
+            radio_installs=False,
+        )
+        self.reads = 0
+
+    def wireless_association(self, device, interface="Wireless0"):
+        self.reads += 1
+        if self.reads == 1:
+            return None
+        return super().wireless_association(device, interface)
+
+
+def test_structural_verification_retries_a_stale_association_read(monkeypatch):
+    """One None from the mailbox is not "no association".
+
+    A live T06 build confirmed the antenna link in the association op and
+    then had this single verification read answer None, failing the build on
+    a link that existed. The read is retried a bounded few times; a genuine
+    absence still fails after the last attempt.
+    """
+    from src.network_autopilot.core.network_spec import NetworkSpec
+    from src.network_autopilot.verification.engine import VerificationEngine
+
+    monkeypatch.setattr(
+        "src.network_autopilot.verification.engine.time.sleep", lambda s: None
+    )
+    spec = NetworkSpec.model_validate({
+        "name": "wifi-link",
+        "devices": [
+            {"id": "lap", "role": "laptop", "model_hint": "Laptop-PT"},
+            {"id": "wr", "role": "wireless_router"},
+        ],
+        "links": [{"id": "l-wifi", "a": {"device": "lap"}, "b": {"device": "wr"},
+                   "media": "wireless"}],
+    })
+    adapter = _FlakyAssociationAdapter()
+
+    test = VerificationEngine(adapter)._wireless_link_test(spec, spec.links[0], "now")
+
+    assert test.verdict.value == "pass", test.evidence
+    assert adapter.reads == 2, "the stale first read must be retried"
+
+
+def test_structural_verification_still_fails_when_no_read_shows_the_link(monkeypatch):
+    from src.network_autopilot.core.network_spec import NetworkSpec
+    from src.network_autopilot.verification.engine import VerificationEngine
+
+    monkeypatch.setattr(
+        "src.network_autopilot.verification.engine.time.sleep", lambda s: None
+    )
+    spec = NetworkSpec.model_validate({
+        "name": "wifi-link",
+        "devices": [
+            {"id": "lap", "role": "laptop", "model_hint": "Laptop-PT"},
+            {"id": "wr", "role": "wireless_router"},
+        ],
+        "links": [{"id": "l-wifi", "a": {"device": "lap"}, "b": {"device": "wr"},
+                   "media": "wireless"}],
+    })
+    adapter = _FakeAdapter({}, radio_installs=False)
+
+    test = VerificationEngine(adapter)._wireless_link_test(spec, spec.links[0], "now")
+
+    assert test.verdict.value == "fail"
+    assert "after 3 read attempt" in test.evidence[0]
+
+
+def test_structural_verification_checks_the_client_not_the_access_point(monkeypatch):
+    """T06's shape: `a` is the AP, `b` is a laptop with only a role.
+
+    With no model_hint on the laptop, the old selection fell through to
+    `_device_has_radio` in link order and chose the Linksys as the "client",
+    then read `wr:Wireless0` — a port that does not exist — and failed a
+    link the build had already confirmed. The client must be resolved from
+    the role's default model.
+    """
+    from src.network_autopilot.core.network_spec import NetworkSpec
+    from src.network_autopilot.verification.engine import VerificationEngine
+
+    monkeypatch.setattr(
+        "src.network_autopilot.verification.engine.time.sleep", lambda s: None
+    )
+    spec = NetworkSpec.model_validate({
+        "name": "t06-shape",
+        "devices": [
+            {"id": "wr", "role": "wireless_router"},
+            {"id": "lap1", "role": "laptop"},
+        ],
+        "links": [{"id": "l-wr-lap1", "a": {"device": "wr"},
+                   "b": {"device": "lap1"}, "media": "wireless"}],
+    })
+    adapter = _FakeAdapter({
+        "lap1": {"Wireless0": _FakePort("Wireless0", "Antenna", "wr", up=True)},
+        "wr": {"Wireless": _FakePort("Wireless", "Antenna", "lap1", up=True)},
+    }, radio_installs=False)
+
+    test = VerificationEngine(adapter)._wireless_link_test(spec, spec.links[0], "now")
+
+    assert test.verdict.value == "pass", test.evidence
+    assert test.source == "lap1"
+    assert adapter.association_reads == ["lap1"], (
+        "the AP must not be read as the wireless client"
     )

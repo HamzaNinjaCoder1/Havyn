@@ -171,3 +171,119 @@ def test_diff_reports_clean_drift_counts():
     )
     # 8 devices missing -> 8 removes (+ links unknown/removed)
     assert diff.drift_count >= 8
+
+
+# -- L2 evidence: access VLAN + trunk membership --------------------------
+
+
+def _vlan_spec() -> NetworkSpec:
+    return NetworkSpec.model_validate({
+        "name": "vlan-evidence",
+        "devices": [
+            {"id": "pc1", "role": "pc"},
+            {"id": "s1", "role": "switch"},
+            {"id": "r1", "role": "router"},
+        ],
+        "links": [
+            {"id": "l-s1-pc1",
+             "a": {"device": "s1", "interface_hint": "FastEthernet0/1"},
+             "b": {"device": "pc1"}},
+            {"id": "l-s1-r1", "trunk": True,
+             "a": {"device": "s1", "interface_hint": "FastEthernet0/24"},
+             "b": {"device": "r1", "interface_hint": "GigabitEthernet0/0"}},
+        ],
+        "subnets": [{"id": "users", "cidr": "10.0.10.0/24", "vlan_id": 10}],
+        "ip_assignments": [
+            {"device": "r1", "subnet": "users", "ip": "10.0.10.1",
+             "interface_hint": "GigabitEthernet0/0.10"},
+            {"device": "pc1", "subnet": "users", "ip": "10.0.10.10"},
+        ],
+        "vlans": [{"vlan_id": 10, "name": "USERS"}],
+    })
+
+
+_VLAN_ENDPOINTS = {
+    "l-s1-pc1": ("s1", "FastEthernet0/1", "pc1", "FastEthernet0"),
+    "l-s1-r1": ("s1", "FastEthernet0/24", "r1", "GigabitEthernet0/0"),
+}
+
+
+def _switch_state(*, access_vlan: str, trunk: bool, trunk_vlans: str):
+    state = ActualNetworkState(source="test", observed_at="now")
+    s1 = DeviceObservation(name="s1")
+    s1.port("FastEthernet0/1").state = Observable.known("up")
+    s1.port("FastEthernet0/1").vlan = Observable.known(access_vlan)
+    s1.port("FastEthernet0/1").trunk = Observable.known(False)
+    s1.port("FastEthernet0/24").state = Observable.known("up")
+    s1.port("FastEthernet0/24").vlan = Observable.known(trunk_vlans)
+    s1.port("FastEthernet0/24").trunk = Observable.known(trunk)
+    state.observe_device(s1)
+    return state
+
+
+def _verify_l2(state):
+    spec = _vlan_spec()
+    report = VerificationEngine(NullAdapter()).verify(
+        spec, plan_addressing(spec), state, {},
+        link_endpoints=_VLAN_ENDPOINTS, observations_complete=True,
+    )
+    return {t.test_id: t for t in report.by_level("structural")}
+
+
+def test_an_access_port_in_the_wrong_vlan_fails_its_evidence_test():
+    tests = _verify_l2(_switch_state(
+        access_vlan="999", trunk=True, trunk_vlans="1,10"))
+    vlan = tests["VT-struct-vlan-l-s1-pc1"]
+    assert vlan.verdict is Verdict.FAIL
+    assert "999" in vlan.observed_result and "VLAN 10" in vlan.expected_result
+
+
+def test_an_access_port_in_the_right_vlan_passes():
+    tests = _verify_l2(_switch_state(
+        access_vlan="10", trunk=True, trunk_vlans="1,10"))
+    assert tests["VT-struct-vlan-l-s1-pc1"].verdict is Verdict.PASS
+
+
+def test_a_trunk_missing_a_required_vlan_fails_its_evidence_test():
+    tests = _verify_l2(_switch_state(
+        access_vlan="10", trunk=True, trunk_vlans="1"))
+    trunk = tests["VT-struct-trunk-l-s1-r1"]
+    assert trunk.verdict is Verdict.FAIL
+    assert "10" in trunk.evidence[1]
+
+
+def test_a_trunk_carrying_every_vlan_passes():
+    tests = _verify_l2(_switch_state(
+        access_vlan="10", trunk=True, trunk_vlans="1,10"))
+    assert tests["VT-struct-trunk-l-s1-r1"].verdict is Verdict.PASS
+
+
+def test_unobserved_vlan_state_emits_no_l2_test_rather_than_a_guess():
+    spec = _vlan_spec()
+    state = ActualNetworkState(source="test", observed_at="now")
+    s1 = DeviceObservation(name="s1")
+    s1.port("FastEthernet0/1").state = Observable.known("up")
+    state.observe_device(s1)
+    report = VerificationEngine(NullAdapter()).verify(
+        spec, plan_addressing(spec), state, {},
+        link_endpoints=_VLAN_ENDPOINTS, observations_complete=True,
+    )
+    assert not [t for t in report.tests if t.test_id.startswith(
+        ("VT-struct-vlan", "VT-struct-trunk")
+    )]
+
+
+def test_the_vlan_test_drives_the_l2_diagnosis_rule():
+    from src.network_autopilot.diagnosis import diagnose
+
+    spec = _vlan_spec()
+    state = _switch_state(access_vlan="999", trunk=True, trunk_vlans="1,10")
+    report = VerificationEngine(NullAdapter()).verify(
+        spec, plan_addressing(spec), state, {},
+        link_endpoints=_VLAN_ENDPOINTS, observations_complete=True,
+    )
+    diags = diagnose(spec, report, state)
+    assert any(
+        "does not report the expected VLAN or trunk state" in d.root_cause
+        for d in diags
+    ), [d.root_cause for d in diags]
