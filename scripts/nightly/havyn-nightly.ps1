@@ -78,6 +78,15 @@ function Get-FailureDetail([string]$ResultsDir) {
     return "runner reported failure; see $summaryPath"
 }
 
+function Test-Channel {
+    # A heartbeat file says the extension ticked; it does not prove the file
+    # channel can execute a command. A freshly started PT can leave a stale
+    # fresh-looking heartbeat while the mailbox is still initializing; the
+    # runner then exits 4 before the first case. Probe the real channel.
+    $probe = & $Python -c 'from network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter; from network_autopilot.pt.mailbox import FileMailbox; print(BridgeAdapter(host_bridge=False, file_bridge=FileMailbox()).ping(timeout=5.0).reachable)' 2>$null
+    return ("$probe".Trim() -eq "True")
+}
+
 function Notify-Failure([string]$message) {
     $line = "$(Get-Date -Format o) nightly FAILED: $message"
     if ($env:HAVYN_NOTIFY_FILE) {
@@ -121,6 +130,16 @@ try {
         Start-Sleep -Seconds 5
     }
 
+    # Heartbeat is necessary but not sufficient. Give the mailbox a bounded
+    # window to answer a real command before the runner is allowed to start.
+    $channelDeadline = (Get-Date).AddMinutes(3)
+    while (-not (Test-Channel)) {
+        if ((Get-Date) -gt $channelDeadline) {
+            throw "Script Engine heartbeat is fresh but the file channel did not answer within 3 minutes"
+        }
+        Start-Sleep -Seconds 5
+    }
+
     Push-Location $RepoRoot
     try {
         & $Python scripts/havyn_runner.py $Queue --results-dir $Results --adapter bridge
@@ -132,23 +151,37 @@ try {
 
     # The morning needs the report, not just raw per-case JSON. Generate both
     # into the results dir (the uploader copies *.json/*.md), and never let a
-    # report failure mask the runner's real verdict.
+    # report failure mask the runner's real verdict. Absolute script paths:
+    # a scheduled task's working directory is not the repo root.
     try {
         $scorecard = Join-Path $Results "scorecard.json"
         $scorecardMd = Join-Path $Results "scorecard.md"
         $faultLab = Join-Path $RepoRoot "fault_lab_results\fault_lab.json"
+        $scorecardScript = Join-Path $RepoRoot "scripts\scorecard.py"
+        $mapScript = Join-Path $RepoRoot "scripts\capability_map.py"
         if (Test-Path -LiteralPath $faultLab) {
-            & $Python scripts/scorecard.py $Results --queue $Queue `
+            & $Python $scorecardScript $Results --queue $Queue `
                 --fault-lab $faultLab --out $scorecard --md $scorecardMd
         } else {
-            & $Python scripts/scorecard.py $Results --queue $Queue `
+            & $Python $scorecardScript $Results --queue $Queue `
                 --out $scorecard --md $scorecardMd
         }
-        & $Python scripts/capability_map.py --results-dir $Results `
+        & $Python $mapScript --results-dir $Results `
             --out-docs (Join-Path $Results "capability-map.md") `
             --out-json (Join-Path $Results "capability-map.json")
+
+        # The runner uploaded raw results before these reports existed.
+        # Upload the augmented set again, verified, when a destination is set.
+        if ($env:HAVYN_UPLOAD_DIR) {
+            $uploadScript = Join-Path $RepoRoot "scripts\upload_results.py"
+            & $Python $uploadScript $Results
+            if ($LASTEXITCODE -ne 0) {
+                throw "report upload failed (destination $env:HAVYN_UPLOAD_DIR)"
+            }
+        }
     } catch {
         Write-Warning "report generation failed: $($_.Exception.Message)"
+        throw
     }
     Write-Output "nightly complete: queue $Queue"
 }

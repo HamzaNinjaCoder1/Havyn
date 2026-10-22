@@ -10,6 +10,7 @@ Packet Tracer, no network, no sleeps.
 from __future__ import annotations
 
 import importlib
+import json
 import zipfile
 from pathlib import Path
 
@@ -20,6 +21,43 @@ from network_autopilot.core.observability import Observable, ObservationStatus
 
 pt_clean = importlib.import_module("scripts.pt_clean_workspace")
 evidence_prune = importlib.import_module("scripts.evidence_prune")
+upload_results = importlib.import_module("scripts.upload_results")
+
+
+def test_upload_results_copies_reports_history_and_verifies(tmp_path, monkeypatch):
+    results = tmp_path / "results"
+    results.mkdir()
+    (results / "T01.json").write_text('{"case_id":"T01"}', encoding="utf-8")
+    (results / "scorecard.md").write_text("# scorecard", encoding="utf-8")
+    (results / "history.jsonl").write_text('{"status":"pass"}\n', encoding="utf-8")
+    destination = tmp_path / "share"
+    destination.mkdir()
+    monkeypatch.setenv("HAVYN_UPLOAD_DIR", str(destination))
+
+    assert upload_results.main([str(results)]) == 0
+    landed = sorted(p.name for p in destination.iterdir())
+    assert landed == [
+        "results-T01.json", "results-history.jsonl", "results-scorecard.md"
+    ]
+
+
+def test_upload_results_reports_no_destination_without_pretending(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("HAVYN_UPLOAD_DIR", raising=False)
+    assert upload_results.main([str(tmp_path)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["uploaded"] is False
+    assert "HAVYN_UPLOAD_DIR" in payload["reason"]
+
+
+def test_upload_results_fails_when_the_destination_is_missing(tmp_path, capsys):
+    results = tmp_path / "results"
+    results.mkdir()
+    (results / "T01.json").write_text("{}", encoding="utf-8")
+    code = upload_results.main([
+        str(results), "--destination", str(tmp_path / "missing")
+    ])
+    assert code == 1
+    assert json.loads(capsys.readouterr().out)["uploaded"] is False
 
 
 class FakeWorkspace:

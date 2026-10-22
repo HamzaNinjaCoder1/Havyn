@@ -87,6 +87,20 @@ def test_nightly_prefers_the_repository_virtualenv():
     assert "& $Python scripts/havyn_runner.py" in ps1
 
 
+def test_nightly_probes_the_channel_not_only_the_heartbeat():
+    """A fresh heartbeat can coexist with a mailbox that cannot execute.
+
+    Night 5: the wrapper started PT, saw a heartbeat, ran the runner, and got
+    exit 4. The wrapper now waits for a real ping before the first case.
+    """
+    ps1 = (REPO_ROOT / "scripts" / "nightly" / "havyn-nightly.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "function Test-Channel" in ps1
+    assert "ping(timeout=5.0)" in ps1
+    assert "while (-not (Test-Channel))" in ps1
+
+
 def test_nightly_generates_and_uploads_the_reports():
     """The morning needs a scorecard and capability map, not raw case JSON.
 
@@ -96,8 +110,9 @@ def test_nightly_generates_and_uploads_the_reports():
     ps1 = (REPO_ROOT / "scripts" / "nightly" / "havyn-nightly.ps1").read_text(
         encoding="utf-8"
     )
-    assert "scripts/scorecard.py" in ps1
-    assert "scripts/capability_map.py" in ps1
+    assert "scripts\\scorecard.py" in ps1
+    assert "scripts\\capability_map.py" in ps1
+    assert "scripts\\upload_results.py" in ps1
     assert 'Join-Path $Results "scorecard.json"' in ps1
     assert 'Join-Path $Results "capability-map.json"' in ps1
 
