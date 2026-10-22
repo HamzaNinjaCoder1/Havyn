@@ -178,14 +178,28 @@ def _host_gateway(adapter: Any, gateway: str, op_id: str) -> str:
 
 @dataclass
 class FaultOutcome:
-    """One fault's whole story, JSON-serialisable."""
+    """One fault's whole story, JSON-serialisable.
+
+    ``verdict_after_injection`` and ``false_pass`` are the scorecard's
+    ground truth (S2.4): a broken lab on which Havyn's own read-only verdict
+    still says ``pass`` is a false PASS, and the only honest way to measure
+    that rate is to record the verdict the engine actually returned while the
+    fault was in place. ``diagnosis_matched`` is the fault-injection label
+    joined to the cause the engine named — the other half of accuracy.
+    """
 
     label: str
     description: str
+    expected_cause: str = ""
+    expect_named_cause: bool = True
     control_before: str = ""
     injected: str = ""
     observed_broken: str = ""
     caused: list[str] = field(default_factory=list)
+    diagnosis_ran: bool = False
+    diagnosis_matched: bool | None = None
+    verdict_after_injection: str = ""
+    false_pass: bool = False
     reverted: str = ""
     control_after: str = ""
     verified: bool = False
@@ -195,10 +209,16 @@ class FaultOutcome:
         return {
             "label": self.label,
             "description": self.description,
+            "expected_cause": self.expected_cause,
+            "expect_named_cause": self.expect_named_cause,
             "control_before": self.control_before,
             "injected": self.injected,
             "observed_broken": self.observed_broken,
             "caused": list(self.caused),
+            "diagnosis_ran": self.diagnosis_ran,
+            "diagnosis_matched": self.diagnosis_matched,
+            "verdict_after_injection": self.verdict_after_injection,
+            "false_pass": self.false_pass,
             "reverted": self.reverted,
             "control_after": self.control_after,
             "verified": self.verified,
@@ -215,6 +235,49 @@ def _probe(adapter: Any, source: str, destination: str) -> str:
     return flow.outcome.value
 
 
+#: A revert is a configuration change, and the data plane needs to converge
+#: (ARP/STP on a switchport move). A probe that lands PARTIAL is progress, not
+#: a failed restoration — give it settled re-probes before judging. Three
+#: tries: the first two can still be reading a stale PT stat block, and the
+#: live wrong-access-vlan revert was confirmed reachable immediately after a
+#: harness PARTIAL.
+RESTORE_PROBE_ATTEMPTS = 3
+RESTORE_SETTLE_SECONDS = 5.0
+
+
+def _probe_restored(adapter: Any, source: str, destination: str) -> str:
+    outcome = _probe(adapter, source, destination)
+    for _ in range(RESTORE_PROBE_ATTEMPTS - 1):
+        if outcome in _REACHABLE:
+            break
+        time.sleep(RESTORE_SETTLE_SECONDS)
+        outcome = _probe(adapter, source, destination)
+    return outcome
+
+
+def _verdict_after_injection(report: Any, diff: Any) -> str:
+    """What Havyn's own read-only pass would have concluded on the broken lab.
+
+    ``inspect_diagnosable`` returns a ``VerificationReport`` (not the build
+    report), so the "would this have been a PASS?" question is answered from
+    the same fields ``BuildReport.success`` uses: every test passed, none
+    unknown, no drift. ``unknown`` is never treated as a pass.
+    """
+    if report is None:
+        return "unknown"
+    summary = report.summary or {}
+    total = len(report.tests)
+    if total == 0:
+        return "unknown"
+    clean = (
+        int(summary.get("pass", 0)) == total
+        and int(summary.get("fail", 0)) == 0
+        and int(summary.get("unknown", 0)) == 0
+        and getattr(diff, "drift_count", 1) == 0
+    )
+    return "pass" if clean else "fail"
+
+
 def run_fault(
     adapter: Any,
     autopilot: Any,
@@ -222,7 +285,12 @@ def run_fault(
     action: FaultAction,
 ) -> FaultOutcome:
     """The whole inject -> break -> diagnose -> revert -> restore loop."""
-    outcome = FaultOutcome(label=action.label, description=action.description)
+    outcome = FaultOutcome(
+        label=action.label,
+        description=action.description,
+        expected_cause=action.expected_cause,
+        expect_named_cause=action.expect_named_cause,
+    )
 
     outcome.control_before = _probe(adapter, PROBE_SOURCE, PROBE_DESTINATION)
     if outcome.control_before not in _REACHABLE:
@@ -261,13 +329,22 @@ def run_fault(
         outcome.reverted = action.revert(adapter)
         outcome.control_after = _probe(adapter, PROBE_SOURCE, PROBE_DESTINATION)
         return outcome
-    _, _, _, diagnoses, error = inspected
+    report, diff, _, diagnoses, error = inspected
+    # The verdict Havyn returns on the broken lab is the scorecard's false-PASS
+    # ground truth. Report it even when the diagnosis is right: "the engine
+    # named the cause" and "the engine would have called this build a success"
+    # are independent facts, and a broken network that still reads as PASS is
+    # exactly what S2.4 exists to expose.
+    outcome.verdict_after_injection = _verdict_after_injection(report, diff)
+    outcome.false_pass = outcome.verdict_after_injection == "pass"
     if error is not None:
         outcome.failure = f"inspection failed: {error}"
     else:
+        outcome.diagnosis_ran = True
         outcome.caused = [str(d.root_cause) for d in diagnoses]
         if action.expect_named_cause:
             named = any(action.expected_cause in cause for cause in outcome.caused)
+            outcome.diagnosis_matched = named
             if not named:
                 outcome.failure = (
                     f"diagnosis did not name {action.expected_cause!r}: "
@@ -285,14 +362,20 @@ def run_fault(
 
 
 def _make_adapter(kind: str) -> Any:
+    # Import through the same package identity the engine uses. Importing
+    # `src.network_autopilot.adapter` here while the engine imports
+    # `network_autopilot` creates two distinct `OperationResult` enum classes;
+    # the executor's `receipt.result is OperationResult.SUCCESS` then fails on
+    # a receipt that really says "success", and every create is marked FAILED
+    # while its receipt and read-back say otherwise (live fault lab, twice).
     if kind == "null":
-        from src.network_autopilot.adapter import NullAdapter
+        from network_autopilot.adapter import NullAdapter
 
         return NullAdapter()
-    from src.network_autopilot.adapter.packet_tracer.bridge_adapter import (
+    from network_autopilot.adapter.packet_tracer.bridge_adapter import (
         BridgeAdapter,
     )
-    from src.network_autopilot.pt.mailbox import FileMailbox
+    from network_autopilot.pt.mailbox import FileMailbox
 
     return BridgeAdapter(host_bridge=False, file_bridge=FileMailbox())
 
@@ -320,6 +403,27 @@ def main(argv: list[str] | None = None) -> int:
 
     results_dir = Path(args.results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
+
+    # Isolation gate (same rule as the unattended runner): a fault experiment
+    # may only start on a canvas the harness can prove is clean. Leftovers from
+    # another topology share device names, so an injected "fault" could land on
+    # a device the lab did not create and the before/after probes would measure
+    # somebody else's network.
+    from scripts.pt_clean_workspace import clean
+
+    cleaning = clean(adapter)
+    leftovers = [n for n in cleaning.remaining
+                 if n not in set(cleaning.protected)]
+    if cleaning.read_failed or cleaning.failed or leftovers:
+        print(json.dumps({
+            "lab": "blocked",
+            "error": "workspace could not be cleaned",
+            "read_failed": cleaning.read_failed,
+            "failed": sorted(cleaning.failed),
+            "remaining": sorted(leftovers),
+        }, indent=1))
+        return EXIT_ERROR
+
     evidence = EvidenceStore(root=results_dir / "evidence")
     autopilot = Autopilot(
         adapter,

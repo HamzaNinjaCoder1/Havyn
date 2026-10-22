@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-29T17:17:16+00:00",
+ "generated_at": "2026-10-22T02:26:24+00:00",
  "features": [
   {
    "id": "router-acl-enforce",
@@ -9,7 +9,10 @@
    ],
    "status": "Verified",
    "evidence": "tests/autopilot/test_live_policy.py::test_router_acl_renders_a_cidr_operand_and_enforces_it",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "asa-wildcard-permit",
@@ -20,7 +23,10 @@
    ],
    "status": "Verified",
    "evidence": "tests/autopilot/test_live_policy.py::test_asa_address_scoped_acl_is_enforced",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "asa-5505-svi-readback",
@@ -30,7 +36,10 @@
    ],
    "status": "Verified",
    "evidence": "tests/autopilot/test_live_policy.py::test_asa_5505_vlan_addresses_read_back_after_the_push",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "wireless-association",
@@ -41,7 +50,10 @@
    ],
    "status": "Verified",
    "evidence": "tests/autopilot/test_live_connectivity.py (wireless area: laptop associates, then reaches across the AP)",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "flow-reachable-blocked",
@@ -54,7 +66,10 @@
    ],
    "status": "Verified",
    "evidence": "tests/autopilot/test_live_connectivity.py",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "asa-address-scoped",
@@ -65,7 +80,10 @@
    ],
    "status": "Verified",
    "evidence": "tests/autopilot/test_live_policy.py::test_asa_address_scoped_acl_is_enforced",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "acl-icmp-port",
@@ -76,7 +94,10 @@
    ],
    "status": "Refused",
    "evidence": "tests/autopilot/test_asa_policy.py::test_dest_port_on_icmp_is_refused_before_pt_aborts_the_block",
-   "refusal_reason": "PT rejects the line and configureIosDevice aborts the rest of the block, which would cost the interface addresses."
+   "refusal_reason": "PT rejects the line and configureIosDevice aborts the rest of the block, which would cost the interface addresses.",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "asa-5505-third-zone",
@@ -86,7 +107,10 @@
    ],
    "status": "Refused",
    "evidence": "tests/autopilot/test_asa_policy.py::test_5505_refuses_more_than_two_zones",
-   "refusal_reason": "PT's 5505 only exposes Vlan1/Vlan2; a third zone cannot be configured. Use a 5506-X."
+   "refusal_reason": "PT's 5505 only exposes Vlan1/Vlan2; a third zone cannot be configured. Use a 5506-X.",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "policy-on-non-enforcer",
@@ -98,7 +122,10 @@
    ],
    "status": "Refused",
    "evidence": "tests/autopilot/test_asa_policy.py::test_policy_on_a_device_with_no_enforcement_path_fails_the_build",
-   "refusal_reason": "The policy would compile and then do nothing. Only ASA firewalls and IOS routers enforce."
+   "refusal_reason": "The policy would compile and then do nothing. Only ASA firewalls and IOS routers enforce.",
+   "topology": "",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "hsrp-failover",
@@ -109,7 +136,10 @@
    ],
    "status": "Unverified",
    "evidence": "library/T15-redundant-core.json (pending: no compiler render path; physical topology builds, redundancy unverified)",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "T15",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "etherchannel",
@@ -120,7 +150,10 @@
    ],
    "status": "Unverified",
    "evidence": "library/T15-redundant-core.json (pending: no compiler render path; physical topology builds, redundancy unverified)",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "T15",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "ospf-backbone",
@@ -130,7 +163,10 @@
    ],
    "status": "Unverified",
    "evidence": "library/T09-ospf-backbone.json (offline lint+compile pass; no live lab yet)",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "T09",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "nat-pat",
@@ -140,7 +176,10 @@
    ],
    "status": "Unverified",
    "evidence": "library/T10-nat-internet.json (offline lint+compile pass; no live lab yet)",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "T10",
+   "derived_from_run": false,
+   "latest_run": null
   },
   {
    "id": "asa-dmz",
@@ -150,7 +189,252 @@
    ],
    "status": "Unverified",
    "evidence": "library/T08-asa-dmz.json (pending S1.16 live proof)",
-   "refusal_reason": ""
+   "refusal_reason": "",
+   "topology": "T08",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "small-office-dhcp",
+   "name": "Single-router office with DHCP",
+   "families": [
+    "router",
+    "switch",
+    "pc"
+   ],
+   "status": "Verified",
+   "evidence": "library/T01-small-office.json (builds offline; live runner pass promotes this row); live runner pass run-7e254d7e7656 (autopilot_evidence\\build-19145d4547ca)",
+   "refusal_reason": "",
+   "topology": "T01",
+   "derived_from_run": true,
+   "latest_run": {
+    "topology_id": "T01",
+    "case_id": "T01",
+    "run_id": "run-7e254d7e7656",
+    "status": "pass",
+    "elapsed_s": 85.2,
+    "criteria": {
+     "fail": 0,
+     "pass": 15,
+     "total": 15,
+     "unknown": 0
+    },
+    "evidence_dir": "autopilot_evidence\\build-19145d4547ca",
+    "finished_at": "2026-10-21T22:58:08+00:00"
+   }
+  },
+  {
+   "id": "router-on-a-stick",
+   "name": "Router-on-a-stick inter-VLAN routing",
+   "families": [
+    "router",
+    "switch",
+    "pc"
+   ],
+   "status": "Verified",
+   "evidence": "library/T02-two-vlan-office.json (builds offline; live runner pass promotes this row); live runner pass run-8f78ca064894 (autopilot_evidence\\build-eee1031f7df2)",
+   "refusal_reason": "",
+   "topology": "T02",
+   "derived_from_run": true,
+   "latest_run": {
+    "topology_id": "T02",
+    "case_id": "T02",
+    "run_id": "run-8f78ca064894",
+    "status": "pass",
+    "elapsed_s": 96.9,
+    "criteria": {
+     "fail": 0,
+     "pass": 14,
+     "total": 14,
+     "unknown": 0
+    },
+    "evidence_dir": "autopilot_evidence\\build-eee1031f7df2",
+    "finished_at": "2026-10-21T22:59:45+00:00"
+   }
+  },
+  {
+   "id": "campus-l3-core",
+   "name": "Three-floor campus with an L3 core",
+   "families": [
+    "l3_switch",
+    "switch",
+    "pc"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T03-campus-l3-core.json (builds offline; no live runner pass yet)",
+   "refusal_reason": "",
+   "topology": "T03",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "serial-wan",
+   "name": "HQ + branch over a serial WAN",
+   "families": [
+    "router"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T04-serial-wan.json (builds offline; no live runner pass yet)",
+   "refusal_reason": "",
+   "topology": "T04",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "dsl-internet",
+   "name": "DSL access through a cloud/modem pair",
+   "families": [
+    "router",
+    "cloud",
+    "modem"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T05-dsl-internet.json (builds offline; no live runner pass yet)",
+   "refusal_reason": "",
+   "topology": "T05",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "cable-modem-home",
+   "name": "Home cable-modem network",
+   "families": [
+    "modem",
+    "router",
+    "pc"
+   ],
+   "status": "Verified",
+   "evidence": "library/T06-home-cable.json (builds offline; live runner pass promotes this row); live runner pass run-c4edb6e574c5 (autopilot_evidence\\build-dfda411c725d)",
+   "refusal_reason": "",
+   "topology": "T06",
+   "derived_from_run": true,
+   "latest_run": {
+    "topology_id": "T06",
+    "case_id": "T06",
+    "run_id": "run-c4edb6e574c5",
+    "status": "pass",
+    "elapsed_s": 60.2,
+    "criteria": {
+     "fail": 0,
+     "pass": 9,
+     "total": 9,
+     "unknown": 0
+    },
+    "evidence_dir": "autopilot_evidence\\build-dfda411c725d",
+    "finished_at": "2026-10-21T23:00:45+00:00"
+   }
+  },
+  {
+   "id": "asa-perimeter",
+   "name": "ASA inside/outside perimeter",
+   "families": [
+    "firewall:5506-X",
+    "firewall:5505"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T07-asa-perimeter.json (pending S1.16 live proof)",
+   "refusal_reason": "",
+   "topology": "T07",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "wireless-office",
+   "name": "Wireless office with AP-attached laptops and phones",
+   "families": [
+    "accesspoint",
+    "laptop",
+    "smartphone"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T11-wireless-office.json (builds offline; no live runner pass yet)",
+   "refusal_reason": "",
+   "topology": "T11",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "linksys-home",
+   "name": "Linksys home gateway",
+   "families": [
+    "home_router",
+    "pc"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T12-linksys-home.json (builds offline; no live runner pass yet)",
+   "refusal_reason": "",
+   "topology": "T12",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "server-farm",
+   "name": "DNS + HTTP + DHCP server farm",
+   "families": [
+    "server",
+    "switch",
+    "pc"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T13-server-farm.json (builds offline; no live runner pass yet)",
+   "refusal_reason": "",
+   "topology": "T13",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "iot-smart-home",
+   "name": "IoT smart-home devices",
+   "families": [
+    "iot",
+    "home_router"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T14-iot-home.json (builds offline; no live runner pass yet)",
+   "refusal_reason": "",
+   "topology": "T14",
+   "derived_from_run": false,
+   "latest_run": null
+  },
+  {
+   "id": "enterprise-campus",
+   "name": "Enterprise campus reference build",
+   "families": [
+    "router",
+    "switch",
+    "firewall",
+    "server",
+    "pc"
+   ],
+   "status": "Unverified",
+   "evidence": "library/T16-enterprise-campus.json (builds offline; no live runner pass in this library)",
+   "refusal_reason": "",
+   "topology": "T16",
+   "derived_from_run": false,
+   "latest_run": null
   }
- ]
+ ],
+ "runs": {
+  "T01": {
+   "run_id": "run-7e254d7e7656",
+   "status": "pass",
+   "elapsed_s": 85.2,
+   "evidence_dir": "autopilot_evidence\\build-19145d4547ca",
+   "finished_at": "2026-10-21T22:58:08+00:00"
+  },
+  "T02": {
+   "run_id": "run-8f78ca064894",
+   "status": "pass",
+   "elapsed_s": 96.9,
+   "evidence_dir": "autopilot_evidence\\build-eee1031f7df2",
+   "finished_at": "2026-10-21T22:59:45+00:00"
+  },
+  "T06": {
+   "run_id": "run-c4edb6e574c5",
+   "status": "pass",
+   "elapsed_s": 60.2,
+   "evidence_dir": "autopilot_evidence\\build-dfda411c725d",
+   "finished_at": "2026-10-21T23:00:45+00:00"
+  }
+ }
 }

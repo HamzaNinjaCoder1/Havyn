@@ -30,7 +30,12 @@ STATUSES = ("Verified", "Unverified", "Refused")
 
 @dataclass(frozen=True)
 class Feature:
-    """One capability row."""
+    """One capability row.
+
+    ``topology`` links a row to a library spec so a live runner pass can
+    promote an otherwise-unverified capability. The promotion happens in
+    ``build_map`` from the result files, never by editing the row.
+    """
 
     id: str
     name: str
@@ -38,6 +43,7 @@ class Feature:
     status: str
     evidence: str
     refusal_reason: str = ""
+    topology: str = ""
 
     def evidence_path(self) -> Path:
         """The repo file behind the evidence pointer (before :: test or note)."""
@@ -144,6 +150,7 @@ def REGISTRY() -> list[Feature]:
             status="Unverified",
             evidence="library/T15-redundant-core.json (pending: no compiler "
             "render path; physical topology builds, redundancy unverified)",
+            topology="T15",
         ),
         Feature(
             id="etherchannel",
@@ -152,6 +159,7 @@ def REGISTRY() -> list[Feature]:
             status="Unverified",
             evidence="library/T15-redundant-core.json (pending: no compiler "
             "render path; physical topology builds, redundancy unverified)",
+            topology="T15",
         ),
         Feature(
             id="ospf-backbone",
@@ -160,6 +168,7 @@ def REGISTRY() -> list[Feature]:
             status="Unverified",
             evidence="library/T09-ospf-backbone.json (offline lint+compile "
             "pass; no live lab yet)",
+            topology="T09",
         ),
         Feature(
             id="nat-pat",
@@ -168,6 +177,7 @@ def REGISTRY() -> list[Feature]:
             status="Unverified",
             evidence="library/T10-nat-internet.json (offline lint+compile "
             "pass; no live lab yet)",
+            topology="T10",
         ),
         Feature(
             id="asa-dmz",
@@ -175,31 +185,247 @@ def REGISTRY() -> list[Feature]:
             families=("firewall:5506-X",),
             status="Unverified",
             evidence="library/T08-asa-dmz.json (pending S1.16 live proof)",
+            topology="T08",
+        ),
+        Feature(
+            id="small-office-dhcp",
+            name="Single-router office with DHCP",
+            families=("router", "switch", "pc"),
+            status="Unverified",
+            evidence="library/T01-small-office.json (builds offline; live runner "
+            "pass promotes this row)",
+            topology="T01",
+        ),
+        Feature(
+            id="router-on-a-stick",
+            name="Router-on-a-stick inter-VLAN routing",
+            families=("router", "switch", "pc"),
+            status="Unverified",
+            evidence="library/T02-two-vlan-office.json (builds offline; live "
+            "runner pass promotes this row)",
+            topology="T02",
+        ),
+        Feature(
+            id="campus-l3-core",
+            name="Three-floor campus with an L3 core",
+            families=("l3_switch", "switch", "pc"),
+            status="Unverified",
+            evidence="library/T03-campus-l3-core.json (builds offline; no live "
+            "runner pass yet)",
+            topology="T03",
+        ),
+        Feature(
+            id="serial-wan",
+            name="HQ + branch over a serial WAN",
+            families=("router",),
+            status="Unverified",
+            evidence="library/T04-serial-wan.json (builds offline; no live "
+            "runner pass yet)",
+            topology="T04",
+        ),
+        Feature(
+            id="dsl-internet",
+            name="DSL access through a cloud/modem pair",
+            families=("router", "cloud", "modem"),
+            status="Unverified",
+            evidence="library/T05-dsl-internet.json (builds offline; no live "
+            "runner pass yet)",
+            topology="T05",
+        ),
+        Feature(
+            id="cable-modem-home",
+            name="Home cable-modem network",
+            families=("modem", "router", "pc"),
+            status="Unverified",
+            evidence="library/T06-home-cable.json (builds offline; live runner "
+            "pass promotes this row)",
+            topology="T06",
+        ),
+        Feature(
+            id="asa-perimeter",
+            name="ASA inside/outside perimeter",
+            families=("firewall:5506-X", "firewall:5505"),
+            status="Unverified",
+            evidence="library/T07-asa-perimeter.json (pending S1.16 live proof)",
+            topology="T07",
+        ),
+        Feature(
+            id="wireless-office",
+            name="Wireless office with AP-attached laptops and phones",
+            families=("accesspoint", "laptop", "smartphone"),
+            status="Unverified",
+            evidence="library/T11-wireless-office.json (builds offline; no live "
+            "runner pass yet)",
+            topology="T11",
+        ),
+        Feature(
+            id="linksys-home",
+            name="Linksys home gateway",
+            families=("home_router", "pc"),
+            status="Unverified",
+            evidence="library/T12-linksys-home.json (builds offline; no live "
+            "runner pass yet)",
+            topology="T12",
+        ),
+        Feature(
+            id="server-farm",
+            name="DNS + HTTP + DHCP server farm",
+            families=("server", "switch", "pc"),
+            status="Unverified",
+            evidence="library/T13-server-farm.json (builds offline; no live "
+            "runner pass yet)",
+            topology="T13",
+        ),
+        Feature(
+            id="iot-smart-home",
+            name="IoT smart-home devices",
+            families=("iot", "home_router"),
+            status="Unverified",
+            evidence="library/T14-iot-home.json (builds offline; no live runner "
+            "pass yet)",
+            topology="T14",
+        ),
+        Feature(
+            id="enterprise-campus",
+            name="Enterprise campus reference build",
+            families=("router", "switch", "firewall", "server", "pc"),
+            status="Unverified",
+            evidence="library/T16-enterprise-campus.json (builds offline; no "
+            "live runner pass in this library)",
+            topology="T16",
         ),
     ]
 
 
-def build_map(features: list[Feature]) -> dict:
-    """Validate every row, then render the JSON form."""
+def load_live_results(results_dir: Path) -> dict[str, dict]:
+    """The latest live execution per topology, from results or history.
+
+    The runner writes one result per case and an append-only history. History
+    is preferred when present because it survives re-runs; either way only
+    ``mode == "live"`` entries count — an offline NullAdapter pass is not
+    evidence that Packet Tracer can do the thing.
+    """
+    entries: list[dict] = []
+    history = results_dir / "history.jsonl"
+    if history.is_file():
+        for line in history.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(entry, dict):
+                entries.append(entry)
+    else:
+        for path in sorted(results_dir.glob("*.json")):
+            if path.name == "summary.json":
+                continue
+            try:
+                entry = json.loads(path.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                continue
+            if isinstance(entry, dict) and entry.get("status"):
+                entries.append(entry)
+
+    latest: dict[str, dict] = {}
+    for entry in entries:
+        if entry.get("mode") != "live" or not entry.get("status"):
+            continue
+        topology = entry.get("topology_id")
+        if not topology and entry.get("spec"):
+            topology = Path(str(entry["spec"])).stem
+        if not topology:
+            continue
+        stamp = (str(entry.get("finished_at") or ""), str(entry.get("run_id") or ""))
+        prior = latest.get(str(topology))
+        prior_stamp = (
+            (str(prior.get("finished_at") or ""), str(prior.get("run_id") or ""))
+            if prior else ("", "")
+        )
+        if prior is None or stamp >= prior_stamp:
+            latest[str(topology)] = entry
+    return latest
+
+
+def _run_is_complete_pass(entry: dict) -> bool:
+    """A live PASS only counts when every criterion passed, none unknown."""
+    if entry.get("status") != "pass" or entry.get("refused"):
+        return False
+    criteria = entry.get("criteria") or {}
+    total = int(criteria.get("total", 0))
+    return (
+        total > 0
+        and int(criteria.get("pass", 0)) == total
+        and int(criteria.get("fail", 0)) == 0
+        and int(criteria.get("unknown", 0)) == 0
+    )
+
+
+def build_map(features: list[Feature], runs: dict[str, dict] | None = None) -> dict:
+    """Validate every row, apply live-run evidence, then render the JSON form.
+
+    Promotion is one-way and evidence-gated: an ``Unverified`` row whose
+    topology has a complete live PASS becomes ``Verified`` and carries that
+    run id. A failed live run is recorded beside the row but never downgrades
+    or upgrades its status by itself — one failed attempt does not prove the
+    capability absent, and it certainly does not prove it present.
+    """
     from network_autopilot.core.ids import utc_now_iso
 
     for feature in features:
         feature.validate()
     if len({f.id for f in features}) != len(features):
         raise ValueError("duplicate feature id")
+
+    rows = []
+    for f in features:
+        run = (runs or {}).get(f.topology) if f.topology else None
+        row = {
+            "id": f.id,
+            "name": f.name,
+            "families": list(f.families),
+            "status": f.status,
+            "evidence": f.evidence,
+            "refusal_reason": f.refusal_reason,
+            "topology": f.topology,
+            "derived_from_run": False,
+            "latest_run": None,
+        }
+        if run is not None:
+            row["latest_run"] = {
+                "topology_id": run.get("topology_id") or f.topology,
+                "case_id": run.get("case_id"),
+                "run_id": run.get("run_id"),
+                "status": run.get("status"),
+                "elapsed_s": run.get("elapsed_s"),
+                "criteria": dict(run.get("criteria") or {}),
+                "evidence_dir": run.get("evidence_dir"),
+                "finished_at": run.get("finished_at"),
+            }
+            if f.status == "Unverified" and _run_is_complete_pass(run):
+                row["status"] = "Verified"
+                row["derived_from_run"] = True
+                row["evidence"] = (
+                    f"{f.evidence}; live runner pass {run.get('run_id')} "
+                    f"({run.get('evidence_dir') or 'results dir'})"
+                )
+        rows.append(row)
+
     return {
         "generated_at": utc_now_iso(),
-        "features": [
-            {
-                "id": f.id,
-                "name": f.name,
-                "families": list(f.families),
-                "status": f.status,
-                "evidence": f.evidence,
-                "refusal_reason": f.refusal_reason,
+        "features": rows,
+        "runs": {
+            topology: {
+                "run_id": run.get("run_id"),
+                "status": run.get("status"),
+                "elapsed_s": run.get("elapsed_s"),
+                "evidence_dir": run.get("evidence_dir"),
+                "finished_at": run.get("finished_at"),
             }
-            for f in features
-        ],
+            for topology, run in sorted((runs or {}).items())
+        },
     }
 
 
@@ -211,6 +437,18 @@ def render_markdown(data: dict) -> str:
         "evidence named in each row.",
         "",
     ]
+    if data.get("runs"):
+        lines.append("## Latest live runner evidence")
+        lines.append("")
+        lines.append("| topology | status | run | elapsed (s) | evidence |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for topology, run in data["runs"].items():
+            lines.append(
+                f"| {topology} | {run.get('status')} | {run.get('run_id') or '—'} "
+                f"| {run.get('elapsed_s') if run.get('elapsed_s') is not None else '—'} "
+                f"| {run.get('evidence_dir') or '—'} |"
+            )
+        lines.append("")
     for status in STATUSES:
         rows = [f for f in data["features"] if f["status"] == status]
         lines.append(f"## {status} ({len(rows)})")
@@ -222,6 +460,17 @@ def render_markdown(data: dict) -> str:
             )
             if row["refusal_reason"]:
                 lines.append(f"  Refusal: {row['refusal_reason']}")
+            if row.get("latest_run"):
+                run = row["latest_run"]
+                lines.append(
+                    f"  Latest live run `{run.get('run_id') or '—'}`: "
+                    f"{run.get('status')} ({run.get('elapsed_s')} s, "
+                    f"`{run.get('evidence_dir') or 'no evidence dir'}`)."
+                )
+            if row.get("derived_from_run"):
+                lines.append(
+                    "  Status derived from that complete live runner pass."
+                )
         lines.append("")
     return "\n".join(lines)
 
@@ -230,10 +479,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="capability-map")
     parser.add_argument("--out-docs", default=str(REPO_ROOT / "docs" / "capability-map.md"))
     parser.add_argument("--out-json", default=str(REPO_ROOT / "docs" / "capability-map.json"))
+    parser.add_argument(
+        "--results-dir", default=None,
+        help="runner results dir; live passes promote Unverified rows",
+    )
     args = parser.parse_args(argv)
 
+    runs = None
+    if args.results_dir:
+        try:
+            runs = load_live_results(Path(args.results_dir))
+        except OSError as exc:
+            print(f"capability-map: cannot read results: {exc}")
+            return 1
     try:
-        data = build_map(REGISTRY())
+        data = build_map(REGISTRY(), runs)
     except ValueError as exc:
         print(f"capability-map: {exc}")
         return 1

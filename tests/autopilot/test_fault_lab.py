@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from network_autopilot.core.receipts import OperationReceipt, OperationResult
 from network_autopilot.core.requirements import FlowOutcome, FlowResult
@@ -77,13 +78,14 @@ class FakeAdapter:
 
 
 class StubAutopilot:
-    """`inspect_diagnosable` with a scripted cause list."""
+    """`inspect_diagnosable` with a scripted cause list and verdict."""
 
     def __init__(self, causes=("interface(s) down on the path",), error=None,
-                 raises=None):
+                 raises=None, report_success=None):
         self.causes = list(causes)
         self.error = error
         self.raises = raises
+        self.report_success = report_success
         self.calls = 0
 
     def inspect_diagnosable(self, spec):
@@ -95,7 +97,20 @@ class StubAutopilot:
             def __init__(self, root_cause):
                 self.root_cause = root_cause
 
-        return (None, None, None, tuple(_D(c) for c in self.causes), self.error)
+        report = None
+        diff = None
+        if self.report_success is not None:
+            report = SimpleNamespace(
+                success=self.report_success,
+                tests=[object()],
+                summary=(
+                    {"pass": 1, "fail": 0, "unknown": 0}
+                    if self.report_success
+                    else {"pass": 0, "fail": 1, "unknown": 0}
+                ),
+            )
+            diff = SimpleNamespace(drift_count=0)
+        return (report, diff, None, tuple(_D(c) for c in self.causes), self.error)
 
 
 def _action(**over):
@@ -199,9 +214,10 @@ def test_an_unnamed_cause_is_the_expected_result_for_a_wrong_gateway():
     assert outcome.verified is True
 
 
-def test_a_lab_that_does_not_come_back_after_the_revert_fails():
+def test_a_lab_that_does_not_come_back_after_the_revert_fails(monkeypatch):
     """A revert that does not restore the lab is a failed fault, even though
     every other step passed — the run is only as clean as its last probe."""
+    monkeypatch.setattr(fault_lab.time, "sleep", lambda seconds: None)
 
     def _apply(a):
         a.applied = True
@@ -279,6 +295,22 @@ def test_the_lab_spec_compiles_and_names_what_each_fault_attacks():
     assert "switchport trunk allowed vlan 10" in rendered["s1"]
 
 
+def test_the_adapter_uses_the_engine_package_identity():
+    """`src.network_autopilot` and `network_autopilot` are two module trees.
+
+    Building the adapter from one while the engine imports the other gives
+    two distinct `OperationResult` enums, so the executor's identity check
+    (`receipt.result is OperationResult.SUCCESS`) rejects a receipt that says
+    success. Live fault lab: every device was created, every receipt read
+    back confirmed, and the DAG still marked all five creates FAILED.
+    """
+    from network_autopilot.adapter import NullAdapter as EngineNullAdapter
+
+    adapter = fault_lab._make_adapter("null")
+    assert isinstance(adapter, EngineNullAdapter)
+    assert type(adapter).__module__.startswith("network_autopilot.")
+
+
 def test_the_null_adapter_run_reports_that_nothing_broke(tmp_path, capsys):
     """`--adapter null` is the honest control: a fake adapter cannot break a
     real flow, so the harness must say so rather than invent a break."""
@@ -298,3 +330,114 @@ def test_the_null_adapter_run_reports_that_nothing_broke(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["lab"] == "not known-good"
     assert not (tmp_path / "out" / "fault_lab.json").exists()
+
+
+# -- S2.4 joins: verdict after injection + diagnosis label ----------------
+
+
+def test_a_broken_lab_that_still_reads_pass_is_a_false_pass():
+    """The scorecard's false-PASS ground truth: the fault is provably in
+    place, yet Havyn's own read-only verdict still says PASS."""
+    adapter = FakeAdapter()
+    outcome = fault_lab.run_fault(
+        adapter, StubAutopilot(report_success=True), object(),
+        _live_action(adapter),
+    )
+
+    assert outcome.observed_broken == "blocked"
+    assert outcome.verdict_after_injection == "pass"
+    assert outcome.false_pass is True
+    # The fault experiment itself still completed: recording a false PASS is
+    # the finding, not a reason to hide the rest of the evidence.
+    assert outcome.verified is True
+
+
+def test_a_broken_lab_that_reads_fail_is_not_a_false_pass():
+    adapter = FakeAdapter()
+    outcome = fault_lab.run_fault(
+        adapter, StubAutopilot(report_success=False), object(),
+        _live_action(adapter),
+    )
+    assert outcome.verdict_after_injection == "fail"
+    assert outcome.false_pass is False
+
+
+def test_the_expected_cause_and_its_match_are_recorded_for_accuracy():
+    adapter = FakeAdapter()
+    outcome = fault_lab.run_fault(adapter, StubAutopilot(), object(),
+                                  _live_action(adapter))
+    assert outcome.expected_cause == "interface(s) down on the path"
+    assert outcome.expect_named_cause is True
+    assert outcome.diagnosis_ran is True
+    assert outcome.diagnosis_matched is True
+
+
+def test_the_wrong_gateway_is_excluded_from_diagnosis_accuracy():
+    """Unknown is the designed answer for a wrong gateway; scoring it as a
+    miss (or a hit) would make the accuracy metric meaningless."""
+    adapter = FakeAdapter()
+    outcome = fault_lab.run_fault(
+        adapter,
+        StubAutopilot(causes=("connectivity failed but no state anomaly was observed",)),
+        object(), _live_action(adapter, expect_named_cause=False),
+    )
+    assert outcome.expect_named_cause is False
+    assert outcome.diagnosis_matched is None
+
+
+def test_a_refused_injection_leaves_the_verdict_unmeasured():
+    """No fault landed, so there is no broken lab to score a verdict on."""
+    adapter = FakeAdapter(inject_ok=False)
+    outcome = fault_lab.run_fault(adapter, StubAutopilot(report_success=True),
+                                  object(), _live_action(adapter))
+    assert outcome.verdict_after_injection == ""
+    assert outcome.false_pass is False
+
+
+def test_a_partial_restoration_probe_is_rechecked_after_a_settle(monkeypatch):
+    """A revert is a config change; the first probe can still be converging.
+
+    Live wrong-access-vlan: the revert landed and the probe came back PARTIAL.
+    That is not a failed restoration yet, so it gets one settled re-probe.
+    """
+    from network_autopilot.core.requirements import FlowOutcome, FlowResult
+
+    monkeypatch.setattr(fault_lab.time, "sleep", lambda seconds: None)
+
+    class _Restoring:
+        def __init__(self):
+            self.outcomes = ["partial", "reachable"]
+            self.calls = 0
+
+        def run_flow_test(self, source, destination, *, transport="icmp", **kw):
+            self.calls += 1
+            return FlowResult(
+                source=source, destination=destination, transport=transport,
+                port=None, outcome=FlowOutcome(self.outcomes[self.calls - 1]),
+            )
+
+    adapter = _Restoring()
+    outcome = fault_lab._probe_restored(adapter, "pc1", "srv1")
+    assert outcome == "reachable"
+    assert adapter.calls == 2
+
+
+def test_a_restored_lab_is_not_probed_twice(monkeypatch):
+    from network_autopilot.core.requirements import FlowOutcome, FlowResult
+
+    monkeypatch.setattr(fault_lab.time, "sleep", lambda seconds: None)
+
+    class _Restored:
+        def __init__(self):
+            self.calls = 0
+
+        def run_flow_test(self, source, destination, *, transport="icmp", **kw):
+            self.calls += 1
+            return FlowResult(
+                source=source, destination=destination, transport=transport,
+                port=None, outcome=FlowOutcome.REACHABLE,
+            )
+
+    adapter = _Restored()
+    assert fault_lab._probe_restored(adapter, "pc1", "srv1") == "reachable"
+    assert adapter.calls == 1

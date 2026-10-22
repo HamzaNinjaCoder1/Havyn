@@ -190,6 +190,28 @@ particular Packet Tracer installation has the extension loaded or that a live
 canvas has a desired visual appearance. Live acceptance evidence is therefore
 reported separately from unit and offline test results.
 
+## Unattended test lab
+
+The repository carries the Stage 2 test infrastructure:
+
+| Piece | Entry point |
+| --- | --- |
+| 16-spec topology library | `library/manifest.json` |
+| Unattended queue runner (resume-safe, isolated, verified upload) | `scripts/havyn_runner.py` |
+| Morning scorecard from recorded results | `scripts/scorecard.py` |
+| Fault injection → diagnosis → revert lab | `scripts/fault_lab.py` |
+| Evidence-derived capability map | `scripts/capability_map.py` |
+| Windows overnight task | `scripts/nightly/` + [setup](docs/nightly-setup.md) |
+| Offline CI (lint, independence, tests, wheel) | `.github/workflows/tests.yml` |
+
+The runner stores one attributable JSON per case and an append-only
+`history.jsonl`; the scorecard reads both plus the fault lab to compute false
+PASS rate, criteria pass %, same-network consistency, build time, diagnosis
+accuracy and refusal rate. A metric with no evidence behind it is reported as
+unmeasured, never as a zero. Published outputs live in
+[docs/reports/scorecard.md](docs/reports/scorecard.md) and
+[docs/capability-map.md](docs/capability-map.md).
+
 ## Independence and attribution
 
 Havyn is self-contained: the engine, its device catalog and both runtime

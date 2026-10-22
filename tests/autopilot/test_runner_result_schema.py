@@ -69,11 +69,12 @@ def test_every_result_is_attributable(tmp_path):
     assert summary.ran == 1
 
     data = json.loads((tmp_path / "results" / "T99.json").read_text("utf-8"))
-    for key in ("case_id", "topology_id", "spec", "run_id", "mode", "status",
-                "started_at", "finished_at", "elapsed_s", "criteria",
-                "criteria_detail", "evidence_dir", "refused", "refusal_reason",
-                "timed_out"):
+    for key in ("case_id", "topology_id", "spec", "run_id", "runner_version",
+                "mode", "status", "started_at", "finished_at", "elapsed_s",
+                "criteria", "criteria_detail", "failures", "evidence_dir",
+                "refused", "refusal_reason", "timed_out"):
         assert key in data, f"result is missing {key}"
+    assert data["runner_version"] == havyn_runner.RUNNER_VERSION
     assert data["topology_id"] == "T99"
     assert data["run_id"].startswith("run-")
     assert data["mode"] == "live"
@@ -237,3 +238,9 @@ def test_configured_upload_reaches_the_destination_during_a_run(tmp_path):
     landed = destination / "results-T99.json"
     assert landed.is_file(), sorted(p.name for p in destination.iterdir())
     assert json.loads(landed.read_text("utf-8"))["case_id"] == "T99"
+    history = destination / "results-history.jsonl"
+    assert history.is_file(), (
+        "history is part of the result set; the scorecard cannot reproduce "
+        "consistency without it"
+    )
+    assert json.loads(history.read_text("utf-8").strip())["status"]

@@ -7,6 +7,53 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    # S2.7: a syntax error or a forbidden upstream import must fail before the
+    # expensive matrix. There is no formatter/linter configured in this repo,
+    # so "lint" here is what the project actually enforces: every entry point
+    # byte-compiles, the source-text invariants hold, and the engine's import
+    # independence is checked with the upstream package forcibly absent.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Byte-compile every entry point
+        run: python -m compileall -q src scripts tests build_havyn.py
+
+      - name: Source-text invariants
+        run: python -m pytest tests/autopilot/test_source_text_hygiene.py -q
+
+  independence:
+    # The engine must not import the upstream package. Running the suite with
+    # a meta-path finder that raises ImportError for it proves the absence
+    # rather than trusting that it "happens not to be installed".
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Run independence checks with the upstream package blocked
+        run: >-
+          python -m pytest tests/autopilot/test_engine_independence.py
+          -p tests.independence_blocker -q
+
   pytest:
     runs-on: ${{ matrix.os }}
     strategy:

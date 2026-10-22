@@ -338,3 +338,59 @@ def test_a_crash_writes_a_result_so_a_restart_resumes_past_it(tmp_path, monkeypa
                                      tmp_path / "evidence")
     assert summary.resumed == 2, summary.to_dict()
     assert summary.ran == 0
+
+
+# -- append-only history (S2.4 consistency evidence) ----------------------
+
+
+def _history(results: Path) -> list[dict]:
+    path = results / havyn_runner.HISTORY_FILE
+    return [json.loads(line) for line in path.read_text("utf-8").splitlines()]
+
+
+def test_every_execution_is_appended_to_history(tmp_path):
+    """The per-case JSON is the current verdict; history is what a re-run
+    must not erase, or same-network consistency has nothing to compare."""
+    spec = _write_spec(tmp_path)
+    results = tmp_path / "results"
+    havyn_runner.run_queue(
+        _queue([{"id": "A", "spec": spec}, {"id": "B", "spec": spec}]),
+        NullAdapter, results, tmp_path / "evidence",
+    )
+
+    entries = _history(results)
+    assert [entry["case_id"] for entry in entries] == ["A", "B"]
+    assert len({entry["run_id"] for entry in entries}) == 2
+    assert all(entry["status"] for entry in entries)
+
+
+def test_a_resumed_case_does_not_fabricate_a_second_execution(tmp_path):
+    spec = _write_spec(tmp_path)
+    results = tmp_path / "results"
+    cases = _queue([{"id": "A", "spec": spec}])
+    havyn_runner.run_queue(cases, NullAdapter, results, tmp_path / "evidence")
+    assert len(_history(results)) == 1
+
+    summary = havyn_runner.run_queue(
+        _queue([{"id": "A", "spec": spec}, {"id": "B", "spec": spec}]),
+        NullAdapter, results, tmp_path / "evidence",
+    )
+    assert summary.resumed == 1 and summary.ran == 1
+    entries = _history(results)
+    assert [entry["case_id"] for entry in entries] == ["A", "B"], (
+        "the resumed case was counted as another execution"
+    )
+
+
+def test_a_queue_with_a_utf8_bom_still_loads(tmp_path):
+    """Windows PowerShell 5.1 writes UTF-8 with a BOM.
+
+    The S1.19 gate generates its one-case queue that way; rejecting the BOM
+    killed the sweep at launch with no case result to explain it.
+    """
+    queue = tmp_path / "queue.json"
+    payload = json.dumps({"cases": [{"id": "run01", "spec": "x.json"}]})
+    queue.write_bytes(b"\xef\xbb\xbf" + payload.encode("utf-8"))
+
+    cases = havyn_runner.load_queue(queue)
+    assert cases == [{"id": "run01", "spec": "x.json"}]

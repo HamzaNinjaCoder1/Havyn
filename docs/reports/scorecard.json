@@ -1,0 +1,154 @@
+{
+ "generated_at": "2026-10-22T02:59:13+00:00",
+ "cases": 3,
+ "status_counts": {
+  "pass": 3
+ },
+ "criteria": {
+  "pass": 38,
+  "fail": 0,
+  "unknown": 0,
+  "total": 38,
+  "pass_pct": 100.0
+ },
+ "timing_s": {
+  "total": 242.3,
+  "mean": 80.8,
+  "max": 96.9
+ },
+ "refusal_rate": 0.0,
+ "false_pass": {
+  "rate": 0.0,
+  "false_passes": 0,
+  "labels": [],
+  "measured": 5,
+  "measured_labels": [
+   "port-shutdown",
+   "route-missing",
+   "wrong-access-vlan",
+   "trunk-vlan-not-allowed",
+   "wrong-gateway"
+  ]
+ },
+ "diagnosis": {
+  "accuracy": 1.0,
+  "matched": 4,
+  "measured": 4,
+  "missed": [],
+  "unknown_by_design": [
+   "wrong-gateway"
+  ]
+ },
+ "consistency": {
+  "rate": 1.0,
+  "consistent": 3,
+  "repeated_networks": 3,
+  "groups": {
+   "T01": {
+    "runs": 2,
+    "statuses": [
+     "pass"
+    ],
+    "consistent": true
+   },
+   "T02": {
+    "runs": 2,
+    "statuses": [
+     "pass"
+    ],
+    "consistent": true
+   },
+   "T06": {
+    "runs": 2,
+    "statuses": [
+     "pass"
+    ],
+    "consistent": true
+   }
+  }
+ },
+ "runner_summary": {
+  "total": 3,
+  "ran": 3,
+  "resumed": 0,
+  "passed": 3,
+  "failed": 0,
+  "stopped": null,
+  "uploads": [
+   {
+    "uploaded": false,
+    "reason": "no uploader configured"
+   }
+  ]
+ },
+ "skipped": [],
+ "per_case": [
+  {
+   "topology_id": "T01",
+   "case_id": "T01",
+   "run_id": "run-7e254d7e7656",
+   "mode": "live",
+   "status": "pass",
+   "outcome": "PASS",
+   "criteria": {
+    "pass": 15,
+    "fail": 0,
+    "unknown": 0,
+    "total": 15
+   },
+   "elapsed_s": 85.2,
+   "evidence_dir": "autopilot_evidence\\build-19145d4547ca",
+   "refused": false,
+   "refusal_reason": null,
+   "timed_out": false,
+   "reason": null,
+   "started_at": "2026-10-21T22:56:42+00:00",
+   "finished_at": "2026-10-21T22:58:08+00:00"
+  },
+  {
+   "topology_id": "T02",
+   "case_id": "T02",
+   "run_id": "run-8f78ca064894",
+   "mode": "live",
+   "status": "pass",
+   "outcome": "PASS",
+   "criteria": {
+    "pass": 14,
+    "fail": 0,
+    "unknown": 0,
+    "total": 14
+   },
+   "elapsed_s": 96.9,
+   "evidence_dir": "autopilot_evidence\\build-eee1031f7df2",
+   "refused": false,
+   "refusal_reason": null,
+   "timed_out": false,
+   "reason": null,
+   "started_at": "2026-10-21T22:58:08+00:00",
+   "finished_at": "2026-10-21T22:59:45+00:00"
+  },
+  {
+   "topology_id": "T06",
+   "case_id": "T06",
+   "run_id": "run-c4edb6e574c5",
+   "mode": "live",
+   "status": "pass",
+   "outcome": "PASS",
+   "criteria": {
+    "pass": 9,
+    "fail": 0,
+    "unknown": 0,
+    "total": 9
+   },
+   "elapsed_s": 60.2,
+   "evidence_dir": "autopilot_evidence\\build-dfda411c725d",
+   "refused": false,
+   "refusal_reason": null,
+   "timed_out": false,
+   "reason": null,
+   "started_at": "2026-10-21T22:59:45+00:00",
+   "finished_at": "2026-10-21T23:00:45+00:00"
+  }
+ ],
+ "unmeasured": {}
+}

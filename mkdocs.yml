@@ -80,6 +80,9 @@ nav:
       - Supported Devices: devices.md
       - Cable Types: cables.md
       - Expansion Modules: modules.md
+      - Capability Map: capability-map.md
+  - Reports:
+      - Nightly Scorecard: reports/scorecard.md
   - Networking:
       - IP Addressing: ip-addressing.md
       - Routing Protocols: routing.md
