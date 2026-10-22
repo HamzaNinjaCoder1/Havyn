@@ -24,6 +24,15 @@ if (-not $Queue) { $Queue = Join-Path $PSScriptRoot "nightly-queue.json" }
 $Results = $env:HAVYN_RESULTS
 if (-not $Results) { $Results = Join-Path $RepoRoot "runner_results" }
 
+# A scheduled task starts with the machine/user PATH, which usually does not
+# have the repository's virtualenv. Prefer it when present so the task does not
+# silently run a system Python that lacks the package.
+$Python = $env:HAVYN_PYTHON
+if (-not $Python) {
+    $venvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
+    if (Test-Path -LiteralPath $venvPython) { $Python = $venvPython } else { $Python = "python" }
+}
+
 function Test-Heartbeat {
     # The Script Engine heartbeats into the engine's mailbox subdir ("bridge" --
     # see network_autopilot.pt.mailbox._MAILBOX_SUBDIR), in whichever of the two
@@ -40,6 +49,33 @@ function Test-Heartbeat {
         }
     }
     return $false
+}
+
+function Get-FailureDetail([string]$ResultsDir) {
+    # A morning notification that says only "exit 2" is not actionable. Name
+    # the cases that did not pass, with the runner's own reason.
+    $summaryPath = Join-Path $ResultsDir "summary.json"
+    if (-not (Test-Path -LiteralPath $summaryPath)) {
+        return "no summary.json in $ResultsDir"
+    }
+    $failedCases = @()
+    Get-ChildItem -LiteralPath $ResultsDir -Filter "*.json" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne "summary.json" } |
+        ForEach-Object {
+            try {
+                $result = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+            } catch {
+                return
+            }
+            if ($result.status -ne "pass") {
+                $reason = if ($result.detail) { $result.detail } else { $result.status }
+                $failedCases += "$($result.case_id): $reason"
+            }
+        }
+    if ($failedCases.Count -gt 0) {
+        return ($failedCases -join "; ")
+    }
+    return "runner reported failure; see $summaryPath"
 }
 
 function Notify-Failure([string]$message) {
@@ -69,8 +105,8 @@ try {
         $ptPath = Get-Command "PacketTracer" -ErrorAction SilentlyContinue
         if (-not $ptPath) {
             $cands = @(
-                "${env:ProgramFiles}\Cisco Packet Tracer*\PacketTracer.exe",
-                "${env:ProgramFiles(x86)}\Cisco Packet Tracer*\PacketTracer.exe"
+                "${env:ProgramFiles}\Cisco Packet Tracer*\bin\PacketTracer.exe",
+                "${env:ProgramFiles(x86)}\Cisco Packet Tracer*\bin\PacketTracer.exe"
             )
             $ptPath = Get-ChildItem $cands -ErrorAction SilentlyContinue | Select-Object -First 1
         }
@@ -87,12 +123,12 @@ try {
 
     Push-Location $RepoRoot
     try {
-        & python scripts/havyn_runner.py $Queue --results-dir $Results --adapter bridge
+        & $Python scripts/havyn_runner.py $Queue --results-dir $Results --adapter bridge
         $code = $LASTEXITCODE
     } finally {
         Pop-Location
     }
-    if ($code -ne 0) { throw "havyn_runner exited with code $code" }
+    if ($code -ne 0) { throw "havyn_runner exited with code $code; $(Get-FailureDetail $Results)" }
     Write-Output "nightly complete: queue $Queue"
 }
 catch {

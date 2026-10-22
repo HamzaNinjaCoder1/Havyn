@@ -1,11 +1,11 @@
 site_name: Packet Tracer MCP
 site_description: AI-powered Cisco Packet Tracer automation via the Model Context Protocol — plan, validate, generate and deploy full network topologies from natural language.
-site_url: https://mats2208.github.io/MCP-Packet-Tracer/
-site_author: Mats2208
-repo_url: https://github.com/Mats2208/MCP-Packet-Tracer
-repo_name: Mats2208/MCP-Packet-Tracer
+site_url: https://hamzaninjacoder1.github.io/Havyn/
+site_author: HamzaNinjaCoder1
+repo_url: https://github.com/HamzaNinjaCoder1/Havyn
+repo_name: HamzaNinjaCoder1/Havyn
 edit_uri: edit/main/docs/
-copyright: Copyright &copy; 2026 Mateo (Mats2208) — MIT License
+copyright: Copyright &copy; 2026 Hamza — MIT License
 
 theme:
   name: material
@@ -65,7 +65,7 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/Mats2208/MCP-Packet-Tracer
+      link: https://github.com/HamzaNinjaCoder1/Havyn
 
 nav:
   - Home: index.md
@@ -81,6 +81,7 @@ nav:
       - Cable Types: cables.md
       - Expansion Modules: modules.md
       - Capability Map: capability-map.md
+      - Known Limitations: limitations.md
   - Reports:
       - Nightly Scorecard: reports/scorecard.md
   - Networking:
@@ -88,9 +89,9 @@ nav:
       - Routing Protocols: routing.md
       - Switching, IPv6 & Wireless: advanced-features.md
       - Topology Templates: templates.md
-    - Internals:
-        - Architecture: architecture.md
-        - Testing: testing.md
-    - Roadmap:
-        - Blueprint & plan: roadmap/README.md
-    - Credits & Attribution: credits.md
+  - Internals:
+      - Architecture: architecture.md
+      - Testing: testing.md
+  - Roadmap:
+      - Blueprint & plan: roadmap/README.md
+  - Credits & Attribution: credits.md

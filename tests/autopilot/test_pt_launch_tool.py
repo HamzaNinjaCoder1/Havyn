@@ -15,9 +15,20 @@ import json
 import pytest
 
 from src.network_autopilot.adapter.base import AdapterInfo
-from src.network_autopilot.adapter.packet_tracer.pt_launcher import LaunchResult
+from src.network_autopilot.adapter.packet_tracer.pt_launcher import (
+    LaunchResult,
+    find_packet_tracer,
+)
 from src.network_autopilot.core.observability import Observable
 from src.network_autopilot.mcp import server
+from src.network_autopilot.pt.mailbox import FileMailbox
+
+#: The status/launch assertions below describe a machine with a running PT.
+#: CI has neither the install nor the heartbeat, so they skip there.
+_PT_READY = find_packet_tracer() is not None and FileMailbox().pt_alive()
+_NEEDS_LIVE_PT = pytest.mark.skipif(
+    not _PT_READY, reason="Packet Tracer is not installed/running on this machine"
+)
 
 
 class _StubState:
@@ -91,8 +102,9 @@ def test_helper_reports_a_failed_launch_as_a_receipt():
 # -- pt_status / pt_launch (real machine, read-only) -------------------------
 
 
+@_NEEDS_LIVE_PT
 def test_pt_status_reports_install_and_channel():
-    """PT is installed on this machine; the tool must say where it stands."""
+    """PT is installed and running on this machine; the tool must say so."""
     status = server.pt_status()
 
     assert set(status) >= {"installed", "exe", "process_running", "bridge_reachable", "detail"}
@@ -102,6 +114,7 @@ def test_pt_status_reports_install_and_channel():
     assert status["detail"]
 
 
+@_NEEDS_LIVE_PT
 def test_pt_launch_is_idempotent_and_never_spawns_a_live_pt(monkeypatch):
     """An already-heartbeating PT must be reported, not re-opened."""
     from src.network_autopilot.adapter.packet_tracer import pt_launcher

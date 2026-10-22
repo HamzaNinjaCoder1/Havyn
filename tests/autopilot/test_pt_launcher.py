@@ -28,9 +28,25 @@ def _no_env_override(monkeypatch):
     monkeypatch.delenv("PT_EXE_PATH", raising=False)
 
 
+#: CI runners do not have Packet Tracer. Discovery and the real-GUI tests
+#: only mean something on a machine that does.
+_PT_INSTALLED = find_packet_tracer() is not None
+_NEEDS_PT = pytest.mark.skipif(
+    not _PT_INSTALLED, reason="Packet Tracer is not installed on this machine"
+)
+
+
+def _fake_exe(tmp_path):
+    """A path find_packet_tracer can return without a real install."""
+    exe = tmp_path / "PacketTracer.exe"
+    exe.write_text("stub", encoding="utf-8")
+    return exe
+
+
 # -- discovery ----------------------------------------------------------------
 
 
+@_NEEDS_PT
 def test_find_packet_tracer_locates_real_install():
     """This machine has PT installed, so discovery must actually find it."""
     exe = find_packet_tracer()
@@ -46,6 +62,7 @@ def test_find_packet_tracer_respects_env_override(tmp_path, monkeypatch):
     assert find_packet_tracer() == fake
 
 
+@_NEEDS_PT
 def test_find_packet_tracer_ignores_stale_env_override(tmp_path, monkeypatch):
     """A bogus PT_EXE_PATH must not hide a real install."""
     monkeypatch.setenv("PT_EXE_PATH", str(tmp_path / "does-not-exist.exe"))
@@ -97,10 +114,12 @@ def test_ensure_is_idempotent_when_already_alive():
     assert spawns == []
 
 
-def test_ensure_spawns_and_waits_for_heartbeat():
+def test_ensure_spawns_and_waits_for_heartbeat(tmp_path, monkeypatch):
     """Not alive -> spawn once -> heartbeat goes fresh -> LAUNCHED."""
     hb = _Heartbeat(fresh_after=2)
     spawns: list = []
+    monkeypatch.setattr(pt_launcher, "find_packet_tracer",
+                        lambda: _fake_exe(tmp_path))
 
     result = ensure_packet_tracer(
         alive=hb, spawn=True, timeout=30.0, poll=0.001,
@@ -113,8 +132,10 @@ def test_ensure_spawns_and_waits_for_heartbeat():
     assert hb.calls >= 2
 
 
-def test_ensure_bounded_timeout_never_hangs():
+def test_ensure_bounded_timeout_never_hangs(tmp_path, monkeypatch):
     """Heartbeat never freshens: the deadline must be honoured, not ignored."""
+    monkeypatch.setattr(pt_launcher, "find_packet_tracer",
+                        lambda: _fake_exe(tmp_path))
     started = time.time()
     result = ensure_packet_tracer(
         alive=_Heartbeat(), spawn=True, timeout=1.0, poll=0.05,
@@ -128,10 +149,12 @@ def test_ensure_bounded_timeout_never_hangs():
     assert elapsed < 5.0
 
 
-def test_ensure_spawn_failure_is_reported_not_raised():
+def test_ensure_spawn_failure_is_reported_not_raised(tmp_path, monkeypatch):
     def boom(_exe):
         raise OSError(5, "Access is denied")
 
+    monkeypatch.setattr(pt_launcher, "find_packet_tracer",
+                        lambda: _fake_exe(tmp_path))
     result = ensure_packet_tracer(
         alive=lambda: False, spawn=True, spawner=boom,
     )

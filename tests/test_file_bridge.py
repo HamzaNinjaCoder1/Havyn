@@ -4,6 +4,7 @@ Un hilo simula el Script Engine: lista el buzón, procesa req_*, escribe res_*,
 toca el heartbeat. Verifica el round-trip, la atomicidad y el heartbeat.
 """
 
+import os
 import threading
 import time
 
@@ -36,7 +37,14 @@ class FakeScriptEngine:
                     except OSError:
                         continue
                     result = self.handler(js)
-                    (self.dir / f"res_{name}.txt").write_text(result, encoding="utf-8")
+                    # The real Script Engine publishes a complete answer;
+                    # write it atomically so the Python poller never reads a
+                    # half-written response on a slow Windows runner (the
+                    # concurrency test caught exactly that race in CI).
+                    target = self.dir / f"res_{name}.txt"
+                    tmp = self.dir / f".res_{name}.tmp"
+                    tmp.write_text(result, encoding="utf-8")
+                    os.replace(tmp, target)
                     req.unlink(missing_ok=True)
                 time.sleep(0.05)
         self.dir.mkdir(parents=True, exist_ok=True)

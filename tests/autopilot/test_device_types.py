@@ -139,8 +139,10 @@ def test_pt_has_no_iot_server_type_so_cabling_is_the_full_capability():
     for public in (n for n in dir(js) if not n.startswith("_")):
         assert "register" not in public.lower(), public
 
-    # 3. the limit stays documented, with the refuse-never-half-configure rule
-    issues = Path(__file__).resolve().parents[2] / "ISSUES.md"
-    text = issues.read_text(encoding="utf-8")
-    assert "IoT server" in text
+    # 3. the limit stays documented, with the refuse-never-half-configure rule.
+    # `docs/limitations.md` is tracked, unlike the local ISSUES.md working list,
+    # so CI can verify the invariant instead of failing on a missing file.
+    limitations = Path(__file__).resolve().parents[2] / "docs" / "limitations.md"
+    text = limitations.read_text(encoding="utf-8")
+    assert "IoT server" in text or "IoT-server" in text
     assert "never half-configured" in text
