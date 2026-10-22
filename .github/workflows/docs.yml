@@ -37,6 +37,11 @@ jobs:
           path: _site
 
   deploy:
+    # Pages is plan-blocked for this private repo (the Pages API answers 422).
+    # The build below still validates every page; the reports branch carries
+    # the scorecard and capability map. Set the repository variable
+    # ENABLE_PAGES=true after enabling Pages to turn this job back on.
+    if: vars.ENABLE_PAGES == 'true'
     needs: build
     runs-on: ubuntu-latest
     environment:

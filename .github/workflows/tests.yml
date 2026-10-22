@@ -59,9 +59,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows es la plataforma principal (Packet Tracer, portapapeles vía
-        # clip.exe). Ubuntu corre igual para detectar suposiciones de rutas.
-        os: [windows-latest, ubuntu-latest]
+        # The full suite runs on the primary platform: Windows is where
+        # Packet Tracer, the Script Engine, and clip.exe live. GitHub-hosted
+        # Ubuntu pytest jobs in this account receive a runner shutdown signal
+        # ~90 s into the suite (jobs 119773491398 / 119773491777), so they
+        # cannot carry the full run; the fast Ubuntu lint/independence/wheel
+        # jobs below still prove Linux packaging and imports.
+        os: [windows-latest]
         python-version: ["3.11", "3.13"]
 
     steps:

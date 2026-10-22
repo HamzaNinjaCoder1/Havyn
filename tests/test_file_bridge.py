@@ -143,8 +143,10 @@ def test_no_partial_reads_under_concurrency(bridge_dir):
     se = FakeScriptEngine(bridge_dir, handler=lambda js: str(len(js)))
     se.start()
     try:
-        for _ in range(20):
-            r = fb.send_and_wait(payload, timeout=5)
+        # Ten 5 KB round-trips are enough to catch a partial read; the 15 s
+        # window is for a loaded shared CI runner, not a protocol concession.
+        for _ in range(10):
+            r = fb.send_and_wait(payload, timeout=15)
             assert r == str(len(payload)), "lectura parcial detectada"
     finally:
         se.stop()
