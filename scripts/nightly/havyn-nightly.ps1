@@ -129,6 +129,27 @@ try {
         Pop-Location
     }
     if ($code -ne 0) { throw "havyn_runner exited with code $code; $(Get-FailureDetail $Results)" }
+
+    # The morning needs the report, not just raw per-case JSON. Generate both
+    # into the results dir (the uploader copies *.json/*.md), and never let a
+    # report failure mask the runner's real verdict.
+    try {
+        $scorecard = Join-Path $Results "scorecard.json"
+        $scorecardMd = Join-Path $Results "scorecard.md"
+        $faultLab = Join-Path $RepoRoot "fault_lab_results\fault_lab.json"
+        if (Test-Path -LiteralPath $faultLab) {
+            & $Python scripts/scorecard.py $Results --queue $Queue `
+                --fault-lab $faultLab --out $scorecard --md $scorecardMd
+        } else {
+            & $Python scripts/scorecard.py $Results --queue $Queue `
+                --out $scorecard --md $scorecardMd
+        }
+        & $Python scripts/capability_map.py --results-dir $Results `
+            --out-docs (Join-Path $Results "capability-map.md") `
+            --out-json (Join-Path $Results "capability-map.json")
+    } catch {
+        Write-Warning "report generation failed: $($_.Exception.Message)"
+    }
     Write-Output "nightly complete: queue $Queue"
 }
 catch {

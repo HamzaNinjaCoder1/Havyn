@@ -1,14 +1,14 @@
 # Havyn Capability Map
 
-_generated 2026-10-22T02:26:24+00:00_ — statuses change only with the evidence named in each row.
+_generated 2026-10-22T11:07:16+00:00_ — statuses change only with the evidence named in each row.
 
 ## Latest live runner evidence
 
 | topology | status | run | elapsed (s) | evidence |
 | --- | --- | --- | --- | --- |
-| T01 | pass | run-7e254d7e7656 | 85.2 | autopilot_evidence\build-19145d4547ca |
-| T02 | pass | run-8f78ca064894 | 96.9 | autopilot_evidence\build-eee1031f7df2 |
-| T06 | pass | run-c4edb6e574c5 | 60.2 | autopilot_evidence\build-dfda411c725d |
+| T01 | pass | run-5d0219b0774c | 88.9 | autopilot_evidence\build-4351c9e5f0df |
+| T02 | pass | run-a08c98a4f999 | 103.0 | autopilot_evidence\build-1037e02326c8 |
+| T06 | pass | run-d0c3c88b4e28 | 60.1 | autopilot_evidence\build-906dba4b7450 |
 
 ## Verified (9)
 
@@ -18,14 +18,14 @@ _generated 2026-10-22T02:26:24+00:00_ — statuses change only with the evidence
 - **wireless-association** — Wireless clients associate automatically (Antenna link) (laptop, accesspoint). Evidence: `tests/autopilot/test_live_connectivity.py (wireless area: laptop associates, then reaches across the AP)`.
 - **flow-reachable-blocked** — ICMP flows verify reachable and blocked end to end (router, switch, pc, firewall). Evidence: `tests/autopilot/test_live_connectivity.py`.
 - **asa-address-scoped** — Address-scoped ASA rules (per-host/per-subnet permits) (firewall:5506-X, firewall:5505). Evidence: `tests/autopilot/test_live_policy.py::test_asa_address_scoped_acl_is_enforced`.
-- **small-office-dhcp** — Single-router office with DHCP (router, switch, pc). Evidence: `library/T01-small-office.json (builds offline; live runner pass promotes this row); live runner pass run-7e254d7e7656 (autopilot_evidence\build-19145d4547ca)`.
-  Latest live run `run-7e254d7e7656`: pass (85.2 s, `autopilot_evidence\build-19145d4547ca`).
+- **small-office-dhcp** — Single-router office with DHCP (router, switch, pc). Evidence: `library/T01-small-office.json (builds offline; live runner pass promotes this row); live runner pass run-5d0219b0774c (autopilot_evidence\build-4351c9e5f0df)`.
+  Latest live run `run-5d0219b0774c`: pass (88.9 s, `autopilot_evidence\build-4351c9e5f0df`).
   Status derived from that complete live runner pass.
-- **router-on-a-stick** — Router-on-a-stick inter-VLAN routing (router, switch, pc). Evidence: `library/T02-two-vlan-office.json (builds offline; live runner pass promotes this row); live runner pass run-8f78ca064894 (autopilot_evidence\build-eee1031f7df2)`.
-  Latest live run `run-8f78ca064894`: pass (96.9 s, `autopilot_evidence\build-eee1031f7df2`).
+- **router-on-a-stick** — Router-on-a-stick inter-VLAN routing (router, switch, pc). Evidence: `library/T02-two-vlan-office.json (builds offline; live runner pass promotes this row); live runner pass run-a08c98a4f999 (autopilot_evidence\build-1037e02326c8)`.
+  Latest live run `run-a08c98a4f999`: pass (103.0 s, `autopilot_evidence\build-1037e02326c8`).
   Status derived from that complete live runner pass.
-- **cable-modem-home** — Home cable-modem network (modem, router, pc). Evidence: `library/T06-home-cable.json (builds offline; live runner pass promotes this row); live runner pass run-c4edb6e574c5 (autopilot_evidence\build-dfda411c725d)`.
-  Latest live run `run-c4edb6e574c5`: pass (60.2 s, `autopilot_evidence\build-dfda411c725d`).
+- **cable-modem-home** — Home cable-modem network (modem, router, pc). Evidence: `library/T06-home-cable.json (builds offline; live runner pass promotes this row); live runner pass run-d0c3c88b4e28 (autopilot_evidence\build-906dba4b7450)`.
+  Latest live run `run-d0c3c88b4e28`: pass (60.1 s, `autopilot_evidence\build-906dba4b7450`).
   Status derived from that complete live runner pass.
 
 ## Unverified (14)

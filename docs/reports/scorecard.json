@@ -1,20 +1,20 @@
 {
- "generated_at": "2026-10-22T02:59:13+00:00",
+ "generated_at": "2026-10-22T11:07:16+00:00",
  "cases": 3,
  "status_counts": {
   "pass": 3
  },
  "criteria": {
-  "pass": 38,
+  "pass": 40,
   "fail": 0,
   "unknown": 0,
-  "total": 38,
+  "total": 40,
   "pass_pct": 100.0
  },
  "timing_s": {
-  "total": 242.3,
-  "mean": 80.8,
-  "max": 96.9
+  "total": 252.0,
+  "mean": 84.0,
+  "max": 103.0
  },
  "refusal_rate": 0.0,
  "false_pass": {
@@ -76,17 +76,30 @@
   "stopped": null,
   "uploads": [
    {
-    "uploaded": false,
-    "reason": "no uploader configured"
+    "uploaded": true,
+    "detail": "4 file(s) verified in C:\\Users\\Hamza\\OneDrive\\HavynUploads\\scheduled-night4"
    }
   ]
  },
- "skipped": [],
+ "skipped": [
+  {
+   "id": "T07",
+   "reason": "awaiting S1.16 live proof (ASA criteria + address-scoped ACL decision)"
+  },
+  {
+   "id": "T08",
+   "reason": "awaiting S1.16 live proof (ASA criteria + address-scoped ACL decision)"
+  },
+  {
+   "id": "T15",
+   "reason": "HSRP failover and EtherChannel bundling have no compiler render path; physical topology builds, redundancy goal unverified"
+  }
+ ],
  "per_case": [
   {
    "topology_id": "T01",
    "case_id": "T01",
-   "run_id": "run-7e254d7e7656",
+   "run_id": "run-5d0219b0774c",
    "mode": "live",
    "status": "pass",
    "outcome": "PASS",
@@ -96,41 +109,41 @@
     "unknown": 0,
     "total": 15
    },
-   "elapsed_s": 85.2,
-   "evidence_dir": "autopilot_evidence\\build-19145d4547ca",
+   "elapsed_s": 88.9,
+   "evidence_dir": "autopilot_evidence\\build-4351c9e5f0df",
    "refused": false,
    "refusal_reason": null,
    "timed_out": false,
    "reason": null,
-   "started_at": "2026-10-21T22:56:42+00:00",
-   "finished_at": "2026-10-21T22:58:08+00:00"
+   "started_at": "2026-10-22T11:01:51+00:00",
+   "finished_at": "2026-10-22T11:03:21+00:00"
   },
   {
    "topology_id": "T02",
    "case_id": "T02",
-   "run_id": "run-8f78ca064894",
+   "run_id": "run-a08c98a4f999",
    "mode": "live",
    "status": "pass",
    "outcome": "PASS",
    "criteria": {
-    "pass": 14,
+    "pass": 16,
     "fail": 0,
     "unknown": 0,
-    "total": 14
+    "total": 16
    },
-   "elapsed_s": 96.9,
-   "evidence_dir": "autopilot_evidence\\build-eee1031f7df2",
+   "elapsed_s": 103.0,
+   "evidence_dir": "autopilot_evidence\\build-1037e02326c8",
    "refused": false,
    "refusal_reason": null,
    "timed_out": false,
    "reason": null,
-   "started_at": "2026-10-21T22:58:08+00:00",
-   "finished_at": "2026-10-21T22:59:45+00:00"
+   "started_at": "2026-10-22T11:03:21+00:00",
+   "finished_at": "2026-10-22T11:05:04+00:00"
   },
   {
    "topology_id": "T06",
    "case_id": "T06",
-   "run_id": "run-c4edb6e574c5",
+   "run_id": "run-d0c3c88b4e28",
    "mode": "live",
    "status": "pass",
    "outcome": "PASS",
@@ -140,14 +153,14 @@
     "unknown": 0,
     "total": 9
    },
-   "elapsed_s": 60.2,
-   "evidence_dir": "autopilot_evidence\\build-dfda411c725d",
+   "elapsed_s": 60.1,
+   "evidence_dir": "autopilot_evidence\\build-906dba4b7450",
    "refused": false,
    "refusal_reason": null,
    "timed_out": false,
    "reason": null,
-   "started_at": "2026-10-21T22:59:45+00:00",
-   "finished_at": "2026-10-21T23:00:45+00:00"
+   "started_at": "2026-10-22T11:05:04+00:00",
+   "finished_at": "2026-10-22T11:06:04+00:00"
   }
  ],
  "unmeasured": {}

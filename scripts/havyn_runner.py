@@ -486,6 +486,7 @@ def make_dir_uploader(destination: Path) -> Callable[[Path], dict[str, Any]]:
             return {"uploaded": False,
                     "detail": f"destination {destination} is not a directory"}
         sources = sorted(results_dir.glob("*.json"))
+        sources.extend(sorted(results_dir.glob("*.md")))
         # History is part of the result set: the published scorecard derives
         # same-network consistency from it, so an upload without it would
         # leave the destination unable to reproduce the table.

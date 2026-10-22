@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-22T02:26:24+00:00",
+ "generated_at": "2026-10-22T11:07:16+00:00",
  "features": [
   {
    "id": "router-acl-enforce",
@@ -203,24 +203,24 @@
     "pc"
    ],
    "status": "Verified",
-   "evidence": "library/T01-small-office.json (builds offline; live runner pass promotes this row); live runner pass run-7e254d7e7656 (autopilot_evidence\\build-19145d4547ca)",
+   "evidence": "library/T01-small-office.json (builds offline; live runner pass promotes this row); live runner pass run-5d0219b0774c (autopilot_evidence\\build-4351c9e5f0df)",
    "refusal_reason": "",
    "topology": "T01",
    "derived_from_run": true,
    "latest_run": {
     "topology_id": "T01",
     "case_id": "T01",
-    "run_id": "run-7e254d7e7656",
+    "run_id": "run-5d0219b0774c",
     "status": "pass",
-    "elapsed_s": 85.2,
+    "elapsed_s": 88.9,
     "criteria": {
      "fail": 0,
      "pass": 15,
      "total": 15,
      "unknown": 0
     },
-    "evidence_dir": "autopilot_evidence\\build-19145d4547ca",
-    "finished_at": "2026-10-21T22:58:08+00:00"
+    "evidence_dir": "autopilot_evidence\\build-4351c9e5f0df",
+    "finished_at": "2026-10-22T11:03:21+00:00"
    }
   },
   {
@@ -232,24 +232,24 @@
     "pc"
    ],
    "status": "Verified",
-   "evidence": "library/T02-two-vlan-office.json (builds offline; live runner pass promotes this row); live runner pass run-8f78ca064894 (autopilot_evidence\\build-eee1031f7df2)",
+   "evidence": "library/T02-two-vlan-office.json (builds offline; live runner pass promotes this row); live runner pass run-a08c98a4f999 (autopilot_evidence\\build-1037e02326c8)",
    "refusal_reason": "",
    "topology": "T02",
    "derived_from_run": true,
    "latest_run": {
     "topology_id": "T02",
     "case_id": "T02",
-    "run_id": "run-8f78ca064894",
+    "run_id": "run-a08c98a4f999",
     "status": "pass",
-    "elapsed_s": 96.9,
+    "elapsed_s": 103.0,
     "criteria": {
      "fail": 0,
-     "pass": 14,
-     "total": 14,
+     "pass": 16,
+     "total": 16,
      "unknown": 0
     },
-    "evidence_dir": "autopilot_evidence\\build-eee1031f7df2",
-    "finished_at": "2026-10-21T22:59:45+00:00"
+    "evidence_dir": "autopilot_evidence\\build-1037e02326c8",
+    "finished_at": "2026-10-22T11:05:04+00:00"
    }
   },
   {
@@ -304,24 +304,24 @@
     "pc"
    ],
    "status": "Verified",
-   "evidence": "library/T06-home-cable.json (builds offline; live runner pass promotes this row); live runner pass run-c4edb6e574c5 (autopilot_evidence\\build-dfda411c725d)",
+   "evidence": "library/T06-home-cable.json (builds offline; live runner pass promotes this row); live runner pass run-d0c3c88b4e28 (autopilot_evidence\\build-906dba4b7450)",
    "refusal_reason": "",
    "topology": "T06",
    "derived_from_run": true,
    "latest_run": {
     "topology_id": "T06",
     "case_id": "T06",
-    "run_id": "run-c4edb6e574c5",
+    "run_id": "run-d0c3c88b4e28",
     "status": "pass",
-    "elapsed_s": 60.2,
+    "elapsed_s": 60.1,
     "criteria": {
      "fail": 0,
      "pass": 9,
      "total": 9,
      "unknown": 0
     },
-    "evidence_dir": "autopilot_evidence\\build-dfda411c725d",
-    "finished_at": "2026-10-21T23:00:45+00:00"
+    "evidence_dir": "autopilot_evidence\\build-906dba4b7450",
+    "finished_at": "2026-10-22T11:06:04+00:00"
    }
   },
   {
@@ -416,25 +416,25 @@
  ],
  "runs": {
   "T01": {
-   "run_id": "run-7e254d7e7656",
+   "run_id": "run-5d0219b0774c",
    "status": "pass",
-   "elapsed_s": 85.2,
-   "evidence_dir": "autopilot_evidence\\build-19145d4547ca",
-   "finished_at": "2026-10-21T22:58:08+00:00"
+   "elapsed_s": 88.9,
+   "evidence_dir": "autopilot_evidence\\build-4351c9e5f0df",
+   "finished_at": "2026-10-22T11:03:21+00:00"
   },
   "T02": {
-   "run_id": "run-8f78ca064894",
+   "run_id": "run-a08c98a4f999",
    "status": "pass",
-   "elapsed_s": 96.9,
-   "evidence_dir": "autopilot_evidence\\build-eee1031f7df2",
-   "finished_at": "2026-10-21T22:59:45+00:00"
+   "elapsed_s": 103.0,
+   "evidence_dir": "autopilot_evidence\\build-1037e02326c8",
+   "finished_at": "2026-10-22T11:05:04+00:00"
   },
   "T06": {
-   "run_id": "run-c4edb6e574c5",
+   "run_id": "run-d0c3c88b4e28",
    "status": "pass",
-   "elapsed_s": 60.2,
-   "evidence_dir": "autopilot_evidence\\build-dfda411c725d",
-   "finished_at": "2026-10-21T23:00:45+00:00"
+   "elapsed_s": 60.1,
+   "evidence_dir": "autopilot_evidence\\build-906dba4b7450",
+   "finished_at": "2026-10-22T11:06:04+00:00"
   }
  }
 }

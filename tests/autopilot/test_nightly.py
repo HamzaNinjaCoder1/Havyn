@@ -87,6 +87,21 @@ def test_nightly_prefers_the_repository_virtualenv():
     assert "& $Python scripts/havyn_runner.py" in ps1
 
 
+def test_nightly_generates_and_uploads_the_reports():
+    """The morning needs a scorecard and capability map, not raw case JSON.
+
+    Both are written into the results dir so the existing verified uploader
+    (which copies *.json, *.md and history) carries them to the destination.
+    """
+    ps1 = (REPO_ROOT / "scripts" / "nightly" / "havyn-nightly.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "scripts/scorecard.py" in ps1
+    assert "scripts/capability_map.py" in ps1
+    assert 'Join-Path $Results "scorecard.json"' in ps1
+    assert 'Join-Path $Results "capability-map.json"' in ps1
+
+
 def test_nightly_finds_the_real_pt_binary_and_names_failed_cases():
     """PT lives in `Cisco Packet Tracer X\\bin\\PacketTracer.exe`.
 
