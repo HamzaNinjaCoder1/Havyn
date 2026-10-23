@@ -49,6 +49,14 @@ class DeviceRole(str, Enum):
     WIRELESS_ROUTER = "wireless_router"
     MODEM = "modem"
     IOT = "iot"
+    # Stage 3 end devices and wireless controller. They were catalogued but
+    # unreachable: a spec could only spell them `other`, which the compiler
+    # routes past every config path.
+    PRINTER = "printer"
+    IP_PHONE = "ip_phone"
+    TABLET = "tablet"
+    SMARTPHONE = "smartphone"
+    WLC = "wlc"
     OTHER = "other"
 
 
@@ -70,6 +78,11 @@ DEFAULT_MODEL_FOR_ROLE: dict[str, str] = {
     DeviceRole.WIRELESS_ROUTER.value: "Linksys-WRT300N",
     DeviceRole.MODEM.value: "DSL-Modem-PT",
     DeviceRole.IOT.value: "Smart LED",
+    DeviceRole.PRINTER.value: "Printer-PT",
+    DeviceRole.IP_PHONE.value: "7960",
+    DeviceRole.TABLET.value: "TabletPC-PT",
+    DeviceRole.SMARTPHONE.value: "SMARTPHONE-PT",
+    DeviceRole.WLC.value: "WLC-PT",
     DeviceRole.OTHER.value: "Router-PT",
 }
 
@@ -311,6 +324,9 @@ class IpAssignmentSpec(SpecModel):
     subnet: str
     ip: str | None = None
     dhcp: bool | None = None
+    # A host behind an HSRP/VRRP virtual gateway needs a gateway that is not
+    # the router's own interface address. None keeps the planner's default.
+    gateway: str | None = None
 
     @property
     def uses_dhcp(self) -> bool:
@@ -332,10 +348,282 @@ class StaticRouteSpec(SpecModel):
         return self
 
 
+class OspfNetworkSpec(SpecModel):
+    """One `network ... area ...` statement.
+
+    S3.A2 needs two networks in two different areas on the same process; the
+    original single `area` field could not express that without lying about
+    one of them.
+    """
+
+    network: str
+    area: str = "0"
+
+
+class RedistributeSpec(SpecModel):
+    protocol: Literal["static", "connected", "eigrp", "rip", "bgp"]
+    process_id: int | None = None
+    metric: int | None = None
+    subnets: bool = False
+
+
 class OspfSpec(SpecModel):
     process_id: int = Field(default=1, ge=1)
-    networks: list[str] = Field(min_length=1)
+    networks: list[str] = Field(default_factory=list)
     area: str = "0"
+    # Per-network areas. When present they take precedence over `networks`
+    # for rendering; `networks` stays for every existing spec.
+    area_networks: list[OspfNetworkSpec] = Field(default_factory=list)
+    default_information_originate: bool = False
+    redistribute: list[RedistributeSpec] = Field(default_factory=list)
+    # Empty = every router, the pre-Stage-3 behaviour. An ISP router that must
+    # stay outside the OSPF domain is named explicitly here.
+    devices: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _check_networks(self) -> "OspfSpec":
+        if not self.networks and not self.area_networks:
+            raise ValueError("ospf needs at least one of 'networks' or 'area_networks'")
+        return self
+
+
+class EigrpSpec(SpecModel):
+    as_number: int = Field(default=1, ge=1)
+    networks: list[str] = Field(default_factory=list)
+    passive_interfaces: list[str] = Field(default_factory=list)
+    redistribute: list[RedistributeSpec] = Field(default_factory=list)
+    devices: list[str] = Field(default_factory=list)
+
+
+class RipSpec(SpecModel):
+    version: Literal[1, 2] = 2
+    networks: list[str] = Field(default_factory=list)
+    no_auto_summary: bool = True
+    passive_interfaces: list[str] = Field(default_factory=list)
+    redistribute: list[RedistributeSpec] = Field(default_factory=list)
+    devices: list[str] = Field(default_factory=list)
+
+
+class BgpNeighborSpec(SpecModel):
+    address: str
+    remote_as: int = Field(ge=1)
+    description: str | None = None
+
+
+class BgpSpec(SpecModel):
+    as_number: int = Field(ge=1)
+    neighbors: list[BgpNeighborSpec] = Field(default_factory=list)
+    networks: list[str] = Field(default_factory=list)
+    router_id: str | None = None
+    devices: list[str] = Field(default_factory=list)
+    # A real eBGP lab gives each AS its own local-AS, peers and networks.
+    # The global fields above remain for a homogeneous two-router lab.
+    per_device: list["BgpDeviceSpec"] = Field(default_factory=list)
+
+
+class BgpDeviceSpec(SpecModel):
+    device: str
+    as_number: int = Field(ge=1)
+    neighbors: list[BgpNeighborSpec] = Field(default_factory=list)
+    networks: list[str] = Field(default_factory=list)
+    router_id: str | None = None
+
+
+class DhcpPoolSpec(SpecModel):
+    """A pool placed on a chosen router, not necessarily the subnet gateway.
+
+    S3.A7 needs the pool on the central DHCP server while the remote router
+    only relays; the existing per-subnet `dhcp: true` always put the pool on
+    the gateway, which is the wrong device for a relayed LAN.
+    """
+
+    device: str
+    subnet: str
+    default_router: str
+    dns_servers: list[str] = Field(default_factory=list)
+    excluded: list[str] = Field(default_factory=list)
+
+
+class HsrpSpec(SpecModel):
+    """One HSRP group on one interface (S3.A8)."""
+
+    device: str
+    interface: str
+    group: int = Field(default=1, ge=0, le=255)
+    virtual_ip: str
+    priority: int = Field(default=100, ge=0, le=255)
+    preempt: bool = True
+    track_interfaces: list[str] = Field(default_factory=list)
+
+
+class DhcpRelaySpec(SpecModel):
+    device: str
+    interface: str
+    helpers: list[str] = Field(min_length=1)
+
+
+class TunnelSpec(SpecModel):
+    device: str
+    tunnel_id: int = Field(default=0, ge=0, le=2147483647)
+    ip: str
+    source: str
+    destination: str
+    mode: Literal["gre", "ipsec"] = "gre"
+
+
+class IpsecSpec(SpecModel):
+    device: str
+    peer: str
+    pre_shared_key: str
+    local_network: str
+    remote_network: str
+    acl_id: int = Field(default=100, ge=1, le=199)
+    transform_set: str = "TS"
+    crypto_map: str = "CM"
+    interface: str
+
+
+class Ipv6InterfaceSpec(SpecModel):
+    device: str
+    interface: str
+    address: str
+    ospf_process: int | None = Field(default=None, ge=1)
+    ospf_area: str = "0"
+
+
+class Ospfv3Spec(SpecModel):
+    device: str
+    process_id: int = Field(default=1, ge=1)
+    router_id: str | None = None
+
+
+class SshSpec(SpecModel):
+    device: str
+    domain_name: str = "lab.local"
+    username: str = "admin"
+    secret: str
+    vty_lines: str = "0 4"
+    version: Literal[1, 2] = 2
+
+
+class ManagementSpec(SpecModel):
+    device: str
+    ntp_servers: list[str] = Field(default_factory=list)
+    syslog_hosts: list[str] = Field(default_factory=list)
+    snmp_community: str | None = None
+    snmp_access: Literal["RO", "RW"] = "RO"
+
+
+class SviSpec(SpecModel):
+    device: str
+    vlan: int = Field(ge=1, le=4094)
+    ip: str
+    mask: str
+    no_shutdown: bool = True
+
+
+class EtherChannelSpec(SpecModel):
+    device: str
+    group: int = Field(ge=1)
+    members: list[str] = Field(min_length=2)
+    mode: Literal["active", "passive", "desirable", "auto", "on"] = "active"
+
+
+class StpSpec(SpecModel):
+    device: str
+    vlan: int = Field(default=1, ge=1, le=4094)
+    root: Literal["primary", "secondary"] | None = None
+    portfast_interfaces: list[str] = Field(default_factory=list)
+    bpduguard_interfaces: list[str] = Field(default_factory=list)
+
+
+class PortSecuritySpec(SpecModel):
+    device: str
+    interface: str
+    maximum: int = Field(default=1, ge=1)
+    violation: Literal["shutdown", "restrict", "protect"] = "shutdown"
+
+
+class VtpSpec(SpecModel):
+    device: str
+    domain: str
+    mode: Literal["server", "client", "transparent"] = "server"
+    password: str | None = None
+
+
+class VoiceVlanSpec(SpecModel):
+    device: str
+    interface: str
+    voice_vlan: int = Field(ge=1, le=4094)
+    access_vlan: int | None = Field(default=None, ge=1, le=4094)
+
+
+class ManagementIpSpec(SpecModel):
+    device: str
+    vlan: int = Field(default=1, ge=1, le=4094)
+    ip: str
+    mask: str
+    gateway: str | None = None
+
+
+class AsaNatSpec(SpecModel):
+    device: str
+    object_name: str
+    subnet: str
+    inside_nameif: str = "inside"
+    outside_nameif: str = "outside"
+    dynamic_interface: bool = True
+
+
+class AsaDhcpSpec(SpecModel):
+    device: str
+    nameif: str = "inside"
+    start: str
+    end: str
+
+
+class AsaObjectGroupSpec(SpecModel):
+    device: str
+    name: str
+    group_type: Literal["network", "service"] = "network"
+    members: list[str] = Field(min_length=1)
+
+
+class ServerServiceSpec(SpecModel):
+    """A Server-PT service intent (S3.D2-D8)."""
+
+    device: str
+    service: Literal[
+        "dns", "http", "https", "dhcp", "email", "ftp", "aaa", "ntp", "syslog", "iot"
+    ]
+    enabled: bool = True
+
+
+class WirelessSsidSpec(SpecModel):
+    device: str
+    ssid: str
+    security: Literal["open", "wpa2"] = "wpa2"
+    passphrase: str | None = None
+    channel: int | None = Field(default=None, ge=1, le=196)
+
+
+class CloudMappingSpec(SpecModel):
+    cloud: str
+    modem: str
+    cloud_port: str
+    modem_port: str
+    connection_type: Literal["dsl", "cable", "serial"] = "dsl"
+
+
+class IotRegistrationSpec(SpecModel):
+    device: str
+    server: str = ""
+    gateway: str = ""
+
+
+class HostDnsSpec(SpecModel):
+    device: str
+    dns_server: str
 
 
 class NatSpec(SpecModel):
@@ -359,14 +647,47 @@ class Ipv6Spec(SpecModel):
     enabled: bool = False
     addresses: dict[str, str] = Field(default_factory=dict)  # iface -> ipv6 cidr
     global_eui_64: bool = False
+    # Per-device interfaces (S3.A13) and OSPFv3 processes (S3.A14).
+    interfaces: list[Ipv6InterfaceSpec] = Field(default_factory=list)
+    ospf: list[Ospfv3Spec] = Field(default_factory=list)
 
 
 class RoutingSpec(SpecModel):
-    mode: Literal["connected", "static", "ospf", "eigrp", "rip"] = "connected"
+    mode: Literal[
+        "connected", "static", "ospf", "eigrp", "rip", "bgp"
+    ] = "connected"
     static_routes: list[StaticRouteSpec] = Field(default_factory=list)
     ospf: OspfSpec | None = None
+    eigrp: EigrpSpec | None = None
+    rip: RipSpec | None = None
+    bgp: BgpSpec | None = None
     nat: list[NatSpec] = Field(default_factory=list)
     ipv6: Ipv6Spec | None = None
+    # Stage 3 per-device intents. Each names its device; the compiler applies
+    # them in the same push as the device's addresses (one CLI transaction).
+    hsrp: list[HsrpSpec] = Field(default_factory=list)
+    dhcp_relays: list[DhcpRelaySpec] = Field(default_factory=list)
+    dhcp_pools: list[DhcpPoolSpec] = Field(default_factory=list)
+    tunnels: list[TunnelSpec] = Field(default_factory=list)
+    ipsec: list[IpsecSpec] = Field(default_factory=list)
+    ssh: list[SshSpec] = Field(default_factory=list)
+    management: list[ManagementSpec] = Field(default_factory=list)
+
+
+class SwitchingSpec(SpecModel):
+    svis: list[SviSpec] = Field(default_factory=list)
+    etherchannels: list[EtherChannelSpec] = Field(default_factory=list)
+    stp: list[StpSpec] = Field(default_factory=list)
+    port_security: list[PortSecuritySpec] = Field(default_factory=list)
+    vtp: list[VtpSpec] = Field(default_factory=list)
+    voice_vlans: list[VoiceVlanSpec] = Field(default_factory=list)
+    management_ips: list[ManagementIpSpec] = Field(default_factory=list)
+
+
+class FirewallFeatureSpec(SpecModel):
+    nat: list[AsaNatSpec] = Field(default_factory=list)
+    dhcp: list[AsaDhcpSpec] = Field(default_factory=list)
+    object_groups: list[AsaObjectGroupSpec] = Field(default_factory=list)
 
 
 class AclRuleSpec(SpecModel):
@@ -437,6 +758,13 @@ class NetworkSpec(SpecModel):
     ip_assignments: list[IpAssignmentSpec] = Field(default_factory=list)
     routing: RoutingSpec = Field(default_factory=RoutingSpec)
     policies: list[PolicySpec] = Field(default_factory=list)
+    switching: SwitchingSpec = Field(default_factory=SwitchingSpec)
+    firewall: FirewallFeatureSpec = Field(default_factory=FirewallFeatureSpec)
+    services: list[ServerServiceSpec] = Field(default_factory=list)
+    wireless_config: list[WirelessSsidSpec] = Field(default_factory=list)
+    cloud_mappings: list[CloudMappingSpec] = Field(default_factory=list)
+    iot: list[IotRegistrationSpec] = Field(default_factory=list)
+    host_dns: list[HostDnsSpec] = Field(default_factory=list)
 
     assumptions: list[str] = Field(default_factory=list)
     design_decisions: list[DesignDecisionSpec] = Field(default_factory=list)
@@ -502,7 +830,42 @@ class NetworkSpec(SpecModel):
                         f"policy {policy.id!r} applies to unknown device {target!r}"
                     )
 
+        for owner in self._feature_devices():
+            if owner not in devices:
+                raise ValueError(f"feature references unknown device {owner!r}")
+
         return self
+
+    def _feature_devices(self) -> list[str]:
+        """Every device id named by a Stage 3 feature block."""
+        out: list[str] = []
+        routing = self.routing
+        for group in (
+            routing.hsrp, routing.dhcp_relays, routing.tunnels,
+            routing.ipsec, routing.ssh, routing.management,
+        ):
+            out.extend(item.device for item in group)
+        out.extend(item.device for item in routing.dhcp_pools)
+        if routing.bgp is not None:
+            out.extend(item.device for item in routing.bgp.per_device)
+        if routing.ipv6 is not None:
+            out.extend(item.device for item in routing.ipv6.interfaces)
+            out.extend(item.device for item in routing.ipv6.ospf)
+        switching = self.switching
+        for group in (
+            switching.svis, switching.etherchannels, switching.stp,
+            switching.port_security, switching.vtp, switching.voice_vlans,
+            switching.management_ips,
+        ):
+            out.extend(item.device for item in group)
+        for group in (
+            self.firewall.nat, self.firewall.dhcp, self.firewall.object_groups,
+            self.services, self.wireless_config, self.iot, self.host_dns,
+        ):
+            out.extend(item.device for item in group)
+        out.extend(item.cloud for item in self.cloud_mappings)
+        out.extend(item.modem for item in self.cloud_mappings)
+        return out
 
     def _flow_endpoints(self) -> list[str]:
         out: list[str] = []

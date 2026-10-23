@@ -1,0 +1,152 @@
+{
+  "name": "S3.A3 EIGRP",
+  "devices": [
+    {
+      "id": "r1",
+      "role": "router"
+    },
+    {
+      "id": "r2",
+      "role": "router"
+    },
+    {
+      "id": "s1",
+      "role": "switch"
+    },
+    {
+      "id": "s2",
+      "role": "switch"
+    },
+    {
+      "id": "pc1",
+      "role": "pc"
+    },
+    {
+      "id": "pc2",
+      "role": "pc"
+    }
+  ],
+  "links": [
+    {
+      "id": "l-r1-r2",
+      "a": {
+        "device": "r1"
+      },
+      "b": {
+        "device": "r2"
+      }
+    },
+    {
+      "id": "l-r1-s1",
+      "a": {
+        "device": "r1"
+      },
+      "b": {
+        "device": "s1"
+      }
+    },
+    {
+      "id": "l-r2-s2",
+      "a": {
+        "device": "r2"
+      },
+      "b": {
+        "device": "s2"
+      }
+    },
+    {
+      "id": "l-s1-pc1",
+      "a": {
+        "device": "s1"
+      },
+      "b": {
+        "device": "pc1"
+      }
+    },
+    {
+      "id": "l-s2-pc2",
+      "a": {
+        "device": "s2"
+      },
+      "b": {
+        "device": "pc2"
+      }
+    }
+  ],
+  "subnets": [
+    {
+      "id": "wan",
+      "cidr": "10.0.0.0/30"
+    },
+    {
+      "id": "lan1",
+      "cidr": "10.0.1.0/24"
+    },
+    {
+      "id": "lan2",
+      "cidr": "10.0.2.0/24"
+    }
+  ],
+  "ip_assignments": [
+    {
+      "device": "r1",
+      "subnet": "wan",
+      "ip": "10.0.0.1"
+    },
+    {
+      "device": "r2",
+      "subnet": "wan",
+      "ip": "10.0.0.2"
+    },
+    {
+      "device": "r1",
+      "subnet": "lan1",
+      "ip": "10.0.1.1"
+    },
+    {
+      "device": "r2",
+      "subnet": "lan2",
+      "ip": "10.0.2.1"
+    },
+    {
+      "device": "pc1",
+      "subnet": "lan1"
+    },
+    {
+      "device": "pc2",
+      "subnet": "lan2"
+    }
+  ],
+  "routing": {
+    "mode": "eigrp",
+    "eigrp": {
+      "as_number": 10,
+      "networks": [
+        "10.0.0.0/30",
+        "10.0.1.0/24",
+        "10.0.2.0/24"
+      ]
+    }
+  },
+  "requirements": [
+    {
+      "id": "R-1",
+      "statement": "Every LAN reaches every other LAN"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "A-1",
+      "requirement_ids": [
+        "R-1"
+      ],
+      "test": {
+        "kind": "flow",
+        "source": "pc1",
+        "destination": "pc2",
+        "expect": "reachable"
+      }
+    }
+  ],
+  "description": "Stage 3 live lab: S3-A3-eigrp"
+}

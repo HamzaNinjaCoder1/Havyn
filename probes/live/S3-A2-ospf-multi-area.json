@@ -1,0 +1,52 @@
+{
+  "lab": "S3.A2 OSPF multi-area",
+  "spec": "library\\stage3\\S3-A2-ospf-multi-area.json",
+  "tag": "q15c7cb",
+  "started_at": "2026-10-23T00:37:52+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "pc3",
+      "expect": "reachable",
+      "observed": "blocked",
+      "pass": false,
+      "detail": "ping q15c7cb-pc1->10.0.3.2: none"
+    }
+  ],
+  "problems": [],
+  "configs": {
+    "r1": {
+      "running": "show running-config\n        ^\n% Invalid input detected at '^' marker.\n\t\nr1>",
+      "interfaces": "show ip interface brief\nInterface              IP-Address      OK? Method Status                Protocol \nGigabitEthernet0/0     10.0.12.1       YES manual up                    up \nGigabitEthernet0/1     unassigned      YES unset  down                  down \nGigabitEthernet0/2     unassigned      YES unset  down                  down \nVlan1                  unassigned      YES unset  up                    down\nr1>",
+      "standby": "show standby brief\n         ^\n% Invalid input detected at '^' marker.\n\t\nr1>"
+    },
+    "r2": {
+      "running": "show running-config\n        ^\n% Invalid input detected at '^' marker.\n\t\nr2>",
+      "interfaces": "show ip interface brief\nInterface              IP-Address      OK? Method Status                Protocol \nGigabitEthernet0/0     10.0.12.2       YES manual up                    up \nGigabitEthernet0/1     10.0.23.1       YES manual up                    up \nGigabitEthernet0/2     10.0.1.1        YES manual up                    up \nVlan1                  unassigned      YES unset  up                    down\nr2>",
+      "standby": "show standby brief\n         ^\n% Invalid input detected at '^' marker.\n\t\nr2>"
+    },
+    "r3": {
+      "running": "show running-config\n        ^\n% Invalid input detected at '^' marker.\n\t\nr3>",
+      "interfaces": "show ip interface brief\nInterface              IP-Address      OK? Method Status                Protocol \nGigabitEthernet0/0     10.0.23.2       YES manual up                    up \nGigabitEthernet0/1     10.0.3.1        YES manual up                    up \nGigabitEthernet0/2     unassigned      YES unset  down                  down \nVlan1                  unassigned      YES unset  up                    down\nr3>",
+      "standby": "show standby brief\n         ^\n% Invalid input detected at '^' marker.\n\t\nr3>"
+    },
+    "s1": {
+      "running": "show running-config\n        ^\n% Invalid input detected at '^' marker.\n\t\ns1>"
+    },
+    "s3": {
+      "running": "show running-config\n        ^\n% Invalid input detected at '^' marker.\n\t\ns3>"
+    }
+  },
+  "kept": [
+    "q15c7cb-r1",
+    "q15c7cb-r2",
+    "q15c7cb-r3",
+    "q15c7cb-s1",
+    "q15c7cb-s3",
+    "q15c7cb-pc1",
+    "q15c7cb-pc3"
+  ],
+  "cleanup": {},
+  "finished_at": "2026-10-23T00:42:33+00:00"
+}

@@ -1,0 +1,100 @@
+# S3.A11 ipsec @ 2026-10-22T23:35:15+00:00
+# commands: ["crypto isakmp policy 10", " encr aes", " hash sha256", " authentication pre-share", " exit", "crypto isakmp key LAB-REDACTED address 10.99.1.1", "crypto ipsec transform-set TS esp-aes esp-sha256-hmac", "access-list 100 permit ip 10.99.0.0 0.0.0.255 10.99.2.0 0.0.0.255", "crypto map CM 10 ipsec-isakmp", " set peer 10.99.1.1", " set transform-set TS", " match address 100", " exit", "interface GigabitEthernet0/1", " crypto map CM", " exit"]
+# verdict: refused -- pushed lines absent from running-config
+
+## show running-config
+show running-config
+Building configuration...
+
+Current configuration : 695 bytes
+!
+version 15.1
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+!
+!
+!
+!
+ip cef
+no ipv6 cef
+!
+!
+!
+!
+license udi pid CISCO2911/K9 sn FTX1524A5PU-
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ ip address 10.99.0.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/1
+ ip address 10.99.1.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/2
+ no ip address
+ duplex auto
+ speed auto
+!
+interface Vlan1
+ no ip address
+!
+ip classless
+!
+ip flow-export version 9
+!
+!
+!
+!
+!
+!
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+
+
+Router#
+Router#
+
+## show crypto isakmp sa
+show crypto isakmp sa
+                   ^
+% Invalid input detected at '^' marker.
+	
+Router#

@@ -1,0 +1,1234 @@
+# ASA read-back @ 2026-10-22T23:55:09+00:00
+# device: s3p-asa-read
+# push: success
+
+## show interface ip brief
+Rom image verified correctly
+
+
+Cisco Systems ROMMON, Version 1.1.8, RELEASE SOFTWARE
+Copyright (c) 1994-2015  by Cisco Systems, Inc.
+Compiled Thu 06/18/2015 12:15:56.43 by builders
+
+
+Current image running: Boot ROM0
+Last reset cause: PowerCycleRequest
+DIMM Slot 0 : Present
+
+Platform ASA5506 with 4096 Mbytes of main memory
+MAC Address: 000C.CF27.3601
+
+
+Use BREAK or ESC to interrupt boot.
+Use SPACE to begin boot immediately.
+
+Boot in 9 seconds
+Boot in 8 seconds
+Boot in 7 seconds
+Boot in 6 seconds
+Boot in 5 seconds
+Boot in 4 seconds
+Boot in 3 seconds
+Boot in 2 seconds
+Boot in 1 second
+
+Located '.boot_string' @ cluster 824641.
+
+#
+Attempt autoboot: "boot disk0:"
+Located 'asa961-lfbff-k8.SPA' @ cluster 11.
+
+########################################################################
+LFBFF signature verified.
+INIT: version 2.88 booting
+Starting udev
+Configuring network interfaces... done.
+Populating dev cache
+dosfsck 2.11, 12 Mar 2005, FAT32, LFN
+There are differences between boot sector and its backup.
+Differences: (offset:original/backup)
+  65:01/00
+  Not automatically fixing this.
+Starting check/repair pass.
+Starting verification pass.
+/dev/sdb1: 110 files, 814352/1798211 clusters
+dosfsck(/dev/sdb1) returned 0
+IO Memory Nodes: 1
+IO Memory Per Node: 205520896 bytes
+
+Global Reserve Memory Per Node: 314572800 bytes Nodes=1
+
+LCMB: got 205520896 bytes on numa-id=0, phys=0x10dc00000, virt=0x2aaaab000000
+LCMB: HEAP-CACHE POOL got 314572800 bytes on numa-id=0, virt=0x7fea63e00000
+Processor memory:   1502519902
+
+Compiled on Fri 18-Mar-16 14:04 PDT by builders
+
+Total NICs found: 13
+i354 rev03 Gigabit Ethernet @ irq255 dev 20 index 08 MAC: 000C.CF27.3601
+ivshmem rev03 Backplane Data Interface     @ index 09 MAC: 0000.0001.0002
+en_vtun rev00 Backplane Control Interface  @ index 10 MAC: 0000.0001.0001
+en_vtun rev00 Backplane Int-Mgmt Interface     @ index 11 MAC: 0000.0001.0003
+en_vtun rev00 Backplane Ext-Mgmt Interface     @ index 12 MAC: 0000.0000.0000
+Verify the activation-key, it might take a while...
+Running Permanent Activation Key: 0xC46D4703 0xD3D72787 0xBE01031D 0x256DDAAC 0x0AA670B6
+
+Licensed features for this platform:
+Maximum Physical Interfaces       : 8              perpetual
+Maximum VLANs                     : 30             perpetual
+Inside Hosts                      : Unlimited      perpetual
+Failover                          : Active/Standby perpetual
+Encryption-DES                    : Enabled        perpetual
+Encryption-3DES-AES               : Enabled        perpetual
+Carrier                           : Disabled       perpetual
+AnyConnect Premium Peers          : 4              perpetual
+AnyConnect Essentials             : Disabled       perpetual
+Other VPN Peers                   : 50             perpetual
+Total VPN Peers                   : 50             perpetual
+AnyConnect for Mobile             : Disabled       perpetual
+AnyConnect for Cisco VPN Phone    : Disabled       perpetual
+Advanced Endpoint Assessment      : Disabled       perpetual
+Shared License                    : Disabled       perpetual
+Total UC Proxy Sessions           : 160            perpetual
+Botnet Traffic Filter             : Disabled       perpetual
+Cluster                           : Disabled       perpetual
+
+This platform has an ASA 5506 Security Plus license.
+
+Encryption hardware device : Cisco ASA Crypto on-board accelerator (revision 0x1)
+
+Cisco Adaptive Security Appliance Software Version 9.6(1)
+
+
+  ****************************** Warning *******************************
+  This product contains cryptographic features and is
+  subject to United States and local country laws
+  governing, import, export, transfer, and use.
+  Delivery of Cisco cryptographic products does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 030e5c69 33f14ac1 7bb71dfc 409928dd
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+
+## show nameif
+Rom image verified correctly
+
+
+Cisco Systems ROMMON, Version 1.1.8, RELEASE SOFTWARE
+Copyright (c) 1994-2015  by Cisco Systems, Inc.
+Compiled Thu 06/18/2015 12:15:56.43 by builders
+
+
+Current image running: Boot ROM0
+Last reset cause: PowerCycleRequest
+DIMM Slot 0 : Present
+
+Platform ASA5506 with 4096 Mbytes of main memory
+MAC Address: 000C.CF27.3601
+
+
+Use BREAK or ESC to interrupt boot.
+Use SPACE to begin boot immediately.
+
+Boot in 9 seconds
+Boot in 8 seconds
+Boot in 7 seconds
+Boot in 6 seconds
+Boot in 5 seconds
+Boot in 4 seconds
+Boot in 3 seconds
+Boot in 2 seconds
+Boot in 1 second
+
+Located '.boot_string' @ cluster 824641.
+
+#
+Attempt autoboot: "boot disk0:"
+Located 'asa961-lfbff-k8.SPA' @ cluster 11.
+
+########################################################################
+LFBFF signature verified.
+INIT: version 2.88 booting
+Starting udev
+Configuring network interfaces... done.
+Populating dev cache
+dosfsck 2.11, 12 Mar 2005, FAT32, LFN
+There are differences between boot sector and its backup.
+Differences: (offset:original/backup)
+  65:01/00
+  Not automatically fixing this.
+Starting check/repair pass.
+Starting verification pass.
+/dev/sdb1: 110 files, 814352/1798211 clusters
+dosfsck(/dev/sdb1) returned 0
+IO Memory Nodes: 1
+IO Memory Per Node: 205520896 bytes
+
+Global Reserve Memory Per Node: 314572800 bytes Nodes=1
+
+LCMB: got 205520896 bytes on numa-id=0, phys=0x10dc00000, virt=0x2aaaab000000
+LCMB: HEAP-CACHE POOL got 314572800 bytes on numa-id=0, virt=0x7fea63e00000
+Processor memory:   1502519902
+
+Compiled on Fri 18-Mar-16 14:04 PDT by builders
+
+Total NICs found: 13
+i354 rev03 Gigabit Ethernet @ irq255 dev 20 index 08 MAC: 000C.CF27.3601
+ivshmem rev03 Backplane Data Interface     @ index 09 MAC: 0000.0001.0002
+en_vtun rev00 Backplane Control Interface  @ index 10 MAC: 0000.0001.0001
+en_vtun rev00 Backplane Int-Mgmt Interface     @ index 11 MAC: 0000.0001.0003
+en_vtun rev00 Backplane Ext-Mgmt Interface     @ index 12 MAC: 0000.0000.0000
+Verify the activation-key, it might take a while...
+Running Permanent Activation Key: 0xC46D4703 0xD3D72787 0xBE01031D 0x256DDAAC 0x0AA670B6
+
+Licensed features for this platform:
+Maximum Physical Interfaces       : 8              perpetual
+Maximum VLANs                     : 30             perpetual
+Inside Hosts                      : Unlimited      perpetual
+Failover                          : Active/Standby perpetual
+Encryption-DES                    : Enabled        perpetual
+Encryption-3DES-AES               : Enabled        perpetual
+Carrier                           : Disabled       perpetual
+AnyConnect Premium Peers          : 4              perpetual
+AnyConnect Essentials             : Disabled       perpetual
+Other VPN Peers                   : 50             perpetual
+Total VPN Peers                   : 50             perpetual
+AnyConnect for Mobile             : Disabled       perpetual
+AnyConnect for Cisco VPN Phone    : Disabled       perpetual
+Advanced Endpoint Assessment      : Disabled       perpetual
+Shared License                    : Disabled       perpetual
+Total UC Proxy Sessions           : 160            perpetual
+Botnet Traffic Filter             : Disabled       perpetual
+Cluster                           : Disabled       perpetual
+
+This platform has an ASA 5506 Security Plus license.
+
+Encryption hardware device : Cisco ASA Crypto on-board accelerator (revision 0x1)
+
+Cisco Adaptive Security Appliance Software Version 9.6(1)
+
+
+  ****************************** Warning *******************************
+  This product contains cryptographic features and is
+  subject to United States and local country laws
+  governing, import, export, transfer, and use.
+  Delivery of Cisco cryptographic products does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 030e5c69 33f14ac1 7bb71dfc 409928dd
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+
+## show route
+Rom image verified correctly
+
+
+Cisco Systems ROMMON, Version 1.1.8, RELEASE SOFTWARE
+Copyright (c) 1994-2015  by Cisco Systems, Inc.
+Compiled Thu 06/18/2015 12:15:56.43 by builders
+
+
+Current image running: Boot ROM0
+Last reset cause: PowerCycleRequest
+DIMM Slot 0 : Present
+
+Platform ASA5506 with 4096 Mbytes of main memory
+MAC Address: 000C.CF27.3601
+
+
+Use BREAK or ESC to interrupt boot.
+Use SPACE to begin boot immediately.
+
+Boot in 9 seconds
+Boot in 8 seconds
+Boot in 7 seconds
+Boot in 6 seconds
+Boot in 5 seconds
+Boot in 4 seconds
+Boot in 3 seconds
+Boot in 2 seconds
+Boot in 1 second
+
+Located '.boot_string' @ cluster 824641.
+
+#
+Attempt autoboot: "boot disk0:"
+Located 'asa961-lfbff-k8.SPA' @ cluster 11.
+
+########################################################################
+LFBFF signature verified.
+INIT: version 2.88 booting
+Starting udev
+Configuring network interfaces... done.
+Populating dev cache
+dosfsck 2.11, 12 Mar 2005, FAT32, LFN
+There are differences between boot sector and its backup.
+Differences: (offset:original/backup)
+  65:01/00
+  Not automatically fixing this.
+Starting check/repair pass.
+Starting verification pass.
+/dev/sdb1: 110 files, 814352/1798211 clusters
+dosfsck(/dev/sdb1) returned 0
+IO Memory Nodes: 1
+IO Memory Per Node: 205520896 bytes
+
+Global Reserve Memory Per Node: 314572800 bytes Nodes=1
+
+LCMB: got 205520896 bytes on numa-id=0, phys=0x10dc00000, virt=0x2aaaab000000
+LCMB: HEAP-CACHE POOL got 314572800 bytes on numa-id=0, virt=0x7fea63e00000
+Processor memory:   1502519902
+
+Compiled on Fri 18-Mar-16 14:04 PDT by builders
+
+Total NICs found: 13
+i354 rev03 Gigabit Ethernet @ irq255 dev 20 index 08 MAC: 000C.CF27.3601
+ivshmem rev03 Backplane Data Interface     @ index 09 MAC: 0000.0001.0002
+en_vtun rev00 Backplane Control Interface  @ index 10 MAC: 0000.0001.0001
+en_vtun rev00 Backplane Int-Mgmt Interface     @ index 11 MAC: 0000.0001.0003
+en_vtun rev00 Backplane Ext-Mgmt Interface     @ index 12 MAC: 0000.0000.0000
+Verify the activation-key, it might take a while...
+Running Permanent Activation Key: 0xC46D4703 0xD3D72787 0xBE01031D 0x256DDAAC 0x0AA670B6
+
+Licensed features for this platform:
+Maximum Physical Interfaces       : 8              perpetual
+Maximum VLANs                     : 30             perpetual
+Inside Hosts                      : Unlimited      perpetual
+Failover                          : Active/Standby perpetual
+Encryption-DES                    : Enabled        perpetual
+Encryption-3DES-AES               : Enabled        perpetual
+Carrier                           : Disabled       perpetual
+AnyConnect Premium Peers          : 4              perpetual
+AnyConnect Essentials             : Disabled       perpetual
+Other VPN Peers                   : 50             perpetual
+Total VPN Peers                   : 50             perpetual
+AnyConnect for Mobile             : Disabled       perpetual
+AnyConnect for Cisco VPN Phone    : Disabled       perpetual
+Advanced Endpoint Assessment      : Disabled       perpetual
+Shared License                    : Disabled       perpetual
+Total UC Proxy Sessions           : 160            perpetual
+Botnet Traffic Filter             : Disabled       perpetual
+Cluster                           : Disabled       perpetual
+
+This platform has an ASA 5506 Security Plus license.
+
+Encryption hardware device : Cisco ASA Crypto on-board accelerator (revision 0x1)
+
+Cisco Adaptive Security Appliance Software Version 9.6(1)
+
+
+  ****************************** Warning *******************************
+  This product contains cryptographic features and is
+  subject to United States and local country laws
+  governing, import, export, transfer, and use.
+  Delivery of Cisco cryptographic products does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 030e5c69 33f14ac1 7bb71dfc 409928dd
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+Access denied.
+ciscoasa>
+
+## show nat
+Rom image verified correctly
+
+
+Cisco Systems ROMMON, Version 1.1.8, RELEASE SOFTWARE
+Copyright (c) 1994-2015  by Cisco Systems, Inc.
+Compiled Thu 06/18/2015 12:15:56.43 by builders
+
+
+Current image running: Boot ROM0
+Last reset cause: PowerCycleRequest
+DIMM Slot 0 : Present
+
+Platform ASA5506 with 4096 Mbytes of main memory
+MAC Address: 000C.CF27.3601
+
+
+Use BREAK or ESC to interrupt boot.
+Use SPACE to begin boot immediately.
+
+Boot in 9 seconds
+Boot in 8 seconds
+Boot in 7 seconds
+Boot in 6 seconds
+Boot in 5 seconds
+Boot in 4 seconds
+Boot in 3 seconds
+Boot in 2 seconds
+Boot in 1 second
+
+Located '.boot_string' @ cluster 824641.
+
+#
+Attempt autoboot: "boot disk0:"
+Located 'asa961-lfbff-k8.SPA' @ cluster 11.
+
+########################################################################
+LFBFF signature verified.
+INIT: version 2.88 booting
+Starting udev
+Configuring network interfaces... done.
+Populating dev cache
+dosfsck 2.11, 12 Mar 2005, FAT32, LFN
+There are differences between boot sector and its backup.
+Differences: (offset:original/backup)
+  65:01/00
+  Not automatically fixing this.
+Starting check/repair pass.
+Starting verification pass.
+/dev/sdb1: 110 files, 814352/1798211 clusters
+dosfsck(/dev/sdb1) returned 0
+IO Memory Nodes: 1
+IO Memory Per Node: 205520896 bytes
+
+Global Reserve Memory Per Node: 314572800 bytes Nodes=1
+
+LCMB: got 205520896 bytes on numa-id=0, phys=0x10dc00000, virt=0x2aaaab000000
+LCMB: HEAP-CACHE POOL got 314572800 bytes on numa-id=0, virt=0x7fea63e00000
+Processor memory:   1502519902
+
+Compiled on Fri 18-Mar-16 14:04 PDT by builders
+
+Total NICs found: 13
+i354 rev03 Gigabit Ethernet @ irq255 dev 20 index 08 MAC: 000C.CF27.3601
+ivshmem rev03 Backplane Data Interface     @ index 09 MAC: 0000.0001.0002
+en_vtun rev00 Backplane Control Interface  @ index 10 MAC: 0000.0001.0001
+en_vtun rev00 Backplane Int-Mgmt Interface     @ index 11 MAC: 0000.0001.0003
+en_vtun rev00 Backplane Ext-Mgmt Interface     @ index 12 MAC: 0000.0000.0000
+Verify the activation-key, it might take a while...
+Running Permanent Activation Key: 0xC46D4703 0xD3D72787 0xBE01031D 0x256DDAAC 0x0AA670B6
+
+Licensed features for this platform:
+Maximum Physical Interfaces       : 8              perpetual
+Maximum VLANs                     : 30             perpetual
+Inside Hosts                      : Unlimited      perpetual
+Failover                          : Active/Standby perpetual
+Encryption-DES                    : Enabled        perpetual
+Encryption-3DES-AES               : Enabled        perpetual
+Carrier                           : Disabled       perpetual
+AnyConnect Premium Peers          : 4              perpetual
+AnyConnect Essentials             : Disabled       perpetual
+Other VPN Peers                   : 50             perpetual
+Total VPN Peers                   : 50             perpetual
+AnyConnect for Mobile             : Disabled       perpetual
+AnyConnect for Cisco VPN Phone    : Disabled       perpetual
+Advanced Endpoint Assessment      : Disabled       perpetual
+Shared License                    : Disabled       perpetual
+Total UC Proxy Sessions           : 160            perpetual
+Botnet Traffic Filter             : Disabled       perpetual
+Cluster                           : Disabled       perpetual
+
+This platform has an ASA 5506 Security Plus license.
+
+Encryption hardware device : Cisco ASA Crypto on-board accelerator (revision 0x1)
+
+Cisco Adaptive Security Appliance Software Version 9.6(1)
+
+
+  ****************************** Warning *******************************
+  This product contains cryptographic features and is
+  subject to United States and local country laws
+  governing, import, export, transfer, and use.
+  Delivery of Cisco cryptographic products does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 030e5c69 33f14ac1 7bb71dfc 409928dd
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+Access denied.
+ciscoasa>show nat
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show dhcpd
+Rom image verified correctly
+
+
+Cisco Systems ROMMON, Version 1.1.8, RELEASE SOFTWARE
+Copyright (c) 1994-2015  by Cisco Systems, Inc.
+Compiled Thu 06/18/2015 12:15:56.43 by builders
+
+
+Current image running: Boot ROM0
+Last reset cause: PowerCycleRequest
+DIMM Slot 0 : Present
+
+Platform ASA5506 with 4096 Mbytes of main memory
+MAC Address: 000C.CF27.3601
+
+
+Use BREAK or ESC to interrupt boot.
+Use SPACE to begin boot immediately.
+
+Boot in 9 seconds
+Boot in 8 seconds
+Boot in 7 seconds
+Boot in 6 seconds
+Boot in 5 seconds
+Boot in 4 seconds
+Boot in 3 seconds
+Boot in 2 seconds
+Boot in 1 second
+
+Located '.boot_string' @ cluster 824641.
+
+#
+Attempt autoboot: "boot disk0:"
+Located 'asa961-lfbff-k8.SPA' @ cluster 11.
+
+########################################################################
+LFBFF signature verified.
+INIT: version 2.88 booting
+Starting udev
+Configuring network interfaces... done.
+Populating dev cache
+dosfsck 2.11, 12 Mar 2005, FAT32, LFN
+There are differences between boot sector and its backup.
+Differences: (offset:original/backup)
+  65:01/00
+  Not automatically fixing this.
+Starting check/repair pass.
+Starting verification pass.
+/dev/sdb1: 110 files, 814352/1798211 clusters
+dosfsck(/dev/sdb1) returned 0
+IO Memory Nodes: 1
+IO Memory Per Node: 205520896 bytes
+
+Global Reserve Memory Per Node: 314572800 bytes Nodes=1
+
+LCMB: got 205520896 bytes on numa-id=0, phys=0x10dc00000, virt=0x2aaaab000000
+LCMB: HEAP-CACHE POOL got 314572800 bytes on numa-id=0, virt=0x7fea63e00000
+Processor memory:   1502519902
+
+Compiled on Fri 18-Mar-16 14:04 PDT by builders
+
+Total NICs found: 13
+i354 rev03 Gigabit Ethernet @ irq255 dev 20 index 08 MAC: 000C.CF27.3601
+ivshmem rev03 Backplane Data Interface     @ index 09 MAC: 0000.0001.0002
+en_vtun rev00 Backplane Control Interface  @ index 10 MAC: 0000.0001.0001
+en_vtun rev00 Backplane Int-Mgmt Interface     @ index 11 MAC: 0000.0001.0003
+en_vtun rev00 Backplane Ext-Mgmt Interface     @ index 12 MAC: 0000.0000.0000
+Verify the activation-key, it might take a while...
+Running Permanent Activation Key: 0xC46D4703 0xD3D72787 0xBE01031D 0x256DDAAC 0x0AA670B6
+
+Licensed features for this platform:
+Maximum Physical Interfaces       : 8              perpetual
+Maximum VLANs                     : 30             perpetual
+Inside Hosts                      : Unlimited      perpetual
+Failover                          : Active/Standby perpetual
+Encryption-DES                    : Enabled        perpetual
+Encryption-3DES-AES               : Enabled        perpetual
+Carrier                           : Disabled       perpetual
+AnyConnect Premium Peers          : 4              perpetual
+AnyConnect Essentials             : Disabled       perpetual
+Other VPN Peers                   : 50             perpetual
+Total VPN Peers                   : 50             perpetual
+AnyConnect for Mobile             : Disabled       perpetual
+AnyConnect for Cisco VPN Phone    : Disabled       perpetual
+Advanced Endpoint Assessment      : Disabled       perpetual
+Shared License                    : Disabled       perpetual
+Total UC Proxy Sessions           : 160            perpetual
+Botnet Traffic Filter             : Disabled       perpetual
+Cluster                           : Disabled       perpetual
+
+This platform has an ASA 5506 Security Plus license.
+
+Encryption hardware device : Cisco ASA Crypto on-board accelerator (revision 0x1)
+
+Cisco Adaptive Security Appliance Software Version 9.6(1)
+
+
+  ****************************** Warning *******************************
+  This product contains cryptographic features and is
+  subject to United States and local country laws
+  governing, import, export, transfer, and use.
+  Delivery of Cisco cryptographic products does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 030e5c69 33f14ac1 7bb71dfc 409928dd
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+Access denied.
+ciscoasa>show nat
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>show dhcpd
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show access-list
+Rom image verified correctly
+
+
+Cisco Systems ROMMON, Version 1.1.8, RELEASE SOFTWARE
+Copyright (c) 1994-2015  by Cisco Systems, Inc.
+Compiled Thu 06/18/2015 12:15:56.43 by builders
+
+
+Current image running: Boot ROM0
+Last reset cause: PowerCycleRequest
+DIMM Slot 0 : Present
+
+Platform ASA5506 with 4096 Mbytes of main memory
+MAC Address: 000C.CF27.3601
+
+
+Use BREAK or ESC to interrupt boot.
+Use SPACE to begin boot immediately.
+
+Boot in 9 seconds
+Boot in 8 seconds
+Boot in 7 seconds
+Boot in 6 seconds
+Boot in 5 seconds
+Boot in 4 seconds
+Boot in 3 seconds
+Boot in 2 seconds
+Boot in 1 second
+
+Located '.boot_string' @ cluster 824641.
+
+#
+Attempt autoboot: "boot disk0:"
+Located 'asa961-lfbff-k8.SPA' @ cluster 11.
+
+########################################################################
+LFBFF signature verified.
+INIT: version 2.88 booting
+Starting udev
+Configuring network interfaces... done.
+Populating dev cache
+dosfsck 2.11, 12 Mar 2005, FAT32, LFN
+There are differences between boot sector and its backup.
+Differences: (offset:original/backup)
+  65:01/00
+  Not automatically fixing this.
+Starting check/repair pass.
+Starting verification pass.
+/dev/sdb1: 110 files, 814352/1798211 clusters
+dosfsck(/dev/sdb1) returned 0
+IO Memory Nodes: 1
+IO Memory Per Node: 205520896 bytes
+
+Global Reserve Memory Per Node: 314572800 bytes Nodes=1
+
+LCMB: got 205520896 bytes on numa-id=0, phys=0x10dc00000, virt=0x2aaaab000000
+LCMB: HEAP-CACHE POOL got 314572800 bytes on numa-id=0, virt=0x7fea63e00000
+Processor memory:   1502519902
+
+Compiled on Fri 18-Mar-16 14:04 PDT by builders
+
+Total NICs found: 13
+i354 rev03 Gigabit Ethernet @ irq255 dev 20 index 08 MAC: 000C.CF27.3601
+ivshmem rev03 Backplane Data Interface     @ index 09 MAC: 0000.0001.0002
+en_vtun rev00 Backplane Control Interface  @ index 10 MAC: 0000.0001.0001
+en_vtun rev00 Backplane Int-Mgmt Interface     @ index 11 MAC: 0000.0001.0003
+en_vtun rev00 Backplane Ext-Mgmt Interface     @ index 12 MAC: 0000.0000.0000
+Verify the activation-key, it might take a while...
+Running Permanent Activation Key: 0xC46D4703 0xD3D72787 0xBE01031D 0x256DDAAC 0x0AA670B6
+
+Licensed features for this platform:
+Maximum Physical Interfaces       : 8              perpetual
+Maximum VLANs                     : 30             perpetual
+Inside Hosts                      : Unlimited      perpetual
+Failover                          : Active/Standby perpetual
+Encryption-DES                    : Enabled        perpetual
+Encryption-3DES-AES               : Enabled        perpetual
+Carrier                           : Disabled       perpetual
+AnyConnect Premium Peers          : 4              perpetual
+AnyConnect Essentials             : Disabled       perpetual
+Other VPN Peers                   : 50             perpetual
+Total VPN Peers                   : 50             perpetual
+AnyConnect for Mobile             : Disabled       perpetual
+AnyConnect for Cisco VPN Phone    : Disabled       perpetual
+Advanced Endpoint Assessment      : Disabled       perpetual
+Shared License                    : Disabled       perpetual
+Total UC Proxy Sessions           : 160            perpetual
+Botnet Traffic Filter             : Disabled       perpetual
+Cluster                           : Disabled       perpetual
+
+This platform has an ASA 5506 Security Plus license.
+
+Encryption hardware device : Cisco ASA Crypto on-board accelerator (revision 0x1)
+
+Cisco Adaptive Security Appliance Software Version 9.6(1)
+
+
+  ****************************** Warning *******************************
+  This product contains cryptographic features and is
+  subject to United States and local country laws
+  governing, import, export, transfer, and use.
+  Delivery of Cisco cryptographic products does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 030e5c69 33f14ac1 7bb71dfc 409928dd
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+Access denied.
+ciscoasa>show nat
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>show dhcpd
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>show access-list
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show running-config
+Rom image verified correctly
+
+
+Cisco Systems ROMMON, Version 1.1.8, RELEASE SOFTWARE
+Copyright (c) 1994-2015  by Cisco Systems, Inc.
+Compiled Thu 06/18/2015 12:15:56.43 by builders
+
+
+Current image running: Boot ROM0
+Last reset cause: PowerCycleRequest
+DIMM Slot 0 : Present
+
+Platform ASA5506 with 4096 Mbytes of main memory
+MAC Address: 000C.CF27.3601
+
+
+Use BREAK or ESC to interrupt boot.
+Use SPACE to begin boot immediately.
+
+Boot in 9 seconds
+Boot in 8 seconds
+Boot in 7 seconds
+Boot in 6 seconds
+Boot in 5 seconds
+Boot in 4 seconds
+Boot in 3 seconds
+Boot in 2 seconds
+Boot in 1 second
+
+Located '.boot_string' @ cluster 824641.
+
+#
+Attempt autoboot: "boot disk0:"
+Located 'asa961-lfbff-k8.SPA' @ cluster 11.
+
+########################################################################
+LFBFF signature verified.
+INIT: version 2.88 booting
+Starting udev
+Configuring network interfaces... done.
+Populating dev cache
+dosfsck 2.11, 12 Mar 2005, FAT32, LFN
+There are differences between boot sector and its backup.
+Differences: (offset:original/backup)
+  65:01/00
+  Not automatically fixing this.
+Starting check/repair pass.
+Starting verification pass.
+/dev/sdb1: 110 files, 814352/1798211 clusters
+dosfsck(/dev/sdb1) returned 0
+IO Memory Nodes: 1
+IO Memory Per Node: 205520896 bytes
+
+Global Reserve Memory Per Node: 314572800 bytes Nodes=1
+
+LCMB: got 205520896 bytes on numa-id=0, phys=0x10dc00000, virt=0x2aaaab000000
+LCMB: HEAP-CACHE POOL got 314572800 bytes on numa-id=0, virt=0x7fea63e00000
+Processor memory:   1502519902
+
+Compiled on Fri 18-Mar-16 14:04 PDT by builders
+
+Total NICs found: 13
+i354 rev03 Gigabit Ethernet @ irq255 dev 20 index 08 MAC: 000C.CF27.3601
+ivshmem rev03 Backplane Data Interface     @ index 09 MAC: 0000.0001.0002
+en_vtun rev00 Backplane Control Interface  @ index 10 MAC: 0000.0001.0001
+en_vtun rev00 Backplane Int-Mgmt Interface     @ index 11 MAC: 0000.0001.0003
+en_vtun rev00 Backplane Ext-Mgmt Interface     @ index 12 MAC: 0000.0000.0000
+Verify the activation-key, it might take a while...
+Running Permanent Activation Key: 0xC46D4703 0xD3D72787 0xBE01031D 0x256DDAAC 0x0AA670B6
+
+Licensed features for this platform:
+Maximum Physical Interfaces       : 8              perpetual
+Maximum VLANs                     : 30             perpetual
+Inside Hosts                      : Unlimited      perpetual
+Failover                          : Active/Standby perpetual
+Encryption-DES                    : Enabled        perpetual
+Encryption-3DES-AES               : Enabled        perpetual
+Carrier                           : Disabled       perpetual
+AnyConnect Premium Peers          : 4              perpetual
+AnyConnect Essentials             : Disabled       perpetual
+Other VPN Peers                   : 50             perpetual
+Total VPN Peers                   : 50             perpetual
+AnyConnect for Mobile             : Disabled       perpetual
+AnyConnect for Cisco VPN Phone    : Disabled       perpetual
+Advanced Endpoint Assessment      : Disabled       perpetual
+Shared License                    : Disabled       perpetual
+Total UC Proxy Sessions           : 160            perpetual
+Botnet Traffic Filter             : Disabled       perpetual
+Cluster                           : Disabled       perpetual
+
+This platform has an ASA 5506 Security Plus license.
+
+Encryption hardware device : Cisco ASA Crypto on-board accelerator (revision 0x1)
+
+Cisco Adaptive Security Appliance Software Version 9.6(1)
+
+
+  ****************************** Warning *******************************
+  This product contains cryptographic features and is
+  subject to United States and local country laws
+  governing, import, export, transfer, and use.
+  Delivery of Cisco cryptographic products does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 030e5c69 33f14ac1 7bb71dfc 409928dd
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+Access denied.
+ciscoasa>show nat
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>show dhcpd
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>show access-list
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>show running-config
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>

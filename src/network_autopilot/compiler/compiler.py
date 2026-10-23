@@ -41,7 +41,8 @@ _PHASE2_FEATURES = {
     "devices": "roles router/switch/pc/server/laptop/access_point with fixed models",
     "links": "auto-media ethernet links",
     "addressing": "static IPv4 interface addressing",
-    "routing": "static routes, OSPF, DHCP, NAT, IPv6, VLANs",
+    "routing": "static routes, OSPF (multi-area), EIGRP, RIP v2, BGP, DHCP, NAT, IPv6, VLANs",
+    "stage3": "HSRP, DHCP relay, tunnels/IPsec/SSH/NTP/Syslog/SNMP rendering, switch features, ASA NAT/DHCP/object groups",
     "wireless": "wireless interface modules (wireless laptops, access points)",
     "verification": "structural, addressing and ICMP flow verification",
     "persistence": "project save",
@@ -122,13 +123,29 @@ def _model_for(spec: NetworkSpec, device_id: str, role: DeviceRole) -> str:
 
 def _check_phase2_support(spec: NetworkSpec) -> None:
     unsupported: list[str] = []
-    if spec.routing.mode not in ("connected", "static", "ospf"):
+    if spec.routing.mode not in ("connected", "static", "ospf", "eigrp", "rip", "bgp"):
         unsupported.append(f"routing mode {spec.routing.mode!r}")
     if spec.routing.static_routes and spec.routing.mode == "connected":
         unsupported.append("static routes with routing.mode=connected (use 'static')")
+    # Server-PT exposes no service-configuration API through the Script Engine
+    # (probes/server-services.md, S3.D0): the device prototype has only generic
+    # device methods and `getProcess(<name>)` rejects every service name. A
+    # service block would compile and then configure nothing, so it is refused
+    # by name instead of silently dropped.
+    if spec.services:
+        names = ", ".join(sorted({s.service for s in spec.services}))
+        unsupported.append(
+            f"Server-PT services ({names}): PT's Script Engine exposes no "
+            "service-configuration API (see probes/server-services.md)"
+        )
+    if spec.iot:
+        unsupported.append(
+            "IoT registration: PT exposes no Script Engine API for registering "
+            "a smart device with a server or home gateway (see probes/iot.md)"
+        )
     if unsupported:
         raise CompileError(
-            "spec requires features outside the Phase-2 compiler scope: "
+            "spec requires features outside the compiler scope: "
             + ", ".join(sorted(set(unsupported)))
             + f". Supported: {sorted(_PHASE2_FEATURES.values())}"
         )
@@ -395,6 +412,110 @@ def _build_vlan_switch_commands(
     return commands_by_switch
 
 
+def _build_switch_feature_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    """Stage 3 switch intents: SVIs, EtherChannel, STP, port-security, VTP,
+    voice VLAN and the management SVI.
+
+    Kept separate from `_build_vlan_switch_commands` so a switch with no
+    access VLANs still gets its feature block instead of no config op at all.
+    """
+    commands: dict[str, list[str]] = {}
+    sw = spec.switching
+    for svi in sw.svis:
+        lines = commands.setdefault(svi.device, [])
+        if "ip routing" not in lines:
+            lines.append("ip routing")
+        lines.extend([
+            f"interface Vlan{svi.vlan}",
+            f" ip address {svi.ip} {svi.mask}",
+            *([" no shutdown"] if svi.no_shutdown else []),
+            " exit",
+        ])
+    for bundle in sw.etherchannels:
+        lines = commands.setdefault(bundle.device, [])
+        for member in bundle.members:
+            lines.extend([
+                f"interface {member}",
+                f" channel-group {bundle.group} mode {bundle.mode}",
+                " exit",
+            ])
+    for stp in sw.stp:
+        lines = commands.setdefault(stp.device, [])
+        if stp.root:
+            lines.append(f"spanning-tree vlan {stp.vlan} root {stp.root}")
+        for iface in stp.portfast_interfaces:
+            lines.extend([f"interface {iface}", " spanning-tree portfast", " exit"])
+        for iface in stp.bpduguard_interfaces:
+            lines.extend([
+                f"interface {iface}", " spanning-tree bpduguard enable", " exit",
+            ])
+    for security in sw.port_security:
+        lines = commands.setdefault(security.device, [])
+        lines.extend([
+            f"interface {security.interface}",
+            " switchport port-security",
+            f" switchport port-security maximum {security.maximum}",
+            f" switchport port-security violation {security.violation}",
+            " exit",
+        ])
+    for vtp in sw.vtp:
+        lines = commands.setdefault(vtp.device, [])
+        lines.extend([f"vtp mode {vtp.mode}", f"vtp domain {vtp.domain}"])
+        if vtp.password:
+            lines.append(f"vtp password {vtp.password}")
+    for voice in sw.voice_vlans:
+        lines = commands.setdefault(voice.device, [])
+        lines.append(f"interface {voice.interface}")
+        if voice.access_vlan is not None:
+            lines.append(f" switchport access vlan {voice.access_vlan}")
+        lines.extend([
+            f" switchport voice vlan {voice.voice_vlan}", " exit",
+        ])
+    for mgmt in sw.management_ips:
+        lines = commands.setdefault(mgmt.device, [])
+        lines.extend([
+            f"interface Vlan{mgmt.vlan}",
+            f" ip address {mgmt.ip} {mgmt.mask}",
+            " no shutdown",
+            " exit",
+        ])
+        if mgmt.gateway:
+            lines.append(f"ip default-gateway {mgmt.gateway}")
+    return commands
+
+
+def _build_asa_feature_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    """Stage 3 ASA intents: object NAT, DHCP server and object groups."""
+    commands: dict[str, list[str]] = {}
+    fw = spec.firewall
+    for nat in fw.nat:
+        lines = commands.setdefault(nat.device, [])
+        # PT's ASA accepts object NAT and, on the 5506-X/5505, a static
+        # one-to-one NAT; dynamic interface PAT is the measured form.
+        lines.extend([
+            f"object network {nat.object_name}",
+            f" subnet {nat.subnet}",
+            f" nat ({nat.inside_nameif},{nat.outside_nameif}) dynamic interface",
+            " exit",
+        ])
+    for dhcp in fw.dhcp:
+        lines = commands.setdefault(dhcp.device, [])
+        lines.extend([
+            f"dhcpd address {dhcp.start}-{dhcp.end} {dhcp.nameif}",
+            f"dhcpd enable {dhcp.nameif}",
+        ])
+    for group in fw.object_groups:
+        lines = commands.setdefault(group.device, [])
+        lines.append(f"object-group {group.group_type} {group.name}")
+        for member in group.members:
+            if group.group_type == "network":
+                lines.append(f" network-object host {member}")
+            else:
+                lines.append(f" service-object {member}")
+        lines.append(" exit")
+    return commands
+
+
 def _build_vlan_router_commands(
     spec: NetworkSpec, plan: AddressPlan
 ) -> dict[str, list[str]]:
@@ -437,28 +558,253 @@ def _build_vlan_router_commands(
     return commands_by_router
 
 
+def _redistribute_lines(items) -> list[str]:
+    lines: list[str] = []
+    for item in items:
+        tail = ""
+        if item.process_id is not None:
+            tail += f" {item.process_id}"
+        if item.metric is not None:
+            tail += f" metric {item.metric}"
+        if item.subnets:
+            tail += " subnets"
+        lines.append(f" redistribute {item.protocol}{tail}")
+    return lines
+
+
 def _build_ospf_commands(spec: NetworkSpec) -> dict[str, list[str]]:
     """Generate OSPF CLI commands for each router."""
     commands_by_router: dict[str, list[str]] = {}
     if spec.routing.ospf is None or spec.routing.mode != "ospf":
         return commands_by_router
     ospf = spec.routing.ospf
+    if ospf.area_networks:
+        pairs = [(item.network, item.area) for item in ospf.area_networks]
+    else:
+        pairs = [(net, ospf.area) for net in ospf.networks]
     for device in spec.devices:
         if device.role not in (DeviceRole.ROUTER, DeviceRole.L3_SWITCH):
+            continue
+        if ospf.devices and device.id not in ospf.devices:
             continue
         lines: list[str] = []
         lines.append(f"router ospf {ospf.process_id}")
         lines.append(f" router-id {device.id}")
-        for net in ospf.networks:
+        for net, area in pairs:
             network = ipaddress.ip_network(net, strict=False)
             wildcard = _wildcard_mask(str(network.netmask))
             lines.append(
-                f" network {network.network_address} {wildcard} area {ospf.area}"
+                f" network {network.network_address} {wildcard} area {area}"
             )
+        if ospf.default_information_originate:
+            lines.append(" default-information originate")
+        lines.extend(_redistribute_lines(ospf.redistribute))
         lines.append(" exit")
         if len(lines) > 2:
             commands_by_router[device.id] = lines
     return commands_by_router
+
+
+def _build_eigrp_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    cfg = spec.routing.eigrp
+    if cfg is None or spec.routing.mode != "eigrp":
+        return {}
+    commands: dict[str, list[str]] = {}
+    for device in spec.devices:
+        if device.role not in (DeviceRole.ROUTER, DeviceRole.L3_SWITCH):
+            continue
+        if cfg.devices and device.id not in cfg.devices:
+            continue
+        lines = [f"router eigrp {cfg.as_number}"]
+        for net in cfg.networks:
+            network = ipaddress.ip_network(net, strict=False)
+            lines.append(
+                f" network {network.network_address} "
+                f"{_wildcard_mask(str(network.netmask))}"
+            )
+        for iface in cfg.passive_interfaces:
+            lines.append(f" passive-interface {iface}")
+        lines.extend(_redistribute_lines(cfg.redistribute))
+        lines.append(" exit")
+        commands[device.id] = lines
+    return commands
+
+
+def _build_rip_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    cfg = spec.routing.rip
+    if cfg is None or spec.routing.mode != "rip":
+        return {}
+    commands: dict[str, list[str]] = {}
+    for device in spec.devices:
+        if device.role not in (DeviceRole.ROUTER, DeviceRole.L3_SWITCH):
+            continue
+        if cfg.devices and device.id not in cfg.devices:
+            continue
+        lines = ["router rip", f" version {cfg.version}"]
+        for net in cfg.networks:
+            network = ipaddress.ip_network(net, strict=False)
+            lines.append(f" network {network.network_address}")
+        if cfg.no_auto_summary:
+            lines.append(" no auto-summary")
+        for iface in cfg.passive_interfaces:
+            lines.append(f" passive-interface {iface}")
+        lines.extend(_redistribute_lines(cfg.redistribute))
+        lines.append(" exit")
+        commands[device.id] = lines
+    return commands
+
+
+def _build_bgp_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    cfg = spec.routing.bgp
+    if cfg is None or spec.routing.mode != "bgp":
+        return {}
+    commands: dict[str, list[str]] = {}
+    if cfg.per_device:
+        for item in cfg.per_device:
+            lines = [f"router bgp {item.as_number}"]
+            if item.router_id:
+                lines.append(f" bgp router-id {item.router_id}")
+            for neighbor in item.neighbors:
+                lines.append(
+                    f" neighbor {neighbor.address} remote-as {neighbor.remote_as}"
+                )
+                if neighbor.description:
+                    lines.append(
+                        f" neighbor {neighbor.address} description {neighbor.description}"
+                    )
+            for net in item.networks:
+                network = ipaddress.ip_network(net, strict=False)
+                lines.append(
+                    f" network {network.network_address} mask {network.netmask}"
+                )
+            lines.append(" exit")
+            commands[item.device] = lines
+        return commands
+    for device in spec.devices:
+        if device.role not in (DeviceRole.ROUTER, DeviceRole.L3_SWITCH):
+            continue
+        if cfg.devices and device.id not in cfg.devices:
+            continue
+        lines = [f"router bgp {cfg.as_number}"]
+        if cfg.router_id:
+            lines.append(f" bgp router-id {cfg.router_id}")
+        for neighbor in cfg.neighbors:
+            lines.append(
+                f" neighbor {neighbor.address} remote-as {neighbor.remote_as}"
+            )
+            if neighbor.description:
+                lines.append(
+                    f" neighbor {neighbor.address} description {neighbor.description}"
+                )
+        for net in cfg.networks:
+            network = ipaddress.ip_network(net, strict=False)
+            lines.append(
+                f" network {network.network_address} mask {network.netmask}"
+            )
+        lines.append(" exit")
+        commands[device.id] = lines
+    return commands
+
+
+def _build_hsrp_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    commands: dict[str, list[str]] = {}
+    for group in spec.routing.hsrp:
+        lines = commands.setdefault(group.device, [])
+        lines.extend([f"interface {group.interface}",
+                      f" standby {group.group} ip {group.virtual_ip}",
+                      f" standby {group.group} priority {group.priority}"])
+        if group.preempt:
+            lines.append(f" standby {group.group} preempt")
+        for iface in group.track_interfaces:
+            lines.append(f" standby {group.group} track {iface}")
+        lines.append(" exit")
+    return commands
+
+
+def _build_dhcp_relay_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    commands: dict[str, list[str]] = {}
+    for relay in spec.routing.dhcp_relays:
+        lines = commands.setdefault(relay.device, [])
+        lines.append(f"interface {relay.interface}")
+        lines.extend(f" ip helper-address {helper}" for helper in relay.helpers)
+        lines.append(" exit")
+    return commands
+
+
+def _build_tunnel_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    commands: dict[str, list[str]] = {}
+    for tunnel in spec.routing.tunnels:
+        lines = commands.setdefault(tunnel.device, [])
+        network = ipaddress.ip_interface(tunnel.ip)
+        lines.extend([
+            f"interface Tunnel{tunnel.tunnel_id}",
+            f" ip address {network.ip} {network.network.netmask}",
+            f" tunnel source {tunnel.source}",
+            f" tunnel destination {tunnel.destination}",
+            # PT accepts `tunnel mode gre ip`; a bare `gre` is not the IOS
+            # form and the tunnel stays unusable (probes/raw/gre-tunnel.txt).
+            " tunnel mode gre ip" if tunnel.mode == "gre"
+            else " tunnel mode ipsec ipv4",
+            " exit",
+        ])
+    return commands
+
+
+def _build_ipsec_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    commands: dict[str, list[str]] = {}
+    for ipsec in spec.routing.ipsec:
+        lines = commands.setdefault(ipsec.device, [])
+        local = ipaddress.ip_network(ipsec.local_network, strict=False)
+        remote = ipaddress.ip_network(ipsec.remote_network, strict=False)
+        lines.extend([
+            "crypto isakmp policy 10",
+            " encr aes",
+            " hash sha256",
+            " authentication pre-share",
+            " exit",
+            f"crypto isakmp key {ipsec.pre_shared_key} address {ipsec.peer}",
+            f"crypto ipsec transform-set {ipsec.transform_set} esp-aes esp-sha256-hmac",
+            f"access-list {ipsec.acl_id} permit ip {local.network_address} "
+            f"{_wildcard_mask(str(local.netmask))} {remote.network_address} "
+            f"{_wildcard_mask(str(remote.netmask))}",
+            f"crypto map {ipsec.crypto_map} 10 ipsec-isakmp",
+            f" set peer {ipsec.peer}",
+            f" set transform-set {ipsec.transform_set}",
+            f" match address {ipsec.acl_id}",
+            " exit",
+            f"interface {ipsec.interface}",
+            f" crypto map {ipsec.crypto_map}",
+            " exit",
+        ])
+    return commands
+
+
+def _build_ssh_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    commands: dict[str, list[str]] = {}
+    for ssh in spec.routing.ssh:
+        commands[ssh.device] = [
+            f"ip domain-name {ssh.domain_name}",
+            f"username {ssh.username} privilege 15 secret {ssh.secret}",
+            f"line vty {ssh.vty_lines}",
+            " login local",
+            " transport input ssh",
+            " exit",
+            f"ip ssh version {ssh.version}",
+        ]
+    return commands
+
+
+def _build_management_commands(spec: NetworkSpec) -> dict[str, list[str]]:
+    commands: dict[str, list[str]] = {}
+    for mgmt in spec.routing.management:
+        lines = commands.setdefault(mgmt.device, [])
+        lines.extend(f"ntp server {server}" for server in mgmt.ntp_servers)
+        lines.extend(f"logging host {host}" for host in mgmt.syslog_hosts)
+        if mgmt.snmp_community:
+            lines.append(
+                f"snmp-server community {mgmt.snmp_community} {mgmt.snmp_access}"
+            )
+    return commands
 
 
 def _build_dhcp_commands(spec: NetworkSpec, plan: AddressPlan) -> dict[str, list[str]]:
@@ -509,6 +855,36 @@ def _build_dhcp_commands(spec: NetworkSpec, plan: AddressPlan) -> dict[str, list
         lines.append(f" default-router {gateway}")
         lines.append(" exit")
     return commands_by_router
+
+
+def _build_dhcp_pool_commands(
+    spec: NetworkSpec, plan: AddressPlan
+) -> dict[str, list[str]]:
+    """Pools placed on an explicit device (S3.A7 relayed LANs).
+
+    The pool is generated from the subnet's allocation, never from a hand
+    written CIDR, so the address the server leases is inside the subnet the
+    relay forwards to.
+    """
+    commands: dict[str, list[str]] = {}
+    for pool in spec.routing.dhcp_pools:
+        allocation = plan.allocation_by_subnet(pool.subnet)
+        if allocation is None:
+            raise CompileError(
+                f"DHCP pool on {pool.device!r} names unknown subnet {pool.subnet!r}"
+            )
+        lines = commands.setdefault(pool.device, [])
+        for address in pool.excluded:
+            lines.append(f" ip dhcp excluded-address {address}")
+        lines.extend([
+            f" ip dhcp pool {pool.subnet}",
+            f" network {allocation.network} {allocation.netmask}",
+            f" default-router {pool.default_router}",
+        ])
+        if pool.dns_servers:
+            lines.append(f" dns-server {' '.join(pool.dns_servers)}")
+        lines.append(" exit")
+    return commands
 
 
 def _build_nat_commands(spec: NetworkSpec) -> dict[str, list[str]]:
@@ -568,12 +944,34 @@ def _build_ipv6_commands(spec: NetworkSpec) -> dict[str, list[str]]:
     for device in spec.devices:
         if device.role not in (DeviceRole.ROUTER, DeviceRole.L3_SWITCH):
             continue
-        lines: list[str] = []
-        lines.append("ipv6 unicast-routing")
+        lines: list[str] = ["ipv6 unicast-routing"]
         for iface, addr in ipv6_cfg.addresses.items():
-            lines.append(f"interface {iface}")
-            lines.append(f" ipv6 address {addr}")
-            lines.append(" ipv6 enable")
+            lines.extend([
+                f"interface {iface}",
+                f" ipv6 address {addr}",
+                " ipv6 enable",
+                " exit",
+            ])
+        for item in ipv6_cfg.interfaces:
+            if item.device != device.id:
+                continue
+            lines.extend([
+                f"interface {item.interface}",
+                f" ipv6 address {item.address}",
+                " ipv6 enable",
+                *(
+                    [f" ipv6 ospf {item.ospf_process} area {item.ospf_area}"]
+                    if item.ospf_process is not None
+                    else []
+                ),
+                " exit",
+            ])
+        for ospf in ipv6_cfg.ospf:
+            if ospf.device != device.id:
+                continue
+            lines.append(f"ipv6 router ospf {ospf.process_id}")
+            if ospf.router_id:
+                lines.append(f" router-id {ospf.router_id}")
             lines.append(" exit")
         if len(lines) > 1:
             commands_by_device[device.id] = lines
@@ -1643,8 +2041,9 @@ def _add_firewall_config_op(
     commands, nameif_by_subnet = _build_firewall_commands(
         spec, plan, assignment_ports, device, model
     )
+    commands.extend(_build_asa_feature_commands(spec).get(device.id, []))
     static_routes: list[dict[str, str]] = []
-    if spec.routing.mode == "static":
+    if spec.routing.static_routes and spec.routing.mode != "connected":
         for route in spec.routing.static_routes:
             if route.device != device.id:
                 continue
@@ -2071,7 +2470,7 @@ def compile_spec(
         if interface_commands:
             commands.extend(interface_commands)
         static_routes: list[dict[str, str]] = []
-        if spec.routing.mode == "static":
+        if spec.routing.static_routes and spec.routing.mode != "connected":
             for route in spec.routing.static_routes:
                 if route.device != device.id:
                     continue
@@ -2094,9 +2493,19 @@ def compile_spec(
         # -- feature commands: VLAN subinterfaces, OSPF, DHCP, NAT, IPv6 --
         commands.extend(_build_vlan_router_commands(spec, plan).get(device.id, []))
         commands.extend(_build_ospf_commands(spec).get(device.id, []))
+        commands.extend(_build_eigrp_commands(spec).get(device.id, []))
+        commands.extend(_build_rip_commands(spec).get(device.id, []))
+        commands.extend(_build_bgp_commands(spec).get(device.id, []))
         commands.extend(_build_dhcp_commands(spec, plan).get(device.id, []))
+        commands.extend(_build_dhcp_pool_commands(spec, plan).get(device.id, []))
         commands.extend(_build_nat_commands(spec).get(device.id, []))
         commands.extend(_build_ipv6_commands(spec).get(device.id, []))
+        commands.extend(_build_hsrp_commands(spec).get(device.id, []))
+        commands.extend(_build_dhcp_relay_commands(spec).get(device.id, []))
+        commands.extend(_build_tunnel_commands(spec).get(device.id, []))
+        commands.extend(_build_ipsec_commands(spec).get(device.id, []))
+        commands.extend(_build_ssh_commands(spec).get(device.id, []))
+        commands.extend(_build_management_commands(spec).get(device.id, []))
         # -- spec policy on this router (#16): numbered IOS ACL, bound `in`
         # on every interface this path addressed (live-probed shapes; an
         # empty rule set returns nothing, so routers without policies are
@@ -2142,6 +2551,8 @@ def compile_spec(
 
     # -- configuration: VLAN switches ----------------------------------------
     switch_vlan_commands = _build_vlan_switch_commands(spec, port_plan)
+    for switch_id, feature_lines in _build_switch_feature_commands(spec).items():
+        switch_vlan_commands.setdefault(switch_id, []).extend(feature_lines)
     for switch_id, vlan_lines in switch_vlan_commands.items():
         switch_deps = [device_ops[switch_id]]
         op = NetworkOperation(
@@ -2193,6 +2604,7 @@ def compile_spec(
         dag.add(op)
 
     # -- configuration: hosts (PCs, servers, laptops) --------------------------
+    dns_by_device = {item.device: item.dns_server for item in spec.host_dns}
     for device in spec.devices:
         if device.role not in (DeviceRole.PC, DeviceRole.SERVER, DeviceRole.LAPTOP):
             continue
@@ -2225,6 +2637,8 @@ def compile_spec(
                 "mask": plan.allocation_by_subnet(assignment.subnet_id).netmask,
                 "gateway": assignment.gateway,
             })
+        if device.id in dns_by_device:
+            host_inputs["dns"] = dns_by_device[device.id]
         # For a DHCP client the expected postcondition is that it HAS an IP
         # (any address obtained via DHCP), not a specific one. The check kind
         # stays host_ip with the expected value None meaning "any address".

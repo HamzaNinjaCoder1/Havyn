@@ -1,0 +1,113 @@
+# S3.A5 default-redistribute @ 2026-10-22T23:31:30+00:00
+# commands: ["ip route 0.0.0.0 0.0.0.0 10.99.1.254", "router ospf 3", " default-information originate", " exit"]
+# verdict: supported -- pushed lines present in running-config
+
+## show running-config
+show running-config
+Building configuration...
+
+Current configuration : 803 bytes
+!
+version 15.1
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+!
+!
+!
+!
+ip cef
+no ipv6 cef
+!
+!
+!
+!
+license udi pid CISCO2911/K9 sn FTX1524IC06-
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ ip address 10.99.0.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/1
+ ip address 10.99.1.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/2
+ no ip address
+ duplex auto
+ speed auto
+!
+interface Vlan1
+ no ip address
+!
+router ospf 3
+ log-adjacency-changes
+ default-information originate
+!
+ip classless
+ip route 0.0.0.0 0.0.0.0 10.99.1.254 
+!
+ip flow-export version 9
+!
+!
+!
+!
+!
+!
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+
+
+Router#
+Router#
+
+## show ip route
+show ip route
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2, E - EGP
+       i - IS-IS, L1 - IS-IS level-1, L2 - IS-IS level-2, ia - IS-IS inter area
+       * - candidate default, U - per-user static route, o - ODR
+       P - periodic downloaded static route
+
+Gateway of last resort is not set
+
+
+Router#

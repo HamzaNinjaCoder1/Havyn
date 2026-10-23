@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased — Stage 3 device and feature coverage (53 tracks)
+
+### Added
+
+- Typed Stage 3 intents: multi-area OSPF, EIGRP, RIP v2, per-device BGP,
+  default-information originate, HSRP, DHCP relay/pools, GRE tunnels, IPv6 /
+  OSPFv3, SSH, NTP/Syslog/SNMP, switch SVIs/EtherChannel/STP/port-security/
+  VTP/voice VLAN/management IP, ASA object NAT/DHCP/object groups, host DNS,
+  end-device roles (printer, IP phone, tablet, smartphone, WLC).
+- Compiler render paths and by-name refusals for every one of those blocks.
+- A Stage 3 diagnosis rule that re-pushes the compiler's own feature block when
+  a flow fails on a feature-bearing device, plus failing-first tests.
+- `library/stage3/` live-lab specs and `probes/` evidence: router/switch/ASA
+  capability probes, eight live labs, IPv6/OSPFv3 and GRE probes, and the 53-row
+  Stage 3 capability scorecard.
+- `scripts/stage3_registry.py` and `scripts/stage3_scorecard.py`; the reports
+  workflow now publishes the Stage 3 scorecard alongside the map.
+
+### Verified live
+
+- OSPF single-area, EIGRP, RIP v2, default-route redistribution, NAT/PAT,
+  DHCP relay, HSRP failover, serial WAN, GRE, BGP, IPv6 and OSPFv3.
+- Switch trunk/SVI/EtherChannel/STP/port-security/VTP/voice VLAN/management IP
+  (configuration + live `show` read-back).
+
+### Refused with evidence
+
+- IPsec site-to-site (PT stores none of the crypto lines).
+- OSPF multi-area cross-area prefixes (PT ABR does not inject area 0 into
+  area 1).
+- Server-PT service configuration and IoT registration (no Script Engine API);
+  use IOS DHCP/NTP/Syslog or configure the GUI manually.
+
 ## 0.1.0 — Havyn: the project becomes the closed-loop network autopilot
 
 The distribution is now **`havyn`**, and the repository ships one product: the

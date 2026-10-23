@@ -1,0 +1,28 @@
+{
+  "lab": "T10 NAT internet",
+  "spec": "library\\T10-nat-internet.json",
+  "tag": "q448695",
+  "started_at": "2026-10-23T00:43:16+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "srv",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q448695-pc1->198.51.100.10: ok"
+    }
+  ],
+  "problems": [
+    "ios edge: configuration did not take effect - routes still missing after retry: 0.0.0.0/0 via 203.0.113.2"
+  ],
+  "cleanup": {
+    "q448695-edge": "deleted",
+    "q448695-s1": "deleted",
+    "q448695-pc1": "deleted",
+    "q448695-isp": "deleted",
+    "q448695-srv": "deleted"
+  },
+  "finished_at": "2026-10-23T00:45:16+00:00"
+}

@@ -1,0 +1,104 @@
+# S3.A8 hsrp @ 2026-10-22T23:33:46+00:00
+# commands: ["interface GigabitEthernet0/0", " standby 1 ip 10.99.0.254", " standby 1 priority 110", " standby 1 preempt", " exit"]
+# verdict: supported -- pushed lines present in running-config
+
+## show running-config
+show running-config
+Building configuration...
+
+Current configuration : 764 bytes
+!
+version 15.1
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+!
+!
+!
+!
+ip cef
+no ipv6 cef
+!
+!
+!
+!
+license udi pid CISCO2911/K9 sn FTX1524TK1G-
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ ip address 10.99.0.1 255.255.255.0
+ duplex auto
+ speed auto
+ standby 1 ip 10.99.0.254
+ standby 1 priority 110
+ standby 1 preempt
+!
+interface GigabitEthernet0/1
+ ip address 10.99.1.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/2
+ no ip address
+ duplex auto
+ speed auto
+!
+interface Vlan1
+ no ip address
+!
+ip classless
+!
+ip flow-export version 9
+!
+!
+!
+!
+!
+!
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+
+
+Router#
+Router#
+
+## show standby brief
+show standby brief
+                     P indicates configured to preempt.
+                     |
+Interface   Grp  Pri P State    Active          Standby         Virtual IP
+Gig0/0      1    110 P Init     unknown         unknown         10.99.0.254    
+Router#

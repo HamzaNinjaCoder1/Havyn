@@ -65,7 +65,7 @@ class Feature:
 
 def REGISTRY() -> list[Feature]:
     """The map itself. Edit here; the generator only renders."""
-    return [
+    rows = [
         Feature(
             id="router-acl-enforce",
             name="IOS router numbered ACLs with address matching",
@@ -295,6 +295,16 @@ def REGISTRY() -> list[Feature]:
             topology="T16",
         ),
     ]
+    return rows + _stage3_rows()
+
+
+def _stage3_rows() -> list[Feature]:
+    """The 53 Stage 3 tracks, kept in their own reviewable registry."""
+    try:
+        from stage3_registry import stage3_features
+    except ImportError:  # imported as scripts.capability_map
+        from .stage3_registry import stage3_features
+    return [Feature(**row) for row in stage3_features()]
 
 
 def load_live_results(results_dir: Path) -> dict[str, dict]:

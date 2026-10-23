@@ -1,0 +1,497 @@
+[
+  {
+    "feature": "S3.A1 ospf-single",
+    "group": "router",
+    "device": "s3p-router-s3a1",
+    "model": "2911",
+    "commands": [
+      "router ospf 1",
+      " router-id 1.1.1.1",
+      " network 10.99.0.0 0.0.0.255 area 0",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:15:08+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "router ospf 1",
+      "network 10.99.0.0 0.0.0.255 area 0"
+    ],
+    "markers": [
+      "router ospf 1",
+      "network 10.99.0.0 0.0.0.255 area 0"
+    ],
+    "show_command": "show ip route ospf",
+    "show_output": "show ip route ospf\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A2 ospf-multi-area",
+    "group": "router",
+    "device": "s3p-router-s3a2",
+    "model": "2911",
+    "commands": [
+      "router ospf 2",
+      " router-id 1.1.1.2",
+      " network 10.99.0.0 0.0.0.255 area 0",
+      " network 10.99.1.0 0.0.0.255 area 1",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:15:55+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "network 10.99.0.0 0.0.0.255 area 0",
+      "network 10.99.1.0 0.0.0.255 area 1"
+    ],
+    "markers": [
+      "network 10.99.0.0 0.0.0.255 area 0",
+      "network 10.99.1.0 0.0.0.255 area 1"
+    ],
+    "show_command": "show ip route ospf",
+    "show_output": "show ip route ospf\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A3 eigrp",
+    "group": "router",
+    "device": "s3p-router-s3a3",
+    "model": "2911",
+    "commands": [
+      "router eigrp 10",
+      " network 10.99.0.0 0.0.0.255",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:16:39+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "router eigrp 10",
+      "network 10.99.0.0"
+    ],
+    "markers": [
+      "router eigrp 10",
+      "network 10.99.0.0"
+    ],
+    "show_command": "show ip route eigrp",
+    "show_output": "show ip route eigrp\n\n\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A4 ripv2",
+    "group": "router",
+    "device": "s3p-router-s3a4",
+    "model": "2911",
+    "commands": [
+      "router rip",
+      " version 2",
+      " network 10.99.0.0",
+      " no auto-summary",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:17:25+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "router rip",
+      "version 2",
+      "network 10.99.0.0"
+    ],
+    "markers": [
+      "router rip",
+      "version 2",
+      "network 10.99.0.0"
+    ],
+    "show_command": "show ip route rip",
+    "show_output": "show ip route rip\n\n\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A5 default-redistribute",
+    "group": "router",
+    "device": "s3p-router-s3a5",
+    "model": "2911",
+    "commands": [
+      "ip route 0.0.0.0 0.0.0.0 10.99.1.254",
+      "router ospf 3",
+      " default-information originate",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:18:12+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "failed",
+    "push_error": "configuration did not take effect - routes still missing after retry: 0.0.0.0/0 via 10.99.1.254",
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "ip route 0.0.0.0 0.0.0.0 10.99.1.254",
+      "default-information originate"
+    ],
+    "markers": [
+      "ip route 0.0.0.0 0.0.0.0 10.99.1.254",
+      "default-information originate"
+    ],
+    "show_command": "show ip route",
+    "show_output": "show ip route\nCodes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP\n       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area\n       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2\n       E1 - OSPF external type 1, E2 - OSPF external type 2, E - EGP\n       i - IS-IS, L1 - IS-IS level-1, L2 - IS-IS level-2, ia - IS-IS inter area\n       * - candidate default, U - per-user static route, o - ODR\n       P - periodic downloaded static route\n\nGateway of last resort is not set\n\n\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A6 nat-pat",
+    "group": "router",
+    "device": "s3p-router-s3a6",
+    "model": "2911",
+    "commands": [
+      "interface GigabitEthernet0/0",
+      " ip nat inside",
+      " exit",
+      "interface GigabitEthernet0/1",
+      " ip nat outside",
+      " exit",
+      "access-list 1 permit 10.99.0.0 0.0.0.255",
+      "ip nat inside source list 1 interface GigabitEthernet0/1 overload"
+    ],
+    "probed_at": "2026-10-22T23:19:08+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "ip nat inside",
+      "ip nat outside",
+      "ip nat inside source list 1 interface GigabitEthernet0/1 overload"
+    ],
+    "markers": [
+      "ip nat inside",
+      "ip nat outside",
+      "ip nat inside source list 1 interface GigabitEthernet0/1 overload"
+    ],
+    "show_command": "show ip nat translations",
+    "show_output": "show ip nat translations\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A7 dhcp-relay",
+    "group": "router",
+    "device": "s3p-router-s3a7",
+    "model": "2911",
+    "commands": [
+      "interface GigabitEthernet0/0",
+      " ip helper-address 10.99.1.10",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:19:54+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "ip helper-address 10.99.1.10"
+    ],
+    "markers": [
+      "ip helper-address 10.99.1.10"
+    ],
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A8 hsrp",
+    "group": "router",
+    "device": "s3p-router-s3a8",
+    "model": "2911",
+    "commands": [
+      "interface GigabitEthernet0/0",
+      " standby 1 ip 10.99.0.254",
+      " standby 1 priority 110",
+      " standby 1 preempt",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:20:37+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "standby 1 ip 10.99.0.254",
+      "standby 1 priority 110"
+    ],
+    "markers": [
+      "standby 1 ip 10.99.0.254",
+      "standby 1 priority 110"
+    ],
+    "show_command": "show standby brief",
+    "show_output": "show standby brief\n             ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A10 gre-tunnel",
+    "group": "router",
+    "device": "s3p-router-s3a10",
+    "model": "2911",
+    "commands": [
+      "interface Tunnel0",
+      " ip address 172.16.0.1 255.255.255.252",
+      " tunnel source 10.99.0.1",
+      " tunnel destination 10.99.1.1",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:21:21+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "interface Tunnel0",
+      "tunnel source 10.99.0.1",
+      "tunnel destination 10.99.1.1"
+    ],
+    "markers": [
+      "interface Tunnel0",
+      "tunnel source 10.99.0.1",
+      "tunnel destination 10.99.1.1"
+    ],
+    "show_command": "show ip interface brief",
+    "show_output": "show ip interface brief\nInterface              IP-Address      OK? Method Status                Protocol \nGigabitEthernet0/0     10.99.0.1       YES manual down                  down \nGigabitEthernet0/1     10.99.1.1       YES manual down                  down \nGigabitEthernet0/2     unassigned      YES unset  down                  down \nTunnel0                172.16.0.1      YES manual up                    down \nVlan1                  unassigned      YES unset  up                    down\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A11 ipsec",
+    "group": "router",
+    "device": "s3p-router-s3a11",
+    "model": "2911",
+    "commands": [
+      "crypto isakmp policy 10",
+      " encr aes",
+      " hash sha256",
+      " authentication pre-share",
+      " exit",
+      "crypto isakmp key LAB-REDACTED address 10.99.1.1",
+      "crypto ipsec transform-set TS esp-aes esp-sha256-hmac",
+      "access-list 100 permit ip 10.99.0.0 0.0.0.255 10.99.2.0 0.0.0.255",
+      "crypto map CM 10 ipsec-isakmp",
+      " set peer 10.99.1.1",
+      " set transform-set TS",
+      " match address 100",
+      " exit",
+      "interface GigabitEthernet0/1",
+      " crypto map CM",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:22:13+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "crypto isakmp policy 10",
+      "crypto map CM 10 ipsec-isakmp"
+    ],
+    "markers": [
+      "crypto isakmp policy 10",
+      "crypto map CM 10 ipsec-isakmp"
+    ],
+    "show_command": "show crypto isakmp sa",
+    "show_output": "show crypto isakmp sa\n                   ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A12 bgp",
+    "group": "router",
+    "device": "s3p-router-s3a12",
+    "model": "2911",
+    "commands": [
+      "router bgp 65001",
+      " neighbor 10.99.1.2 remote-as 65002",
+      " network 10.99.0.0 mask 255.255.255.0",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:22:57+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "router bgp 65001",
+      "neighbor 10.99.1.2 remote-as 65002"
+    ],
+    "markers": [
+      "router bgp 65001",
+      "neighbor 10.99.1.2 remote-as 65002"
+    ],
+    "show_command": "show ip bgp summary",
+    "show_output": "show ip bgp summary\nBGP router identifier 10.99.1.1, local AS number 65001\nBGP table version is 1, main routing table version 6\n0 network entries using 0 bytes of memory\n0 path entries using 0 bytes of memory\n0/0 BGP path/bestpath attribute entries using 0 bytes of memory\n0 BGP AS-PATH entries using 0 bytes of memory\n0 BGP route-map cache entries using 0 bytes of memory\n0 BGP filter-list cache entries using 0 bytes of memory\nBitfield cache entries: current 1 (at peak 1) using 32 bytes of memory\nBGP using 32 total bytes of memory\nBGP activity 0/0 prefixes, 0/0 paths, scan interval 60 secs\n\nNeighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd\n10.99.1.2       4 65002       0       0        1    0    0 00:00:42        4\n\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A13 ipv6",
+    "group": "router",
+    "device": "s3p-router-s3a13",
+    "model": "2911",
+    "commands": [
+      "ipv6 unicast-routing",
+      "interface GigabitEthernet0/0",
+      " ipv6 address 2001:db8:99::1/64",
+      " ipv6 enable",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:23:41+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "ipv6 unicast-routing",
+      "ipv6 address 2001:db8:99::1/64"
+    ],
+    "markers": [
+      "ipv6 unicast-routing",
+      "ipv6 address 2001:db8:99::1/64"
+    ],
+    "show_command": "show ipv6 route",
+    "show_output": "show ipv6 route\nIPv6 Routing Table - 1 entries\nCodes: C - Connected, L - Local, S - Static, R - RIP, B - BGP\n       U - Per-user Static route, M - MIPv6\n       I1 - ISIS L1, I2 - ISIS L2, IA - ISIS interarea, IS - ISIS summary\n       ND - ND Default, NDp - ND Prefix, DCE - Destination, NDr - Redirect\n       O - OSPF intra, OI - OSPF inter, OE1 - OSPF ext 1, OE2 - OSPF ext 2\n       ON1 - OSPF NSSA ext 1, ON2 - OSPF NSSA ext 2\n       D - EIGRP, EX - EIGRP external\nL   FF00::/8 [0/0]\n     via Null0, receive\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A14 ospfv3",
+    "group": "router",
+    "device": "s3p-router-s3a14",
+    "model": "2911",
+    "commands": [
+      "ipv6 unicast-routing",
+      "ipv6 router ospf 1",
+      " router-id 1.1.1.3",
+      " exit",
+      "interface GigabitEthernet0/0",
+      " ipv6 ospf 1 area 0",
+      " exit"
+    ],
+    "probed_at": "2026-10-22T23:24:32+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "ipv6 router ospf 1",
+      "ipv6 ospf 1 area 0"
+    ],
+    "markers": [
+      "ipv6 router ospf 1",
+      "ipv6 ospf 1 area 0"
+    ],
+    "show_command": "show ipv6 route ospf",
+    "show_output": "show ipv6 route ospf\nIPv6 Routing Table - 1 entries\nCodes: C - Connected, L - Local, S - Static, R - RIP, B - BGP\n       U - Per-user Static route, M - MIPv6\n       I1 - ISIS L1, I2 - ISIS L2, IA - ISIS interarea, IS - ISIS summary\n       O - OSPF intra, OI - OSPF inter, OE1 - OSPF ext 1, OE2 - OSPF ext 2\n       ON1 - OSPF NSSA ext 1, ON2 - OSPF NSSA ext 2\n       D - EIGRP, EX - EIGRP external\nRouter>",
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A15 ssh",
+    "group": "router",
+    "device": "s3p-router-s3a15",
+    "model": "2911",
+    "commands": [
+      "ip domain-name lab.local",
+      "username admin privilege 15 secret LAB-REDACTED",
+      "line vty 0 4",
+      " login local",
+      " transport input ssh",
+      " exit",
+      "ip ssh version 2"
+    ],
+    "probed_at": "2026-10-22T23:25:16+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "ip domain-name lab.local",
+      "username admin privilege 15",
+      "login local",
+      "transport input ssh",
+      "ip ssh version 2"
+    ],
+    "markers": [
+      "ip domain-name lab.local",
+      "username admin privilege 15",
+      "login local",
+      "transport input ssh",
+      "ip ssh version 2"
+    ],
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  },
+  {
+    "feature": "S3.A16 ntp-syslog-snmp",
+    "group": "router",
+    "device": "s3p-router-s3a16",
+    "model": "2911",
+    "commands": [
+      "ntp server 10.99.1.10",
+      "logging host 10.99.1.11",
+      "snmp-server community public RO"
+    ],
+    "probed_at": "2026-10-22T23:25:59+00:00",
+    "create": "success",
+    "base_push": "success",
+    "push": "success",
+    "push_error": null,
+    "running_config": "show running-config\n            ^\n% Invalid input detected at '^' marker.\n\t\nRouter>",
+    "missing_markers": [
+      "ntp server 10.99.1.10",
+      "logging host 10.99.1.11",
+      "snmp-server community public RO"
+    ],
+    "markers": [
+      "ntp server 10.99.1.10",
+      "logging host 10.99.1.11",
+      "snmp-server community public RO"
+    ],
+    "verdict": "refused",
+    "detail": "pushed lines absent from running-config",
+    "delete": "success"
+  }
+]

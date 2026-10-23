@@ -1,0 +1,182 @@
+# ASA show probe @ 2026-10-22T23:59:51+00:00
+# device: s3p-asa-show
+# push: success
+
+## show nameif
+does not
+  imply third-party authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 58242585 771e28b7 31fa1f35 7eb449bc
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+
+## show interface ip brief
+rty authority to import, export,
+  distribute, or use encryption. Importers, exporters,
+  distributors and users are responsible for compliance
+  with U.S. and local country laws. By using this
+  product you agree to comply with applicable laws and
+  regulations. If you are unable to comply with U.S.
+  and local laws, return the enclosed items immediately.
+
+  A summary of U.S. laws governing Cisco cryptographic
+  products may be found at:
+  http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+  If you require further assistance please contact us by
+  sending email to export@cisco.com.
+  ******************************* Warning *******************************
+Cisco Adaptive Security Appliance Software, version 9.6
+Copyright (c) 1996-2016 by Cisco Systems, Inc.
+
+For licenses and notices for open source software used in this product, please visit
+http://www.cisco.com/go/asa-opensource
+
+               Restricted Rights Legend
+
+Use, duplication, or disclosure by the Government is
+subject to restrictions as set forth in subparagraph
+(c) of the Commercial Computer Software - Restricted
+Rights clause at FAR sec. 52.227-19 and subparagraph
+(c) (1) (ii) of the Rights in Technical Data and Computer
+Software clause at DFARS sec. 252.227-7013.
+
+               Cisco Systems, Inc.
+               170 West Tasman Drive
+               San Jose, California 95134-1706
+
+Reading from flash...
+!.
+
+Cryptochecksum (unchanged): 58242585 771e28b7 31fa1f35 7eb449bc
+
+INFO: Power-On Self-Test in process.
+.......................................................................
+INFO: Power-On Self-Test complete.
+
+INFO: Starting HW-DRBG health test...
+INFO: HW-DRBG health test passed.
+
+INFO: Starting SW-DRBG health test...
+INFO: SW-DRBG health test passed.
+
+
+
+
+
+Type help or '?' for a list of available commands.
+
+ciscoasa>show ip route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>enable
+Password: 
+Invalid password
+Password: 
+Invalid password
+Password: 
+Access denied.
+ciscoasa>
+
+## show route
+show route
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show nat
+show nat
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show dhcpd
+show dhcpd
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show access-list
+show access-list
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show object-group
+show object-group
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>
+
+## show running-config
+show running-config
+              ^
+% Invalid input detected at '^' marker.
+	
+ciscoasa>

@@ -1,0 +1,56 @@
+{
+  "lab": "S3.A8 HSRP failover",
+  "spec": "library\\stage3\\S3-A8-hsrp.json",
+  "tag": "q16861d",
+  "started_at": "2026-10-23T00:25:55+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc",
+      "destination": "srv",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q16861d-pc->10.0.20.10: ok"
+    }
+  ],
+  "problems": [],
+  "configs": {
+    "r1": {
+      "running": "show running-config\n        ^\n% Invalid input detected at '^' marker.\n\t\nr1>",
+      "interfaces": "show ip interface brief\nInterface              IP-Address      OK? Method Status                Protocol \nGigabitEthernet0/0     10.0.10.2       YES manual up                    up \nGigabitEthernet0/1     10.0.20.2       YES manual up                    up \nGigabitEthernet0/2     unassigned      YES unset  down                  down \nVlan1                  unassigned      YES unset  up                    down\nr1>",
+      "standby": "show standby brief\n         ^\n% Invalid input detected at '^' marker.\n\t\nr1>"
+    },
+    "r2": {
+      "running": "show running-config\n        ^\n% Invalid input detected at '^' marker.\n\t\nr2>",
+      "interfaces": "show ip interface brief\nInterface              IP-Address      OK? Method Status                Protocol \nGigabitEthernet0/0     10.0.10.3       YES manual up                    up \nGigabitEthernet0/1     10.0.20.3       YES manual up                    up \nGigabitEthernet0/2     unassigned      YES unset  down                  down \nVlan1                  unassigned      YES unset  up                    down\nr2>",
+      "standby": "show standby brief\n         ^\n% Invalid input detected at '^' marker.\n\t\nr2>"
+    },
+    "sw1": {
+      "running": "show running-config\n         ^\n% Invalid input detected at '^' marker.\n\t\nsw1>"
+    },
+    "sw2": {
+      "running": "show running-config\n         ^\n% Invalid input detected at '^' marker.\n\t\nsw2>"
+    }
+  },
+  "after_failover": [
+    {
+      "criterion": "A-1",
+      "source": "pc",
+      "destination": "srv",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q16861d-pc->10.0.20.10: ok"
+    }
+  ],
+  "cleanup": {
+    "q16861d-r1": "deleted",
+    "q16861d-r2": "deleted",
+    "q16861d-sw1": "deleted",
+    "q16861d-sw2": "deleted",
+    "q16861d-pc": "deleted",
+    "q16861d-srv": "deleted"
+  },
+  "finished_at": "2026-10-23T00:29:46+00:00"
+}

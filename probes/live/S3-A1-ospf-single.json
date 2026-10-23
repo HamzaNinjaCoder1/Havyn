@@ -1,0 +1,48 @@
+{
+  "lab": "S3.A1 OSPF single-area",
+  "spec": "library\\stage3\\S3-A1-ospf-single.json",
+  "tag": "qf7e6b9",
+  "started_at": "2026-10-23T00:03:23+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "pc2",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qf7e6b9-pc1->10.0.2.2: ok"
+    },
+    {
+      "criterion": "A-2",
+      "source": "pc2",
+      "destination": "pc3",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qf7e6b9-pc2->10.0.3.2: ok"
+    },
+    {
+      "criterion": "A-3",
+      "source": "pc1",
+      "destination": "pc3",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qf7e6b9-pc1->10.0.3.2: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "qf7e6b9-r1": "deleted",
+    "qf7e6b9-r2": "deleted",
+    "qf7e6b9-r3": "deleted",
+    "qf7e6b9-s1": "deleted",
+    "qf7e6b9-s2": "deleted",
+    "qf7e6b9-s3": "deleted",
+    "qf7e6b9-pc1": "deleted",
+    "qf7e6b9-pc2": "deleted",
+    "qf7e6b9-pc3": "deleted"
+  },
+  "finished_at": "2026-10-23T00:05:09+00:00"
+}

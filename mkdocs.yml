@@ -84,6 +84,7 @@ nav:
       - Known Limitations: limitations.md
   - Reports:
       - Nightly Scorecard: reports/scorecard.md
+      - Stage 3 Scorecard: reports/stage3-scorecard.md
       - Overnight Validation: reports/overnight-validation.md
   - Networking:
       - IP Addressing: ip-addressing.md

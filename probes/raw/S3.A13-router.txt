@@ -1,0 +1,111 @@
+# S3.A13 ipv6 @ 2026-10-22T23:36:33+00:00
+# commands: ["ipv6 unicast-routing", "interface GigabitEthernet0/0", " ipv6 address 2001:db8:99::1/64", " ipv6 enable", " exit"]
+# verdict: refused -- pushed lines absent from running-config
+
+## show running-config
+show running-config
+Building configuration...
+
+Current configuration : 763 bytes
+!
+version 15.1
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+!
+!
+!
+!
+ip cef
+ipv6 unicast-routing
+!
+no ipv6 cef
+!
+!
+!
+!
+license udi pid CISCO2911/K9 sn FTX1524AM79-
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ ip address 10.99.0.1 255.255.255.0
+ duplex auto
+ speed auto
+ ipv6 address 2001:DB8:99::1/64
+ ipv6 enable
+!
+interface GigabitEthernet0/1
+ ip address 10.99.1.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/2
+ no ip address
+ duplex auto
+ speed auto
+!
+interface Vlan1
+ no ip address
+!
+ip classless
+!
+ip flow-export version 9
+!
+!
+!
+!
+!
+!
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+
+
+Router#
+Router#
+
+## show ipv6 route
+show ipv6 route
+IPv6 Routing Table - 1 entries
+Codes: C - Connected, L - Local, S - Static, R - RIP, B - BGP
+       U - Per-user Static route, M - MIPv6
+       I1 - ISIS L1, I2 - ISIS L2, IA - ISIS interarea, IS - ISIS summary
+       ND - ND Default, NDp - ND Prefix, DCE - Destination, NDr - Redirect
+       O - OSPF intra, OI - OSPF inter, OE1 - OSPF ext 1, OE2 - OSPF ext 2
+       ON1 - OSPF NSSA ext 1, ON2 - OSPF NSSA ext 2
+       D - EIGRP, EX - EIGRP external
+L   FF00::/8 [0/0]
+     via Null0, receive
+Router#

@@ -1,0 +1,180 @@
+{
+  "name": "S3.A7 DHCP relay",
+  "devices": [
+    {
+      "id": "central",
+      "role": "router"
+    },
+    {
+      "id": "remote",
+      "role": "router"
+    },
+    {
+      "id": "s1",
+      "role": "switch"
+    },
+    {
+      "id": "s2",
+      "role": "switch"
+    },
+    {
+      "id": "pc1",
+      "role": "pc"
+    },
+    {
+      "id": "pc2",
+      "role": "pc"
+    }
+  ],
+  "links": [
+    {
+      "id": "l-central-remote",
+      "a": {
+        "device": "central"
+      },
+      "b": {
+        "device": "remote"
+      }
+    },
+    {
+      "id": "l-central-s1",
+      "a": {
+        "device": "central"
+      },
+      "b": {
+        "device": "s1"
+      }
+    },
+    {
+      "id": "l-s1-pc1",
+      "a": {
+        "device": "s1"
+      },
+      "b": {
+        "device": "pc1"
+      }
+    },
+    {
+      "id": "l-remote-s2",
+      "a": {
+        "device": "remote"
+      },
+      "b": {
+        "device": "s2"
+      }
+    },
+    {
+      "id": "l-s2-pc2",
+      "a": {
+        "device": "s2"
+      },
+      "b": {
+        "device": "pc2"
+      }
+    }
+  ],
+  "subnets": [
+    {
+      "id": "wan",
+      "cidr": "10.0.12.0/30"
+    },
+    {
+      "id": "central",
+      "cidr": "10.0.1.0/24"
+    },
+    {
+      "id": "remote",
+      "cidr": "10.0.2.0/24"
+    }
+  ],
+  "ip_assignments": [
+    {
+      "device": "central",
+      "subnet": "wan",
+      "ip": "10.0.12.1",
+      "interface_hint": "GigabitEthernet0/0"
+    },
+    {
+      "device": "remote",
+      "subnet": "wan",
+      "ip": "10.0.12.2",
+      "interface_hint": "GigabitEthernet0/0"
+    },
+    {
+      "device": "central",
+      "subnet": "central",
+      "ip": "10.0.1.1",
+      "interface_hint": "GigabitEthernet0/1"
+    },
+    {
+      "device": "remote",
+      "subnet": "remote",
+      "ip": "10.0.2.1",
+      "interface_hint": "GigabitEthernet0/1"
+    },
+    {
+      "device": "pc1",
+      "subnet": "central"
+    },
+    {
+      "device": "pc2",
+      "subnet": "remote",
+      "dhcp": true
+    }
+  ],
+  "routing": {
+    "mode": "static",
+    "static_routes": [
+      {
+        "device": "central",
+        "destination": "10.0.2.0/24",
+        "next_hop": "10.0.12.2"
+      },
+      {
+        "device": "remote",
+        "destination": "10.0.1.0/24",
+        "next_hop": "10.0.12.1"
+      }
+    ],
+    "dhcp_pools": [
+      {
+        "device": "central",
+        "subnet": "remote",
+        "default_router": "10.0.2.1",
+        "excluded": [
+          "10.0.2.1"
+        ]
+      }
+    ],
+    "dhcp_relays": [
+      {
+        "device": "remote",
+        "interface": "GigabitEthernet0/1",
+        "helpers": [
+          "10.0.1.1"
+        ]
+      }
+    ]
+  },
+  "requirements": [
+    {
+      "id": "R-1",
+      "statement": "Remote PC leases an address from the central DHCP server"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "A-1",
+      "requirement_ids": [
+        "R-1"
+      ],
+      "test": {
+        "kind": "flow",
+        "source": "pc2",
+        "destination": "pc1",
+        "expect": "reachable"
+      }
+    }
+  ],
+  "description": "Stage 3 live lab: S3-A7-dhcp-relay"
+}

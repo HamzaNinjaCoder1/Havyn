@@ -1,0 +1,19 @@
+Offline regression suite (Packet Tracer not required)
+====================================================
+
+Command:
+
+  python -m pytest tests/autopilot -q -k "not live"
+  python -m pytest tests -q -k "not live" --ignore=tests/autopilot
+
+Result (2026-10-23):
+
+  tests/autopilot: 900 passed, 83 deselected in 271.91s
+  tests (root):     60 passed, 1 deselected in 21.90s
+  total:           960 passed, 84 deselected
+
+The deselected tests are the live Packet Tracer tests; they are run
+separately through probes/stage3_live_lab.py and the existing live suite,
+not silently skipped by this result.
+
+Raw outputs: probes/offline-suite-autopilot.txt, probes/offline-suite-root.txt

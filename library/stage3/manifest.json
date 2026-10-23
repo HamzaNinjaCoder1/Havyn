@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "specs": [
+    {
+      "id": "S3-A1",
+      "file": "S3-A1-ospf-single.json",
+      "title": "OSPF single-area"
+    },
+    {
+      "id": "S3-A2",
+      "file": "S3-A2-ospf-multi-area.json",
+      "title": "OSPF multi-area"
+    },
+    {
+      "id": "S3-A3",
+      "file": "S3-A3-eigrp.json",
+      "title": "EIGRP"
+    },
+    {
+      "id": "S3-A4",
+      "file": "S3-A4-ripv2.json",
+      "title": "RIP v2"
+    },
+    {
+      "id": "S3-A5",
+      "file": "S3-A5-default-redistribute.json",
+      "title": "default route + originate"
+    },
+    {
+      "id": "S3-A7",
+      "file": "S3-A7-dhcp-relay.json",
+      "title": "DHCP relay"
+    },
+    {
+      "id": "S3-A8",
+      "file": "S3-A8-hsrp.json",
+      "title": "HSRP failover"
+    },
+    {
+      "id": "S3-A12",
+      "file": "S3-A12-bgp.json",
+      "title": "Basic BGP"
+    }
+  ]
+}

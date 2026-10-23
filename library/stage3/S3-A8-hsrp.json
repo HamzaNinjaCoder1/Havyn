@@ -1,0 +1,190 @@
+{
+  "name": "S3.A8 HSRP failover",
+  "devices": [
+    {
+      "id": "r1",
+      "role": "router"
+    },
+    {
+      "id": "r2",
+      "role": "router"
+    },
+    {
+      "id": "sw1",
+      "role": "switch"
+    },
+    {
+      "id": "sw2",
+      "role": "switch"
+    },
+    {
+      "id": "pc",
+      "role": "pc"
+    },
+    {
+      "id": "srv",
+      "role": "server"
+    }
+  ],
+  "links": [
+    {
+      "id": "l-r1-sw1",
+      "a": {
+        "device": "r1"
+      },
+      "b": {
+        "device": "sw1"
+      }
+    },
+    {
+      "id": "l-r2-sw1",
+      "a": {
+        "device": "r2"
+      },
+      "b": {
+        "device": "sw1"
+      }
+    },
+    {
+      "id": "l-pc-sw1",
+      "a": {
+        "device": "pc"
+      },
+      "b": {
+        "device": "sw1"
+      }
+    },
+    {
+      "id": "l-r1-sw2",
+      "a": {
+        "device": "r1"
+      },
+      "b": {
+        "device": "sw2"
+      }
+    },
+    {
+      "id": "l-r2-sw2",
+      "a": {
+        "device": "r2"
+      },
+      "b": {
+        "device": "sw2"
+      }
+    },
+    {
+      "id": "l-srv-sw2",
+      "a": {
+        "device": "srv"
+      },
+      "b": {
+        "device": "sw2"
+      }
+    }
+  ],
+  "subnets": [
+    {
+      "id": "lan",
+      "cidr": "10.0.10.0/24"
+    },
+    {
+      "id": "srv",
+      "cidr": "10.0.20.0/24"
+    }
+  ],
+  "ip_assignments": [
+    {
+      "device": "r1",
+      "subnet": "lan",
+      "ip": "10.0.10.2",
+      "interface_hint": "GigabitEthernet0/0"
+    },
+    {
+      "device": "r2",
+      "subnet": "lan",
+      "ip": "10.0.10.3",
+      "interface_hint": "GigabitEthernet0/0"
+    },
+    {
+      "device": "r1",
+      "subnet": "srv",
+      "ip": "10.0.20.2",
+      "interface_hint": "GigabitEthernet0/1"
+    },
+    {
+      "device": "r2",
+      "subnet": "srv",
+      "ip": "10.0.20.3",
+      "interface_hint": "GigabitEthernet0/1"
+    },
+    {
+      "device": "pc",
+      "subnet": "lan",
+      "gateway": "10.0.10.254",
+      "ip": "10.0.10.4"
+    },
+    {
+      "device": "srv",
+      "subnet": "srv",
+      "ip": "10.0.20.10",
+      "gateway": "10.0.20.254"
+    }
+  ],
+  "routing": {
+    "hsrp": [
+      {
+        "device": "r1",
+        "interface": "GigabitEthernet0/0",
+        "group": 1,
+        "virtual_ip": "10.0.10.254",
+        "priority": 120,
+        "preempt": true
+      },
+      {
+        "device": "r2",
+        "interface": "GigabitEthernet0/0",
+        "group": 1,
+        "virtual_ip": "10.0.10.254",
+        "priority": 100,
+        "preempt": true
+      },
+      {
+        "device": "r1",
+        "interface": "GigabitEthernet0/1",
+        "group": 2,
+        "virtual_ip": "10.0.20.254",
+        "priority": 120,
+        "preempt": true
+      },
+      {
+        "device": "r2",
+        "interface": "GigabitEthernet0/1",
+        "group": 2,
+        "virtual_ip": "10.0.20.254",
+        "priority": 100,
+        "preempt": true
+      }
+    ]
+  },
+  "requirements": [
+    {
+      "id": "R-1",
+      "statement": "The LAN keeps a gateway when the active router fails"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "A-1",
+      "requirement_ids": [
+        "R-1"
+      ],
+      "test": {
+        "kind": "flow",
+        "source": "pc",
+        "destination": "srv",
+        "expect": "reachable"
+      }
+    }
+  ],
+  "description": "Stage 3 live lab: S3-A8-hsrp"
+}

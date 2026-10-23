@@ -338,7 +338,11 @@ def plan_addressing(spec: NetworkSpec, pool: str = DEFAULT_POOL) -> AddressPlan:
                 interface_hint=assignment.interface_hint,
                 subnet_id=assignment.subnet,
                 ip=ip_str,
-                gateway=allocation.gateway if not dhcp_flag else None,
+                gateway=(
+                    assignment.gateway
+                    if assignment.gateway
+                    else (allocation.gateway if not dhcp_flag else None)
+                ),
                 dhcp=dhcp_flag,
             )
         )

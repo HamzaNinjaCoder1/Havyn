@@ -1,0 +1,87 @@
+# IPv6 / OSPFv3 probe @ 2026-10-23T00:48:53+00:00
+
+## s3p-ipv6-r1: show ipv6 interface brief
+show ipv6 interface brief
+GigabitEthernet0/0         [up/up]
+    FE80::240:BFF:FEA6:1701
+    2001:DB8:12::1
+GigabitEthernet0/1         [up/down]
+    unassigned
+GigabitEthernet0/2         [up/down]
+    unassigned
+Vlan1                      [up/down]
+    unassigned
+s3p-ipv6-r1#
+
+## s3p-ipv6-r1: show ipv6 route
+show ipv6 route
+IPv6 Routing Table - 3 entries
+Codes: C - Connected, L - Local, S - Static, R - RIP, B - BGP
+       U - Per-user Static route, M - MIPv6
+       I1 - ISIS L1, I2 - ISIS L2, IA - ISIS interarea, IS - ISIS summary
+       ND - ND Default, NDp - ND Prefix, DCE - Destination, NDr - Redirect
+       O - OSPF intra, OI - OSPF inter, OE1 - OSPF ext 1, OE2 - OSPF ext 2
+       ON1 - OSPF NSSA ext 1, ON2 - OSPF NSSA ext 2
+       D - EIGRP, EX - EIGRP external
+C   2001:DB8:12::/64 [0/0]
+     via GigabitEthernet0/0, directly connected
+L   2001:DB8:12::1/128 [0/0]
+     via GigabitEthernet0/0, receive
+L   FF00::/8 [0/0]
+     via Null0, receive
+s3p-ipv6-r1#
+
+## s3p-ipv6-r1: show ipv6 ospf neighbor
+show ipv6 ospf neighbor
+
+Neighbor ID     Pri   State           Dead Time   Interface ID    Interface
+2.2.2.2           1   FULL/DR         00:00:30    1               GigabitEthernet0/0
+s3p-ipv6-r1#
+
+## s3p-ipv6-r2: show ipv6 interface brief
+show ipv6 interface brief
+GigabitEthernet0/0         [up/up]
+    FE80::2E0:F9FF:FEE7:A301
+    2001:DB8:12::2
+GigabitEthernet0/1         [up/down]
+    unassigned
+GigabitEthernet0/2         [up/down]
+    unassigned
+Vlan1                      [up/down]
+    unassigned
+s3p-ipv6-r2#
+
+## s3p-ipv6-r2: show ipv6 route
+show ipv6 route
+IPv6 Routing Table - 3 entries
+Codes: C - Connected, L - Local, S - Static, R - RIP, B - BGP
+       U - Per-user Static route, M - MIPv6
+       I1 - ISIS L1, I2 - ISIS L2, IA - ISIS interarea, IS - ISIS summary
+       ND - ND Default, NDp - ND Prefix, DCE - Destination, NDr - Redirect
+       O - OSPF intra, OI - OSPF inter, OE1 - OSPF ext 1, OE2 - OSPF ext 2
+       ON1 - OSPF NSSA ext 1, ON2 - OSPF NSSA ext 2
+       D - EIGRP, EX - EIGRP external
+C   2001:DB8:12::/64 [0/0]
+     via GigabitEthernet0/0, directly connected
+L   2001:DB8:12::2/128 [0/0]
+     via GigabitEthernet0/0, receive
+L   FF00::/8 [0/0]
+     via Null0, receive
+s3p-ipv6-r2#
+
+## s3p-ipv6-r2: show ipv6 ospf neighbor
+show ipv6 ospf neighbor
+
+Neighbor ID     Pri   State           Dead Time   Interface ID    Interface
+1.1.1.1           1   FULL/BDR        00:00:38    1               GigabitEthernet0/0
+s3p-ipv6-r2#
+
+## r1: ping 2001:db8:12::2
+ping 2001:db8:12::2
+
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 2001:db8:12::2, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 0/0/3 ms
+
+s3p-ipv6-r1#

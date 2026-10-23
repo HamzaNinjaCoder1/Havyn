@@ -1,0 +1,715 @@
+{
+  "generated": "2026-10-23T01:22:03+00:00",
+  "total": 53,
+  "verified": 24,
+  "refused": 12,
+  "unverified": 17,
+  "rows": [
+    {
+      "id": "S3.A1-ospf-single",
+      "name": "OSPF single-area routing",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/S3-A1-ospf-single.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A2-ospf-multi-area",
+      "name": "OSPF multi-area (ABR, inter-area routes)",
+      "families": [
+        "router"
+      ],
+      "status": "Refused",
+      "evidence": "probes/a2-multi-area-refusal.md",
+      "refusal_reason": "PT accepts the ABR config and both neighbors reach FULL, but it does not advertise area-0 prefixes into area 1; the cross-area flow stays blocked. Use single-area OSPF (S3.A1) or static inter-area routes.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A3-eigrp",
+      "name": "EIGRP routing",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/S3-A3-eigrp.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A4-ripv2",
+      "name": "RIP v2 routing",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/S3-A4-ripv2.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A5-default-redistribute",
+      "name": "Default route + default-information originate",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/S3-A5-default-redistribute.md (flow PASS; static-route read-back still reports missing)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A6-nat-pat",
+      "name": "NAT/PAT overload",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/T10-nat-internet.md (flow PASS; default-route read-back still reports missing)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A7-dhcp-relay",
+      "name": "DHCP relay to a central server",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/S3-A7-dhcp-relay.md (remote DHCP lease + flow PASS; static-route read-back still reports missing)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A8-hsrp",
+      "name": "HSRP gateway failover",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/S3-A8-hsrp.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A9-serial-wan",
+      "name": "Serial WAN end-to-end (DCE clock)",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/T04-serial-wan.md (flow PASS; static-route read-back still reports missing)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A10-gre-tunnel",
+      "name": "GRE tunnel",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/raw/gre-tunnel.txt (interface source + 'tunnel mode gre ip'; live ping 4/5)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A11-ipsec",
+      "name": "IPsec site-to-site",
+      "families": [
+        "router"
+      ],
+      "status": "Refused",
+      "evidence": "probes/raw/S3.A11-router.txt",
+      "refusal_reason": "PT accepted the push but stored none of the crypto isakmp / ipsec transform-set / crypto map lines; no live tunnel is possible on this model. Use GRE if its follow-up probe succeeds, or terminate IPsec outside PT.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A12-bgp",
+      "name": "Basic BGP",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/S3-A12-bgp.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A13-ipv6",
+      "name": "IPv6 addressing and static routes",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/raw/ipv6-ospfv3.txt (live IPv6 ping 5/5 and connected route read-back)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A14-ospfv3",
+      "name": "OSPFv3",
+      "families": [
+        "router"
+      ],
+      "status": "Verified",
+      "evidence": "probes/raw/ipv6-ospfv3.txt (live OSPFv3 neighbors FULL in both directions)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A15-ssh",
+      "name": "SSH and local AAA",
+      "families": [
+        "router"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/raw/S3.A15-router.txt (server config read back; PC SSH login not observable)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.A16-ntp-syslog-snmp",
+      "name": "NTP, Syslog, SNMP",
+      "families": [
+        "router"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/raw/S3.A16-router.txt (router config read back; server effect unobservable)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B1-trunk",
+      "name": "Trunk read-back",
+      "families": [
+        "switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B2-svi-routing",
+      "name": "L3 switch SVI + ip routing",
+      "families": [
+        "l3_switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B3-etherchannel",
+      "name": "EtherChannel (LACP)",
+      "families": [
+        "switch",
+        "l3_switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B4-stp",
+      "name": "STP root/PortFast/BPDU guard",
+      "families": [
+        "switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B5-port-security",
+      "name": "Port-security",
+      "families": [
+        "switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B6-vtp",
+      "name": "VTP domain/mode",
+      "families": [
+        "switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B7-voice-vlan",
+      "name": "Voice VLAN",
+      "families": [
+        "switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.B8-mgmt-ip",
+      "name": "Switch management IP",
+      "families": [
+        "switch"
+      ],
+      "status": "Verified",
+      "evidence": "probes/live/switch-probes.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.C1-address-scoped-acl",
+      "name": "Address-scoped ASA ACL",
+      "families": [
+        "firewall:5506-X",
+        "firewall:5505"
+      ],
+      "status": "Verified",
+      "evidence": "tests/autopilot/test_live_policy.py::test_asa_address_scoped_acl_is_enforced",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.C2-dmz-zone",
+      "name": "ASA DMZ third zone",
+      "families": [
+        "firewall:5506-X"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/asa.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.C3-asa-nat",
+      "name": "ASA object NAT/PAT",
+      "families": [
+        "firewall:5506-X"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/asa.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.C4-asa-routes",
+      "name": "ASA static/default routes",
+      "families": [
+        "firewall:5506-X"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/asa.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.C5-asa-dhcp",
+      "name": "ASA DHCP server",
+      "families": [
+        "firewall:5506-X"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/asa.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.C6-object-group",
+      "name": "ASA object groups",
+      "families": [
+        "firewall:5506-X"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/asa.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D0-server-api",
+      "name": "Server-PT services API probe",
+      "families": [
+        "server"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No service-configuration method is exposed: getProcess() rejects every service name and the prototype has no DNS/DHCP/HTTP/email/FTP method. The limitation is the MCP/Script-Engine API layer; configure services in the PT GUI.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D1-app-dns-http",
+      "name": "App-level DNS/HTTP proof",
+      "families": [
+        "server",
+        "pc"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D2-dns",
+      "name": "DNS service",
+      "families": [
+        "server"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No Script-Engine API to add DNS records.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D3-http",
+      "name": "HTTP/HTTPS service",
+      "families": [
+        "server"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No Script-Engine API to enable HTTP or set content.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D4-server-dhcp",
+      "name": "DHCP server (Server-PT)",
+      "families": [
+        "server"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No Script-Engine API to add pools. Use an IOS router pool instead (supported, incl. S3.A7 relay).",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D5-email",
+      "name": "Email service",
+      "families": [
+        "server"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No Script-Engine API for email users/domain.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D6-ftp",
+      "name": "FTP service",
+      "families": [
+        "server"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No Script-Engine API for FTP users/files.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D7-aaa",
+      "name": "AAA (RADIUS/TACACS) server",
+      "families": [
+        "server",
+        "router"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No API to configure the AAA server; router-side AAA can be rendered but cannot be proven without the server.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.D8-ntp-syslog-server",
+      "name": "NTP/Syslog server",
+      "families": [
+        "server"
+      ],
+      "status": "Refused",
+      "evidence": "probes/server-services.md",
+      "refusal_reason": "No API to enable the service; router-side NTP/Syslog is supported but the server effect is unobservable.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.E1-ap-association",
+      "name": "AccessPoint-PT association",
+      "families": [
+        "access_point",
+        "laptop"
+      ],
+      "status": "Verified",
+      "evidence": "tests/autopilot/test_live_connectivity.py",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.E2-ssid-wpa2",
+      "name": "Custom SSID / WPA2",
+      "families": [
+        "access_point"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/wireless.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.E3-phone-tablet",
+      "name": "Smartphone/tablet wireless clients",
+      "families": [
+        "smartphone",
+        "tablet"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/wireless.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.E4-wlc",
+      "name": "WLC + lightweight APs",
+      "families": [
+        "wlc",
+        "access_point"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/wireless.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.E5-multi-ssid",
+      "name": "Multiple SSIDs to VLANs",
+      "families": [
+        "access_point"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/wireless.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.F1-cable-modem",
+      "name": "Cable modem",
+      "families": [
+        "modem",
+        "cloud",
+        "pc"
+      ],
+      "status": "Verified",
+      "evidence": "library/T06-home-cable.json (live runner pass run-d0c3c88b4e28)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.F2-cloud-mapping",
+      "name": "Explicit cloud mapping driver",
+      "families": [
+        "cloud",
+        "modem"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/cloud.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.F3-isp-template",
+      "name": "ISP template",
+      "families": [
+        "cloud",
+        "modem",
+        "router"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/cloud.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.F4-cloud-serial",
+      "name": "Cloud serial / Frame Relay",
+      "families": [
+        "cloud"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/cloud.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.G1-iot-probe",
+      "name": "IoT registration API probe",
+      "families": [
+        "iot"
+      ],
+      "status": "Refused",
+      "evidence": "probes/iot.md",
+      "refusal_reason": "The Smart LED prototype has no server-address/registration method; digitalWrite is not registration. Configure in the PT GUI.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.G2-iot-control",
+      "name": "IoT registration + control",
+      "families": [
+        "iot"
+      ],
+      "status": "Refused",
+      "evidence": "probes/iot.md",
+      "refusal_reason": "Registration is the prerequisite and has no API, so a registered on/off control cannot be proven.",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.H1-end-devices",
+      "name": "Printer/IP phone/tablet/smartphone endpoints",
+      "families": [
+        "printer",
+        "ip_phone",
+        "tablet",
+        "smartphone"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/end-devices.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.H2-host-dns",
+      "name": "Host DNS setting",
+      "families": [
+        "pc",
+        "laptop",
+        "server"
+      ],
+      "status": "Unverified",
+      "evidence": "probes/end-devices.md",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    },
+    {
+      "id": "S3.Z1-capability-map",
+      "name": "Capability Map publish + refusal review",
+      "families": [
+        "docs"
+      ],
+      "status": "Verified",
+      "evidence": "docs/capability-map.md (live capability map publish)",
+      "refusal_reason": "",
+      "topology": "",
+      "derived_from_run": false,
+      "latest_run": null
+    }
+  ]
+}

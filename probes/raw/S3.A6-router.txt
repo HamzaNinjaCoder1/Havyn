@@ -1,0 +1,101 @@
+# S3.A6 nat-pat @ 2026-10-22T23:32:31+00:00
+# commands: ["interface GigabitEthernet0/0", " ip nat inside", " exit", "interface GigabitEthernet0/1", " ip nat outside", " exit", "access-list 1 permit 10.99.0.0 0.0.0.255", "ip nat inside source list 1 interface GigabitEthernet0/1 overload"]
+# verdict: supported -- pushed lines present in running-config
+
+## show running-config
+show running-config
+Building configuration...
+
+Current configuration : 833 bytes
+!
+version 15.1
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+!
+!
+!
+!
+ip cef
+no ipv6 cef
+!
+!
+!
+!
+license udi pid CISCO2911/K9 sn FTX152476GB-
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ ip address 10.99.0.1 255.255.255.0
+ ip nat inside
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/1
+ ip address 10.99.1.1 255.255.255.0
+ ip nat outside
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/2
+ no ip address
+ duplex auto
+ speed auto
+!
+interface Vlan1
+ no ip address
+!
+ip nat inside source list 1 interface GigabitEthernet0/1 overload
+ip classless
+!
+ip flow-export version 9
+!
+!
+access-list 1 permit 10.99.0.0 0.0.0.255
+!
+!
+!
+!
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+
+
+Router#
+Router#
+
+## show ip nat translations
+show ip nat translations
+Router#

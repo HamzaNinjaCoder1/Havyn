@@ -1,0 +1,9 @@
+# S3.C3 object-nat @ 2026-10-22T23:44:50+00:00
+# commands: ["object network INSIDE-NET", " subnet 10.99.0.0 255.255.255.0", " nat (inside,outside) dynamic interface", " exit"]
+# verdict: unknown -- running-config could not be read (console rejected the read)
+
+## show running-config
+UNKNOWN: 'show running-config' never returned to a prompt on 's3p-asa-s3c3' within 25s (after 2 attempts)
+
+## show nat
+UNKNOWN: 'show nat' never returned to a prompt on 's3p-asa-s3c3' within 25s (after 2 attempts)

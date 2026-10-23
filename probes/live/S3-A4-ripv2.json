@@ -1,0 +1,48 @@
+{
+  "lab": "S3.A4 RIP v2",
+  "spec": "library\\stage3\\S3-A4-ripv2.json",
+  "tag": "q00be38",
+  "started_at": "2026-10-23T00:06:47+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "pc2",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q00be38-pc1->10.0.2.2: ok"
+    },
+    {
+      "criterion": "A-2",
+      "source": "pc2",
+      "destination": "pc3",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q00be38-pc2->10.0.3.2: ok"
+    },
+    {
+      "criterion": "A-3",
+      "source": "pc1",
+      "destination": "pc3",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q00be38-pc1->10.0.3.2: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "q00be38-r1": "deleted",
+    "q00be38-r2": "deleted",
+    "q00be38-r3": "deleted",
+    "q00be38-s1": "deleted",
+    "q00be38-s2": "deleted",
+    "q00be38-s3": "deleted",
+    "q00be38-pc1": "deleted",
+    "q00be38-pc2": "deleted",
+    "q00be38-pc3": "deleted"
+  },
+  "finished_at": "2026-10-23T00:08:30+00:00"
+}

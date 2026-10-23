@@ -1,0 +1,30 @@
+{
+  "lab": "S3.A5 default route and redistribution",
+  "spec": "library\\stage3\\S3-A5-default-redistribute.json",
+  "tag": "qc86342",
+  "started_at": "2026-10-23T00:08:34+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc",
+      "destination": "srv",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qc86342-pc->198.51.100.2: ok"
+    }
+  ],
+  "problems": [
+    "ios edge: configuration did not take effect - routes still missing after retry: 0.0.0.0/0 via 203.0.113.2"
+  ],
+  "cleanup": {
+    "qc86342-edge": "deleted",
+    "qc86342-internal": "deleted",
+    "qc86342-isp": "deleted",
+    "qc86342-s1": "deleted",
+    "qc86342-s2": "deleted",
+    "qc86342-pc": "deleted",
+    "qc86342-srv": "deleted"
+  },
+  "finished_at": "2026-10-23T00:11:01+00:00"
+}

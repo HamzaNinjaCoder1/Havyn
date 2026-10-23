@@ -1423,14 +1423,18 @@ class DagExecutor:
             node.note = "safety gate did not authorize execution"
             result.blocked.append(op.operation_id)
             return
-        receipt = self.adapter.configure_host(
-            op.inputs["device"],
-            dhcp=op.inputs.get("dhcp", False),
-            ip=op.inputs.get("ip"),
-            mask=op.inputs.get("mask"),
-            gateway=op.inputs.get("gateway"),
-            operation_id=op.operation_id,
-        )
+        host_kwargs = {
+            "dhcp": op.inputs.get("dhcp", False),
+            "ip": op.inputs.get("ip"),
+            "mask": op.inputs.get("mask"),
+            "gateway": op.inputs.get("gateway"),
+            "operation_id": op.operation_id,
+        }
+        # Only pass `dns` when the spec asked for it: an adapter written
+        # against the older contract must not be forced to accept a new kwarg.
+        if op.inputs.get("dns") is not None:
+            host_kwargs["dns"] = op.inputs["dns"]
+        receipt = self.adapter.configure_host(op.inputs["device"], **host_kwargs)
         self._record(receipt)
         node.receipt = receipt
         if receipt.executed_ok:

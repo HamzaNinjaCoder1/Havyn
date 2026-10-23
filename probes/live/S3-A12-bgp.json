@@ -1,0 +1,27 @@
+{
+  "lab": "S3.A12 Basic BGP",
+  "spec": "library\\stage3\\S3-A12-bgp.json",
+  "tag": "qb3466d",
+  "started_at": "2026-10-23T00:45:54+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "pc2",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qb3466d-pc1->10.0.2.2: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "qb3466d-r1": "deleted",
+    "qb3466d-r2": "deleted",
+    "qb3466d-s1": "deleted",
+    "qb3466d-s2": "deleted",
+    "qb3466d-pc1": "deleted",
+    "qb3466d-pc2": "deleted"
+  },
+  "finished_at": "2026-10-23T00:47:38+00:00"
+}

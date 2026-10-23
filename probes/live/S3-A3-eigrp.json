@@ -1,0 +1,27 @@
+{
+  "lab": "S3.A3 EIGRP",
+  "spec": "library\\stage3\\S3-A3-eigrp.json",
+  "tag": "qec2daa",
+  "started_at": "2026-10-23T00:02:01+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "pc2",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qec2daa-pc1->10.0.2.2: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "qec2daa-r1": "deleted",
+    "qec2daa-r2": "deleted",
+    "qec2daa-s1": "deleted",
+    "qec2daa-s2": "deleted",
+    "qec2daa-pc1": "deleted",
+    "qec2daa-pc2": "deleted"
+  },
+  "finished_at": "2026-10-23T00:03:10+00:00"
+}

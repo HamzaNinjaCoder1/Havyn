@@ -1,0 +1,38 @@
+Failing-first proof (rule 5)
+============================
+
+Baseline: commit 4635c63 (the Stage 2 HEAD before this work).
+Command (inside a throwaway worktree of that commit):
+
+  python -m pytest tests/autopilot/test_stage3_features.py -q
+
+Result:
+
+  FAILED test_ospf_multi_area_renders_each_network_in_its_own_area
+  FAILED test_eigrp_renders_as_number_and_wildcard_networks
+  FAILED test_rip_v2_renders_version_and_no_auto_summary
+  FAILED test_bgp_renders_neighbor_and_network_mask
+  FAILED test_hsrp_and_dhcp_relay_render_on_the_named_interface
+  FAILED test_switch_features_render_svi_etherchannel_stp_and_security
+  FAILED test_asa_features_render_object_nat_dhcp_and_object_group
+  FAILED test_server_services_are_refused_by_name
+  FAILED test_iot_registration_is_refused_by_name
+  FAILED test_feature_referencing_an_unknown_device_is_rejected
+  FAILED test_new_end_device_roles_resolve_to_catalogued_models
+  FAILED test_host_dns_reaches_the_configure_host_operation
+  FAILED test_a_failed_flow_on_a_feature_device_proposes_a_recompile_repair
+  FAILED test_gre_tunnel_renders_interface_source_and_gre_ip_mode
+  FAILED test_bgp_per_device_renders_each_autonomous_system
+  FAILED test_dhcp_pool_renders_on_the_chosen_device
+  FAILED test_host_gateway_override_reaches_the_host_operation
+
+  17 failed
+
+The same command on the working tree:
+
+  python -m pytest tests/autopilot/test_stage3_features.py -q
+  17 passed
+
+The 17 failures are the missing schema fields, missing render paths, missing
+refusals and the missing Stage 3 diagnosis rule - exactly what the new code
+adds. No baseline test was weakened or removed.

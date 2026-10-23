@@ -1,0 +1,195 @@
+{
+  "name": "S3.A5 default route and redistribution",
+  "devices": [
+    {
+      "id": "edge",
+      "role": "router"
+    },
+    {
+      "id": "internal",
+      "role": "router"
+    },
+    {
+      "id": "isp",
+      "role": "router"
+    },
+    {
+      "id": "s1",
+      "role": "switch"
+    },
+    {
+      "id": "s2",
+      "role": "switch"
+    },
+    {
+      "id": "pc",
+      "role": "pc"
+    },
+    {
+      "id": "srv",
+      "role": "server"
+    }
+  ],
+  "links": [
+    {
+      "id": "l-edge-internal",
+      "a": {
+        "device": "edge"
+      },
+      "b": {
+        "device": "internal"
+      }
+    },
+    {
+      "id": "l-edge-isp",
+      "a": {
+        "device": "edge"
+      },
+      "b": {
+        "device": "isp"
+      }
+    },
+    {
+      "id": "l-internal-s1",
+      "a": {
+        "device": "internal"
+      },
+      "b": {
+        "device": "s1"
+      }
+    },
+    {
+      "id": "l-s1-pc",
+      "a": {
+        "device": "s1"
+      },
+      "b": {
+        "device": "pc"
+      }
+    },
+    {
+      "id": "l-isp-s2",
+      "a": {
+        "device": "isp"
+      },
+      "b": {
+        "device": "s2"
+      }
+    },
+    {
+      "id": "l-s2-srv",
+      "a": {
+        "device": "s2"
+      },
+      "b": {
+        "device": "srv"
+      }
+    }
+  ],
+  "subnets": [
+    {
+      "id": "wan12",
+      "cidr": "10.0.12.0/30"
+    },
+    {
+      "id": "wan13",
+      "cidr": "203.0.113.0/30"
+    },
+    {
+      "id": "internal",
+      "cidr": "10.1.0.0/24"
+    },
+    {
+      "id": "server",
+      "cidr": "198.51.100.0/24"
+    }
+  ],
+  "ip_assignments": [
+    {
+      "device": "edge",
+      "subnet": "wan12",
+      "ip": "10.0.12.1"
+    },
+    {
+      "device": "internal",
+      "subnet": "wan12",
+      "ip": "10.0.12.2"
+    },
+    {
+      "device": "edge",
+      "subnet": "wan13",
+      "ip": "203.0.113.1"
+    },
+    {
+      "device": "isp",
+      "subnet": "wan13",
+      "ip": "203.0.113.2"
+    },
+    {
+      "device": "internal",
+      "subnet": "internal",
+      "ip": "10.1.0.1"
+    },
+    {
+      "device": "isp",
+      "subnet": "server",
+      "ip": "198.51.100.1"
+    },
+    {
+      "device": "pc",
+      "subnet": "internal"
+    },
+    {
+      "device": "srv",
+      "subnet": "server"
+    }
+  ],
+  "routing": {
+    "mode": "ospf",
+    "ospf": {
+      "process_id": 1,
+      "devices": [
+        "edge",
+        "internal"
+      ],
+      "networks": [
+        "10.0.12.0/30",
+        "10.1.0.0/24"
+      ],
+      "default_information_originate": true
+    },
+    "static_routes": [
+      {
+        "device": "edge",
+        "destination": "0.0.0.0/0",
+        "next_hop": "203.0.113.2"
+      },
+      {
+        "device": "isp",
+        "destination": "10.1.0.0/24",
+        "next_hop": "203.0.113.1"
+      }
+    ]
+  },
+  "requirements": [
+    {
+      "id": "R-1",
+      "statement": "Every LAN reaches every other LAN"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "A-1",
+      "requirement_ids": [
+        "R-1"
+      ],
+      "test": {
+        "kind": "flow",
+        "source": "pc",
+        "destination": "srv",
+        "expect": "reachable"
+      }
+    }
+  ],
+  "description": "Stage 3 live lab: S3-A5-default-redistribute"
+}

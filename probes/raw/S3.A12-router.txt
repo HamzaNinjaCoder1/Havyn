@@ -1,0 +1,117 @@
+# S3.A12 bgp @ 2026-10-22T23:35:54+00:00
+# commands: ["router bgp 65001", " neighbor 10.99.1.2 remote-as 65002", " network 10.99.0.0 mask 255.255.255.0", " exit"]
+# verdict: supported -- pushed lines present in running-config
+
+## show running-config
+show running-config
+Building configuration...
+
+Current configuration : 834 bytes
+!
+version 15.1
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+!
+!
+!
+!
+ip cef
+no ipv6 cef
+!
+!
+!
+!
+license udi pid CISCO2911/K9 sn FTX1524U8LF-
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ ip address 10.99.0.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/1
+ ip address 10.99.1.1 255.255.255.0
+ duplex auto
+ speed auto
+!
+interface GigabitEthernet0/2
+ no ip address
+ duplex auto
+ speed auto
+!
+interface Vlan1
+ no ip address
+!
+router bgp 65001
+ bgp log-neighbor-changes
+ no synchronization
+ neighbor 10.99.1.2 remote-as 65002
+ network 10.99.0.0 mask 255.255.255.0
+!
+ip classless
+!
+ip flow-export version 9
+!
+!
+!
+!
+!
+!
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+
+
+Router#
+
+## show ip bgp summary
+show ip bgp summary
+BGP router identifier 10.99.1.1, local AS number 65001
+BGP table version is 1, main routing table version 6
+0 network entries using 0 bytes of memory
+0 path entries using 0 bytes of memory
+0/0 BGP path/bestpath attribute entries using 0 bytes of memory
+0 BGP AS-PATH entries using 0 bytes of memory
+0 BGP route-map cache entries using 0 bytes of memory
+0 BGP filter-list cache entries using 0 bytes of memory
+Bitfield cache entries: current 1 (at peak 1) using 32 bytes of memory
+BGP using 32 total bytes of memory
+BGP activity 0/0 prefixes, 0/0 paths, scan interval 60 secs
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+10.99.1.2       4 65002       0       0        1    0    0 00:00:36        4
+
+Router#

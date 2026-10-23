@@ -1,0 +1,45 @@
+# GRE probe @ 2026-10-23T00:50:30+00:00
+
+## s3p-gre-r1: show running-config | include Tunnel0|tunnel
+show running-config | include Tunnel0|tunnel
+interface Tunnel0
+ tunnel source GigabitEthernet0/0
+ tunnel destination 10.0.12.2
+s3p-gre-r1#
+
+## s3p-gre-r1: show ip interface brief
+show ip interface brief
+Interface              IP-Address      OK? Method Status                Protocol 
+GigabitEthernet0/0     10.0.12.1       YES manual up                    up 
+GigabitEthernet0/1     unassigned      YES unset  down                  down 
+GigabitEthernet0/2     unassigned      YES unset  down                  down 
+Tunnel0                172.16.0.1      YES manual up                    up 
+Vlan1                  unassigned      YES unset  up                    down
+s3p-gre-r1#
+
+## s3p-gre-r2: show running-config | include Tunnel0|tunnel
+show running-config | include Tunnel0|tunnel
+interface Tunnel0
+ tunnel source GigabitEthernet0/0
+ tunnel destination 10.0.12.1
+s3p-gre-r2#
+
+## s3p-gre-r2: show ip interface brief
+show ip interface brief
+Interface              IP-Address      OK? Method Status                Protocol 
+GigabitEthernet0/0     10.0.12.2       YES manual up                    up 
+GigabitEthernet0/1     unassigned      YES unset  down                  down 
+GigabitEthernet0/2     unassigned      YES unset  down                  down 
+Tunnel0                172.16.0.2      YES manual up                    up 
+Vlan1                  unassigned      YES unset  up                    down
+s3p-gre-r2#
+
+## r1: ping 172.16.0.2
+ping 172.16.0.2
+
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 172.16.0.2, timeout is 2 seconds:
+.!!!!
+Success rate is 80 percent (4/5), round-trip min/avg/max = 0/0/0 ms
+
+s3p-gre-r1#

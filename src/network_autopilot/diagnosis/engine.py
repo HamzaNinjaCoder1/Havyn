@@ -618,7 +618,88 @@ def diagnose(
             )
         )
 
+    # 7. Stage 3 feature intent: a failing flow whose endpoint carries a
+    #    feature block (routing protocol, HSRP, NAT, relay, SSH, management)
+    #    is repaired by re-pushing the compiler's own block for that device.
+    #    The evidence is the failed flow plus the spec's declared feature;
+    #    confidence stays MEDIUM because the flow alone does not prove which
+    #    command is missing.
+    feature_devices = _stage3_feature_devices(spec)
+    seen_feature: set[tuple[str, str]] = set()
+    for test in report.tests:
+        if test.level != "connectivity" or test.verdict is not Verdict.FAIL:
+            continue
+        for device_id in (test.source, test.target):
+            if device_id not in feature_devices:
+                continue
+            key = (test.test_id, device_id)
+            if key in seen_feature:
+                continue
+            seen_feature.add(key)
+            diagnoses.append(
+                Diagnosis(
+                    diagnosis_id=new_id("diag"),
+                    failed_tests=(test.test_id,),
+                    root_cause=(
+                        f"flow {test.source} -> {test.target} failed while "
+                        f"{device_id} carries a Stage 3 feature block"
+                    ),
+                    evidence=(
+                        f"observed={test.observed_result}",
+                        f"spec feature devices={sorted(feature_devices)}",
+                        *test.evidence,
+                    ),
+                    confidence="medium",
+                    affected_resources=(device_id,),
+                    proposed_repair=(
+                        {
+                            "operation_type": "ios_command",
+                            "inputs": {"device": device_id, "source": "spec"},
+                            "reason": "re-push the compiled feature block",
+                        },
+                    ),
+                    uncertainty=(
+                        "the flow shows the feature is not working, not which "
+                        "line is missing; the repair re-pushes the whole block"
+                    ),
+                )
+            )
+
     return diagnoses
+
+
+def _stage3_feature_devices(spec: NetworkSpec) -> set[str]:
+    """Devices with a feature block that a re-push can repair."""
+    out: set[str] = set()
+    routing = spec.routing
+    if routing.mode in ("ospf", "eigrp", "rip", "bgp"):
+        cfg = getattr(routing, routing.mode, None)
+        named = getattr(cfg, "devices", None) if cfg is not None else None
+        if named:
+            out.update(named)
+        elif cfg is not None and getattr(cfg, "per_device", None):
+            out.update(item.device for item in cfg.per_device)
+        else:
+            out.update(
+                d.id for d in spec.devices
+                if str(getattr(d.role, "value", d.role)) in ("router", "l3_switch")
+            )
+    for group in (routing.hsrp, routing.dhcp_relays, routing.dhcp_pools,
+                  routing.tunnels, routing.ipsec, routing.ssh, routing.management):
+        out.update(item.device for item in group)
+    if routing.nat:
+        out.update(item.router for item in routing.nat)
+    if routing.ipv6 is not None:
+        out.update(item.device for item in routing.ipv6.interfaces)
+        out.update(item.device for item in routing.ipv6.ospf)
+    for group in (spec.switching.svis, spec.switching.etherchannels,
+                  spec.switching.stp, spec.switching.port_security,
+                  spec.switching.vtp, spec.switching.voice_vlans,
+                  spec.switching.management_ips):
+        out.update(item.device for item in group)
+    for group in (spec.firewall.nat, spec.firewall.dhcp, spec.firewall.object_groups):
+        out.update(item.device for item in group)
+    return out
 
 
 def _ip_in_network(ip: str, network: str) -> bool:
