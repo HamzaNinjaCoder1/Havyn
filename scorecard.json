@@ -1,0 +1,167 @@
+{
+ "generated_at": "2026-10-22T11:07:16+00:00",
+ "cases": 3,
+ "status_counts": {
+  "pass": 3
+ },
+ "criteria": {
+  "pass": 40,
+  "fail": 0,
+  "unknown": 0,
+  "total": 40,
+  "pass_pct": 100.0
+ },
+ "timing_s": {
+  "total": 252.0,
+  "mean": 84.0,
+  "max": 103.0
+ },
+ "refusal_rate": 0.0,
+ "false_pass": {
+  "rate": 0.0,
+  "false_passes": 0,
+  "labels": [],
+  "measured": 5,
+  "measured_labels": [
+   "port-shutdown",
+   "route-missing",
+   "wrong-access-vlan",
+   "trunk-vlan-not-allowed",
+   "wrong-gateway"
+  ]
+ },
+ "diagnosis": {
+  "accuracy": 1.0,
+  "matched": 4,
+  "measured": 4,
+  "missed": [],
+  "unknown_by_design": [
+   "wrong-gateway"
+  ]
+ },
+ "consistency": {
+  "rate": 1.0,
+  "consistent": 3,
+  "repeated_networks": 3,
+  "groups": {
+   "T01": {
+    "runs": 2,
+    "statuses": [
+     "pass"
+    ],
+    "consistent": true
+   },
+   "T02": {
+    "runs": 2,
+    "statuses": [
+     "pass"
+    ],
+    "consistent": true
+   },
+   "T06": {
+    "runs": 2,
+    "statuses": [
+     "pass"
+    ],
+    "consistent": true
+   }
+  }
+ },
+ "runner_summary": {
+  "total": 3,
+  "ran": 3,
+  "resumed": 0,
+  "passed": 3,
+  "failed": 0,
+  "stopped": null,
+  "uploads": [
+   {
+    "uploaded": true,
+    "detail": "4 file(s) verified in C:\\Users\\Hamza\\OneDrive\\HavynUploads\\scheduled-night4"
+   }
+  ]
+ },
+ "skipped": [
+  {
+   "id": "T07",
+   "reason": "awaiting S1.16 live proof (ASA criteria + address-scoped ACL decision)"
+  },
+  {
+   "id": "T08",
+   "reason": "awaiting S1.16 live proof (ASA criteria + address-scoped ACL decision)"
+  },
+  {
+   "id": "T15",
+   "reason": "HSRP failover and EtherChannel bundling have no compiler render path; physical topology builds, redundancy goal unverified"
+  }
+ ],
+ "per_case": [
+  {
+   "topology_id": "T01",
+   "case_id": "T01",
+   "run_id": "run-5d0219b0774c",
+   "mode": "live",
+   "status": "pass",
+   "outcome": "PASS",
+   "criteria": {
+    "pass": 15,
+    "fail": 0,
+    "unknown": 0,
+    "total": 15
+   },
+   "elapsed_s": 88.9,
+   "evidence_dir": "autopilot_evidence\\build-4351c9e5f0df",
+   "refused": false,
+   "refusal_reason": null,
+   "timed_out": false,
+   "reason": null,
+   "started_at": "2026-10-22T11:01:51+00:00",
+   "finished_at": "2026-10-22T11:03:21+00:00"
+  },
+  {
+   "topology_id": "T02",
+   "case_id": "T02",
+   "run_id": "run-a08c98a4f999",
+   "mode": "live",
+   "status": "pass",
+   "outcome": "PASS",
+   "criteria": {
+    "pass": 16,
+    "fail": 0,
+    "unknown": 0,
+    "total": 16
+   },
+   "elapsed_s": 103.0,
+   "evidence_dir": "autopilot_evidence\\build-1037e02326c8",
+   "refused": false,
+   "refusal_reason": null,
+   "timed_out": false,
+   "reason": null,
+   "started_at": "2026-10-22T11:03:21+00:00",
+   "finished_at": "2026-10-22T11:05:04+00:00"
+  },
+  {
+   "topology_id": "T06",
+   "case_id": "T06",
+   "run_id": "run-d0c3c88b4e28",
+   "mode": "live",
+   "status": "pass",
+   "outcome": "PASS",
+   "criteria": {
+    "pass": 9,
+    "fail": 0,
+    "unknown": 0,
+    "total": 9
+   },
+   "elapsed_s": 60.1,
+   "evidence_dir": "autopilot_evidence\\build-906dba4b7450",
+   "refused": false,
+   "refusal_reason": null,
+   "timed_out": false,
+   "reason": null,
+   "started_at": "2026-10-22T11:05:04+00:00",
+   "finished_at": "2026-10-22T11:06:04+00:00"
+  }
+ ],
+ "unmeasured": {}
+}
