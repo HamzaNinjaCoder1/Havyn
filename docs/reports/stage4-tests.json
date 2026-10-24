@@ -1,0 +1,123 @@
+{
+  "generated": "2026-10-24",
+  "offline": {
+    "passed": 959,
+    "failed": 0,
+    "deselected_live": 84,
+    "command": "python -m pytest tests/autopilot -q -k \"not live\""
+  },
+  "stage4_offline": {
+    "passed": 45,
+    "failed": 0,
+    "command": "python -m pytest tests/autopilot/test_s4_*.py -q -k \"not live\""
+  },
+  "stage4_live_test": {
+    "passed": 1,
+    "command": "python -m pytest tests/autopilot/test_s4_live_brownfield.py -q"
+  },
+  "live_labs": {
+    "brownfield": {
+      "flow_before": "reachable",
+      "flow_fault": "blocked",
+      "diagnosed": "wrong-access-vlan",
+      "repaired": true,
+      "flow_after": "reachable"
+    },
+    "asa_read": {
+      "known": true
+    },
+    "stp": {
+      "blocked": 1,
+      "distinguished": "config_consistent"
+    },
+    "arp": {
+      "known": true
+    },
+    "nat": {
+      "known": true,
+      "translations": 9
+    },
+    "rollback": {
+      "rolled_back": true,
+      "rollback_complete": true
+    },
+    "enhancement": {
+      "executed": true,
+      "preserved": true,
+      "flow_original_after": "reachable",
+      "flow_new_after": "reachable"
+    },
+    "acl_dns": {
+      "generated": "2026-10-24T13:36:31+00:00",
+      "acl_push": "success",
+      "acl_predicted": [
+        "acl-block"
+      ],
+      "acl_correct": true,
+      "dns_push": "success",
+      "dns_push_error": null,
+      "dns_predicted": [
+        "dns-misconfiguration"
+      ],
+      "dns_correct": true,
+      "dns_diagnosis": {
+        "diagnosis_id": "s4diag-0a8c9b4d3941",
+        "cause_class": "dns-misconfiguration",
+        "layer": "services",
+        "root_cause": "s4z-pc2 uses DNS ['192.0.2.53']; expected 8.8.8.8",
+        "affected_device": "s4z-pc2",
+        "affected_interface": null,
+        "vlan": null,
+        "subnet": null,
+        "evidence": [
+          "ipconfig /all DNS ['192.0.2.53']",
+          "expected DNS 8.8.8.8"
+        ],
+        "confidence": "high",
+        "recommended_fix": [
+          {
+            "device": "s4z-pc2",
+            "operation": "configure_host",
+            "commands": [],
+            "reason": "host points at the wrong DNS server",
+            "rollback_commands": [],
+            "host_config": {
+              "dhcp": false,
+              "ip": "10.246.0.11",
+              "mask": "255.255.255.0",
+              "gateway": null,
+              "dns": "8.8.8.8"
+            },
+            "expected_state": {
+              "dns": "8.8.8.8"
+            }
+          }
+        ],
+        "impact": "name resolution fails",
+        "verification_requirements": [
+          "re-check objective OBJ-USER-1: s4z-pc1 must communicate with s4z-pc2",
+          "re-run every criterion that passed before the change"
+        ],
+        "objective_id": "OBJ-USER-1",
+        "objective_confirmed": true,
+        "suspected": false,
+        "uncertainty": null,
+        "first_failing_hop": null,
+        "status": "DIAGNOSED",
+        "repairable": true,
+        "details": {
+          "trace_status": null,
+          "first_failing_check": null
+        }
+      }
+    }
+  },
+  "live_regression": {
+    "selected_passed": 20,
+    "selected_command": "python -m pytest tests/autopilot/test_live_contract.py tests/autopilot/test_live_policy.py tests/autopilot/test_s4_live_brownfield.py -q",
+    "connectivity_flows_command": "python -m pytest tests/autopilot/test_live_connectivity.py tests/autopilot/test_live_flows.py -q",
+    "total_live_collected": 84,
+    "note": "12 selected adapter/policy/import live tests passed; 8 connectivity/flow live tests passed before the run was stopped for time. The full 84-test live suite was not completed; no failures were observed in the tests that ran.",
+    "connectivity_flows_passed_before_stop": 8
+  }
+}

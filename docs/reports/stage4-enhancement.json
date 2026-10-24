@@ -1,0 +1,227 @@
+{
+  "summary": {
+    "all_original_criteria_preserved": true,
+    "cases": 7,
+    "details": [
+      {
+        "added_host": "pc-enh1",
+        "added_ip": "192.168.1.2",
+        "added_port": "FastEthernet0/7",
+        "added_to": "s1",
+        "changes": 3,
+        "conflicts": [],
+        "desired_satisfied": true,
+        "error": null,
+        "executed": true,
+        "library": "T01",
+        "operations": 6,
+        "original_after": {
+          "A-1": "pass",
+          "A-2": "fail"
+        },
+        "original_before": {
+          "A-1": "pass",
+          "A-2": "fail"
+        },
+        "planned": true,
+        "preserved": true,
+        "problems": [],
+        "success": true
+      },
+      {
+        "added_host": "pc-enh2",
+        "added_ip": "10.0.10.2",
+        "added_port": "FastEthernet0/5",
+        "added_to": "s1",
+        "changes": 3,
+        "conflicts": [],
+        "desired_satisfied": true,
+        "error": null,
+        "executed": true,
+        "library": "T02",
+        "operations": 6,
+        "original_after": {
+          "A-1": "pass",
+          "A-2": "pass",
+          "A-3": "pass"
+        },
+        "original_before": {
+          "A-1": "pass",
+          "A-2": "pass",
+          "A-3": "pass"
+        },
+        "planned": true,
+        "preserved": true,
+        "problems": [],
+        "success": true
+      },
+      {
+        "added_host": "pc-enh3",
+        "added_ip": "192.168.10.2",
+        "added_port": "FastEthernet0/3",
+        "added_to": "s1",
+        "changes": 3,
+        "conflicts": [],
+        "desired_satisfied": true,
+        "error": null,
+        "executed": true,
+        "library": "T05",
+        "operations": 6,
+        "original_after": {
+          "A-1": "pass"
+        },
+        "original_before": {
+          "A-1": "pass"
+        },
+        "planned": true,
+        "preserved": true,
+        "problems": [],
+        "success": true
+      },
+      {
+        "added_host": "pc-enh4",
+        "added_ip": "192.168.20.2",
+        "added_port": "FastEthernet0/3",
+        "added_to": "s1",
+        "changes": 3,
+        "conflicts": [],
+        "desired_satisfied": true,
+        "error": null,
+        "executed": true,
+        "library": "T10",
+        "operations": 6,
+        "original_after": {
+          "A-1": "pass"
+        },
+        "original_before": {
+          "A-1": "pass"
+        },
+        "planned": true,
+        "preserved": true,
+        "problems": [],
+        "success": true
+      },
+      {
+        "added_host": "pc-enh5",
+        "added_ip": "192.168.30.2",
+        "added_port": "FastEthernet0/4",
+        "added_to": "s1",
+        "changes": 3,
+        "conflicts": [
+          "ap needs 3 cabled ports but its AccessPoint-PT-AC chassis has 2"
+        ],
+        "desired_satisfied": false,
+        "error": "plan blocked by conflicts",
+        "executed": false,
+        "library": "T11",
+        "operations": 6,
+        "original_after": {},
+        "original_before": {},
+        "planned": false,
+        "preserved": false,
+        "problems": [],
+        "success": false
+      },
+      {
+        "added_host": "pc-enh6",
+        "added_ip": "10.0.40.2",
+        "added_port": "FastEthernet0/5",
+        "added_to": "s1",
+        "changes": 3,
+        "conflicts": [],
+        "desired_satisfied": true,
+        "error": null,
+        "executed": true,
+        "library": "T13",
+        "operations": 6,
+        "original_after": {
+          "A-1": "pass",
+          "A-2": "pass",
+          "A-3": "pass"
+        },
+        "original_before": {
+          "A-1": "pass",
+          "A-2": "pass",
+          "A-3": "pass"
+        },
+        "planned": true,
+        "preserved": true,
+        "problems": [],
+        "success": true
+      },
+      {
+        "added_host": "pc-enh7",
+        "added_ip": "10.10.10.2",
+        "added_port": "FastEthernet0/4",
+        "added_to": "swcore",
+        "changes": 3,
+        "conflicts": [],
+        "desired_satisfied": false,
+        "error": null,
+        "executed": true,
+        "library": "T16",
+        "operations": 7,
+        "original_after": {
+          "A-001": "pass",
+          "A-002": "pass",
+          "A-003": "unknown",
+          "A-004": "unknown",
+          "A-005": "pass",
+          "A-006": "pass",
+          "A-007": "pass",
+          "A-008": "pass",
+          "A-009": "pass",
+          "A-010": "unknown",
+          "A-011": "pass",
+          "A-012": "pass",
+          "A-013": "pass",
+          "A-014": "pass",
+          "A-015": "unknown",
+          "A-016": "pass",
+          "A-017": "pass",
+          "A-018": "pass",
+          "A-019": "fail",
+          "A-020": "fail",
+          "A-021": "fail",
+          "A-022": "fail",
+          "A-023": "pass",
+          "A-024": "fail"
+        },
+        "original_before": {
+          "A-001": "pass",
+          "A-002": "pass",
+          "A-003": "unknown",
+          "A-004": "unknown",
+          "A-005": "pass",
+          "A-006": "pass",
+          "A-007": "pass",
+          "A-008": "pass",
+          "A-009": "pass",
+          "A-010": "unknown",
+          "A-011": "pass",
+          "A-012": "pass",
+          "A-013": "pass",
+          "A-014": "pass",
+          "A-015": "unknown",
+          "A-016": "pass",
+          "A-017": "pass",
+          "A-018": "pass",
+          "A-019": "fail",
+          "A-020": "fail",
+          "A-021": "fail",
+          "A-022": "fail",
+          "A-023": "pass",
+          "A-024": "fail"
+        },
+        "planned": true,
+        "preserved": true,
+        "problems": [],
+        "success": true
+      }
+    ],
+    "enhanced": 6,
+    "mode": "simulated",
+    "operations": 43,
+    "preserved": 6
+  }
+}

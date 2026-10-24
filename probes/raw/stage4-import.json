@@ -1,0 +1,69 @@
+{
+  "as_is_confidence": {
+    "known": 24,
+    "partial": 3,
+    "unknown": 4
+  },
+  "as_is_unsupported": [
+    "s4l-r1:87: line vty 0 4 (preserved in the raw config; not represented in the spec)",
+    "s4l-s1:49: line vty 0 4 (preserved in the raw config; not represented in the spec)",
+    "s4l-s1:51: line vty 5 15 (preserved in the raw config; not represented in the spec)"
+  ],
+  "config_status": {
+    "s4l-r1": {
+      "chars": 938,
+      "detail": null,
+      "status": "known"
+    },
+    "s4l-s1": {
+      "chars": 805,
+      "detail": null,
+      "status": "known"
+    }
+  },
+  "hosts": {
+    "s4l-pc1": {
+      "dhcp": false,
+      "dns": [
+        "8.8.8.8"
+      ],
+      "gateway": "10.0.10.1",
+      "ip": "10.0.10.10"
+    },
+    "s4l-pc2": {
+      "dhcp": false,
+      "dns": [
+        "8.8.8.8"
+      ],
+      "gateway": "10.0.20.1",
+      "ip": "10.0.20.10"
+    }
+  },
+  "incomplete": [
+    "config(s4l-r1): 11 unparsed statement(s)",
+    "config(s4l-s1): 7 unparsed statement(s)"
+  ],
+  "links": [
+    {
+      "a": "s4l-pc1:FastEthernet0",
+      "b": "s4l-s1:FastEthernet1/1"
+    },
+    {
+      "a": "s4l-pc2:FastEthernet0",
+      "b": "s4l-s1:FastEthernet2/1"
+    },
+    {
+      "a": "s4l-r1:GigabitEthernet0/0",
+      "b": "s4l-s1:FastEthernet0/1"
+    }
+  ],
+  "summary": {
+    "config_status": {
+      "known": 2,
+      "not_read": 2
+    },
+    "devices": 4,
+    "incomplete": 2,
+    "links": 3
+  }
+}

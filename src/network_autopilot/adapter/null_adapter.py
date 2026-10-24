@@ -15,7 +15,7 @@ import threading
 from ..core.actual_state import DeviceObservation, PortObservation
 from ..core.ids import new_id, utc_now_iso
 from ..core.network_spec import default_model_for_role
-from ..core.observability import Observable
+from ..core.observability import Observable, ObservationStatus
 from ..core.receipts import CheckResult, OperationReceipt, OperationResult
 from ..core.requirements import FlowOutcome, FlowResult
 from ..pt.catalog import resolve_model, resolve_module, ports_for_slot
@@ -127,10 +127,14 @@ class NullAdapter(PacketTracerAdapter):
             )
             self._reflect_ios_config(info)
             for port_name, port in sorted(info["ports"].items()):
+                peer = port["connected_to"]
                 observation.ports[port_name] = PortObservation(
                     name=port_name,
                     state=Observable.known(
                         "up" if port["connected_to"] else "down", source="null-adapter"
+                    ),
+                    linked=Observable.known(
+                        bool(port["connected_to"]), source="null-adapter"
                     ),
                     ip=Observable.from_raw(port["config"].get("ip"), source="null-adapter"),
                     mask=Observable.from_raw(port["config"].get("mask"), source="null-adapter"),
@@ -138,6 +142,9 @@ class NullAdapter(PacketTracerAdapter):
                         port["config"].get("gateway"), source="null-adapter"
                     ),
                     vlan=Observable.from_raw(port["config"].get("vlan"), source="null-adapter"),
+                    peers=Observable.known([peer[0]], source="null-adapter") if peer else Observable.not_observed(),
+                    peer_ports=Observable.known([peer[1]], source="null-adapter") if peer else Observable.not_observed(),
+                    link_class=Observable.known("Cable", source="null-adapter") if peer else Observable.not_observed(),
                 )
             return observation
 
@@ -589,7 +596,165 @@ class NullAdapter(PacketTracerAdapter):
             postconditions=post,
         )
 
+    # -- Stage 4 brownfield read surface -----------------------------------
+
+    def read_running_config(self, device: str) -> Observable[str]:
+        """Render the recorded IOS command list as a running configuration.
+
+        The structural double has no IOS, but it does own the exact commands a
+        `configure_ios` push recorded, so this reconstructs the configuration
+        the device would hold — with the same limits: a host/gateway has no
+        IOS configuration and returns UNSUPPORTED rather than an empty string.
+        """
+        from ..pt.catalog import category_of_model
+
+        with self._lock:
+            info = self._devices.get(device)
+            if info is None:
+                return Observable[str].unknown(
+                    f"{device!r} is not present in the null adapter workspace"
+                )
+            category = category_of_model(str(info.get("model") or ""))
+            if category not in ("router", "switch"):
+                return Observable[str].unsupported(
+                    f"{device!r} ({category or 'unknown category'}) has no IOS "
+                    "running configuration in the structural adapter"
+                )
+            commands = list(info.get("ios_commands") or [])
+        lines = [f"hostname {device}", "!"]
+        lines.extend(commands)
+        lines.extend(["!", "end"])
+        raw = "\n".join(lines)
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=raw,
+            detail=raw,
+            source=f"null-adapter:{device}",
+            observed_at=None,
+        )
+
+    def read_host_ip_config(self, device: str) -> Observable[dict]:
+        """Host IP configuration as recorded by `configure_host`/`create_device`."""
+        with self._lock:
+            info = self._devices.get(device)
+            if info is None:
+                return Observable[dict].unknown(
+                    f"{device!r} is not present in the null adapter workspace"
+                )
+            if info["role"] in ("router", "switch", "l3_switch", "firewall"):
+                return Observable[dict].unsupported(
+                    f"{device!r} is a network device, not a host"
+                )
+            for port_name, port in info["ports"].items():
+                cfg = port["config"]
+                if not cfg:
+                    continue
+                return Observable.known(
+                    {
+                        "interface": port_name,
+                        "ip": cfg.get("ip"),
+                        "mask": cfg.get("mask"),
+                        "gateway": cfg.get("gateway"),
+                        "dns": [cfg["dns"]] if cfg.get("dns") else [],
+                        "dhcp": bool(cfg.get("dhcp")),
+                        "dhcp_server": None,
+                        "raw": "",
+                    },
+                    source=f"null-adapter:{device}",
+                )
+        return Observable[dict].unknown(f"{device!r} has no recorded host configuration")
+
+    def read_device_positions(self) -> Observable[dict[str, tuple[int, int]]]:
+        with self._lock:
+            if not self._devices:
+                return Observable[dict].unknown("null adapter workspace is empty")
+            positions = {
+                name: tuple(info.get("position") or (0, 0))
+                for name, info in self._devices.items()
+            }
+        return Observable.known(positions, source="null-adapter")
+
     # -- verification -------------------------------------------------------
+
+    def configure_server_services(
+        self, device: str, services: list[dict],
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        requested = {"device": device, "services": services}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._receipt(
+                "configure_server", requested, operation_id,
+                OperationResult.REJECTED, preconditions=pre,
+                error="device missing",
+            )
+        with self._lock:
+            self._devices[device]["services"] = services
+        post = [
+            CheckResult.of(
+                "service_enabled", str(row.get("service")),
+                Observable.known(True, source="null-adapter"),
+            )
+            for row in services
+        ]
+        return self._receipt(
+            "configure_server", requested, operation_id,
+            OperationResult.SUCCESS, preconditions=pre, postconditions=post,
+            executed={"services": services},
+        )
+
+    def configure_cloud_mapping(
+        self, device: str, mappings: list[dict],
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        requested = {"device": device, "mappings": mappings}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._receipt(
+                "configure_cloud", requested, operation_id,
+                OperationResult.REJECTED, preconditions=pre,
+                error="device missing",
+            )
+        with self._lock:
+            self._devices[device]["cloud_mappings"] = mappings
+        post = [
+            CheckResult.of(
+                "mapping_created", str(row.get("connection_type")),
+                Observable.known(True, source="null-adapter"),
+            )
+            for row in mappings
+        ]
+        return self._receipt(
+            "configure_cloud", requested, operation_id,
+            OperationResult.SUCCESS, preconditions=pre, postconditions=post,
+            executed={"mappings": mappings},
+        )
+
+    def generate_rsa_key(
+        self, device: str, bits: int = 1024,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        requested = {"device": device, "bits": bits}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._receipt(
+                "generate_rsa_key", requested, operation_id,
+                OperationResult.REJECTED, preconditions=pre,
+                error="device missing",
+            )
+        with self._lock:
+            self._devices[device]["rsa_bits"] = bits
+        return self._receipt(
+            "generate_rsa_key", requested, operation_id,
+            OperationResult.SUCCESS, preconditions=pre,
+            postconditions=[CheckResult.of(
+                "ssh_enabled", "True", Observable.known(True, source="null-adapter"),
+            )],
+            executed={"bits": bits},
+        )
 
     def run_flow_test(
         self,

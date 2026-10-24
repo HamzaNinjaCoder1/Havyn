@@ -1,0 +1,76 @@
+{
+  "generated": "2026-10-24T12:24:43+00:00",
+  "device": "s4a-asa",
+  "push": "success",
+  "push_error": null,
+  "read_known": true,
+  "read_detail": "ASA Version 9.6(1)\n!\nhostname ciscoasa\nnames\n!\ninterface GigabitEthernet1/1\n nameif inside\n security-level 100\n ip address 10.230.0.1 255.255.255.0\n!\ninterface GigabitEthernet1/2\n nameif outside\n security-level 0\n ip address 203.0.113.1 255.255.255.252\n!\ninterface GigabitEthernet1/3\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/4\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/5\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/6\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/7\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/8\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface Management1/1\n management-only\n no nameif\n no security-level\n no ip address\n shutdown\n!\n!\nroute outside 0.0.0.0 0.0.0.0 203.0.113.2 1\n!\naccess-list OUTSIDE-IN extended permit icmp any any echo-reply\naccess-list OUTSIDE-IN extended deny ip any any\n!\n!\naccess-group OUTSIDE-IN in interface outside\n!\n!\nclass-map inspection_default\n match default-inspection-traffic\n!\npolicy-map type inspect dns preset_dns_map\n parameters\n  message-length maximum 512\npolicy-map global_policy\n class inspection_default\n  inspect dns preset_dns_map\n  inspect ftp \n  inspect tftp \n!\nservice-policy global_policy global\n!\ntelnet timeout 5\nssh timeout 5\n!\n!\n!\n!\n\n",
+  "raw": "ASA Version 9.6(1)\n!\nhostname ciscoasa\nnames\n!\ninterface GigabitEthernet1/1\n nameif inside\n security-level 100\n ip address 10.230.0.1 255.255.255.0\n!\ninterface GigabitEthernet1/2\n nameif outside\n security-level 0\n ip address 203.0.113.1 255.255.255.252\n!\ninterface GigabitEthernet1/3\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/4\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/5\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/6\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/7\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface GigabitEthernet1/8\n no nameif\n no security-level\n no ip address\n shutdown\n!\ninterface Management1/1\n management-only\n no nameif\n no security-level\n no ip address\n shutdown\n!\n!\nroute outside 0.0.0.0 0.0.0.0 203.0.113.2 1\n!\naccess-list OUTSIDE-IN extended permit icmp any any echo-reply\naccess-list OUTSIDE-IN extended deny ip any any\n!\n!\naccess-group OUTSIDE-IN in interface outside\n!\n!\nclass-map inspection_default\n match default-inspection-traffic\n!\npolicy-map type inspect dns preset_dns_map\n parameters\n  message-length maximum 512\npolicy-map global_policy\n class inspection_default\n  inspect dns preset_dns_map\n  inspect ftp \n  inspect tftp \n!\nservice-policy global_policy global\n!\ntelnet timeout 5\nssh timeout 5\n!\n!\n!\n!\n\n",
+  "parser": {
+    "platform": "asa",
+    "interfaces": {
+      "GigabitEthernet1/1": {
+        "nameif": "inside",
+        "security_level": 100,
+        "ip": "10.230.0.1",
+        "mask": "255.255.255.0"
+      },
+      "GigabitEthernet1/2": {
+        "nameif": "outside",
+        "security_level": 0,
+        "ip": "203.0.113.1",
+        "mask": "255.255.255.252"
+      }
+    },
+    "acl_bindings": [
+      {
+        "name": "OUTSIDE-IN",
+        "line_no": 66,
+        "direction": "in",
+        "interface": "outside"
+      }
+    ],
+    "static_routes": [
+      {
+        "network": "0.0.0.0",
+        "mask": "0.0.0.0",
+        "cidr": "0.0.0.0/0",
+        "next_hop": "203.0.113.2",
+        "interface": "outside",
+        "distance": 1,
+        "line_no": 60
+      }
+    ],
+    "unparsed": [
+      "names",
+      "no nameif",
+      "no security-level",
+      "no nameif",
+      "no security-level",
+      "no nameif",
+      "no security-level",
+      "no nameif",
+      "no security-level",
+      "no nameif",
+      "no security-level",
+      "no nameif",
+      "no security-level",
+      "management-only",
+      "no nameif",
+      "no security-level",
+      "class-map inspection_default",
+      "match default-inspection-traffic",
+      "policy-map type inspect dns preset_dns_map",
+      "parameters",
+      "message-length maximum 512",
+      "policy-map global_policy",
+      "class inspection_default",
+      "inspect dns preset_dns_map",
+      "inspect ftp",
+      "inspect tftp",
+      "service-policy global_policy global",
+      "telnet timeout 5",
+      "ssh timeout 5"
+    ]
+  }
+}

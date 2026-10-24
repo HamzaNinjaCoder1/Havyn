@@ -1,0 +1,330 @@
+{
+  "generated": "2026-10-24T13:55:06+00:00",
+  "known_limitations": [
+    "The 96-scenario benchmark is deterministic simulation over the real compiler; it is not live PT injection.",
+    "Live fault coverage is a subset: DHCP lease failure is not live-injected; ARP/NAT are observed but not diagnostic fault classes.",
+    "The current compiler does not emit L3-switch routed-port addresses/static routes; the round trip reports these as unsupported, not equivalent.",
+    "A NetworkSpec link stores one trunk allowed list; asymmetric per-side lists are reported as unsupported.",
+    "Linksys exposes no running-config read-back and is UNSUPPORTED for configuration extraction.",
+    "ASA operational tables are constrained by its CLI; the ASA running-config read itself is live verified.",
+    "STP blocking is only a fault when no alternate forwarding path exists.",
+    "The full 84-test live suite was not completed in this run; 12 selected adapter/policy/import live tests and the live connectivity/flow set were run separately.",
+    "The Stage 1.19 performance gate remains unresolved; Stage 3 is not declared released."
+  ],
+  "metrics": {
+    "completion_percent": 93.3,
+    "failed_tasks": [],
+    "incorrect_applied_fixes": 0,
+    "live_regression_selected": 20,
+    "live_verified_tasks": "10/12",
+    "mandatory_backups": "verified on every live repair; backup failure blocks offline",
+    "networks_enhanced_live": 1,
+    "networks_enhanced_offline": 6,
+    "original_criteria_after_enhancement": true,
+    "regression_failures": 0,
+    "rollback_tests": "live pass",
+    "root_cause_accuracy": 1.0,
+    "roundtrip": "16/16",
+    "stage4_tasks": "12/12 implemented"
+  },
+  "tasks": [
+    {
+      "acceptance": "Library networks import with complete inventories of accessible facts",
+      "evidence": [
+        "tests/autopilot/test_s4_importer.py",
+        "probes/raw/stage4-import.json",
+        "probes/raw/stage4-live-arp.json"
+      ],
+      "id": "S4.1",
+      "implementation": "complete",
+      "limitations": "Linksys has no configuration read-back; hosts expose only ipconfig/ARP.",
+      "live": "live import: {'config_status': {'known': 2, 'not_read': 2}, 'devices': 4, 'incomplete': 2, 'links': 3}",
+      "offline": "importer tests + 16 library simulations",
+      "status": "LIVE VERIFIED",
+      "title": "Existing network import"
+    },
+    {
+      "acceptance": "Every accessible IOS device yields its real configuration with evidence",
+      "evidence": [
+        "tests/autopilot/test_s4_importer.py",
+        "probes/raw/stage4-running-s4l-r1.txt",
+        "probes/raw/stage4-running-s4l-s1.txt",
+        "probes/raw/stage4-live-asa.json"
+      ],
+      "id": "S4.2",
+      "implementation": "complete",
+      "limitations": "Linksys reports UNSUPPORTED by design. ASA read is verified; ASA operational tables remain limited by its CLI.",
+      "live": "live IOS router read + live ASA read",
+      "offline": "config-reader tests, retries and raw/hash evidence",
+      "status": "LIVE VERIFIED",
+      "title": "IOS running-configuration reader"
+    },
+    {
+      "acceptance": "Configurations parse to typed structures with unparsed statements reported",
+      "evidence": [
+        "tests/autopilot/test_s4_parser.py",
+        "probes/raw/stage4-diagnosis.json"
+      ],
+      "id": "S4.3",
+      "implementation": "complete",
+      "limitations": "Statements outside the model are preserved verbatim and listed.",
+      "live": "real router/switch/ASA configs parsed",
+      "offline": "6 parser tests; compiled library configs parse with zero unparsed",
+      "status": "LIVE VERIFIED",
+      "title": "Structured IOS configuration parser"
+    },
+    {
+      "acceptance": "Supported semantics survive compiler expansion; unsupported semantics documented",
+      "evidence": [
+        "docs/reports/stage4-roundtrip.json",
+        "tests/autopilot/test_s4_intent.py"
+      ],
+      "id": "S4.4",
+      "implementation": "complete",
+      "limitations": "Asymmetric per-side trunk allowed lists are not representable; the current compiler does not emit L3-switch routed-port addresses/static routes (documented as unsupported, not claimed equal).",
+      "live": "as-is intent built during live import/enhancement",
+      "offline": "16/16 library specs equivalent; 5 exact",
+      "status": "OFFLINE VERIFIED",
+      "title": "As-is intent builder + round trip"
+    },
+    {
+      "acceptance": "Every actionable diagnosis references a confirmed objective",
+      "evidence": [
+        "tests/autopilot/test_s4_tracer_faults.py",
+        "probes/raw/stage4-repair.json"
+      ],
+      "id": "S4.5",
+      "implementation": "complete",
+      "limitations": "Requirement-only statements with no probeable criterion stay non-actionable.",
+      "live": "explicit objectives driven live diagnosis and repair",
+      "offline": "explicit/inferred tests; confirmation gate enforced",
+      "status": "LIVE VERIFIED",
+      "title": "Objective identification and confirmation"
+    },
+    {
+      "acceptance": "First observable failing hop with evidence; confirmed vs suspected",
+      "evidence": [
+        "tests/autopilot/test_s4_tracer_faults.py",
+        "probes/raw/stage4-live-arp.json",
+        "probes/raw/stage4-live-stp.json",
+        "probes/raw/stage4-live-nat.json"
+      ],
+      "id": "S4.6",
+      "implementation": "complete",
+      "limitations": "ARP is observed (host cache) but not used as a fault rule; NAT translations are observed but NAT is not yet a path-decision rule; a full ARP table is not exposed on every platform.",
+      "live": "live routing, ACL, ARP, STP and NAT observations",
+      "offline": "tracer tests; first-hop assertions",
+      "status": "LIVE VERIFIED WITH LIMITATIONS",
+      "title": "Hop-by-hop path tracer"
+    },
+    {
+      "acceptance": "Every implemented rule detects its injected fault",
+      "evidence": [
+        "docs/reports/stage4-benchmark.json",
+        "probes/raw/stage4-live-faults.json",
+        "tests/autopilot/test_s4_tracer_faults.py"
+      ],
+      "id": "S4.7",
+      "implementation": "complete",
+      "limitations": "DHCP lease failure is not live-injected; NAT and ARP are observed but not used as fault classes; STP blocking is a fault only when no alternate path exists. The first live multi-class run scored 5/7; ACL/DNS were rerun after fixes and both passed (see stage4-live-acl-dns.json).",
+      "live": "first live run 5/7; ACL/DNS reruns after fixes: 2/2; multi-fault True",
+      "offline": "96 scenarios, 96 correct",
+      "status": "LIVE VERIFIED WITH LIMITATIONS",
+      "title": "Layer-ordered fault detection"
+    },
+    {
+      "acceptance": "One validated schema; UNKNOWN when evidence is insufficient",
+      "evidence": [
+        "probes/raw/stage4-diagnosis.md",
+        "probes/raw/stage4-diagnosis.json"
+      ],
+      "id": "S4.8",
+      "implementation": "complete",
+      "limitations": "UNKNOWN is preserved and blocks repair.",
+      "live": "live diagnosis JSON/Markdown reports",
+      "offline": "schema validation + unknown tests",
+      "status": "LIVE VERIFIED",
+      "title": "Standardized diagnosis report"
+    },
+    {
+      "acceptance": "No repair begins without a verified backup",
+      "evidence": [
+        "tests/autopilot/test_s4_repair.py",
+        "probes/raw/stage4-repair.json"
+      ],
+      "id": "S4.9",
+      "implementation": "complete",
+      "limitations": "A device whose configuration is unreadable blocks a config repair by design.",
+      "live": "live repair backup verified",
+      "offline": "backup create/validate/tamper tests",
+      "status": "LIVE VERIFIED",
+      "title": "Mandatory pre-fix backup"
+    },
+    {
+      "acceptance": "Correct repair succeeds; wrong repair rolls back; no unsafe fix remains",
+      "evidence": [
+        "tests/autopilot/test_s4_repair.py",
+        "probes/raw/stage4-repair.json",
+        "probes/raw/stage4-live-rollback.json"
+      ],
+      "id": "S4.10",
+      "implementation": "complete",
+      "limitations": "Approval uses the existing SafetyGate; a denied rollback is reported incomplete.",
+      "live": "live repair objective pass; live wrong repair rolled back and verified against backup",
+      "offline": "5 repair tests including rollback/approval/backup failure",
+      "status": "LIVE VERIFIED",
+      "title": "Minimal repair, verification and rollback"
+    },
+    {
+      "acceptance": "At least 5 networks enhanced; previously passing criteria preserved",
+      "evidence": [
+        "docs/reports/stage4-enhancement.json",
+        "probes/raw/stage4-live-enhance.json"
+      ],
+      "id": "S4.11",
+      "implementation": "complete",
+      "limitations": "Automatic removal is refused without an explicit removal plan.",
+      "live": "live enhancement: original and new flows reachable",
+      "offline": "6/7 simulated networks; preserved=True",
+      "status": "LIVE VERIFIED",
+      "title": "Safe existing-network enhancement"
+    },
+    {
+      "acceptance": "\u226590% root-cause accuracy, 0 incorrect fixes, enhancement preservation",
+      "evidence": [
+        "docs/reports/stage4-benchmark.md",
+        "docs/reports/stage4-benchmark.json"
+      ],
+      "id": "S4.12",
+      "implementation": "complete",
+      "limitations": "The 96-scenario benchmark is deterministic simulation built by the real compiler, not live PT injection; live evidence is reported separately and partially covers the classes.",
+      "live": "separate live fault suite (see S4.7), not merged into the accuracy score",
+      "offline": "96/96 (100.0%), incorrect=0",
+      "status": "OFFLINE VERIFIED",
+      "title": "Fault-injection benchmark"
+    }
+  ],
+  "tests": {
+    "generated": "2026-10-24",
+    "live_labs": {
+      "acl_dns": {
+        "acl_correct": true,
+        "acl_predicted": [
+          "acl-block"
+        ],
+        "acl_push": "success",
+        "dns_correct": true,
+        "dns_diagnosis": {
+          "affected_device": "s4z-pc2",
+          "affected_interface": null,
+          "cause_class": "dns-misconfiguration",
+          "confidence": "high",
+          "details": {
+            "first_failing_check": null,
+            "trace_status": null
+          },
+          "diagnosis_id": "s4diag-0a8c9b4d3941",
+          "evidence": [
+            "ipconfig /all DNS ['192.0.2.53']",
+            "expected DNS 8.8.8.8"
+          ],
+          "first_failing_hop": null,
+          "impact": "name resolution fails",
+          "layer": "services",
+          "objective_confirmed": true,
+          "objective_id": "OBJ-USER-1",
+          "recommended_fix": [
+            {
+              "commands": [],
+              "device": "s4z-pc2",
+              "expected_state": {
+                "dns": "8.8.8.8"
+              },
+              "host_config": {
+                "dhcp": false,
+                "dns": "8.8.8.8",
+                "gateway": null,
+                "ip": "10.246.0.11",
+                "mask": "255.255.255.0"
+              },
+              "operation": "configure_host",
+              "reason": "host points at the wrong DNS server",
+              "rollback_commands": []
+            }
+          ],
+          "repairable": true,
+          "root_cause": "s4z-pc2 uses DNS ['192.0.2.53']; expected 8.8.8.8",
+          "status": "DIAGNOSED",
+          "subnet": null,
+          "suspected": false,
+          "uncertainty": null,
+          "verification_requirements": [
+            "re-check objective OBJ-USER-1: s4z-pc1 must communicate with s4z-pc2",
+            "re-run every criterion that passed before the change"
+          ],
+          "vlan": null
+        },
+        "dns_predicted": [
+          "dns-misconfiguration"
+        ],
+        "dns_push": "success",
+        "dns_push_error": null,
+        "generated": "2026-10-24T13:36:31+00:00"
+      },
+      "arp": {
+        "known": true
+      },
+      "asa_read": {
+        "known": true
+      },
+      "brownfield": {
+        "diagnosed": "wrong-access-vlan",
+        "flow_after": "reachable",
+        "flow_before": "reachable",
+        "flow_fault": "blocked",
+        "repaired": true
+      },
+      "enhancement": {
+        "executed": true,
+        "flow_new_after": "reachable",
+        "flow_original_after": "reachable",
+        "preserved": true
+      },
+      "nat": {
+        "known": true,
+        "translations": 9
+      },
+      "rollback": {
+        "rollback_complete": true,
+        "rolled_back": true
+      },
+      "stp": {
+        "blocked": 1,
+        "distinguished": "config_consistent"
+      }
+    },
+    "live_regression": {
+      "connectivity_flows_command": "python -m pytest tests/autopilot/test_live_connectivity.py tests/autopilot/test_live_flows.py -q",
+      "connectivity_flows_passed_before_stop": 8,
+      "note": "12 selected adapter/policy/import live tests passed; 8 connectivity/flow live tests passed before the run was stopped for time. The full 84-test live suite was not completed; no failures were observed in the tests that ran.",
+      "selected_command": "python -m pytest tests/autopilot/test_live_contract.py tests/autopilot/test_live_policy.py tests/autopilot/test_s4_live_brownfield.py -q",
+      "selected_passed": 20,
+      "total_live_collected": 84
+    },
+    "offline": {
+      "command": "python -m pytest tests/autopilot -q -k \"not live\"",
+      "deselected_live": 84,
+      "failed": 0,
+      "passed": 959
+    },
+    "stage4_live_test": {
+      "command": "python -m pytest tests/autopilot/test_s4_live_brownfield.py -q",
+      "passed": 1
+    },
+    "stage4_offline": {
+      "command": "python -m pytest tests/autopilot/test_s4_*.py -q -k \"not live\"",
+      "failed": 0,
+      "passed": 45
+    }
+  }
+}

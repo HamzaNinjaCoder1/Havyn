@@ -91,3 +91,6 @@ live*_pid.txt
 
 # Per-machine CodeBuddy overrides (documented as not-for-git local scope)
 .codebuddy/settings.local.json
+
+# Stage 4 live backup artifacts (contain user workspace copies)
+probes/stage4-backups/

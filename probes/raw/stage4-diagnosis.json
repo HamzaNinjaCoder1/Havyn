@@ -1,0 +1,106 @@
+{
+  "diagnostics": [
+    {
+      "affected_device": "s4l-s1",
+      "affected_interface": "FastEthernet1/1",
+      "cause_class": "wrong-access-vlan",
+      "confidence": "high",
+      "details": {
+        "first_failing_check": "access-vlan",
+        "trace_status": "fail"
+      },
+      "diagnosis_id": "s4diag-fab08320afd7",
+      "evidence": [
+        "objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2",
+        "first failing hop 1: s4l-s1 port FastEthernet1/1",
+        "s4l-s1:FastEthernet1/1 (ingress) is in VLAN 20, but the flow needs VLAN 10",
+        "observed access VLAN 20",
+        "flow VLAN 10"
+      ],
+      "first_failing_hop": 1,
+      "impact": "the port forwards the flow into the wrong broadcast domain",
+      "layer": "L2",
+      "objective_confirmed": true,
+      "objective_id": "OBJ-USER-1",
+      "recommended_fix": [
+        {
+          "commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 10",
+            "exit"
+          ],
+          "device": "s4l-s1",
+          "expected_state": {
+            "access_vlan": 10
+          },
+          "host_config": {},
+          "operation": "configure_ios",
+          "reason": "port is in VLAN 20, objective needs VLAN 10",
+          "rollback_commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 20",
+            "exit"
+          ]
+        }
+      ],
+      "repairable": true,
+      "root_cause": "s4l-s1:FastEthernet1/1 is in VLAN 20; the objective needs VLAN 10",
+      "status": "DIAGNOSED",
+      "subnet": null,
+      "suspected": false,
+      "uncertainty": null,
+      "verification_requirements": [
+        "re-check objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2",
+        "re-run every criterion that passed before the change"
+      ],
+      "vlan": 10
+    }
+  ],
+  "generated_at": "2026-10-24T00:04:53+00:00",
+  "issues": [],
+  "network": "stage4-live-two-vlan",
+  "objectives": [
+    {
+      "actionable": true,
+      "confirmed": true,
+      "confirmed_at": "2026-10-24T00:02:40+00:00",
+      "evidence": [
+        "stated by the user"
+      ],
+      "id": "OBJ-USER-1",
+      "kind": "reachability",
+      "params": {
+        "destination": "s4l-pc2",
+        "expect": "reachable",
+        "source": "s4l-pc1"
+      },
+      "source": "explicit",
+      "statement": "s4l-pc1 must communicate with s4l-pc2"
+    }
+  ],
+  "observations": {
+    "fault_flow": {
+      "detail": "ping s4l-pc1->10.0.20.10: none",
+      "expect": "blocked",
+      "outcome": "blocked",
+      "passed": true
+    }
+  },
+  "summary": {
+    "actionable": 1,
+    "by_cause": {
+      "wrong-access-vlan": 1
+    },
+    "by_confidence": {
+      "high": 1
+    },
+    "by_layer": {
+      "L2": 1
+    },
+    "diagnosed": 1,
+    "repairable": 1,
+    "schema_issues": 0,
+    "total": 1,
+    "unknown": 0
+  }
+}

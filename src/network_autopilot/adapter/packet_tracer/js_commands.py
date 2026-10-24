@@ -316,6 +316,22 @@ def js_configure_pc_ip(
     )
 
 
+def js_set_host_dns_expr(device: str, dns: str) -> str:
+    """Set a PC's DnsClient server through the documented process API."""
+    return (
+        "(function(){"
+        "var d=ipc.network().getDevice(" + _q(device) + ");"
+        "if(!d){return 'E:no device';}"
+        "var p=null;try{p=d.getProcess('DnsClient');}catch(e){return 'E:'+e;}"
+        "if(!p){return 'E:no DnsClient';}"
+        "try{p.setServerIp(" + _q(dns) + ");p.setEnabled(true);"
+        "return JSON.stringify({server:String(p.getServerIp()),"
+        "enabled:Boolean(p.isEnabled())});"
+        "}catch(e){return 'E:'+e;}"
+        "})()"
+    )
+
+
 def js_set_port_ip(device: str, port: str, ip: str, mask: str) -> str:
     """Set one port's IPv4 address through the port API (#10).
 
@@ -573,7 +589,7 @@ def js_live_devices_statements() -> tuple[list[str], str]:
         "var d=net.getDeviceAt(i);var pc=d.getPortCount();var ports=[];",
         "for(var j=0;j<pc;j++){",
         "var p=d.getPortAt(j);var ip='';var mask='';var up=null;var linked=false;",
-        "var linkClass='';var peers=[];",
+        "var linkClass='';var peers=[];var peerPorts=[];",
         "try{ip=p.getIpAddress()||'';}catch(pe){}",
         "try{mask=p.getSubnetMask()||'';}catch(pe){}",
         "try{up=(typeof p.isPortUp==='function')?p.isPortUp():null;}catch(pe){}",
@@ -581,13 +597,14 @@ def js_live_devices_statements() -> tuple[list[str], str]:
         "if(lk){linkClass=String(lk.getClassName());",
         "if(linkClass==='Antenna'){try{var rc=lk.getReceiverCount();",
         "if(rc>0){var rp=lk.getReceiverAt(0).getPort();",
-        "peers=[String(rp.getOwnerDevice().getName())];}}catch(e){}}",
+        "peers=[String(rp.getOwnerDevice().getName())];peerPorts=[String(rp.getName())];}}catch(e){}}",
         "else{var q1=null,q2=null;try{q1=lk.getPort1();}catch(e1){}",
         "try{q2=lk.getPort2();}catch(e2){}",
         "var self=p;var peer=(q1&&q1.getOwnerDevice&&q1.getOwnerDevice().getName()===d.getName())?q2:q1;",
-        "if(peer&&peer.getOwnerDevice){peers=[String(peer.getOwnerDevice().getName())];}}}}catch(pe){}",
+        "if(peer&&peer.getOwnerDevice){peers=[String(peer.getOwnerDevice().getName())];",
+        "peerPorts=[String(peer.getName())];}}}}catch(pe){}",
         "ports.push({name:p.getName(),ip:ip,mask:mask,up:up,linked:linked,",
-        "linkClass:linkClass,peers:peers});",
+        "linkClass:linkClass,peers:peers,peerPorts:peerPorts});",
         "}",
         "arr.push({name:d.getName(),model:d.getModel(),ports:ports});",
         "}",
@@ -937,28 +954,98 @@ def expand_if_name(name: str) -> str:
     return name
 
 
+def parse_show_arp(output: str) -> list[dict]:
+    """Parse IOS `show arp` and host `arp -a` into simple ARP records."""
+    rows: list[dict] = []
+    for raw in str(output or "").splitlines():
+        line = raw.strip()
+        m = re.match(
+            r"^Internet\s+(\d+\.\d+\.\d+\.\d+)\s+\d+\s+([0-9a-fA-F.]+)\s+(\S+)\s+(\S+)$",
+            line,
+        )
+        if m:
+            rows.append(
+                {
+                    "ip": m.group(1),
+                    "mac": m.group(2),
+                    "type": m.group(3),
+                    "interface": expand_if_name(m.group(4)),
+                }
+            )
+            continue
+        m = re.match(
+            r"^(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F.\-]{11,17})\s+(\S+)$", line
+        )
+        if m:
+            rows.append(
+                {
+                    "ip": m.group(1),
+                    "mac": m.group(2),
+                    "type": m.group(3),
+                    "interface": None,
+                }
+            )
+    return rows
+
+
+def parse_show_nat_translations(output: str) -> list[dict]:
+    """Parse `show ip nat translations` rows into raw translation records."""
+    rows: list[dict] = []
+    for raw in str(output or "").splitlines():
+        line = raw.strip()
+        if not line or line.lower().startswith(("pro", "inside", "---", "total")):
+            continue
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        rows.append(
+            {
+                "protocol": parts[0],
+                "inside_global": parts[1],
+                "inside_local": parts[2],
+                "outside_local": parts[3],
+                "outside_global": parts[4] if len(parts) > 4 else None,
+            }
+        )
+    return rows
+
+
 def parse_show_ip_route(output: str) -> list[dict]:
-    """Parse a real `show ip route` table into structured route records."""
+    """Parse a real `show ip route` table into structured route records.
+
+    Covers connected/local/static AND the dynamic codes (`O`, `O IA`, `D`,
+    `R`, `B`, ...). The earlier static-only parser made an OSPF-routed table
+    read back as empty, which the route rule then treated as "missing" - a
+    false fault on a healthy network.
+    """
     routes: list[dict] = []
+    connected = re.compile(
+        r"^([CL])\s+(\d+\.\d+\.\d+\.\d+)/(\d+)\s+is directly connected,\s*(\S+)$"
+    )
+    dynamic = re.compile(
+        r"^([A-Za-z][A-Za-z0-9 ]{0,5}?)\s+"
+        r"(\d+\.\d+\.\d+\.\d+)/(\d+)"
+        r"(?:\s+\[[^\]]+\])?"
+        r"(?:\s+via\s+(\d+\.\d+\.\d+\.\d+))?"
+        r"(?:,\s*[^,]+,\s*(\S+))?"
+        r"(?:,\s*(\S+))?$"
+    )
+    kind_codes = {
+        "C": "connected", "L": "local", "S": "static", "S*": "default",
+        "O": "ospf", "O IA": "ospf-inter-area", "O E1": "ospf-external",
+        "O E2": "ospf-external", "D": "eigrp", "D EX": "eigrp-external",
+        "R": "rip", "B": "bgp", "i": "isis", "i L1": "isis", "i L2": "isis",
+    }
     for raw in output.splitlines():
         line = raw.strip()
         if not line or line.startswith("Codes:") or line.startswith("Gateway of"):
             continue
-        # static/default: 'S    10.9.0.0/24 [1/0] via 192.168.77.11, GigabitEthernet0/0'
-        m = re.match(r"^S\*?\s+(\d+\.\d+\.\d+\.\d+)/(\d+)\s+\[[^\]]+\]\s+via\s+(\d+\.\d+\.\d+\.\d+)(?:,\s*(\S+))?$", line)
-        if m:
-            routes.append(
-                {
-                    "kind": "default" if line.startswith("S*") else "static",
-                    "network": m.group(1),
-                    "prefix": int(m.group(2)),
-                    "next_hop": m.group(3),
-                    "interface": expand_if_name(m.group(4) or "") or None,
-                }
-            )
-            continue
-        # connected/local: 'C    10.0.1.0/24 is directly connected, GigabitEthernet0/0'
-        m = re.match(r"^([CL])\s+(\d+\.\d+\.\d+\.\d+)/(\d+)\s+is directly connected,\s*(\S+)$", line)
+        is_default = line.startswith("S*")
+        if is_default:
+            # `S*` is the default-route marker; the code parser expects a
+            # plain code, so strip the marker and carry it separately.
+            line = "S" + line[2:]
+        m = connected.match(line)
         if m:
             routes.append(
                 {
@@ -969,6 +1056,24 @@ def parse_show_ip_route(output: str) -> list[dict]:
                     "interface": expand_if_name(m.group(4)),
                 }
             )
+            continue
+        m = dynamic.match(line)
+        if not m:
+            continue
+        code = m.group(1).strip()
+        # PT prints `S*` for a static default; the code regex would otherwise
+        # capture `S` and lose the default marker.
+        kind = kind_codes.get(code) or kind_codes.get(code.split()[0]) or code.lower()
+        interface = expand_if_name(m.group(5) or m.group(6) or "")
+        routes.append(
+            {
+                "kind": "default" if is_default else kind,
+                "network": m.group(2),
+                "prefix": int(m.group(3)),
+                "next_hop": m.group(4),
+                "interface": interface or None,
+            }
+        )
     return routes
 
 
@@ -1136,6 +1241,219 @@ def parse_show_interfaces_trunk(output: str) -> dict[str, list[int]]:
         remainder = line[len(match.group(1)):].strip()
         ports[port] = expand_vlan_list(remainder) if remainder else []
     return ports
+
+
+# -- Stage 4 brownfield parsers -------------------------------------------------
+
+#: One property row of `ipconfig /all`: `   IPv4 Address....: 10.0.0.5`.
+_IPCONFIG_ROW = re.compile(r"^\s*([^.:][^:]*?)\s*\.{2,}:\s*(.*)$")
+_IPCONFIG_CONNECTION = re.compile(r"^\s*(\S.*?)\s+Connection(?::\(default port\))?\s*$")
+
+
+def _ipconfig_values(rows: list[tuple[str, str]], key: str) -> list[str]:
+    for label, value in rows:
+        if label.strip().lower() == key.lower():
+            text = value.strip()
+            return [text] if text else []
+    return []
+
+
+def parse_ipconfig_all(output: str) -> dict:
+    """Parse `ipconfig /all` from a PT host console.
+
+    PT prints one block per host connection, with a value on the line after
+    the label when the address is long (the captured gateway/DNS shape:
+
+        Default Gateway...: ::
+                            10.99.0.1
+
+    ). The first block carrying an IPv4 address is the host's primary NIC;
+    Bluetooth/Wireless blocks are ignored. Every field is optional and a
+    missing value is reported as absent, never as a default: `dhcp` is None
+    when PT printed no DHCP servers row.
+    """
+    blocks: list[tuple[str, list[tuple[str, str]]]] = []
+    current_name: str | None = None
+    current_rows: list[tuple[str, str]] = []
+    pending: tuple[str, str] | None = None
+    for raw in str(output or "").splitlines():
+        line = raw.rstrip()
+        connection = _IPCONFIG_CONNECTION.match(line)
+        if connection and not _IPCONFIG_ROW.match(line):
+            if current_name is not None:
+                blocks.append((current_name, current_rows))
+            current_name = connection.group(1).strip()
+            current_rows = []
+            pending = None
+            continue
+        row = _IPCONFIG_ROW.match(line)
+        if row:
+            label, value = row.group(1).strip(), row.group(2).strip()
+            current_rows.append((label, value))
+            pending = (label, value)
+            continue
+        if current_name is not None and line.strip() and pending is not None:
+            # continuation of the previous value (gateway / DNS / IPv6)
+            label, value = pending
+            joined = f"{value} {line.strip()}".strip()
+            current_rows[-1] = (label, joined)
+            pending = (label, joined)
+    if current_name is not None:
+        blocks.append((current_name, current_rows))
+
+    def first_ipv4(rows: list[tuple[str, str]]) -> str | None:
+        values = _ipconfig_values(rows, "IPv4 Address")
+        for value in values:
+            candidate = value.split()[0] if value.split() else ""
+            if re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", candidate) and candidate != "::":
+                return candidate
+        return None
+
+    block = next(
+        ((name, rows) for name, rows in blocks if first_ipv4(rows)),
+        blocks[0] if blocks else ("", []),
+    )
+    name, rows = block
+
+    def addresses(key: str) -> list[str]:
+        out: list[str] = []
+        for value in _ipconfig_values(rows, key):
+            for token in value.split():
+                token = token.strip()
+                if re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", token) and token != "0.0.0.0":
+                    out.append(token)
+        return out
+
+    dhcp_values = addresses("DHCP Servers")
+    mask_values = addresses("Subnet Mask")
+    has_dhcp_row = any(
+        label.strip().lower() == "dhcp servers" for label, _ in rows
+    )
+    return {
+        "interface": name or None,
+        "ip": first_ipv4(rows),
+        "mask": mask_values[0] if mask_values else None,
+        "gateway": (addresses("Default Gateway") or [None])[0],
+        "dns": addresses("DNS Servers"),
+        "dhcp_server": dhcp_values[0] if dhcp_values else None,
+        "dhcp": (bool(dhcp_values) if has_dhcp_row else None),
+        "raw": str(output or ""),
+    }
+
+
+_STP_VLAN = re.compile(r"^VLAN(\d{1,4})\s*$")
+_STP_PORT = re.compile(
+    r"^((?:Fa|Gi|Et|Te|Po|Vlan)\S*)\s+(\S+)\s+(\S+)\s+\S+\s+\S+\s*(\S*)\s*$"
+)
+
+
+def parse_show_spanning_tree(output: str) -> list[dict]:
+    """Parse `show spanning-tree` into per-VLAN port roles/states.
+
+    A port in `BLK`/`ALN` is blocked by STP; `FWD` is forwarding. The parser
+    returns exactly what the device printed - an unparseable block yields no
+    rows for that VLAN, and the caller must treat an empty result as
+    "not observed", never as "nothing blocked".
+    """
+    rows: list[dict] = []
+    vlan: int | None = None
+    in_table = False
+    for raw in str(output or "").splitlines():
+        line = raw.rstrip()
+        stripped = line.strip()
+        vlan_match = _STP_VLAN.match(stripped)
+        if vlan_match:
+            vlan = int(vlan_match.group(1))
+            in_table = False
+            continue
+        if not stripped:
+            in_table = False
+            continue
+        if stripped.startswith("Interface") and "Role" in stripped:
+            in_table = True
+            continue
+        if stripped.startswith("---") or stripped.startswith("----"):
+            in_table = True
+            continue
+        if not in_table:
+            continue
+        match = _STP_PORT.match(stripped)
+        if not match:
+            continue
+        port, role, state = match.group(1), match.group(2), match.group(3)
+        if state.upper() not in ("FWD", "BLK", "ALN", "LRN", "LIS", "DIS", "BKN"):
+            continue
+        rows.append(
+            {
+                "vlan": vlan,
+                "interface": full_interface_name(port),
+                "role": role,
+                "state": state.upper(),
+            }
+        )
+    return rows
+
+
+def js_device_positions_expr() -> str:
+    """Expression returning {device: [x, y]} from the canvas.
+
+    `getXCoordinate`/`getYCoordinate` are on the documented Device surface
+    (IpcAPI). A device missing either returns null rather than a fabricated
+    0,0, so a caller can tell "unpositioned" from "top-left".
+    """
+    return (
+        "(function(){"
+        "var net=ipc.network();var n=net.getDeviceCount();var out={};"
+        "for(var i=0;i<n;i++){"
+        "var d=net.getDeviceAt(i);var x=null,y=null;"
+        "try{x=d.getXCoordinate();}catch(e){}"
+        "try{y=d.getYCoordinate();}catch(e){}"
+        "out[String(d.getName())]=(x===null||y===null)?null:[x,y];"
+        "}return JSON.stringify(out);})()"
+    )
+
+
+def js_console_enter_expr(device: str, text: str) -> str:
+    """Queue exactly one console `enterCommand` call and report the prompt.
+
+    Kept separate from `js_console_show_expr` because the Stage 4 enable-mode
+    read needs to answer the initial dialog and type `enable` one command at a
+    time; batching them merges into one garbled input line (measured).
+    """
+    return (
+        "(function(){"
+        "var d=ipc.network().getDevice(" + _q(device) + ");"
+        "if(!d){return 'E:no device';}"
+        "var cl=null,err='';"
+        "try{cl=d.getCommandLine();}catch(e){err=String(e);}"
+        "if(!cl){try{cl=d.getConsoleLine();}catch(e){err=String(e);}}"
+        "if(!cl){return 'E:no console '+err;}"
+        "try{cl.enterCommand(" + _q(text) + ");}catch(e){return 'E:'+String(e);}"
+        "return JSON.stringify({prompt:String(cl.getPrompt()||'')});"
+        "})()"
+    )
+
+
+def js_asa_show_expr(device: str, command: str) -> str:
+    """Read one ASA `show` through `Device.enterCommand(cmd, 'enable')`.
+
+    Measured on PT 9.0.1 (`probes/stage3_asa_readback.py`): the ASA's
+    `getCommandLine()` is null and `getConsoleLine()` rejects most `show`
+    commands, while `enterCommand(command, 'enable')` returns an object whose
+    `first` is the CommandStatus (0 = success) and whose `second` is the
+    output. A booting ASA answers with an empty/`false` device, so that is
+    reported as an error rather than parsed as an empty configuration.
+    """
+    return (
+        "(function(){"
+        "var d=ipc.network().getDevice(" + _q(device) + ");"
+        "if(!d){return 'E:no device';}"
+        "try{if(typeof d.isBooting==='function'&&d.isBooting()){return 'E:booting';}}catch(e){}"
+        "try{var r=d.enterCommand(" + _q(command) + ",'enable');"
+        "return JSON.stringify({status:String(r.first),out:String(r.second)});"
+        "}catch(e){return 'E:'+String(e);}"
+        "})()"
+    )
 
 
 def wrap_with_report(

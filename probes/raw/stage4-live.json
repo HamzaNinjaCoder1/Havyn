@@ -1,0 +1,827 @@
+{
+  "adapter": "reachable via Script Engine file channel (HTTP bridge not hosted)",
+  "baseline": {
+    "flow": {
+      "detail": "ping s4l-pc1->10.0.20.10: ok",
+      "expect": "reachable",
+      "outcome": "reachable",
+      "passed": true
+    },
+    "trace": {
+      "confirmed_fault": false,
+      "destination": "s4l-pc2",
+      "destination_ip": "10.0.20.10",
+      "evidence": [
+        "path: s4l-pc1 -> s4l-s1 -> s4l-r1 -> s4l-s1 -> s4l-pc2",
+        "source 10.0.10.10",
+        "destination 10.0.20.10"
+      ],
+      "first_failing_check": null,
+      "first_failing_hop": null,
+      "hops": [
+        {
+          "checks": [
+            {
+              "detail": "source address 10.0.10.10",
+              "evidence": [
+                "ipconfig /all"
+              ],
+              "layer": "L3",
+              "name": "addressing",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "default gateway 10.0.10.1",
+              "evidence": [
+                "ipconfig /all"
+              ],
+              "layer": "L3",
+              "name": "gateway",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "source has no physical path recorded",
+              "evidence": [],
+              "layer": "L1",
+              "name": "link",
+              "status": "info",
+              "suspected": false
+            }
+          ],
+          "device": "s4l-pc1",
+          "egress": "FastEthernet0",
+          "index": 0,
+          "ingress": null,
+          "status": "pass",
+          "vlan": 10
+        },
+        {
+          "checks": [
+            {
+              "detail": "s4l-s1:FastEthernet1/1 is linked to s4l-pc1",
+              "evidence": [
+                "peer s4l-pc1"
+              ],
+              "layer": "L1",
+              "name": "link",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet1/1 is up",
+              "evidence": [
+                "live-readback:s4l-s1"
+              ],
+              "layer": "L1",
+              "name": "port-state",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet0/1 is linked to s4l-r1",
+              "evidence": [
+                "peer s4l-r1"
+              ],
+              "layer": "L1",
+              "name": "link",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet0/1 is up",
+              "evidence": [
+                "live-readback:s4l-s1"
+              ],
+              "layer": "L1",
+              "name": "port-state",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet1/1 (ingress) is in VLAN 10",
+              "evidence": [
+                "running-config"
+              ],
+              "layer": "L2",
+              "name": "access-vlan",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "VLAN 10 is defined on s4l-s1",
+              "evidence": [
+                "show vlan brief"
+              ],
+              "layer": "L2",
+              "name": "vlan-defined",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet0/1 trunk allows VLAN 10",
+              "evidence": [
+                "show interfaces trunk"
+              ],
+              "layer": "L2",
+              "name": "trunk-allowance",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "VLAN 10 is defined on s4l-s1",
+              "evidence": [
+                "show vlan brief"
+              ],
+              "layer": "L2",
+              "name": "vlan-defined",
+              "status": "pass",
+              "suspected": false
+            }
+          ],
+          "device": "s4l-s1",
+          "egress": "FastEthernet0/1",
+          "index": 1,
+          "ingress": "FastEthernet1/1",
+          "status": "pass",
+          "vlan": 10
+        },
+        {
+          "checks": [
+            {
+              "detail": "s4l-r1:GigabitEthernet0/0 is linked to s4l-s1",
+              "evidence": [
+                "peer s4l-s1"
+              ],
+              "layer": "L1",
+              "name": "link",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-r1:GigabitEthernet0/0 is up",
+              "evidence": [
+                "live-readback:s4l-r1"
+              ],
+              "layer": "L1",
+              "name": "port-state",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-r1:GigabitEthernet0/0 0.0.0.0/0.0.0.0",
+              "evidence": [
+                "live-readback:s4l-r1"
+              ],
+              "layer": "L3",
+              "name": "addressing",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-r1 routes 10.0.20.10 via connected 10.0.20.0/24",
+              "evidence": [
+                "show ip route"
+              ],
+              "layer": "L3",
+              "name": "route",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "route exits GigabitEthernet0/0.20",
+              "evidence": [
+                "configured exit interface"
+              ],
+              "layer": "L3",
+              "name": "next-hop",
+              "status": "pass",
+              "suspected": false
+            }
+          ],
+          "device": "s4l-r1",
+          "egress": "GigabitEthernet0/0",
+          "index": 2,
+          "ingress": "GigabitEthernet0/0",
+          "status": "pass",
+          "vlan": null
+        },
+        {
+          "checks": [
+            {
+              "detail": "s4l-s1:FastEthernet0/1 is linked to s4l-r1",
+              "evidence": [
+                "peer s4l-r1"
+              ],
+              "layer": "L1",
+              "name": "link",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet0/1 is up",
+              "evidence": [
+                "live-readback:s4l-s1"
+              ],
+              "layer": "L1",
+              "name": "port-state",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet2/1 is linked to s4l-pc2",
+              "evidence": [
+                "peer s4l-pc2"
+              ],
+              "layer": "L1",
+              "name": "link",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet2/1 is up",
+              "evidence": [
+                "live-readback:s4l-s1"
+              ],
+              "layer": "L1",
+              "name": "port-state",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet0/1 trunk allows VLAN 20",
+              "evidence": [
+                "show interfaces trunk"
+              ],
+              "layer": "L2",
+              "name": "trunk-allowance",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "VLAN 20 is defined on s4l-s1",
+              "evidence": [
+                "show vlan brief"
+              ],
+              "layer": "L2",
+              "name": "vlan-defined",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-s1:FastEthernet2/1 (egress) is in VLAN 20",
+              "evidence": [
+                "running-config"
+              ],
+              "layer": "L2",
+              "name": "access-vlan",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "VLAN 20 is defined on s4l-s1",
+              "evidence": [
+                "show vlan brief"
+              ],
+              "layer": "L2",
+              "name": "vlan-defined",
+              "status": "pass",
+              "suspected": false
+            }
+          ],
+          "device": "s4l-s1",
+          "egress": "FastEthernet2/1",
+          "index": 3,
+          "ingress": "FastEthernet0/1",
+          "status": "pass",
+          "vlan": 20
+        },
+        {
+          "checks": [
+            {
+              "detail": "s4l-pc2:FastEthernet0 is linked to s4l-s1",
+              "evidence": [
+                "peer s4l-s1"
+              ],
+              "layer": "L1",
+              "name": "link",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-pc2:FastEthernet0 is up",
+              "evidence": [
+                "live-readback:s4l-pc2"
+              ],
+              "layer": "L1",
+              "name": "port-state",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-pc2:FastEthernet0 is linked to s4l-s1",
+              "evidence": [
+                "peer s4l-s1"
+              ],
+              "layer": "L1",
+              "name": "link",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-pc2:FastEthernet0 is up",
+              "evidence": [
+                "live-readback:s4l-pc2"
+              ],
+              "layer": "L1",
+              "name": "port-state",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "destination s4l-pc2 has 10.0.20.10",
+              "evidence": [
+                "ipconfig /all"
+              ],
+              "layer": "L3",
+              "name": "addressing",
+              "status": "pass",
+              "suspected": false
+            },
+            {
+              "detail": "s4l-pc2 returns through 10.0.20.1",
+              "evidence": [
+                "ipconfig /all default gateway"
+              ],
+              "layer": "L3",
+              "name": "return-route",
+              "status": "pass",
+              "suspected": false
+            }
+          ],
+          "device": "s4l-pc2",
+          "egress": null,
+          "index": 4,
+          "ingress": "FastEthernet0",
+          "status": "pass",
+          "vlan": 20
+        }
+      ],
+      "objective_id": "OBJ-USER-1",
+      "path": [
+        "s4l-pc1",
+        "s4l-s1",
+        "s4l-r1",
+        "s4l-s1",
+        "s4l-pc2"
+      ],
+      "source": "s4l-pc1",
+      "source_ip": "10.0.10.10",
+      "status": "config_consistent",
+      "transport": "icmp",
+      "unknowns": [],
+      "vlan": 10
+    },
+    "trace_status": "config_consistent"
+  },
+  "created": {
+    "s4l-pc1": "success",
+    "s4l-pc2": "success",
+    "s4l-r1": "success",
+    "s4l-s1": "success"
+  },
+  "diagnosis": {
+    "diagnostics": [
+      {
+        "affected_device": "s4l-s1",
+        "affected_interface": "FastEthernet1/1",
+        "cause_class": "wrong-access-vlan",
+        "confidence": "high",
+        "details": {
+          "first_failing_check": "access-vlan",
+          "trace_status": "fail"
+        },
+        "diagnosis_id": "s4diag-fab08320afd7",
+        "evidence": [
+          "objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2",
+          "first failing hop 1: s4l-s1 port FastEthernet1/1",
+          "s4l-s1:FastEthernet1/1 (ingress) is in VLAN 20, but the flow needs VLAN 10",
+          "observed access VLAN 20",
+          "flow VLAN 10"
+        ],
+        "first_failing_hop": 1,
+        "impact": "the port forwards the flow into the wrong broadcast domain",
+        "layer": "L2",
+        "objective_confirmed": true,
+        "objective_id": "OBJ-USER-1",
+        "recommended_fix": [
+          {
+            "commands": [
+              "interface FastEthernet1/1",
+              "switchport access vlan 10",
+              "exit"
+            ],
+            "device": "s4l-s1",
+            "expected_state": {
+              "access_vlan": 10
+            },
+            "host_config": {},
+            "operation": "configure_ios",
+            "reason": "port is in VLAN 20, objective needs VLAN 10",
+            "rollback_commands": [
+              "interface FastEthernet1/1",
+              "switchport access vlan 20",
+              "exit"
+            ]
+          }
+        ],
+        "repairable": true,
+        "root_cause": "s4l-s1:FastEthernet1/1 is in VLAN 20; the objective needs VLAN 10",
+        "status": "DIAGNOSED",
+        "subnet": null,
+        "suspected": false,
+        "uncertainty": null,
+        "verification_requirements": [
+          "re-check objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2",
+          "re-run every criterion that passed before the change"
+        ],
+        "vlan": 10
+      }
+    ],
+    "fault_flow": {
+      "detail": "ping s4l-pc1->10.0.20.10: none",
+      "expect": "blocked",
+      "outcome": "blocked",
+      "passed": true
+    },
+    "primary": {
+      "affected_device": "s4l-s1",
+      "affected_interface": "FastEthernet1/1",
+      "cause_class": "wrong-access-vlan",
+      "confidence": "high",
+      "details": {
+        "first_failing_check": "access-vlan",
+        "trace_status": "fail"
+      },
+      "diagnosis_id": "s4diag-fab08320afd7",
+      "evidence": [
+        "objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2",
+        "first failing hop 1: s4l-s1 port FastEthernet1/1",
+        "s4l-s1:FastEthernet1/1 (ingress) is in VLAN 20, but the flow needs VLAN 10",
+        "observed access VLAN 20",
+        "flow VLAN 10"
+      ],
+      "first_failing_hop": 1,
+      "impact": "the port forwards the flow into the wrong broadcast domain",
+      "layer": "L2",
+      "objective_confirmed": true,
+      "objective_id": "OBJ-USER-1",
+      "recommended_fix": [
+        {
+          "commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 10",
+            "exit"
+          ],
+          "device": "s4l-s1",
+          "expected_state": {
+            "access_vlan": 10
+          },
+          "host_config": {},
+          "operation": "configure_ios",
+          "reason": "port is in VLAN 20, objective needs VLAN 10",
+          "rollback_commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 20",
+            "exit"
+          ]
+        }
+      ],
+      "repairable": true,
+      "root_cause": "s4l-s1:FastEthernet1/1 is in VLAN 20; the objective needs VLAN 10",
+      "status": "DIAGNOSED",
+      "subnet": null,
+      "suspected": false,
+      "uncertainty": null,
+      "verification_requirements": [
+        "re-check objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2",
+        "re-run every criterion that passed before the change"
+      ],
+      "vlan": 10
+    },
+    "summary": {
+      "actionable": 1,
+      "by_cause": {
+        "wrong-access-vlan": 1
+      },
+      "by_confidence": {
+        "high": 1
+      },
+      "by_layer": {
+        "L2": 1
+      },
+      "diagnosed": 1,
+      "repairable": 1,
+      "schema_issues": 0,
+      "total": 1,
+      "unknown": 0
+    }
+  },
+  "fault": {
+    "device": "s4l-s1",
+    "error": null,
+    "interface": "FastEthernet1/1",
+    "kind": "wrong-access-vlan",
+    "pushed": "success"
+  },
+  "finished": "2026-10-24T00:06:39+00:00",
+  "import": {
+    "as_is_confidence": {
+      "known": 24,
+      "partial": 3,
+      "unknown": 4
+    },
+    "as_is_unsupported": [
+      "s4l-r1:87: line vty 0 4 (preserved in the raw config; not represented in the spec)",
+      "s4l-s1:49: line vty 0 4 (preserved in the raw config; not represented in the spec)",
+      "s4l-s1:51: line vty 5 15 (preserved in the raw config; not represented in the spec)"
+    ],
+    "config_status": {
+      "s4l-r1": {
+        "chars": 938,
+        "detail": null,
+        "status": "known"
+      },
+      "s4l-s1": {
+        "chars": 805,
+        "detail": null,
+        "status": "known"
+      }
+    },
+    "hosts": {
+      "s4l-pc1": {
+        "dhcp": false,
+        "dns": [
+          "8.8.8.8"
+        ],
+        "gateway": "10.0.10.1",
+        "ip": "10.0.10.10"
+      },
+      "s4l-pc2": {
+        "dhcp": false,
+        "dns": [
+          "8.8.8.8"
+        ],
+        "gateway": "10.0.20.1",
+        "ip": "10.0.20.10"
+      }
+    },
+    "incomplete": [
+      "config(s4l-r1): 11 unparsed statement(s)",
+      "config(s4l-s1): 7 unparsed statement(s)"
+    ],
+    "links": [
+      {
+        "a": "s4l-pc1:FastEthernet0",
+        "b": "s4l-s1:FastEthernet1/1"
+      },
+      {
+        "a": "s4l-pc2:FastEthernet0",
+        "b": "s4l-s1:FastEthernet2/1"
+      },
+      {
+        "a": "s4l-r1:GigabitEthernet0/0",
+        "b": "s4l-s1:FastEthernet0/1"
+      }
+    ],
+    "summary": {
+      "config_status": {
+        "known": 2,
+        "not_read": 2
+      },
+      "devices": 4,
+      "incomplete": 2,
+      "links": 3
+    }
+  },
+  "links": [
+    {
+      "a": "s4l-r1:GigabitEthernet0/0",
+      "b": "s4l-s1:FastEthernet0/1",
+      "error": null,
+      "result": "success"
+    },
+    {
+      "a": "s4l-s1:FastEthernet1/1",
+      "b": "s4l-pc1:FastEthernet0",
+      "error": null,
+      "result": "success"
+    },
+    {
+      "a": "s4l-s1:FastEthernet2/1",
+      "b": "s4l-pc2:FastEthernet0",
+      "error": null,
+      "result": "success"
+    }
+  ],
+  "pushes": {
+    "s4l-pc1": {
+      "error": null,
+      "result": "success"
+    },
+    "s4l-pc2": {
+      "error": null,
+      "result": "success"
+    },
+    "s4l-r1": {
+      "error": null,
+      "result": "success"
+    },
+    "s4l-s1": {
+      "error": null,
+      "result": "success"
+    }
+  },
+  "repair": {
+    "flow_after": {
+      "detail": "ping s4l-pc1->10.0.20.10: ok",
+      "expect": "reachable",
+      "outcome": "reachable",
+      "passed": true
+    },
+    "outcome": {
+      "applied": [
+        {
+          "adapter_error": null,
+          "applied": true,
+          "commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 10",
+            "exit"
+          ],
+          "detail": null,
+          "device": "s4l-s1",
+          "operation": "configure_ios",
+          "receipt": "success"
+        }
+      ],
+      "approved": true,
+      "backup": {
+        "adapter": "packet-tracer-bridge",
+        "available": true,
+        "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a",
+        "backup_id": "bak-20261024-000550-f96a843a",
+        "created_at": "2026-10-24T00:05:50+00:00",
+        "entries": [
+          {
+            "detail": null,
+            "device": "s4l-s1",
+            "kind": "running_config",
+            "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\configs\\s4l-s1.txt",
+            "sha256": "98bb63b4e1266bb517522f27caec1eaf63d0132d66a7034d651c0529cca1ea71",
+            "size": 805,
+            "status": "known"
+          }
+        ],
+        "intended_changes": [
+          {
+            "commands": [
+              "interface FastEthernet1/1",
+              "switchport access vlan 10",
+              "exit"
+            ],
+            "device": "s4l-s1",
+            "host_config": {},
+            "operation": "configure_ios"
+          }
+        ],
+        "problems": [],
+        "project_name": "packet-tracer-bridge-s4repair-0e9431c31c33",
+        "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\packet-tracer-bridge-s4repair-0e9431c31c33.pkt",
+        "project_sha256": "a2c2237c0e13f5e7d78711ee526b0ca90243202f33e75079ebbaacdf2bdfe8b2",
+        "project_size": 46331
+      },
+      "backup_validation": {
+        "available": true,
+        "manifest": {
+          "adapter": "packet-tracer-bridge",
+          "available": true,
+          "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a",
+          "backup_id": "bak-20261024-000550-f96a843a",
+          "created_at": "2026-10-24T00:05:50+00:00",
+          "entries": [
+            {
+              "detail": null,
+              "device": "s4l-s1",
+              "kind": "running_config",
+              "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\configs\\s4l-s1.txt",
+              "sha256": "98bb63b4e1266bb517522f27caec1eaf63d0132d66a7034d651c0529cca1ea71",
+              "size": 805,
+              "status": "known"
+            }
+          ],
+          "intended_changes": [
+            {
+              "commands": [
+                "interface FastEthernet1/1",
+                "switchport access vlan 10",
+                "exit"
+              ],
+              "device": "s4l-s1",
+              "host_config": {},
+              "operation": "configure_ios"
+            }
+          ],
+          "problems": [],
+          "project_name": "packet-tracer-bridge-s4repair-0e9431c31c33",
+          "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\packet-tracer-bridge-s4repair-0e9431c31c33.pkt",
+          "project_sha256": "a2c2237c0e13f5e7d78711ee526b0ca90243202f33e75079ebbaacdf2bdfe8b2",
+          "project_size": 46331
+        },
+        "problems": []
+      },
+      "baseline": {},
+      "blocked_reason": null,
+      "executed": true,
+      "finished_at": "2026-10-24T00:06:32+00:00",
+      "incorrect_fix_left_in_place": false,
+      "objective_detail": "reachable: ping s4l-pc1->10.0.20.10: ok",
+      "objective_verdict": "pass",
+      "post_repair": {},
+      "problems": [],
+      "readback": [
+        {
+          "confirmed": true,
+          "detail": "intended state read back"
+        }
+      ],
+      "regressions": [],
+      "repair_id": "s4repair-0e9431c31c33",
+      "repaired": true,
+      "rollback_complete": false,
+      "rollback_detail": null,
+      "rolled_back": false
+    },
+    "plan": {
+      "actions": [
+        {
+          "commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 10",
+            "exit"
+          ],
+          "device": "s4l-s1",
+          "expected_state": {
+            "access_vlan": 10
+          },
+          "host_config": {},
+          "operation": "configure_ios",
+          "reason": "port is in VLAN 20, objective needs VLAN 10",
+          "rollback_commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 20",
+            "exit"
+          ]
+        }
+      ],
+      "affected_devices": [
+        "s4l-s1"
+      ],
+      "blocked": false,
+      "blocked_reason": null,
+      "diagnosis_ids": [
+        "s4diag-fab08320afd7"
+      ],
+      "expected_improvement": "restore OBJ-USER-1",
+      "objective_ids": [
+        "OBJ-USER-1"
+      ],
+      "preview": {
+        "devices": [
+          "s4l-s1"
+        ],
+        "mutations": 1,
+        "operations": [
+          {
+            "commands": [
+              "interface FastEthernet1/1",
+              "switchport access vlan 10",
+              "exit"
+            ],
+            "device": "s4l-s1",
+            "host_config": {},
+            "operation": "configure_ios"
+          }
+        ],
+        "skipped_diagnostics": []
+      },
+      "repair_id": "s4repair-0e9431c31c33",
+      "risk": "medium",
+      "verification": [
+        "objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2"
+      ]
+    }
+  },
+  "started": "2026-10-24T00:00:45+00:00"
+}

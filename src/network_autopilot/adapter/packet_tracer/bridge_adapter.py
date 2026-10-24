@@ -1039,6 +1039,13 @@ class BridgeAdapter(PacketTracerAdapter):
                 continue
             port = observation.port(pname)
             up = p.get("up")
+            linked = p.get("linked")
+            if isinstance(linked, bool):
+                port.linked = Observable.known(linked, source=source)
+            else:
+                port.linked = Observable[bool].unknown(
+                    "link presence not reported by read-back"
+                )
             if up is True:
                 port.state = Observable.known("up", source=source)
             elif up is False:
@@ -1071,6 +1078,11 @@ class BridgeAdapter(PacketTracerAdapter):
                 if peers
                 else Observable[list[str]].unknown("no peer device reported")
             )
+            peer_ports = [
+                str(peer) for peer in (p.get("peerPorts") or []) if str(peer).strip()
+            ]
+            if peer_ports:
+                port.peer_ports = Observable.known(peer_ports, source=source)
         self._fill_vlan_state(observation)
         return observation
 
@@ -3076,6 +3088,15 @@ class BridgeAdapter(PacketTracerAdapter):
         self._invalidate_snapshot()  # the host now holds an address
         result, executed, error = self._interpret(answer)
         postconditions: list[CheckResult] = []
+        if result is OperationResult.SUCCESS and dns:
+            # `configurePcIp` does not reliably move the DNS server on an
+            # existing host (live probe); the DnsClient process is the
+            # documented API and is read back here.
+            dns_receipt = self.configure_host_dns(device, dns)
+            postconditions.extend(dns_receipt.postconditions)
+            if dns_receipt.result is not OperationResult.SUCCESS:
+                result = dns_receipt.result
+                error = dns_receipt.error
         if result is OperationResult.SUCCESS and not dhcp and ip:
             # read-back: the configured IP must be observable on the device.
             # The check compares str(actual) to `expected`, so the Observable
@@ -3111,6 +3132,316 @@ class BridgeAdapter(PacketTracerAdapter):
                     else {"postcondition": "dhcp/no-ip: no read-back check"}
                 ),
             },
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def configure_host_dns(self, device: str, dns: str) -> OperationReceipt:
+        """Set a PC's DnsClient server and read it back from the process."""
+        requested = {"device": device, "dns": dns}
+        answer = self.send_expression(js.js_set_host_dns_expr(device, dns), wait=10.0)
+        if not answer.is_known:
+            return OperationReceipt(
+                operation_id=new_id("op"), operation="configure_host_dns",
+                requested=requested, result=OperationResult.UNKNOWN,
+                started_at=utc_now_iso(), finished_at=utc_now_iso(),
+                error=answer.detail or answer.status.value,
+            )
+        text = str(answer.value)
+        if text.startswith("E:"):
+            return OperationReceipt(
+                operation_id=new_id("op"), operation="configure_host_dns",
+                requested=requested, result=OperationResult.FAILED,
+                started_at=utc_now_iso(), finished_at=utc_now_iso(),
+                error=text[2:],
+            )
+        try:
+            data = json.loads(text)
+        except (TypeError, ValueError):
+            return OperationReceipt(
+                operation_id=new_id("op"), operation="configure_host_dns",
+                requested=requested, result=OperationResult.FAILED,
+                started_at=utc_now_iso(), finished_at=utc_now_iso(),
+                error=f"unparseable DNS answer {text[:120]!r}",
+            )
+        observed = str(data.get("server") or "")
+        passed = observed == dns
+        return OperationReceipt(
+            operation_id=new_id("op"), operation="configure_host_dns",
+            requested=requested,
+            result=OperationResult.SUCCESS if passed else OperationResult.FAILED,
+            postconditions=[
+                CheckResult.of(
+                    "dns_server_read_back", dns,
+                    Observable.known(observed, source=f"dns-process:{device}")
+                    if passed else Observable[str].unknown(
+                        f"read back {observed!r}"
+                    ),
+                )
+            ],
+            started_at=utc_now_iso(), finished_at=utc_now_iso(),
+            error=None if passed else f"DNS read back {observed!r}, expected {dns!r}",
+        )
+
+    def configure_server_services(
+        self, device: str, services: list[dict],
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Configure the proven Server-PT services through their processes.
+
+        One round trip; the returned JSON is the read-back. A service whose
+        own call threw is reported as a failed receipt, never as a success
+        hidden inside a longer list.
+        """
+        requested = {"device": device, "services": services}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._precondition_receipt(
+                "configure_server", requested, operation_id, pre,
+                "device missing or unknown",
+            )
+        answer = self.send_expression(
+            s3js.js_configure_server_services(device, services)
+        )
+        result, executed, error = self._interpret(answer)
+        payload: list | None = None
+        if answer.is_known:
+            try:
+                parsed = json.loads(str(answer.value))
+                payload = parsed if isinstance(parsed, list) else None
+            except (json.JSONDecodeError, ValueError):
+                payload = None
+        if payload is None:
+            if result is OperationResult.SUCCESS:
+                result = OperationResult.UNKNOWN
+                error = f"unparseable service result: {answer.value!r}"
+        else:
+            failed = [row for row in payload if not row.get("ok")]
+            if failed:
+                result = OperationResult.FAILED
+                error = "; ".join(
+                    f"{row.get('service')}: {row.get('error')}"
+                    for row in failed
+                )
+            elif result is OperationResult.UNKNOWN:
+                result = OperationResult.SUCCESS
+        postconditions = [
+            CheckResult.of(
+                "service_enabled",
+                str(row.get("service")),
+                Observable.known(
+                    bool(row.get("ok")),
+                    source=f"configure_server_services:{device}",
+                ),
+            )
+            for row in (payload or [])
+        ]
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="configure_server",
+            requested=requested,
+            executed={**(executed or {}), **({"services": payload} if payload else {})},
+            result=result,
+            preconditions=pre,
+            postconditions=postconditions,
+            evidence={
+                "postcondition": "each service's process read back its state",
+                **(executed or {}),
+            },
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def configure_cloud_mapping(
+        self, device: str, mappings: list[dict],
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Create explicit Cloud-PT port/Frame Relay mappings and read them back."""
+        requested = {"device": device, "mappings": mappings}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._precondition_receipt(
+                "configure_cloud", requested, operation_id, pre,
+                "device missing or unknown",
+            )
+        answer = self.send_expression(
+            s3js.js_configure_cloud_mapping(device, mappings)
+        )
+        result, executed, error = self._interpret(answer)
+        payload: list | None = None
+        if answer.is_known:
+            try:
+                parsed = json.loads(str(answer.value))
+                payload = parsed if isinstance(parsed, list) else None
+            except (json.JSONDecodeError, ValueError):
+                payload = None
+        if payload is None:
+            if result is OperationResult.SUCCESS:
+                result = OperationResult.UNKNOWN
+                error = f"unparseable cloud result: {answer.value!r}"
+        else:
+            failed = [row for row in payload if not row.get("ok")]
+            if failed:
+                result = OperationResult.FAILED
+                error = "; ".join(
+                    f"{row.get('type')}: {row.get('error')}" for row in failed
+                )
+            elif result is OperationResult.UNKNOWN:
+                result = OperationResult.SUCCESS
+        postconditions = [
+            CheckResult.of(
+                "mapping_created",
+                str(row.get("type")),
+                Observable.known(
+                    bool(row.get("ok")),
+                    source=f"configure_cloud_mapping:{device}",
+                ),
+            )
+            for row in (payload or [])
+        ]
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="configure_cloud",
+            requested=requested,
+            executed={**(executed or {}), **({"mappings": payload} if payload else {})},
+            result=result,
+            preconditions=pre,
+            postconditions=postconditions,
+            evidence={
+                "postcondition": "port/sub-link mapping read back from the cloud",
+                **(executed or {}),
+            },
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def configure_wireless_ssid(
+        self, device: str, spec: dict,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Set the AP's SSID/security/channel and read the settings back.
+
+        This is the AP side only. PT's client profile API rejects the custom
+        SSID in this build (S3.E2), so the compiler refuses a client intent.
+        """
+        requested = {"device": device, **spec}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._precondition_receipt(
+                "configure_wireless_ssid", requested, operation_id, pre,
+                "device missing or unknown",
+            )
+        answer = self.send_expression(
+            s3js.js_configure_wireless_ssid(device, spec)
+        )
+        result, executed, error = self._interpret(answer)
+        payload: dict | None = None
+        if answer.is_known:
+            try:
+                parsed = json.loads(str(answer.value))
+                payload = parsed if isinstance(parsed, dict) else None
+            except (json.JSONDecodeError, ValueError):
+                payload = None
+        if payload is None:
+            if result is OperationResult.SUCCESS:
+                result = OperationResult.UNKNOWN
+                error = f"unparseable SSID result: {answer.value!r}"
+        postconditions = []
+        if payload is not None:
+            postconditions.append(CheckResult.of(
+                "ssid", str(spec.get("ssid") or ""),
+                Observable.known(
+                    str(payload.get("ssid")) == str(spec.get("ssid") or ""),
+                    source=f"configure_wireless_ssid:{device}",
+                ),
+            ))
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="configure_wireless_ssid",
+            requested=requested,
+            executed={**(executed or {}), **({"state": payload} if payload else {})},
+            result=result,
+            preconditions=pre,
+            postconditions=postconditions,
+            evidence={
+                "postcondition": "SSID/auth/encrypt/channel read back from the AP",
+                **(executed or {}),
+            },
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error=error,
+        )
+
+    def generate_rsa_key(
+        self, device: str, bits: int = 1024,
+        operation_id: str | None = None,
+    ) -> OperationReceipt:
+        """Generate the router's RSA key and prove SSH is enabled.
+
+        `crypto key generate rsa` is interactive and only accepted in global
+        config: the first call primes the console and types it, the second
+        answers the modulus prompt. `show ip ssh` is the receipt's postcondition.
+        """
+        requested = {"device": device, "bits": bits}
+        exists = self.device_exists(device)
+        pre = [CheckResult.of("device_present", "True", exists)]
+        if not (exists.is_known and exists.value):
+            return self._precondition_receipt(
+                "generate_rsa_key", requested, operation_id, pre,
+                "device missing or unknown",
+            )
+        # Idempotent: an already-enabled SSH server needs no second key.
+        current = self._console_show_full(device, "show ip ssh", timeout=25)
+        if current.is_known and "SSH Enabled" in str(current.value):
+            return OperationReceipt(
+                operation_id=operation_id or new_id("op"),
+                operation="generate_rsa_key",
+                requested=requested,
+                executed={"answer": "SSH already enabled"},
+                result=OperationResult.SUCCESS,
+                preconditions=pre,
+                postconditions=[CheckResult.of(
+                    "ssh_enabled", "True",
+                    Observable.known(True, source=f"show ip ssh:{device}"),
+                )],
+                evidence={"postcondition": "show ip ssh reports SSH Enabled"},
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+                error=None,
+            )
+        start = self.send_expression(s3js.js_rsa_key_start(device))
+        time.sleep(2.0)
+        bits_answer = self.send_expression(
+            s3js.js_rsa_key_bits(device, bits)
+        )
+        time.sleep(8.0)
+        probe = self._console_show_full(device, "show ip ssh", timeout=25)
+        ok = probe.is_known and "SSH Enabled" in str(probe.value)
+        error = None if ok else (
+            str(probe.value) if probe.is_known else (probe.detail or "no answer")
+        )
+        return OperationReceipt(
+            operation_id=operation_id or new_id("op"),
+            operation="generate_rsa_key",
+            requested=requested,
+            executed={
+                "start": str(start.value) if start.is_known else None,
+                "bits": str(bits_answer.value) if bits_answer.is_known else None,
+                "show_ip_ssh": str(probe.value) if probe.is_known else None,
+            },
+            result=OperationResult.SUCCESS if ok else OperationResult.FAILED,
+            preconditions=pre,
+            postconditions=[CheckResult.of(
+                "ssh_enabled", "True",
+                Observable.known(ok, source=f"show ip ssh:{device}"),
+            )],
+            evidence={"postcondition": "show ip ssh reports SSH Enabled"},
             started_at=utc_now_iso(),
             finished_at=utc_now_iso(),
             error=error,
@@ -4234,6 +4565,318 @@ class BridgeAdapter(PacketTracerAdapter):
         return Observable(
             status=ObservationStatus.KNOWN,
             value=table,
+            detail=tail.value,
+            source=tail.source,
+            observed_at=None,
+        )
+
+    # -- Stage 4: brownfield read surface ---------------------------------
+
+    def _category_of_device(self, device: str) -> tuple[str, str | None]:
+        """(catalog category, error) for one device, from the topology read."""
+        devices = self._live_devices(fresh=False)
+        if not devices.is_known:
+            return "", f"topology read-back unavailable: {devices.detail or devices.status.value}"
+        match = next(
+            (d for d in devices.value if str(d.get("name") or "") == device), None
+        )
+        if match is None:
+            return "", f"{device!r} is not present in the observed workspace"
+        model = match.get("model")
+        if not isinstance(model, str) or not model:
+            return "", f"{device!r} did not report a model"
+        return category_of_model(model), None
+
+    _IOS_CATEGORIES = frozenset({"router", "switch"})
+
+    def read_running_config(self, device: str) -> Observable[str]:
+        """The device's own verbatim configuration, or an honest gap.
+
+        Three measured platform classes:
+
+        * IOS routers/switches answer `show running-config` on the console.
+          Long configs page on `--More--`, so the shared pager-aware reader
+          (`_console_show_full`) is used, with one retry: a device still
+          logging link events can answer the first read with boot text.
+        * The ASA's `getCommandLine()` is null; its configuration is read
+          through `Asa::enterCommand(cmd, 'enable')`, whose status 0 means the
+          command ran (measured in `probes/stage3_asa_readback.py`).
+        * A Linksys exposes no CLI read-back at all — `configureIosDevice`
+          answers true and applies nothing — so it is UNSUPPORTED, not
+          "empty".
+        """
+        category, error = self._category_of_device(device)
+        if error:
+            return Observable[str].unknown(error)
+        if category == "firewall":
+            return self._read_asa_config(device)
+        if category in self._IOS_CATEGORIES:
+            if not self._ensure_enable(device):
+                return Observable[str].unknown(
+                    f"{device!r} console did not reach enable mode; "
+                    "`show running-config` is a privileged command"
+                )
+            tail = self._console_show_full(device, "show running-config", attempts=2)
+            if not tail.is_known:
+                return Observable[str].unknown(tail.detail or tail.status.value)
+            raw = tail.value
+            marker = self._looks_like_boot_text(raw)
+            if marker and "hostname" not in raw.lower():
+                return Observable[str].unknown(
+                    f"{device!r} returned boot text, not a configuration "
+                    f"({marker!r}): {raw[:160]!r}"
+                )
+            if "% Invalid input" in raw or "% Ambiguous" in raw:
+                return Observable[str].unknown(
+                    f"{device!r} rejected 'show running-config': {raw[-160:]!r}"
+                )
+            lowered = raw.lower()
+            if not any(token in lowered for token in ("hostname ", "interface ", "\n!")):
+                return Observable[str].unknown(
+                    f"{device!r} returned no recognisable configuration: {raw[:160]!r}"
+                )
+            return Observable(
+                status=ObservationStatus.KNOWN,
+                value=raw,
+                detail=raw,
+                source=tail.source,
+                observed_at=None,
+            )
+        if category == "wireless_router":
+            return Observable[str].unsupported(
+                "Linksys-WRT300N exposes no configuration read-back: "
+                "getCommandLine() is absent and configureIosDevice is a no-op "
+                "(live probe); its address is only visible through the port API"
+            )
+        return Observable[str].unsupported(
+            f"{device!r} ({category or 'unknown category'}) has no IOS/ASA "
+            "running configuration to read"
+        )
+
+    def _ensure_enable(self, device: str) -> bool:
+        """Put an IOS console in enable mode before a privileged `show`.
+
+        A freshly added PT router/switch sits at `Router>` user exec, where
+        `show running-config` answers `% Invalid input detected`. Measured on
+        a live Router-PT while writing the Stage 4 live proof. `enable` has no
+        password on these lab chassis; the wait is bounded and a failure leaves
+        the caller to report UNKNOWN.
+        """
+        typed_enable = False
+        deadline = time.time() + 30.0
+        while time.time() < deadline:
+            step = self._console_step(device, "enable", "state")
+            prompt = step.value.prompt.strip() if step.is_known else ""
+            if prompt.endswith("#"):
+                return True
+            if "[yes/no]" in prompt:
+                self._console_raw_enter(device, "no")
+            elif prompt.endswith(">"):
+                if not typed_enable:
+                    typed_enable = self._console_raw_enter(device, "enable")
+            else:
+                # Empty prompt: the device is between boot stages or waiting
+                # for RETURN. One Enter is harmless in either state.
+                self._console_raw_enter(device, "")
+            time.sleep(self._CONSOLE_POLL_S)
+        return False
+
+    def _console_raw_enter(self, device: str, text: str) -> bool:
+        answer = self.send_expression(
+            js.js_console_enter_expr(device, text), wait=8.0
+        )
+        if not answer.is_known:
+            return False
+        return not str(answer.value).startswith("E:")
+
+    def _read_asa_config(self, device: str) -> Observable[str]:
+        """Read the ASA `show running-config` through its enable-mode console."""
+        answer = self.send_expression(
+            js.js_asa_show_expr(device, "show running-config"), wait=25.0
+        )
+        if not answer.is_known:
+            return Observable[str].unknown(
+                f"ASA console unavailable: {answer.detail or answer.status.value}"
+            )
+        text = str(answer.value)
+        if text.startswith("E:"):
+            return Observable[str].unknown(f"ASA console unavailable: {text[2:]}")
+        try:
+            data = json.loads(text)
+        except (TypeError, ValueError):
+            return Observable[str].unknown(f"unparseable ASA answer {text[:160]!r}")
+        status = str(data.get("status") or "")
+        output = str(data.get("out") or "")
+        if status not in ("0", "0.0"):
+            return Observable[str].unknown(
+                f"ASA rejected 'show running-config' (CommandStatus {status}): "
+                f"{output[-160:]!r}"
+            )
+        if not output.strip():
+            return Observable[str].unknown(
+                "ASA returned an empty running configuration"
+            )
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=output,
+            detail=output,
+            source=f"asa-console:{device}",
+            observed_at=None,
+        )
+
+    _HOST_CATEGORIES = frozenset(
+        {"pc", "laptop", "server", "printer", "ip_phone", "end_device", "tablet", "smartphone"}
+    )
+
+    def read_host_ip_config(self, device: str) -> Observable[dict]:
+        """`ipconfig /all` read from the host's own console, parsed.
+
+        This is the only place gateway/DNS/DHCP flags come from on a host:
+        the topology snapshot carries IP and mask only. An unparseable answer
+        is UNKNOWN, never a dict of None values that would read as "the host
+        has no gateway".
+        """
+        category, error = self._category_of_device(device)
+        if error:
+            return Observable[dict].unknown(error)
+        if category not in self._HOST_CATEGORIES:
+            return Observable[dict].unsupported(
+                f"{device!r} ({category or 'unknown category'}) is not a host "
+                "with an ipconfig console"
+            )
+        tail = self._console_show_full(device, "ipconfig /all", attempts=2)
+        if not tail.is_known:
+            return Observable[dict].unknown(tail.detail or tail.status.value)
+        try:
+            parsed = js.parse_ipconfig_all(tail.value)
+        except Exception as exc:
+            return Observable[dict].unknown(f"unparseable ipconfig: {exc}")
+        if not parsed.get("interface") and not parsed.get("ip"):
+            return Observable[dict].unknown(
+                f"ipconfig on {device!r} produced no host block: {tail.value[:160]!r}"
+            )
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=parsed,
+            detail=tail.value,
+            source=tail.source,
+            observed_at=None,
+        )
+
+    def read_device_positions(self) -> Observable[dict[str, tuple[int, int]]]:
+        """Canvas positions for every device, from getX/getYCoordinate()."""
+        answer = self.send_expression(js.js_device_positions_expr(), wait=10.0)
+        if not answer.is_known:
+            return Observable[dict].unknown(answer.detail or answer.status.value)
+        text = str(answer.value)
+        if text.startswith("PT_ERROR"):
+            return Observable[dict].unknown(f"PT reported: {text}")
+        try:
+            data = json.loads(text)
+        except (TypeError, ValueError) as exc:
+            return Observable[dict].unknown(f"unparseable positions: {exc}")
+        positions: dict[str, tuple[int, int]] = {}
+        for name, value in (data or {}).items():
+            if isinstance(value, list) and len(value) == 2:
+                try:
+                    positions[str(name)] = (int(value[0]), int(value[1]))
+                except (TypeError, ValueError):
+                    continue
+        if not positions:
+            return Observable[dict].unknown(
+                "no device reported a canvas position"
+            )
+        return Observable.known(positions, source=answer.source or "canvas")
+
+    def read_arp_table(self, device: str) -> Observable[list]:
+        """Observed ARP cache from `show arp` / host `arp -a`."""
+        category, error = self._category_of_device(device)
+        if error:
+            return Observable[list].unknown(error)
+        if category in self._HOST_CATEGORIES:
+            command = "arp -a"
+        elif category in self._IOS_CATEGORIES:
+            if not self._ensure_enable(device):
+                return Observable[list].unknown("console did not reach enable mode")
+            command = "show arp"
+        else:
+            return Observable[list].unsupported(
+                f"{device!r} ({category or 'unknown category'}) has no ARP table reader"
+            )
+        tail = self._console_show_full(device, command)
+        if not tail.is_known:
+            return Observable[list].unknown(tail.detail or tail.status.value)
+        try:
+            rows = js.parse_show_arp(tail.value)
+        except Exception as exc:
+            return Observable[list].unknown(f"unparseable ARP table: {exc}")
+        if not rows:
+            return Observable[list].unknown(
+                f"{command!r} on {device!r} produced no parseable ARP entry: "
+                f"{tail.value[:160]!r}"
+            )
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=rows,
+            detail=tail.value,
+            source=tail.source,
+            observed_at=None,
+        )
+
+    def read_nat_translations(self, device: str) -> Observable[list]:
+        """Observed `show ip nat translations` rows."""
+        category, error = self._category_of_device(device)
+        if error:
+            return Observable[list].unknown(error)
+        if category not in self._IOS_CATEGORIES:
+            return Observable[list].unsupported(
+                f"{device!r} has no IOS NAT translation table"
+            )
+        if not self._ensure_enable(device):
+            return Observable[list].unknown("console did not reach enable mode")
+        tail = self._console_show_full(device, "show ip nat translations")
+        if not tail.is_known:
+            return Observable[list].unknown(tail.detail or tail.status.value)
+        if "% Invalid input" in tail.value or "% Ambiguous" in tail.value:
+            return Observable[list].unknown(
+                f"{device!r} rejected 'show ip nat translations'"
+            )
+        rows = js.parse_show_nat_translations(tail.value)
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=rows,
+            detail=tail.value,
+            source=tail.source,
+            observed_at=None,
+        )
+
+    def read_spanning_tree(self, device: str) -> Observable[list]:
+        """Structured `show spanning-tree` rows (blocking ports per VLAN)."""
+        category, error = self._category_of_device(device)
+        if error:
+            return Observable[list].unknown(error)
+        if category != "switch":
+            return Observable[list].unsupported(
+                f"{device!r} is not a switch; it has no spanning-tree table"
+            )
+        tail = self._console_show_full(device, "show spanning-tree")
+        if not tail.is_known:
+            return Observable[list].unknown(tail.detail or tail.status.value)
+        if "% Invalid input" in tail.value or "% Ambiguous" in tail.value:
+            return Observable[list].unknown(
+                f"{device!r} rejected 'show spanning-tree'"
+            )
+        try:
+            rows = js.parse_show_spanning_tree(tail.value)
+        except Exception as exc:
+            return Observable[list].unknown(f"unparseable spanning tree: {exc}")
+        if not rows:
+            return Observable[list].unknown(
+                "show spanning-tree produced no port roles"
+            )
+        return Observable(
+            status=ObservationStatus.KNOWN,
+            value=rows,
             detail=tail.value,
             source=tail.source,
             observed_at=None,

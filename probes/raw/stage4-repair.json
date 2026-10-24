@@ -1,0 +1,180 @@
+{
+  "flow_after": {
+    "detail": "ping s4l-pc1->10.0.20.10: ok",
+    "expect": "reachable",
+    "outcome": "reachable",
+    "passed": true
+  },
+  "outcome": {
+    "applied": [
+      {
+        "adapter_error": null,
+        "applied": true,
+        "commands": [
+          "interface FastEthernet1/1",
+          "switchport access vlan 10",
+          "exit"
+        ],
+        "detail": null,
+        "device": "s4l-s1",
+        "operation": "configure_ios",
+        "receipt": "success"
+      }
+    ],
+    "approved": true,
+    "backup": {
+      "adapter": "packet-tracer-bridge",
+      "available": true,
+      "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a",
+      "backup_id": "bak-20261024-000550-f96a843a",
+      "created_at": "2026-10-24T00:05:50+00:00",
+      "entries": [
+        {
+          "detail": null,
+          "device": "s4l-s1",
+          "kind": "running_config",
+          "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\configs\\s4l-s1.txt",
+          "sha256": "98bb63b4e1266bb517522f27caec1eaf63d0132d66a7034d651c0529cca1ea71",
+          "size": 805,
+          "status": "known"
+        }
+      ],
+      "intended_changes": [
+        {
+          "commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 10",
+            "exit"
+          ],
+          "device": "s4l-s1",
+          "host_config": {},
+          "operation": "configure_ios"
+        }
+      ],
+      "problems": [],
+      "project_name": "packet-tracer-bridge-s4repair-0e9431c31c33",
+      "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\packet-tracer-bridge-s4repair-0e9431c31c33.pkt",
+      "project_sha256": "a2c2237c0e13f5e7d78711ee526b0ca90243202f33e75079ebbaacdf2bdfe8b2",
+      "project_size": 46331
+    },
+    "backup_validation": {
+      "available": true,
+      "manifest": {
+        "adapter": "packet-tracer-bridge",
+        "available": true,
+        "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a",
+        "backup_id": "bak-20261024-000550-f96a843a",
+        "created_at": "2026-10-24T00:05:50+00:00",
+        "entries": [
+          {
+            "detail": null,
+            "device": "s4l-s1",
+            "kind": "running_config",
+            "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\configs\\s4l-s1.txt",
+            "sha256": "98bb63b4e1266bb517522f27caec1eaf63d0132d66a7034d651c0529cca1ea71",
+            "size": 805,
+            "status": "known"
+          }
+        ],
+        "intended_changes": [
+          {
+            "commands": [
+              "interface FastEthernet1/1",
+              "switchport access vlan 10",
+              "exit"
+            ],
+            "device": "s4l-s1",
+            "host_config": {},
+            "operation": "configure_ios"
+          }
+        ],
+        "problems": [],
+        "project_name": "packet-tracer-bridge-s4repair-0e9431c31c33",
+        "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000550-f96a843a\\packet-tracer-bridge-s4repair-0e9431c31c33.pkt",
+        "project_sha256": "a2c2237c0e13f5e7d78711ee526b0ca90243202f33e75079ebbaacdf2bdfe8b2",
+        "project_size": 46331
+      },
+      "problems": []
+    },
+    "baseline": {},
+    "blocked_reason": null,
+    "executed": true,
+    "finished_at": "2026-10-24T00:06:32+00:00",
+    "incorrect_fix_left_in_place": false,
+    "objective_detail": "reachable: ping s4l-pc1->10.0.20.10: ok",
+    "objective_verdict": "pass",
+    "post_repair": {},
+    "problems": [],
+    "readback": [
+      {
+        "confirmed": true,
+        "detail": "intended state read back"
+      }
+    ],
+    "regressions": [],
+    "repair_id": "s4repair-0e9431c31c33",
+    "repaired": true,
+    "rollback_complete": false,
+    "rollback_detail": null,
+    "rolled_back": false
+  },
+  "plan": {
+    "actions": [
+      {
+        "commands": [
+          "interface FastEthernet1/1",
+          "switchport access vlan 10",
+          "exit"
+        ],
+        "device": "s4l-s1",
+        "expected_state": {
+          "access_vlan": 10
+        },
+        "host_config": {},
+        "operation": "configure_ios",
+        "reason": "port is in VLAN 20, objective needs VLAN 10",
+        "rollback_commands": [
+          "interface FastEthernet1/1",
+          "switchport access vlan 20",
+          "exit"
+        ]
+      }
+    ],
+    "affected_devices": [
+      "s4l-s1"
+    ],
+    "blocked": false,
+    "blocked_reason": null,
+    "diagnosis_ids": [
+      "s4diag-fab08320afd7"
+    ],
+    "expected_improvement": "restore OBJ-USER-1",
+    "objective_ids": [
+      "OBJ-USER-1"
+    ],
+    "preview": {
+      "devices": [
+        "s4l-s1"
+      ],
+      "mutations": 1,
+      "operations": [
+        {
+          "commands": [
+            "interface FastEthernet1/1",
+            "switchport access vlan 10",
+            "exit"
+          ],
+          "device": "s4l-s1",
+          "host_config": {},
+          "operation": "configure_ios"
+        }
+      ],
+      "skipped_diagnostics": []
+    },
+    "repair_id": "s4repair-0e9431c31c33",
+    "risk": "medium",
+    "verification": [
+      "objective OBJ-USER-1: s4l-pc1 must communicate with s4l-pc2"
+    ]
+  }
+}

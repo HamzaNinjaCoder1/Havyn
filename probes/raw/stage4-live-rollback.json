@@ -1,0 +1,182 @@
+{
+  "generated": "2026-10-24T12:41:42+00:00",
+  "clean_flow": {
+    "outcome": "reachable",
+    "detail": "ping s4r-pc1->10.241.0.11: ok"
+  },
+  "fault_push": "success",
+  "fault_flow": {
+    "outcome": "blocked",
+    "detail": "ping s4r-pc1->10.241.0.11: none"
+  },
+  "diagnosis": {
+    "diagnosis_id": "s4diag-36051888e790",
+    "cause_class": "port-shutdown",
+    "layer": "L1",
+    "root_cause": "s4r-sw1:FastEthernet2/1 is administratively down",
+    "affected_device": "s4r-sw1",
+    "affected_interface": "FastEthernet2/1",
+    "vlan": null,
+    "subnet": null,
+    "evidence": [
+      "topology read-back: cabled port FastEthernet2/1 state down",
+      "running-config admin state: shutdown"
+    ],
+    "confidence": "high",
+    "recommended_fix": [
+      {
+        "device": "s4r-sw1",
+        "operation": "configure_ios",
+        "commands": [
+          "interface FastEthernet2/1",
+          "no shutdown",
+          "exit"
+        ],
+        "reason": "cabled interface is administratively down",
+        "rollback_commands": [
+          "interface FastEthernet2/1",
+          "shutdown",
+          "exit"
+        ],
+        "host_config": {},
+        "expected_state": {}
+      }
+    ],
+    "impact": "this cable carries no traffic",
+    "verification_requirements": [
+      "re-check objective OBJ-USER-1: s4r-pc1 must communicate with s4r-pc2",
+      "re-run every criterion that passed before the change"
+    ],
+    "objective_id": "OBJ-USER-1",
+    "objective_confirmed": true,
+    "suspected": false,
+    "uncertainty": null,
+    "first_failing_hop": null,
+    "status": "DIAGNOSED",
+    "repairable": true,
+    "details": {
+      "trace_status": null,
+      "first_failing_check": null
+    }
+  },
+  "repair": {
+    "repair_id": "live-wrong-repair",
+    "executed": true,
+    "blocked_reason": null,
+    "approved": true,
+    "backup": {
+      "backup_id": "bak-20261024-123903-42ee7732",
+      "created_at": "2026-10-24T12:39:03+00:00",
+      "project_name": "packet-tracer-bridge-live-wrong-repair",
+      "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-123903-42ee7732",
+      "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-123903-42ee7732\\packet-tracer-bridge-live-wrong-repair.pkt",
+      "project_sha256": "e52f4733df279aa262ce55ddf832544d9c5579079f2df60995c7a402e0b0b044",
+      "project_size": 44716,
+      "entries": [
+        {
+          "device": "s4r-sw1",
+          "kind": "running_config",
+          "status": "known",
+          "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-123903-42ee7732\\configs\\s4r-sw1.txt",
+          "sha256": "7e3f13cbdbcd5be5b6a4cfdb6727fdb0905cbb013b75fabc3b393407251a3df3",
+          "size": 755,
+          "detail": null
+        }
+      ],
+      "intended_changes": [
+        {
+          "device": "s4r-sw1",
+          "operation": "configure_ios",
+          "commands": [
+            "interface FastEthernet2/1",
+            "switchport access vlan 20",
+            "exit"
+          ],
+          "host_config": {}
+        }
+      ],
+      "adapter": "packet-tracer-bridge",
+      "available": true,
+      "problems": []
+    },
+    "backup_validation": {
+      "available": true,
+      "problems": [],
+      "manifest": {
+        "backup_id": "bak-20261024-123903-42ee7732",
+        "created_at": "2026-10-24T12:39:03+00:00",
+        "project_name": "packet-tracer-bridge-live-wrong-repair",
+        "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-123903-42ee7732",
+        "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-123903-42ee7732\\packet-tracer-bridge-live-wrong-repair.pkt",
+        "project_sha256": "e52f4733df279aa262ce55ddf832544d9c5579079f2df60995c7a402e0b0b044",
+        "project_size": 44716,
+        "entries": [
+          {
+            "device": "s4r-sw1",
+            "kind": "running_config",
+            "status": "known",
+            "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-123903-42ee7732\\configs\\s4r-sw1.txt",
+            "sha256": "7e3f13cbdbcd5be5b6a4cfdb6727fdb0905cbb013b75fabc3b393407251a3df3",
+            "size": 755,
+            "detail": null
+          }
+        ],
+        "intended_changes": [
+          {
+            "device": "s4r-sw1",
+            "operation": "configure_ios",
+            "commands": [
+              "interface FastEthernet2/1",
+              "switchport access vlan 20",
+              "exit"
+            ],
+            "host_config": {}
+          }
+        ],
+        "adapter": "packet-tracer-bridge",
+        "available": true,
+        "problems": []
+      }
+    },
+    "applied": [
+      {
+        "device": "s4r-sw1",
+        "operation": "configure_ios",
+        "commands": [
+          "interface FastEthernet2/1",
+          "switchport access vlan 20",
+          "exit"
+        ],
+        "applied": true,
+        "detail": null,
+        "receipt": "success",
+        "adapter_error": null
+      }
+    ],
+    "readback": [
+      {
+        "confirmed": true,
+        "detail": "no field expectation; receipt only"
+      }
+    ],
+    "objective_verdict": "fail",
+    "objective_detail": "blocked: ping s4r-pc1->10.241.0.11: none",
+    "baseline": {},
+    "post_repair": {},
+    "regressions": [],
+    "rolled_back": true,
+    "rollback_complete": true,
+    "rollback_detail": "rollback verified against the pre-repair backup",
+    "problems": [],
+    "repaired": false,
+    "incorrect_fix_left_in_place": false,
+    "finished_at": "2026-10-24T12:40:43+00:00"
+  },
+  "flow_after_rollback": {
+    "outcome": "blocked",
+    "detail": "ping s4r-pc1->10.241.0.11: none"
+  },
+  "config_read_known": true,
+  "config_has_shutdown": true,
+  "config_has_vlan10": true
+}

@@ -1,0 +1,52 @@
+{
+  "generated": "2026-10-24T12:34:32+00:00",
+  "stp_rows": [
+    {
+      "vlan": 1,
+      "interface": "FastEthernet0/1",
+      "role": "Desg",
+      "state": "FWD"
+    },
+    {
+      "vlan": 1,
+      "interface": "FastEthernet1/1",
+      "role": "Desg",
+      "state": "FWD"
+    },
+    {
+      "vlan": 1,
+      "interface": "FastEthernet2/1",
+      "role": "Desg",
+      "state": "FWD"
+    },
+    {
+      "vlan": 1,
+      "interface": "FastEthernet1/1",
+      "role": "Altn",
+      "state": "BLK"
+    },
+    {
+      "vlan": 1,
+      "interface": "FastEthernet2/1",
+      "role": "Desg",
+      "state": "FWD"
+    },
+    {
+      "vlan": 1,
+      "interface": "FastEthernet0/1",
+      "role": "Root",
+      "state": "FWD"
+    }
+  ],
+  "blocked": [
+    {
+      "vlan": 1,
+      "interface": "FastEthernet1/1",
+      "role": "Altn",
+      "state": "BLK"
+    }
+  ],
+  "trace_status": "config_consistent",
+  "trace_stp_checks": [],
+  "trace_first_failure": null
+}

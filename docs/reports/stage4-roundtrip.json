@@ -1,0 +1,162 @@
+[
+  {
+    "id": "T01",
+    "file": "T01-small-office.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 2,
+    "not_equivalent": [],
+    "unsupported": 1,
+    "topology": []
+  },
+  {
+    "id": "T02",
+    "file": "T02-two-vlan-office.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 2,
+    "not_equivalent": [],
+    "unsupported": 1,
+    "topology": []
+  },
+  {
+    "id": "T03",
+    "file": "T03-campus-l3-core.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 4,
+    "not_equivalent": [],
+    "unsupported": 6,
+    "topology": []
+  },
+  {
+    "id": "T04",
+    "file": "T04-serial-wan.json",
+    "status": "exact",
+    "detail": null,
+    "devices": 3,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T05",
+    "file": "T05-dsl-internet.json",
+    "status": "exact",
+    "detail": null,
+    "devices": 3,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T06",
+    "file": "T06-home-cable.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 1,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T07",
+    "file": "T07-asa-perimeter.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 3,
+    "not_equivalent": [],
+    "unsupported": 4,
+    "topology": []
+  },
+  {
+    "id": "T08",
+    "file": "T08-asa-dmz.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 3,
+    "not_equivalent": [],
+    "unsupported": 3,
+    "topology": []
+  },
+  {
+    "id": "T09",
+    "file": "T09-ospf-backbone.json",
+    "status": "exact",
+    "detail": null,
+    "devices": 3,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T10",
+    "file": "T10-nat-internet.json",
+    "status": "exact",
+    "detail": null,
+    "devices": 3,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T11",
+    "file": "T11-wireless-office.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 2,
+    "not_equivalent": [],
+    "unsupported": 1,
+    "topology": []
+  },
+  {
+    "id": "T12",
+    "file": "T12-linksys-home.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 1,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T13",
+    "file": "T13-server-farm.json",
+    "status": "exact",
+    "detail": null,
+    "devices": 2,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T14",
+    "file": "T14-iot-home.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 1,
+    "not_equivalent": [],
+    "unsupported": 0,
+    "topology": []
+  },
+  {
+    "id": "T15",
+    "file": "T15-redundant-core.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 3,
+    "not_equivalent": [],
+    "unsupported": 2,
+    "topology": []
+  },
+  {
+    "id": "T16",
+    "file": "T16-enterprise-campus.json",
+    "status": "equivalent",
+    "detail": null,
+    "devices": 14,
+    "not_equivalent": [],
+    "unsupported": 30,
+    "topology": []
+  }
+]

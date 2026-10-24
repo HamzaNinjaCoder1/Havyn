@@ -1,0 +1,331 @@
+{
+  "generated": "2026-10-24T12:48:06+00:00",
+  "scenarios": [
+    {
+      "label": "port-shutdown",
+      "expected": "port-shutdown",
+      "predicted": [
+        "port-down-physical",
+        "port-shutdown"
+      ],
+      "correct": true,
+      "diagnosis": {
+        "diagnosis_id": "s4diag-fbe24370c3aa",
+        "cause_class": "port-shutdown",
+        "layer": "L1",
+        "root_cause": "s4f-sw1:FastEthernet2/1 is administratively down",
+        "affected_device": "s4f-sw1",
+        "affected_interface": "FastEthernet2/1",
+        "vlan": null,
+        "subnet": null,
+        "evidence": [
+          "topology read-back: cabled port FastEthernet2/1 state down",
+          "running-config admin state: shutdown"
+        ],
+        "confidence": "high",
+        "recommended_fix": [
+          {
+            "device": "s4f-sw1",
+            "operation": "configure_ios",
+            "commands": [
+              "interface FastEthernet2/1",
+              "no shutdown",
+              "exit"
+            ],
+            "reason": "cabled interface is administratively down",
+            "rollback_commands": [
+              "interface FastEthernet2/1",
+              "shutdown",
+              "exit"
+            ],
+            "host_config": {},
+            "expected_state": {}
+          }
+        ],
+        "impact": "this cable carries no traffic",
+        "verification_requirements": [
+          "re-check objective OBJ-USER-1: s4f-pc1 must communicate with s4f-pc2",
+          "re-run every criterion that passed before the change"
+        ],
+        "objective_id": "OBJ-USER-1",
+        "objective_confirmed": true,
+        "suspected": false,
+        "uncertainty": null,
+        "first_failing_hop": null,
+        "status": "DIAGNOSED",
+        "repairable": true,
+        "details": {
+          "trace_status": null,
+          "first_failing_check": null
+        }
+      }
+    },
+    {
+      "label": "wrong-access-vlan",
+      "expected": "wrong-access-vlan",
+      "predicted": [
+        "wrong-access-vlan"
+      ],
+      "correct": true,
+      "diagnosis": {
+        "diagnosis_id": "s4diag-167d896882cc",
+        "cause_class": "wrong-access-vlan",
+        "layer": "L2",
+        "root_cause": "s4f-sw1:FastEthernet1/1 is in VLAN 10; the objective needs VLAN 10",
+        "affected_device": "s4f-sw1",
+        "affected_interface": "FastEthernet1/1",
+        "vlan": 10,
+        "subnet": null,
+        "evidence": [
+          "objective OBJ-USER-1: s4f-pc1 must communicate with s4f-pc2",
+          "first failing hop 1: s4f-sw1 port FastEthernet1/1",
+          "s4f-sw1:FastEthernet2/1 (egress) is in VLAN 20, but the flow needs VLAN 10",
+          "observed access VLAN 20",
+          "flow VLAN 10"
+        ],
+        "confidence": "high",
+        "recommended_fix": [
+          {
+            "device": "s4f-sw1",
+            "operation": "configure_ios",
+            "commands": [
+              "interface FastEthernet1/1",
+              "switchport access vlan 10",
+              "exit"
+            ],
+            "reason": "port is in VLAN 10, objective needs VLAN 10",
+            "rollback_commands": [
+              "interface FastEthernet1/1",
+              "switchport access vlan 10",
+              "exit"
+            ],
+            "host_config": {},
+            "expected_state": {
+              "access_vlan": 10
+            }
+          }
+        ],
+        "impact": "the port forwards the flow into the wrong broadcast domain",
+        "verification_requirements": [
+          "re-check objective OBJ-USER-1: s4f-pc1 must communicate with s4f-pc2",
+          "re-run every criterion that passed before the change"
+        ],
+        "objective_id": "OBJ-USER-1",
+        "objective_confirmed": true,
+        "suspected": false,
+        "uncertainty": null,
+        "first_failing_hop": 1,
+        "status": "DIAGNOSED",
+        "repairable": true,
+        "details": {
+          "trace_status": "fail",
+          "first_failing_check": "access-vlan"
+        }
+      }
+    },
+    {
+      "label": "wrong-ip",
+      "expected": "wrong-ip",
+      "predicted": [
+        "wrong-ip"
+      ],
+      "correct": true,
+      "diagnosis": {
+        "diagnosis_id": "s4diag-eff443987b79",
+        "cause_class": "wrong-ip",
+        "layer": "L3",
+        "root_cause": "s4f-pc2:FastEthernet0 has 10.244.0.99/255.255.255.0; expected 10.244.0.11/255.255.255.0",
+        "affected_device": "s4f-pc2",
+        "affected_interface": "FastEthernet0",
+        "vlan": null,
+        "subnet": "10.244.0.0/24",
+        "evidence": [
+          "observed 10.244.0.99/255.255.255.0",
+          "expected 10.244.0.11/255.255.255.0"
+        ],
+        "confidence": "high",
+        "recommended_fix": [
+          {
+            "device": "s4f-pc2",
+            "operation": "configure_host",
+            "commands": [],
+            "reason": "host address differs from the confirmed design",
+            "rollback_commands": [],
+            "host_config": {
+              "dhcp": false,
+              "ip": "10.244.0.11",
+              "mask": "255.255.255.0",
+              "gateway": "10.244.0.1",
+              "dns": "8.8.8.8"
+            },
+            "expected_state": {
+              "ip": "10.244.0.11",
+              "mask": "255.255.255.0"
+            }
+          }
+        ],
+        "impact": "the interface is addressed outside the design",
+        "verification_requirements": [
+          "re-check objective OBJ-USER-1: s4f-pc1 must communicate with s4f-pc2",
+          "re-run every criterion that passed before the change"
+        ],
+        "objective_id": "OBJ-USER-1",
+        "objective_confirmed": true,
+        "suspected": false,
+        "uncertainty": null,
+        "first_failing_hop": null,
+        "status": "DIAGNOSED",
+        "repairable": true,
+        "details": {
+          "trace_status": null,
+          "first_failing_check": null
+        }
+      }
+    },
+    {
+      "label": "wrong-gateway",
+      "expected": "wrong-gateway",
+      "predicted": [
+        "wrong-gateway"
+      ],
+      "correct": true,
+      "diagnosis": {
+        "diagnosis_id": "s4diag-63d952bdb562",
+        "cause_class": "wrong-gateway",
+        "layer": "L3",
+        "root_cause": "s4f-pc2 uses gateway 10.244.0.254; expected 10.244.0.1",
+        "affected_device": "s4f-pc2",
+        "affected_interface": null,
+        "vlan": null,
+        "subnet": "10.244.0.0/24",
+        "evidence": [
+          "ipconfig /all gateway 10.244.0.254",
+          "expected gateway 10.244.0.1"
+        ],
+        "confidence": "high",
+        "recommended_fix": [
+          {
+            "device": "s4f-pc2",
+            "operation": "configure_host",
+            "commands": [],
+            "reason": "host default gateway differs from the design",
+            "rollback_commands": [],
+            "host_config": {
+              "dhcp": false,
+              "ip": "10.244.0.11",
+              "mask": "255.255.255.0",
+              "gateway": "10.244.0.1"
+            },
+            "expected_state": {
+              "gateway": "10.244.0.1"
+            }
+          }
+        ],
+        "impact": "off-subnet traffic is sent to a non-routing address",
+        "verification_requirements": [
+          "re-check objective OBJ-USER-1: s4f-pc1 must communicate with s4f-pc2",
+          "re-run every criterion that passed before the change"
+        ],
+        "objective_id": "OBJ-USER-1",
+        "objective_confirmed": true,
+        "suspected": false,
+        "uncertainty": null,
+        "first_failing_hop": null,
+        "status": "DIAGNOSED",
+        "repairable": true,
+        "details": {
+          "trace_status": null,
+          "first_failing_check": null
+        }
+      }
+    },
+    {
+      "label": "missing-route",
+      "expected": "missing-route",
+      "predicted": [
+        "missing-route"
+      ],
+      "correct": true,
+      "diagnosis": {
+        "diagnosis_id": "s4diag-153de0d9e565",
+        "cause_class": "missing-route",
+        "layer": "L3",
+        "root_cause": "s4f-r1 has no observed route to 192.0.2.0/24",
+        "affected_device": "s4f-r1",
+        "affected_interface": null,
+        "vlan": null,
+        "subnet": "192.0.2.0/24",
+        "evidence": [
+          "observed route table: 2 entries",
+          "expected 192.0.2.0/24 -> 10.244.0.254"
+        ],
+        "confidence": "high",
+        "recommended_fix": [
+          {
+            "device": "s4f-r1",
+            "operation": "configure_ios",
+            "commands": [
+              "ip route 192.0.2.0 255.255.255.0 10.244.0.254"
+            ],
+            "reason": "a designed static route is absent",
+            "rollback_commands": [
+              "no ip route 192.0.2.0 255.255.255.0 10.244.0.254"
+            ],
+            "host_config": {},
+            "expected_state": {
+              "route": "192.0.2.0/24"
+            }
+          }
+        ],
+        "impact": "traffic for that network is dropped or default-routed",
+        "verification_requirements": [
+          "re-run the failing objective",
+          "re-run every criterion that passed before the change"
+        ],
+        "objective_id": null,
+        "objective_confirmed": false,
+        "suspected": false,
+        "uncertainty": null,
+        "first_failing_hop": null,
+        "status": "DIAGNOSED",
+        "repairable": true,
+        "details": {
+          "trace_status": null,
+          "first_failing_check": null
+        }
+      }
+    },
+    {
+      "label": "acl-block",
+      "expected": "acl-block",
+      "predicted": [
+        "unknown"
+      ],
+      "correct": false,
+      "diagnosis": null
+    },
+    {
+      "label": "dns-misconfiguration",
+      "expected": "dns-misconfiguration",
+      "predicted": [
+        "unknown"
+      ],
+      "correct": false,
+      "diagnosis": null
+    }
+  ],
+  "multi_fault": {
+    "detected": [
+      "port-down-physical",
+      "port-shutdown",
+      "wrong-access-vlan"
+    ],
+    "both_detected": true
+  },
+  "summary": {
+    "scenarios": 7,
+    "correct": 5,
+    "accuracy": 0.7143,
+    "multi_fault_both_detected": true
+  }
+}

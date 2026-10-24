@@ -1,0 +1,13 @@
+{
+  "arp_known": true,
+  "arp_detail": null,
+  "entries": [
+    {
+      "ip": "10.242.0.11",
+      "mac": "00e0.f96a.dad2",
+      "type": "dynamic",
+      "interface": null
+    }
+  ],
+  "flow": "reachable"
+}

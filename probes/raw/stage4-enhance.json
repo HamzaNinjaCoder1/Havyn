@@ -1,0 +1,1492 @@
+{
+  "flow_new_after": {
+    "detail": "ping s4e-pc1->10.0.10.11: ok",
+    "outcome": "reachable",
+    "passed": true
+  },
+  "flow_original_after": {
+    "detail": "ping s4e-pc1->10.0.20.10: ok",
+    "outcome": "reachable",
+    "passed": true
+  },
+  "outcome": {
+    "applied_operations": [
+      "op-create-s4e-pc3",
+      "op-link-l-s4e-s1-s4e-pc3",
+      "op-vlan-switch-s4e-s1",
+      "op-host-s4e-pc3",
+      "op-verify-state",
+      "op-save"
+    ],
+    "approved": true,
+    "backup": {
+      "adapter": "packet-tracer-bridge",
+      "available": true,
+      "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000929-9af2762e",
+      "backup_id": "bak-20261024-000929-9af2762e",
+      "created_at": "2026-10-24T00:09:29+00:00",
+      "entries": [
+        {
+          "detail": null,
+          "device": "s4e-s1",
+          "kind": "running_config",
+          "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000929-9af2762e\\configs\\s4e-s1.txt",
+          "sha256": "30e131c764df501c318384b0f3fd40fbdf3e683f6f6e6ec13ad7e4b8e160ee64",
+          "size": 805,
+          "status": "known"
+        }
+      ],
+      "intended_changes": [
+        {
+          "blast_radius": [
+            "s4e-pc3"
+          ],
+          "classification": "create",
+          "dependencies": [],
+          "expected_postconditions": [
+            {
+              "expected": "present",
+              "kind": "device_present",
+              "target": "s4e-pc3"
+            },
+            {
+              "expected": "PC-PT",
+              "kind": "device_model",
+              "target": "s4e-pc3"
+            }
+          ],
+          "idempotency_key": "aa7faf19ded37355",
+          "inputs": {
+            "model": "PC-PT",
+            "name": "s4e-pc3",
+            "position": [
+              580,
+              400
+            ],
+            "role": "pc"
+          },
+          "operation_id": "op-create-s4e-pc3",
+          "operation_type": "create_device",
+          "preconditions": [
+            {
+              "expected": "absent",
+              "kind": "device_absent",
+              "target": "s4e-pc3"
+            }
+          ],
+          "retry_policy": 1,
+          "risk": "low",
+          "schema": 2
+        },
+        {
+          "blast_radius": [
+            "s4e-s1",
+            "s4e-pc3"
+          ],
+          "classification": "link",
+          "dependencies": [
+            "op-create-s4e-s1",
+            "op-create-s4e-pc3"
+          ],
+          "expected_postconditions": [
+            {
+              "expected": "present",
+              "kind": "link_present",
+              "target": "l-s4e-s1-s4e-pc3"
+            }
+          ],
+          "idempotency_key": "ce6c30454d9664b7",
+          "inputs": {
+            "a_device": "s4e-s1",
+            "a_port": "FastEthernet3/1",
+            "b_device": "s4e-pc3",
+            "b_port": "FastEthernet0",
+            "link_id": "l-s4e-s1-s4e-pc3",
+            "media": "straight"
+          },
+          "operation_id": "op-link-l-s4e-s1-s4e-pc3",
+          "operation_type": "create_link",
+          "preconditions": [
+            {
+              "expected": "present",
+              "kind": "device_present",
+              "target": "s4e-s1"
+            },
+            {
+              "expected": "present",
+              "kind": "device_present",
+              "target": "s4e-pc3"
+            },
+            {
+              "expected": "free",
+              "kind": "port_free",
+              "target": "s4e-s1:FastEthernet3/1"
+            },
+            {
+              "expected": "free",
+              "kind": "port_free",
+              "target": "s4e-pc3:FastEthernet0"
+            }
+          ],
+          "retry_policy": 1,
+          "risk": "low",
+          "schema": 2
+        },
+        {
+          "blast_radius": [
+            "s4e-s1"
+          ],
+          "classification": "configure",
+          "dependencies": [
+            "op-create-s4e-s1"
+          ],
+          "expected_postconditions": [
+            {
+              "expected": "commands accepted",
+              "kind": "ios_accepted",
+              "target": "s4e-s1"
+            }
+          ],
+          "idempotency_key": "3cdbb702e23b2d01",
+          "inputs": {
+            "commands": [
+              "hostname s4e-s1",
+              "vlan 10",
+              " name USERS",
+              " exit",
+              "vlan 20",
+              " name GUESTS",
+              " exit",
+              "interface FastEthernet1/1",
+              " switchport mode access",
+              " switchport access vlan 10",
+              " exit",
+              "interface FastEthernet2/1",
+              " switchport mode access",
+              " switchport access vlan 20",
+              " exit",
+              "interface FastEthernet0/1",
+              " switchport mode trunk",
+              " switchport trunk allowed vlan 10,20",
+              " switchport trunk native vlan 1",
+              " exit",
+              "interface FastEthernet3/1",
+              " switchport mode access",
+              " switchport access vlan 10",
+              " exit"
+            ],
+            "device": "s4e-s1",
+            "static_routes": []
+          },
+          "operation_id": "op-vlan-switch-s4e-s1",
+          "operation_type": "configure_ios",
+          "preconditions": [
+            {
+              "expected": "present",
+              "kind": "device_present",
+              "target": "s4e-s1"
+            }
+          ],
+          "retry_policy": 1,
+          "risk": "medium",
+          "schema": 2
+        },
+        {
+          "blast_radius": [
+            "s4e-pc3"
+          ],
+          "classification": "configure",
+          "dependencies": [
+            "op-create-s4e-pc3",
+            "op-link-l-s4e-s1-s4e-pc3"
+          ],
+          "expected_postconditions": [
+            {
+              "expected": "10.0.10.11",
+              "kind": "host_ip",
+              "target": "s4e-pc3"
+            }
+          ],
+          "idempotency_key": "c670b6e5ba730efe",
+          "inputs": {
+            "device": "s4e-pc3",
+            "dhcp": false,
+            "gateway": "10.0.10.1",
+            "ip": "10.0.10.11",
+            "mask": "255.255.255.0"
+          },
+          "operation_id": "op-host-s4e-pc3",
+          "operation_type": "configure_host",
+          "preconditions": [
+            {
+              "expected": "present",
+              "kind": "device_present",
+              "target": "s4e-pc3"
+            }
+          ],
+          "retry_policy": 1,
+          "risk": "medium",
+          "schema": 2
+        },
+        {
+          "blast_radius": [],
+          "classification": "observe",
+          "dependencies": [
+            "op-config-s4e-r1",
+            "op-vlan-switch-s4e-s1",
+            "op-host-s4e-pc1",
+            "op-host-s4e-pc2",
+            "op-host-s4e-pc3"
+          ],
+          "expected_postconditions": [],
+          "idempotency_key": "7e5fa5e74c119257",
+          "inputs": {
+            "device_names": [
+              "s4e-pc1",
+              "s4e-pc2",
+              "s4e-r1",
+              "s4e-s1",
+              "s4e-pc3"
+            ]
+          },
+          "operation_id": "op-verify-state",
+          "operation_type": "verify_state",
+          "preconditions": [],
+          "retry_policy": 0,
+          "risk": "low",
+          "schema": 2
+        },
+        {
+          "blast_radius": [],
+          "classification": "persist",
+          "dependencies": [
+            "op-flow-A-1",
+            "op-verify-state"
+          ],
+          "expected_postconditions": [],
+          "idempotency_key": "4f9c9a1cf5699759",
+          "inputs": {
+            "filename": "stage4-live-enhanced.pkt"
+          },
+          "operation_id": "op-save",
+          "operation_type": "save_project",
+          "preconditions": [],
+          "retry_policy": 0,
+          "risk": "medium",
+          "schema": 2
+        }
+      ],
+      "problems": [],
+      "project_name": "enhance-stage4-live-enhanced",
+      "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000929-9af2762e\\enhance-stage4-live-enhanced.pkt",
+      "project_sha256": "c531a972ed74b1197cfb3bfc81e1bceb89819934ca346c5404cb1be4096d32a3",
+      "project_size": 46768
+    },
+    "backup_validation": {
+      "available": true,
+      "manifest": {
+        "adapter": "packet-tracer-bridge",
+        "available": true,
+        "backup_dir": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000929-9af2762e",
+        "backup_id": "bak-20261024-000929-9af2762e",
+        "created_at": "2026-10-24T00:09:29+00:00",
+        "entries": [
+          {
+            "detail": null,
+            "device": "s4e-s1",
+            "kind": "running_config",
+            "path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000929-9af2762e\\configs\\s4e-s1.txt",
+            "sha256": "30e131c764df501c318384b0f3fd40fbdf3e683f6f6e6ec13ad7e4b8e160ee64",
+            "size": 805,
+            "status": "known"
+          }
+        ],
+        "intended_changes": [
+          {
+            "blast_radius": [
+              "s4e-pc3"
+            ],
+            "classification": "create",
+            "dependencies": [],
+            "expected_postconditions": [
+              {
+                "expected": "present",
+                "kind": "device_present",
+                "target": "s4e-pc3"
+              },
+              {
+                "expected": "PC-PT",
+                "kind": "device_model",
+                "target": "s4e-pc3"
+              }
+            ],
+            "idempotency_key": "aa7faf19ded37355",
+            "inputs": {
+              "model": "PC-PT",
+              "name": "s4e-pc3",
+              "position": [
+                580,
+                400
+              ],
+              "role": "pc"
+            },
+            "operation_id": "op-create-s4e-pc3",
+            "operation_type": "create_device",
+            "preconditions": [
+              {
+                "expected": "absent",
+                "kind": "device_absent",
+                "target": "s4e-pc3"
+              }
+            ],
+            "retry_policy": 1,
+            "risk": "low",
+            "schema": 2
+          },
+          {
+            "blast_radius": [
+              "s4e-s1",
+              "s4e-pc3"
+            ],
+            "classification": "link",
+            "dependencies": [
+              "op-create-s4e-s1",
+              "op-create-s4e-pc3"
+            ],
+            "expected_postconditions": [
+              {
+                "expected": "present",
+                "kind": "link_present",
+                "target": "l-s4e-s1-s4e-pc3"
+              }
+            ],
+            "idempotency_key": "ce6c30454d9664b7",
+            "inputs": {
+              "a_device": "s4e-s1",
+              "a_port": "FastEthernet3/1",
+              "b_device": "s4e-pc3",
+              "b_port": "FastEthernet0",
+              "link_id": "l-s4e-s1-s4e-pc3",
+              "media": "straight"
+            },
+            "operation_id": "op-link-l-s4e-s1-s4e-pc3",
+            "operation_type": "create_link",
+            "preconditions": [
+              {
+                "expected": "present",
+                "kind": "device_present",
+                "target": "s4e-s1"
+              },
+              {
+                "expected": "present",
+                "kind": "device_present",
+                "target": "s4e-pc3"
+              },
+              {
+                "expected": "free",
+                "kind": "port_free",
+                "target": "s4e-s1:FastEthernet3/1"
+              },
+              {
+                "expected": "free",
+                "kind": "port_free",
+                "target": "s4e-pc3:FastEthernet0"
+              }
+            ],
+            "retry_policy": 1,
+            "risk": "low",
+            "schema": 2
+          },
+          {
+            "blast_radius": [
+              "s4e-s1"
+            ],
+            "classification": "configure",
+            "dependencies": [
+              "op-create-s4e-s1"
+            ],
+            "expected_postconditions": [
+              {
+                "expected": "commands accepted",
+                "kind": "ios_accepted",
+                "target": "s4e-s1"
+              }
+            ],
+            "idempotency_key": "3cdbb702e23b2d01",
+            "inputs": {
+              "commands": [
+                "hostname s4e-s1",
+                "vlan 10",
+                " name USERS",
+                " exit",
+                "vlan 20",
+                " name GUESTS",
+                " exit",
+                "interface FastEthernet1/1",
+                " switchport mode access",
+                " switchport access vlan 10",
+                " exit",
+                "interface FastEthernet2/1",
+                " switchport mode access",
+                " switchport access vlan 20",
+                " exit",
+                "interface FastEthernet0/1",
+                " switchport mode trunk",
+                " switchport trunk allowed vlan 10,20",
+                " switchport trunk native vlan 1",
+                " exit",
+                "interface FastEthernet3/1",
+                " switchport mode access",
+                " switchport access vlan 10",
+                " exit"
+              ],
+              "device": "s4e-s1",
+              "static_routes": []
+            },
+            "operation_id": "op-vlan-switch-s4e-s1",
+            "operation_type": "configure_ios",
+            "preconditions": [
+              {
+                "expected": "present",
+                "kind": "device_present",
+                "target": "s4e-s1"
+              }
+            ],
+            "retry_policy": 1,
+            "risk": "medium",
+            "schema": 2
+          },
+          {
+            "blast_radius": [
+              "s4e-pc3"
+            ],
+            "classification": "configure",
+            "dependencies": [
+              "op-create-s4e-pc3",
+              "op-link-l-s4e-s1-s4e-pc3"
+            ],
+            "expected_postconditions": [
+              {
+                "expected": "10.0.10.11",
+                "kind": "host_ip",
+                "target": "s4e-pc3"
+              }
+            ],
+            "idempotency_key": "c670b6e5ba730efe",
+            "inputs": {
+              "device": "s4e-pc3",
+              "dhcp": false,
+              "gateway": "10.0.10.1",
+              "ip": "10.0.10.11",
+              "mask": "255.255.255.0"
+            },
+            "operation_id": "op-host-s4e-pc3",
+            "operation_type": "configure_host",
+            "preconditions": [
+              {
+                "expected": "present",
+                "kind": "device_present",
+                "target": "s4e-pc3"
+              }
+            ],
+            "retry_policy": 1,
+            "risk": "medium",
+            "schema": 2
+          },
+          {
+            "blast_radius": [],
+            "classification": "observe",
+            "dependencies": [
+              "op-config-s4e-r1",
+              "op-vlan-switch-s4e-s1",
+              "op-host-s4e-pc1",
+              "op-host-s4e-pc2",
+              "op-host-s4e-pc3"
+            ],
+            "expected_postconditions": [],
+            "idempotency_key": "7e5fa5e74c119257",
+            "inputs": {
+              "device_names": [
+                "s4e-pc1",
+                "s4e-pc2",
+                "s4e-r1",
+                "s4e-s1",
+                "s4e-pc3"
+              ]
+            },
+            "operation_id": "op-verify-state",
+            "operation_type": "verify_state",
+            "preconditions": [],
+            "retry_policy": 0,
+            "risk": "low",
+            "schema": 2
+          },
+          {
+            "blast_radius": [],
+            "classification": "persist",
+            "dependencies": [
+              "op-flow-A-1",
+              "op-verify-state"
+            ],
+            "expected_postconditions": [],
+            "idempotency_key": "4f9c9a1cf5699759",
+            "inputs": {
+              "filename": "stage4-live-enhanced.pkt"
+            },
+            "operation_id": "op-save",
+            "operation_type": "save_project",
+            "preconditions": [],
+            "retry_policy": 0,
+            "risk": "medium",
+            "schema": 2
+          }
+        ],
+        "problems": [],
+        "project_name": "enhance-stage4-live-enhanced",
+        "project_path": "D:\\Agent\\MCP-Packet-Tracer\\probes\\stage4-backups\\brownfield\\bak-20261024-000929-9af2762e\\enhance-stage4-live-enhanced.pkt",
+        "project_sha256": "c531a972ed74b1197cfb3bfc81e1bceb89819934ca346c5404cb1be4096d32a3",
+        "project_size": 46768
+      },
+      "problems": []
+    },
+    "blocked_reason": null,
+    "dag_summary": {
+      "blocked": 0,
+      "failed": 0,
+      "pending": 0,
+      "skipped": 0,
+      "succeeded": 6
+    },
+    "desired_after": {
+      "A-1": "pass"
+    },
+    "desired_report": {
+      "acceptance": {
+        "requirement_results": [],
+        "results": [
+          {
+            "criterion_id": "A-1",
+            "evidence": [
+              "observed outcome: reachable (ping s4e-pc1->10.0.20.10: ok)"
+            ],
+            "requirement_ids": [],
+            "verdict": "pass"
+          }
+        ],
+        "satisfied": true,
+        "summary": {
+          "fail": 0,
+          "not_run": 0,
+          "pass": 1,
+          "unknown": 0
+        }
+      },
+      "observations_complete": true,
+      "per_criterion": {
+        "all_traceable": true,
+        "fail_count": 0,
+        "pass_count": 1,
+        "summary": {
+          "fail": 0,
+          "not_run": 0,
+          "pass": 1,
+          "unknown": 0
+        },
+        "unknown_count": 0,
+        "verifications": [
+          {
+            "checked_by": "per-criterion-verifier",
+            "criterion_id": "A-1",
+            "evidence": [
+              "ping s4e-pc1->10.0.20.10: ok",
+              "ping_stat=Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
+            ],
+            "expected": "reachable",
+            "kind": "connectivity",
+            "observed": "reachable",
+            "raw_output": "{'ping_stat': 'Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),'}",
+            "requirement_ids": [],
+            "target": "s4e-pc1->s4e-pc2",
+            "test_kind": "flow",
+            "timestamp": "2026-10-24T00:10:15+00:00",
+            "verdict": "pass",
+            "verification_id": "CV-A-1"
+          }
+        ]
+      },
+      "summary": {
+        "fail": 0,
+        "not_run": 0,
+        "pass": 17,
+        "unknown": 0
+      },
+      "tests": [
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=PC-PT"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-pc1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc1",
+          "test_id": "VT-struct-device-s4e-pc1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=PC-PT"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-pc2",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc2",
+          "test_id": "VT-struct-device-s4e-pc2",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=2911"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-r1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-r1",
+          "test_id": "VT-struct-device-s4e-r1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=Switch-PT"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-s1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-s1",
+          "test_id": "VT-struct-device-s4e-s1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=PC-PT"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-pc3",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc3",
+          "test_id": "VT-struct-device-s4e-pc3",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "show vlan brief on s4e-s1:FastEthernet1/1"
+          ],
+          "expected_result": "access VLAN 10",
+          "level": "structural",
+          "observed_result": "VLAN 10",
+          "source": "s4e-s1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "test_id": "VT-struct-vlan-l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "show vlan brief on s4e-s1:FastEthernet2/1"
+          ],
+          "expected_result": "access VLAN 20",
+          "level": "structural",
+          "observed_result": "VLAN 20",
+          "source": "s4e-s1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "test_id": "VT-struct-vlan-l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "both ports report an attached link"
+          ],
+          "expected_result": "link present",
+          "level": "structural",
+          "observed_result": "s4e-pc1:FastEthernet0 <-> s4e-s1:FastEthernet1/1",
+          "source": null,
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "test_id": "VT-struct-link-l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "both ports report an attached link"
+          ],
+          "expected_result": "link present",
+          "level": "structural",
+          "observed_result": "s4e-pc2:FastEthernet0 <-> s4e-s1:FastEthernet2/1",
+          "source": null,
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "test_id": "VT-struct-link-l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "both ports report an attached link"
+          ],
+          "expected_result": "link present",
+          "level": "structural",
+          "observed_result": "s4e-r1:GigabitEthernet0/0 <-> s4e-s1:FastEthernet0/1",
+          "source": null,
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-r1-gigabitethernet0-0-s4e-s1-fastethernet0-1",
+          "test_id": "VT-struct-link-l-s4e-r1-gigabitethernet0-0-s4e-s1-fastethernet0-1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "both ports report an attached link"
+          ],
+          "expected_result": "link present",
+          "level": "structural",
+          "observed_result": "s4e-s1:FastEthernet3/1 <-> s4e-pc3:FastEthernet0",
+          "source": null,
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-s1-s4e-pc3",
+          "test_id": "VT-struct-link-l-s4e-s1-s4e-pc3",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.10.10/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.10.10/255.255.255.0",
+          "source": "s4e-pc1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc1:FastEthernet0",
+          "test_id": "VT-addr-s4e-pc1-FastEthernet0",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.20.10/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.20.10/255.255.255.0",
+          "source": "s4e-pc2",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc2:FastEthernet0",
+          "test_id": "VT-addr-s4e-pc2-FastEthernet0",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.10.1/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.10.1/255.255.255.0",
+          "source": "s4e-r1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-r1:GigabitEthernet0/0.10",
+          "test_id": "VT-addr-s4e-r1-GigabitEthernet0/0.10",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.20.1/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.20.1/255.255.255.0",
+          "source": "s4e-r1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-r1:GigabitEthernet0/0.20",
+          "test_id": "VT-addr-s4e-r1-GigabitEthernet0/0.20",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.10.11/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.10.11/255.255.255.0",
+          "source": "s4e-pc3",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc3:FastEthernet0",
+          "test_id": "VT-addr-s4e-pc3-FastEthernet0",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ping s4e-pc1->10.0.20.10: ok",
+            "ping_stat=Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
+          ],
+          "expected_result": "reachable (icmp)",
+          "level": "connectivity",
+          "observed_result": "reachable",
+          "source": "s4e-pc1",
+          "source_acceptance_criterion": "A-1",
+          "source_requirement": null,
+          "target": "s4e-pc2",
+          "test_id": "VT-flow-A-1",
+          "timestamp": "2026-10-24T00:10:14+00:00",
+          "verdict": "pass"
+        }
+      ]
+    },
+    "desired_satisfied": true,
+    "executed": true,
+    "original_after": {
+      "A-1": "pass"
+    },
+    "original_before": {
+      "A-1": "pass"
+    },
+    "original_report": {
+      "acceptance": {
+        "requirement_results": [],
+        "results": [
+          {
+            "criterion_id": "A-1",
+            "evidence": [
+              "observed outcome: reachable (ping s4e-pc1->10.0.20.10: ok)"
+            ],
+            "requirement_ids": [],
+            "verdict": "pass"
+          }
+        ],
+        "satisfied": true,
+        "summary": {
+          "fail": 0,
+          "not_run": 0,
+          "pass": 1,
+          "unknown": 0
+        }
+      },
+      "observations_complete": true,
+      "per_criterion": {
+        "all_traceable": true,
+        "fail_count": 0,
+        "pass_count": 1,
+        "summary": {
+          "fail": 0,
+          "not_run": 0,
+          "pass": 1,
+          "unknown": 0
+        },
+        "unknown_count": 0,
+        "verifications": [
+          {
+            "checked_by": "per-criterion-verifier",
+            "criterion_id": "A-1",
+            "evidence": [
+              "ping s4e-pc1->10.0.20.10: ok",
+              "ping_stat=Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
+            ],
+            "expected": "reachable",
+            "kind": "connectivity",
+            "observed": "reachable",
+            "raw_output": "{'ping_stat': 'Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),'}",
+            "requirement_ids": [],
+            "target": "s4e-pc1->s4e-pc2",
+            "test_kind": "flow",
+            "timestamp": "2026-10-24T00:09:29+00:00",
+            "verdict": "pass",
+            "verification_id": "CV-A-1"
+          }
+        ]
+      },
+      "summary": {
+        "fail": 0,
+        "not_run": 0,
+        "pass": 14,
+        "unknown": 0
+      },
+      "tests": [
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=PC-PT"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-pc1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc1",
+          "test_id": "VT-struct-device-s4e-pc1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=PC-PT"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-pc2",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc2",
+          "test_id": "VT-struct-device-s4e-pc2",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=2911"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-r1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-r1",
+          "test_id": "VT-struct-device-s4e-r1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "device observed in workspace state",
+            "model=Switch-PT"
+          ],
+          "expected_result": "device present",
+          "level": "structural",
+          "observed_result": "present",
+          "source": "s4e-s1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-s1",
+          "test_id": "VT-struct-device-s4e-s1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "show vlan brief on s4e-s1:FastEthernet1/1"
+          ],
+          "expected_result": "access VLAN 10",
+          "level": "structural",
+          "observed_result": "VLAN 10",
+          "source": "s4e-s1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "test_id": "VT-struct-vlan-l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "show vlan brief on s4e-s1:FastEthernet2/1"
+          ],
+          "expected_result": "access VLAN 20",
+          "level": "structural",
+          "observed_result": "VLAN 20",
+          "source": "s4e-s1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "test_id": "VT-struct-vlan-l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "both ports report an attached link"
+          ],
+          "expected_result": "link present",
+          "level": "structural",
+          "observed_result": "s4e-pc1:FastEthernet0 <-> s4e-s1:FastEthernet1/1",
+          "source": null,
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "test_id": "VT-struct-link-l-s4e-pc1-fastethernet0-s4e-s1-fastethernet1-1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "both ports report an attached link"
+          ],
+          "expected_result": "link present",
+          "level": "structural",
+          "observed_result": "s4e-pc2:FastEthernet0 <-> s4e-s1:FastEthernet2/1",
+          "source": null,
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "test_id": "VT-struct-link-l-s4e-pc2-fastethernet0-s4e-s1-fastethernet2-1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "both ports report an attached link"
+          ],
+          "expected_result": "link present",
+          "level": "structural",
+          "observed_result": "s4e-r1:GigabitEthernet0/0 <-> s4e-s1:FastEthernet0/1",
+          "source": null,
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "l-s4e-r1-gigabitethernet0-0-s4e-s1-fastethernet0-1",
+          "test_id": "VT-struct-link-l-s4e-r1-gigabitethernet0-0-s4e-s1-fastethernet0-1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.10.10/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.10.10/255.255.255.0",
+          "source": "s4e-pc1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc1:FastEthernet0",
+          "test_id": "VT-addr-s4e-pc1-FastEthernet0",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.20.10/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.20.10/255.255.255.0",
+          "source": "s4e-pc2",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-pc2:FastEthernet0",
+          "test_id": "VT-addr-s4e-pc2-FastEthernet0",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.10.1/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.10.1/255.255.255.0",
+          "source": "s4e-r1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-r1:GigabitEthernet0/0.10",
+          "test_id": "VT-addr-s4e-r1-GigabitEthernet0/0.10",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ip and mask read back from the device"
+          ],
+          "expected_result": "10.0.20.1/255.255.255.0",
+          "level": "addressing",
+          "observed_result": "10.0.20.1/255.255.255.0",
+          "source": "s4e-r1",
+          "source_acceptance_criterion": null,
+          "source_requirement": null,
+          "target": "s4e-r1:GigabitEthernet0/0.20",
+          "test_id": "VT-addr-s4e-r1-GigabitEthernet0/0.20",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        },
+        {
+          "evidence": [
+            "ping s4e-pc1->10.0.20.10: ok",
+            "ping_stat=Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
+          ],
+          "expected_result": "reachable (icmp)",
+          "level": "connectivity",
+          "observed_result": "reachable",
+          "source": "s4e-pc1",
+          "source_acceptance_criterion": "A-1",
+          "source_requirement": null,
+          "target": "s4e-pc2",
+          "test_id": "VT-flow-A-1",
+          "timestamp": "2026-10-24T00:09:29+00:00",
+          "verdict": "pass"
+        }
+      ]
+    },
+    "preserved": true,
+    "problems": [],
+    "regressions": [],
+    "revert_detail": null,
+    "reverted": false,
+    "success": true
+  },
+  "plan": {
+    "affected_devices": [
+      "s4e-pc3",
+      "s4e-s1"
+    ],
+    "blocked": false,
+    "blocked_reason": null,
+    "changes": [
+      {
+        "after": {
+          "asa_interfaces": [],
+          "description": null,
+          "floor": null,
+          "id": "s4e-pc3",
+          "interface_requirements": [],
+          "model_hint": null,
+          "role": "pc"
+        },
+        "before": null,
+        "detail": null,
+        "identity": "s4e-pc3",
+        "kind": "add",
+        "section": "devices"
+      },
+      {
+        "after": {
+          "a": {
+            "device": "s4e-s1",
+            "interface_hint": "FastEthernet3/1",
+            "vlan": 10
+          },
+          "allowed_vlans": null,
+          "b": {
+            "device": "s4e-pc3",
+            "interface_hint": "FastEthernet0",
+            "vlan": null
+          },
+          "id": "l-s4e-s1-s4e-pc3",
+          "media": "auto",
+          "native_vlan": null,
+          "trunk": false
+        },
+        "before": null,
+        "detail": null,
+        "identity": "(('s4e-pc3', 'FastEthernet0'), ('s4e-s1', 'FastEthernet3/1'))",
+        "kind": "add",
+        "section": "links"
+      },
+      {
+        "after": {
+          "device": "s4e-pc3",
+          "dhcp": null,
+          "gateway": null,
+          "interface_hint": null,
+          "ip": "10.0.10.11",
+          "subnet": "sn-10-0-10-0-24"
+        },
+        "before": null,
+        "detail": null,
+        "identity": "('s4e-pc3', '', 'sn-10-0-10-0-24')",
+        "kind": "add",
+        "section": "ip_assignments"
+      }
+    ],
+    "conflicts": [],
+    "diff_summary": {
+      "devices:add": 1,
+      "ip_assignments:add": 1,
+      "links:add": 1
+    },
+    "operations": [
+      {
+        "blast_radius": [
+          "s4e-pc3"
+        ],
+        "classification": "create",
+        "dependencies": [],
+        "expected_postconditions": [
+          {
+            "expected": "present",
+            "kind": "device_present",
+            "target": "s4e-pc3"
+          },
+          {
+            "expected": "PC-PT",
+            "kind": "device_model",
+            "target": "s4e-pc3"
+          }
+        ],
+        "idempotency_key": "aa7faf19ded37355",
+        "inputs": {
+          "model": "PC-PT",
+          "name": "s4e-pc3",
+          "position": [
+            580,
+            400
+          ],
+          "role": "pc"
+        },
+        "operation_id": "op-create-s4e-pc3",
+        "operation_type": "create_device",
+        "preconditions": [
+          {
+            "expected": "absent",
+            "kind": "device_absent",
+            "target": "s4e-pc3"
+          }
+        ],
+        "retry_policy": 1,
+        "risk": "low",
+        "schema": 2
+      },
+      {
+        "blast_radius": [
+          "s4e-s1",
+          "s4e-pc3"
+        ],
+        "classification": "link",
+        "dependencies": [
+          "op-create-s4e-s1",
+          "op-create-s4e-pc3"
+        ],
+        "expected_postconditions": [
+          {
+            "expected": "present",
+            "kind": "link_present",
+            "target": "l-s4e-s1-s4e-pc3"
+          }
+        ],
+        "idempotency_key": "ce6c30454d9664b7",
+        "inputs": {
+          "a_device": "s4e-s1",
+          "a_port": "FastEthernet3/1",
+          "b_device": "s4e-pc3",
+          "b_port": "FastEthernet0",
+          "link_id": "l-s4e-s1-s4e-pc3",
+          "media": "straight"
+        },
+        "operation_id": "op-link-l-s4e-s1-s4e-pc3",
+        "operation_type": "create_link",
+        "preconditions": [
+          {
+            "expected": "present",
+            "kind": "device_present",
+            "target": "s4e-s1"
+          },
+          {
+            "expected": "present",
+            "kind": "device_present",
+            "target": "s4e-pc3"
+          },
+          {
+            "expected": "free",
+            "kind": "port_free",
+            "target": "s4e-s1:FastEthernet3/1"
+          },
+          {
+            "expected": "free",
+            "kind": "port_free",
+            "target": "s4e-pc3:FastEthernet0"
+          }
+        ],
+        "retry_policy": 1,
+        "risk": "low",
+        "schema": 2
+      },
+      {
+        "blast_radius": [
+          "s4e-s1"
+        ],
+        "classification": "configure",
+        "dependencies": [
+          "op-create-s4e-s1"
+        ],
+        "expected_postconditions": [
+          {
+            "expected": "commands accepted",
+            "kind": "ios_accepted",
+            "target": "s4e-s1"
+          }
+        ],
+        "idempotency_key": "3cdbb702e23b2d01",
+        "inputs": {
+          "commands": [
+            "hostname s4e-s1",
+            "vlan 10",
+            " name USERS",
+            " exit",
+            "vlan 20",
+            " name GUESTS",
+            " exit",
+            "interface FastEthernet1/1",
+            " switchport mode access",
+            " switchport access vlan 10",
+            " exit",
+            "interface FastEthernet2/1",
+            " switchport mode access",
+            " switchport access vlan 20",
+            " exit",
+            "interface FastEthernet0/1",
+            " switchport mode trunk",
+            " switchport trunk allowed vlan 10,20",
+            " switchport trunk native vlan 1",
+            " exit",
+            "interface FastEthernet3/1",
+            " switchport mode access",
+            " switchport access vlan 10",
+            " exit"
+          ],
+          "device": "s4e-s1",
+          "static_routes": []
+        },
+        "operation_id": "op-vlan-switch-s4e-s1",
+        "operation_type": "configure_ios",
+        "preconditions": [
+          {
+            "expected": "present",
+            "kind": "device_present",
+            "target": "s4e-s1"
+          }
+        ],
+        "retry_policy": 1,
+        "risk": "medium",
+        "schema": 2
+      },
+      {
+        "blast_radius": [
+          "s4e-pc3"
+        ],
+        "classification": "configure",
+        "dependencies": [
+          "op-create-s4e-pc3",
+          "op-link-l-s4e-s1-s4e-pc3"
+        ],
+        "expected_postconditions": [
+          {
+            "expected": "10.0.10.11",
+            "kind": "host_ip",
+            "target": "s4e-pc3"
+          }
+        ],
+        "idempotency_key": "c670b6e5ba730efe",
+        "inputs": {
+          "device": "s4e-pc3",
+          "dhcp": false,
+          "gateway": "10.0.10.1",
+          "ip": "10.0.10.11",
+          "mask": "255.255.255.0"
+        },
+        "operation_id": "op-host-s4e-pc3",
+        "operation_type": "configure_host",
+        "preconditions": [
+          {
+            "expected": "present",
+            "kind": "device_present",
+            "target": "s4e-pc3"
+          }
+        ],
+        "retry_policy": 1,
+        "risk": "medium",
+        "schema": 2
+      },
+      {
+        "blast_radius": [],
+        "classification": "observe",
+        "dependencies": [
+          "op-config-s4e-r1",
+          "op-vlan-switch-s4e-s1",
+          "op-host-s4e-pc1",
+          "op-host-s4e-pc2",
+          "op-host-s4e-pc3"
+        ],
+        "expected_postconditions": [],
+        "idempotency_key": "7e5fa5e74c119257",
+        "inputs": {
+          "device_names": [
+            "s4e-pc1",
+            "s4e-pc2",
+            "s4e-r1",
+            "s4e-s1",
+            "s4e-pc3"
+          ]
+        },
+        "operation_id": "op-verify-state",
+        "operation_type": "verify_state",
+        "preconditions": [],
+        "retry_policy": 0,
+        "risk": "low",
+        "schema": 2
+      },
+      {
+        "blast_radius": [],
+        "classification": "persist",
+        "dependencies": [
+          "op-flow-A-1",
+          "op-verify-state"
+        ],
+        "expected_postconditions": [],
+        "idempotency_key": "4f9c9a1cf5699759",
+        "inputs": {
+          "filename": "stage4-live-enhanced.pkt"
+        },
+        "operation_id": "op-save",
+        "operation_type": "save_project",
+        "preconditions": [],
+        "retry_policy": 0,
+        "risk": "medium",
+        "schema": 2
+      }
+    ],
+    "requires_manual_removal": false
+  }
+}

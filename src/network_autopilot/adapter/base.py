@@ -15,7 +15,7 @@ from typing import ClassVar
 from ..core.actual_state import ActualNetworkState, DeviceObservation
 from ..core.ids import utc_now_iso
 from ..core.observability import Observable
-from ..core.receipts import OperationReceipt
+from ..core.receipts import OperationReceipt, OperationResult
 from ..core.requirements import FlowResult
 
 
@@ -181,6 +181,18 @@ class PacketTracerAdapter(ABC):
         operation_id: str | None = None,
     ) -> OperationReceipt: ...
 
+    def configure_host_dns(self, device: str, dns: str) -> OperationReceipt:
+        """Set a host's DNS server; adapters with no DNS API report UNKNOWN."""
+        return OperationReceipt(
+            operation_id="dns-unsupported",
+            operation="configure_host_dns",
+            requested={"device": device, "dns": dns},
+            result=OperationResult.UNKNOWN,
+            started_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
+            error="this adapter has no host DNS API",
+        )
+
     @abstractmethod
     def save_project(self, filename: str, operation_id: str | None = None) -> OperationReceipt: ...
 
@@ -233,6 +245,72 @@ class PacketTracerAdapter(ABC):
         `show ip route` read-back.
         """
         return Observable[list].not_observed()
+
+    # -- brownfield read surface (Stage 4) ---------------------------------
+
+    def read_running_config(self, device: str) -> Observable[str]:
+        """The device's own running configuration, verbatim.
+
+        UNSUPPORTED by default: an adapter that cannot read a device's
+        configuration must say so, never return an empty string that a parser
+        would read as "no configuration". The live adapter implements this for
+        IOS routers/switches and the ASA; a Linksys exposes no CLI read-back
+        and reports UNSUPPORTED with the measured reason.
+        """
+        return Observable[str].unsupported(
+            "this adapter has no running-configuration reader"
+        )
+
+    def read_host_ip_config(self, device: str) -> Observable[dict]:
+        """One host's observed IP configuration (ip/mask/gateway/dns/dhcp).
+
+        UNSUPPORTED by default. The live adapter reads it from the host's own
+        console (`ipconfig /all`), so values carry the host as their source
+        instead of being inferred from the spec.
+        """
+        return Observable[dict].unsupported(
+            "this adapter has no host IP-configuration reader"
+        )
+
+    def read_device_positions(self) -> Observable[dict[str, tuple[int, int]]]:
+        """Canvas positions keyed by device name, or an honest UNKNOWN."""
+        return Observable[dict].unsupported(
+            "this adapter cannot read device canvas positions"
+        )
+
+    def read_spanning_tree(self, device: str) -> Observable[list]:
+        """Structured `show spanning-tree` state (blocking ports per VLAN).
+
+        Default UNSUPPORTED: a device with no STP console has no STP evidence,
+        and "no evidence" must not be mistaken for "nothing is blocking".
+        """
+        return Observable[list].unsupported(
+            "this adapter has no spanning-tree reader"
+        )
+
+    def read_vlans(self, device: str) -> Observable[list]:
+        """Structured `show vlan brief` table, or an honest gap."""
+        return Observable[list].unsupported(
+            "this adapter has no VLAN table reader"
+        )
+
+    def read_trunk_allowed(self, device: str) -> Observable[dict]:
+        """`show interfaces trunk` -> {port: allowed VLAN ids}, or a gap."""
+        return Observable[dict].unsupported(
+            "this adapter has no trunk table reader"
+        )
+
+    def read_arp_table(self, device: str) -> Observable[list]:
+        """Observed ARP cache as [{'ip','mac','interface','type'}], or a gap."""
+        return Observable[list].unsupported(
+            "this adapter has no ARP table reader"
+        )
+
+    def read_nat_translations(self, device: str) -> Observable[list]:
+        """Observed NAT translation table, or an honest gap."""
+        return Observable[list].unsupported(
+            "this adapter has no NAT translation reader"
+        )
 
     # -- convenience --------------------------------------------------------
 

@@ -20,6 +20,7 @@ class PortObservation:
 
     name: str
     state: Observable[str] = field(default_factory=Observable.not_observed)
+    linked: Observable[bool] = field(default_factory=Observable.not_observed)
     ip: Observable[str] = field(default_factory=Observable.not_observed)
     mask: Observable[str] = field(default_factory=Observable.not_observed)
     gateway: Observable[str] = field(default_factory=Observable.not_observed)
@@ -27,6 +28,11 @@ class PortObservation:
     trunk: Observable[bool] = field(default_factory=Observable.not_observed)
     description: Observable[str] = field(default_factory=Observable.not_observed)
     peers: Observable[list[str]] = field(default_factory=Observable.not_observed)
+    #: The peer-side interface names, positionally aligned with `peers`. The
+    #: topology read names the peer device; Stage 4 needs both cable
+    #: endpoints, and the peer port is the only way to know which port the
+    #: other end landed on without guessing the solver's choice.
+    peer_ports: Observable[list[str]] = field(default_factory=Observable.not_observed)
     # Class of whatever the port is linked to: "Cable" for a copper/fiber
     # link, "Antenna" for a wireless association. This is the difference
     # between "a cable exists" and "the client actually joined the AP".
@@ -36,6 +42,7 @@ class PortObservation:
         return {
             "name": self.name,
             "state": self.state.to_dict(),
+            "linked": self.linked.to_dict(),
             "ip": self.ip.to_dict(),
             "mask": self.mask.to_dict(),
             "gateway": self.gateway.to_dict(),
@@ -43,6 +50,7 @@ class PortObservation:
             "trunk": self.trunk.to_dict(),
             "description": self.description.to_dict(),
             "peers": self.peers.to_dict(),
+            "peer_ports": self.peer_ports.to_dict(),
             "link_class": self.link_class.to_dict(),
         }
 
@@ -51,6 +59,7 @@ class PortObservation:
         return cls(
             name=data["name"],
             state=Observable.from_dict(data.get("state", {})),
+            linked=Observable.from_dict(data.get("linked", {})),
             ip=Observable.from_dict(data.get("ip", {})),
             mask=Observable.from_dict(data.get("mask", {})),
             gateway=Observable.from_dict(data.get("gateway", {})),
@@ -58,6 +67,7 @@ class PortObservation:
             trunk=Observable.from_dict(data.get("trunk", {})),
             description=Observable.from_dict(data.get("description", {})),
             peers=Observable.from_dict(data.get("peers", {})),
+            peer_ports=Observable.from_dict(data.get("peer_ports", {})),
             link_class=Observable.from_dict(data.get("link_class", {})),
         )
 
@@ -183,7 +193,7 @@ class ActualNetworkState:
                     setattr(mine, attr, other_obs)
             for port_name, other_port in other_dev.ports.items():
                 my_port = mine.port(port_name)
-                for attr in ("state", "ip", "mask", "gateway", "vlan", "trunk", "description", "peers"):
+                for attr in ("state", "linked", "ip", "mask", "gateway", "vlan", "trunk", "description", "peers", "peer_ports"):
                     other_obs = getattr(other_port, attr)
                     mine_obs = getattr(my_port, attr)
                     if other_obs.is_known and (
@@ -216,7 +226,7 @@ class ActualNetworkState:
                 if not obs.is_known:
                     out.append(f"device({name}).{attr}: {obs.status.value}")
             for port_name, port in sorted(dev.ports.items()):
-                for attr in ("state", "ip", "mask", "gateway", "vlan", "trunk", "description", "peers"):
+                for attr in ("state", "linked", "ip", "mask", "gateway", "vlan", "trunk", "description", "peers", "peer_ports"):
                     obs = getattr(port, attr)
                     if not obs.is_known:
                         out.append(f"device({name}).port({port_name}).{attr}: {obs.status.value}")
