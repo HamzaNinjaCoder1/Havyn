@@ -40,6 +40,7 @@ def main() -> int:
     live_arp = _load(RAW / "stage4-live-arp.json")
     live_nat = _load(RAW / "stage4-live-nat.json")
     live_faults = _load(RAW / "stage4-live-faults.json")
+    live_acl_dns = _load(RAW / "stage4-live-acl-dns.json")
     live_enhance = _load(RAW / "stage4-live-enhance.json")
 
     bsum = benchmark.get("summary", {})
@@ -154,8 +155,10 @@ def main() -> int:
             "acceptance": "Every implemented rule detects its injected fault",
             "offline": f"{bsum.get('scenarios', 0)} scenarios, {bsum.get('correct', 0)} correct",
             "live": (
-                f"live faults {live_faults.get('summary', {}).get('correct', 0)}/"
+                f"first live run {live_faults.get('summary', {}).get('correct', 0)}/"
                 f"{live_faults.get('summary', {}).get('scenarios', 0)}; "
+                f"ACL/DNS reruns after fixes: "
+                f"{int(bool(live_acl_dns.get('acl_correct'))) + int(bool(live_acl_dns.get('dns_correct')))}/2; "
                 f"multi-fault {live_faults.get('summary', {}).get('multi_fault_both_detected')}"
             ),
             "evidence": [
@@ -166,7 +169,9 @@ def main() -> int:
             "limitations": (
                 "DHCP lease failure is not live-injected; NAT and ARP are "
                 "observed but not used as fault classes; STP blocking is a "
-                "fault only when no alternate path exists."
+                "fault only when no alternate path exists. The first live "
+                "multi-class run scored 5/7; ACL/DNS were rerun after fixes "
+                "and both passed (see stage4-live-acl-dns.json)."
             ),
             "status": "LIVE VERIFIED WITH LIMITATIONS" if live_faults else "OFFLINE VERIFIED",
         },
@@ -214,7 +219,7 @@ def main() -> int:
             "limitations": "Approval uses the existing SafetyGate; a denied rollback is reported incomplete.",
             "status": (
                 "LIVE VERIFIED"
-                if live_rollback.get("rollback_complete")
+                if live_rollback.get("repair", {}).get("rollback_complete")
                 and live_repair_outcome.get("repaired")
                 else "OFFLINE VERIFIED"
             ),
@@ -284,10 +289,11 @@ def main() -> int:
         "networks_enhanced_live": 1 if live_enhance else 0,
         "mandatory_backups": "verified on every live repair; backup failure blocks offline",
         "rollback_tests": (
-            "live pass" if live_rollback.get("rollback_complete")
+            "live pass" if live_rollback.get("repair", {}).get("rollback_complete")
             else "offline pass"
         ),
         "regression_failures": tests.get("offline", {}).get("failed", None),
+        "live_regression_selected": tests.get("live_regression", {}).get("selected_passed", 0),
         "roundtrip": f"{len(rt_ok)}/16",
         "completion_percent": round(completion * 100, 1),
         "live_verified_tasks": f"{verified_live}/12",
@@ -306,6 +312,7 @@ def main() -> int:
             "Linksys exposes no running-config read-back and is UNSUPPORTED for configuration extraction.",
             "ASA operational tables are constrained by its CLI; the ASA running-config read itself is live verified.",
             "STP blocking is only a fault when no alternate forwarding path exists.",
+            "The full 84-test live suite was not completed in this run; 12 selected adapter/policy/import live tests and the live connectivity/flow set were run separately.",
             "The Stage 1.19 performance gate remains unresolved; Stage 3 is not declared released.",
         ],
     }
@@ -336,6 +343,7 @@ def main() -> int:
         f"| Rollback tests | {metrics['rollback_tests']} | Passing |",
         f"| Round-trip coverage | {metrics['roundtrip']} | All compatible |",
         f"| Regression failures | {metrics['regression_failures']} | 0 |",
+        f"| Selected live regression tests | {metrics['live_regression_selected']} passed (of 84 collected) | Environment-dependent |",
         "",
         "## Tasks",
         "",
