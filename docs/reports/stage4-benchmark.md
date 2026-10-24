@@ -1,6 +1,6 @@
 # Stage 4 fault-injection benchmark
 
-_mode: simulated · run 2026-10-23T23:39:33+00:00_
+_mode: simulated · run 2026-10-24T13:56:14+00:00_
 
 Scenarios **96** · correct **96** · root-cause accuracy **100.0%** · incorrect fixes left **0**
 
@@ -55,7 +55,7 @@ Scenarios **96** · correct **96** · root-cause accuracy **100.0%** · incorrec
 ## Repairs
 
 - attempted: 57
-- succeeded: 36
+- succeeded: 35
 - rolled back: 0
 - incorrect fixes left in place: 0
 

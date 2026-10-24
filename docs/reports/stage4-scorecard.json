@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-24T13:55:06+00:00",
+  "generated": "2026-10-24T13:56:34+00:00",
   "known_limitations": [
     "The 96-scenario benchmark is deterministic simulation over the real compiler; it is not live PT injection.",
     "Live fault coverage is a subset: DHCP lease failure is not live-injected; ARP/NAT are observed but not diagnostic fault classes.",

@@ -515,7 +515,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-b75b67346601",
+          "diagnosis_id": "s4diag-2c7505f64faa",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc5 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -588,7 +588,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-0ecd93a5360f",
+          "diagnosis_id": "s4diag-dcdcd32f4895",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc5 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -641,7 +641,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-ef4b37ff2ded",
+          "diagnosis_id": "s4diag-7cecfa5e7752",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc5 (reachable)",
             "first failing hop 0: pc1",
@@ -679,7 +679,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-086b2fd042f9",
+          "diagnosis_id": "s4diag-7f12b6bffc21",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -728,7 +728,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-9b6d4fcccec1",
+          "diagnosis_id": "s4diag-89f6bf8bb2ac",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -795,7 +795,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-11dc4e3d8809",
+          "diagnosis_id": "s4diag-b9ffccef1bc4",
           "evidence": [
             "expected peer s1",
             "observed peer r1"
@@ -845,7 +845,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-b3ad904168e6",
+          "diagnosis_id": "s4diag-d3aff8975436",
           "evidence": [
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
@@ -886,58 +886,6 @@
       "detected_any": true,
       "diagnostics": [
         {
-          "affected_device": "pc1",
-          "affected_interface": "FastEthernet0",
-          "cause_class": "wrong-gateway",
-          "confidence": "high",
-          "details": {
-            "first_failing_check": "gateway",
-            "trace_status": "fail"
-          },
-          "diagnosis_id": "s4diag-7365c3634768",
-          "evidence": [
-            "objective OBJ-A-1: pc1 reaches pc5 (reachable)",
-            "first failing hop 0: pc1 port FastEthernet0",
-            "pc1 uses gateway 192.168.1.1, but the router interface on its subnet is 192.168.1.51",
-            "host gateway 192.168.1.1",
-            "subnet router address 192.168.1.51"
-          ],
-          "first_failing_hop": 0,
-          "impact": "the host sends off-subnet traffic to an address that cannot route it",
-          "layer": "L3",
-          "objective_confirmed": true,
-          "objective_id": "OBJ-A-1",
-          "recommended_fix": [
-            {
-              "commands": [],
-              "device": "pc1",
-              "expected_state": {
-                "gateway": "192.168.1.1"
-              },
-              "host_config": {
-                "dhcp": false,
-                "gateway": "192.168.1.1",
-                "ip": "192.168.1.3",
-                "mask": "255.255.255.0"
-              },
-              "operation": "configure_host",
-              "reason": "gateway is 192.168.1.1, the subnet router is 192.168.1.1",
-              "rollback_commands": []
-            }
-          ],
-          "repairable": true,
-          "root_cause": "pc1 uses default gateway 192.168.1.1, but the router address on its subnet is 192.168.1.1",
-          "status": "DIAGNOSED",
-          "subnet": "192.168.1.0/24",
-          "suspected": false,
-          "uncertainty": null,
-          "verification_requirements": [
-            "re-check objective OBJ-A-1: pc1 reaches pc5 (reachable)",
-            "re-run every criterion that passed before the change"
-          ],
-          "vlan": null
-        },
-        {
           "affected_device": "r1",
           "affected_interface": "GigabitEthernet0/0",
           "cause_class": "wrong-ip",
@@ -946,7 +894,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-8fd40d1f2771",
+          "diagnosis_id": "s4diag-1000b9ffa499",
           "evidence": [
             "observed 192.168.1.51/255.255.255.0",
             "expected 192.168.1.1/255.255.255.0"
@@ -1018,7 +966,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-10db999ab759",
+          "diagnosis_id": "s4diag-a4cb43fef5eb",
           "evidence": [
             "observed 192.168.1.1/255.255.255.128",
             "expected 192.168.1.1/255.255.255.0"
@@ -1083,58 +1031,6 @@
       "diagnostics": [
         {
           "affected_device": "pc1",
-          "affected_interface": "FastEthernet0",
-          "cause_class": "wrong-gateway",
-          "confidence": "high",
-          "details": {
-            "first_failing_check": "gateway",
-            "trace_status": "fail"
-          },
-          "diagnosis_id": "s4diag-2730c1b11bcc",
-          "evidence": [
-            "objective OBJ-A-1: pc1 reaches pc5 (reachable)",
-            "first failing hop 0: pc1 port FastEthernet0",
-            "pc1 uses gateway 192.168.1.51, but the router interface on its subnet is 192.168.1.1",
-            "host gateway 192.168.1.51",
-            "subnet router address 192.168.1.1"
-          ],
-          "first_failing_hop": 0,
-          "impact": "the host sends off-subnet traffic to an address that cannot route it",
-          "layer": "L3",
-          "objective_confirmed": true,
-          "objective_id": "OBJ-A-1",
-          "recommended_fix": [
-            {
-              "commands": [],
-              "device": "pc1",
-              "expected_state": {
-                "gateway": "192.168.1.1"
-              },
-              "host_config": {
-                "dhcp": false,
-                "gateway": "192.168.1.1",
-                "ip": "192.168.1.3",
-                "mask": "255.255.255.0"
-              },
-              "operation": "configure_host",
-              "reason": "gateway is 192.168.1.51, the subnet router is 192.168.1.1",
-              "rollback_commands": []
-            }
-          ],
-          "repairable": true,
-          "root_cause": "pc1 uses default gateway 192.168.1.51, but the router address on its subnet is 192.168.1.1",
-          "status": "DIAGNOSED",
-          "subnet": "192.168.1.0/24",
-          "suspected": false,
-          "uncertainty": null,
-          "verification_requirements": [
-            "re-check objective OBJ-A-1: pc1 reaches pc5 (reachable)",
-            "re-run every criterion that passed before the change"
-          ],
-          "vlan": null
-        },
-        {
-          "affected_device": "pc1",
           "affected_interface": null,
           "cause_class": "wrong-gateway",
           "confidence": "high",
@@ -1142,7 +1038,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-424902f580b5",
+          "diagnosis_id": "s4diag-a4168569b46c",
           "evidence": [
             "ipconfig /all gateway 192.168.1.51",
             "expected gateway 192.168.1.1"
@@ -1190,8 +1086,8 @@
       "library": "T01",
       "predicted": "wrong-gateway",
       "repair_attempted": true,
-      "repair_detail": "reachable: config_consistent",
-      "repaired": true,
+      "repair_detail": "objective OBJ-A-1 already passes; no change is needed",
+      "repaired": false,
       "rollback_complete": false,
       "rolled_back": false
     },
@@ -1209,7 +1105,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-c2ce95587f63",
+          "diagnosis_id": "s4diag-f83acaacdcc2",
           "evidence": [
             "pool network 192.168.1.0 255.255.255.0",
             "default-router 192.168.2.10"
@@ -1259,7 +1155,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-3aafdbe3c800",
+          "diagnosis_id": "s4diag-429e2934cf6d",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -1314,7 +1210,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-07327ec6c667",
+          "diagnosis_id": "s4diag-dd3610c58047",
           "evidence": [
             "topology read-back: cabled port FastEthernet0/2 state down",
             "running-config admin state: shutdown"
@@ -1382,7 +1278,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-f6dca04104f8",
+          "diagnosis_id": "s4diag-4b0168b14024",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -1417,7 +1313,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-437e99f48701",
+          "diagnosis_id": "s4diag-85c3a42901ab",
           "evidence": [
             "topology read-back: cabled port FastEthernet0/2 state down",
             "running-config admin state: up"
@@ -1467,7 +1363,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-7427fce4a622",
+          "diagnosis_id": "s4diag-2cc8fbbf98bd",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 0: pc1",
@@ -1503,7 +1399,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-eec473a9d8fc",
+          "diagnosis_id": "s4diag-6b574dff74d0",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -1552,7 +1448,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-97b7bb45720d",
+          "diagnosis_id": "s4diag-bef5a9885a00",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -1619,7 +1515,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-1fa6e4adb526",
+          "diagnosis_id": "s4diag-8dee4b98612c",
           "evidence": [
             "expected peer s1",
             "observed peer r1"
@@ -1651,7 +1547,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-561743964c73",
+          "diagnosis_id": "s4diag-ffb0b7bd99c8",
           "evidence": [
             "objective OBJ-A-2: pc1 reaches pc3 (reachable)",
             "first failing hop 1: r1 port FastEthernet0/2",
@@ -1702,7 +1598,7 @@
             "first_failing_check": "access-vlan",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-a314083aef38",
+          "diagnosis_id": "s4diag-aba1f3665367",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -1756,8 +1652,8 @@
       "library": "T02",
       "predicted": "wrong-access-vlan",
       "repair_attempted": true,
-      "repair_detail": "objective OBJ-A-1 already passes; no change is needed",
-      "repaired": false,
+      "repair_detail": "reachable: config_consistent",
+      "repaired": true,
       "rollback_complete": false,
       "rolled_back": false
     },
@@ -1775,7 +1671,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-aa5b5c5ef940",
+          "diagnosis_id": "s4diag-6fbd37c77a84",
           "evidence": [
             "expected allowed [10, 20]",
             "observed allowed [20]"
@@ -1829,7 +1725,7 @@
             "first_failing_check": "trunk-allowance",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-59f860778b0e",
+          "diagnosis_id": "s4diag-4b3ec21101e7",
           "evidence": [
             "objective OBJ-A-2: pc1 reaches pc3 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -1901,7 +1797,7 @@
             "first_failing_check": "native-vlan",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-a14d009b40b7",
+          "diagnosis_id": "s4diag-66db862662ea",
           "evidence": [
             "objective OBJ-A-2: pc1 reaches pc3 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -1953,7 +1849,7 @@
             "first_failing_check": "vlan-defined",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-f7f50170e721",
+          "diagnosis_id": "s4diag-2051c0164ded",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -2005,7 +1901,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-0ab9750c4a67",
+          "diagnosis_id": "s4diag-1a8805ea9873",
           "evidence": [
             "show vlan brief: [20]",
             "access port VLAN 10"
@@ -2073,7 +1969,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-12cb1e6a07cb",
+          "diagnosis_id": "s4diag-8474d87337e5",
           "evidence": [
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
@@ -2104,11 +2000,11 @@
             "first_failing_check": "stp",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-bbbacd8fe32d",
+          "diagnosis_id": "s4diag-d0ea983182c2",
           "evidence": [
             "objective OBJ-A-2: pc1 reaches pc3 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
-            "s1:FastEthernet0/1 is BLK in spanning-tree",
+            "s1:FastEthernet0/1 is BLK in spanning-tree; no alternate path was found",
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
           "first_failing_hop": 1,
@@ -2156,7 +2052,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-e31f99f02631",
+          "diagnosis_id": "s4diag-ed9a0e807f1d",
           "evidence": [
             "observed 10.0.20.52/255.255.255.0",
             "expected 10.0.20.2/255.255.255.0"
@@ -2225,7 +2121,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-40dc1fa50783",
+          "diagnosis_id": "s4diag-3dabbbf06b92",
           "evidence": [
             "observed 10.0.10.1/255.255.255.128",
             "expected 10.0.10.1/255.255.255.0"
@@ -2290,58 +2186,6 @@
       "diagnostics": [
         {
           "affected_device": "pc1",
-          "affected_interface": "FastEthernet0",
-          "cause_class": "wrong-gateway",
-          "confidence": "high",
-          "details": {
-            "first_failing_check": "gateway",
-            "trace_status": "fail"
-          },
-          "diagnosis_id": "s4diag-325b6e000a66",
-          "evidence": [
-            "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
-            "first failing hop 0: pc1 port FastEthernet0",
-            "pc1 uses gateway 10.0.10.51, but the router interface on its subnet is 10.0.10.1",
-            "host gateway 10.0.10.51",
-            "subnet router address 10.0.10.1"
-          ],
-          "first_failing_hop": 0,
-          "impact": "the host sends off-subnet traffic to an address that cannot route it",
-          "layer": "L3",
-          "objective_confirmed": true,
-          "objective_id": "OBJ-A-1",
-          "recommended_fix": [
-            {
-              "commands": [],
-              "device": "pc1",
-              "expected_state": {
-                "gateway": "10.0.10.1"
-              },
-              "host_config": {
-                "dhcp": false,
-                "gateway": "10.0.10.1",
-                "ip": "10.0.10.3",
-                "mask": "255.255.255.0"
-              },
-              "operation": "configure_host",
-              "reason": "gateway is 10.0.10.51, the subnet router is 10.0.10.1",
-              "rollback_commands": []
-            }
-          ],
-          "repairable": true,
-          "root_cause": "pc1 uses default gateway 10.0.10.51, but the router address on its subnet is 10.0.10.1",
-          "status": "DIAGNOSED",
-          "subnet": "10.0.10.0/24",
-          "suspected": false,
-          "uncertainty": null,
-          "verification_requirements": [
-            "re-check objective OBJ-A-1: pc1 reaches pc2 (reachable)",
-            "re-run every criterion that passed before the change"
-          ],
-          "vlan": null
-        },
-        {
-          "affected_device": "pc1",
           "affected_interface": null,
           "cause_class": "wrong-gateway",
           "confidence": "high",
@@ -2349,7 +2193,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-d0f251a7eda9",
+          "diagnosis_id": "s4diag-5311115e255f",
           "evidence": [
             "ipconfig /all gateway 10.0.10.51",
             "expected gateway 10.0.10.1"
@@ -2388,6 +2232,58 @@
             "re-run every criterion that passed before the change"
           ],
           "vlan": null
+        },
+        {
+          "affected_device": "pc1",
+          "affected_interface": "FastEthernet0",
+          "cause_class": "wrong-gateway",
+          "confidence": "high",
+          "details": {
+            "first_failing_check": "gateway",
+            "trace_status": "fail"
+          },
+          "diagnosis_id": "s4diag-ee4a767d8267",
+          "evidence": [
+            "objective OBJ-A-2: pc1 reaches pc3 (reachable)",
+            "first failing hop 0: pc1 port FastEthernet0",
+            "pc1 uses gateway 10.0.10.51, but the router interface on its subnet is 10.0.10.1",
+            "host gateway 10.0.10.51",
+            "subnet router address 10.0.10.1"
+          ],
+          "first_failing_hop": 0,
+          "impact": "the host sends off-subnet traffic to an address that cannot route it",
+          "layer": "L3",
+          "objective_confirmed": true,
+          "objective_id": "OBJ-A-2",
+          "recommended_fix": [
+            {
+              "commands": [],
+              "device": "pc1",
+              "expected_state": {
+                "gateway": "10.0.10.1"
+              },
+              "host_config": {
+                "dhcp": false,
+                "gateway": "10.0.10.1",
+                "ip": "10.0.10.3",
+                "mask": "255.255.255.0"
+              },
+              "operation": "configure_host",
+              "reason": "gateway is 10.0.10.51, the subnet router is 10.0.10.1",
+              "rollback_commands": []
+            }
+          ],
+          "repairable": true,
+          "root_cause": "pc1 uses default gateway 10.0.10.51, but the router address on its subnet is 10.0.10.1",
+          "status": "DIAGNOSED",
+          "subnet": "10.0.10.0/24",
+          "suspected": false,
+          "uncertainty": null,
+          "verification_requirements": [
+            "re-check objective OBJ-A-2: pc1 reaches pc3 (reachable)",
+            "re-run every criterion that passed before the change"
+          ],
+          "vlan": null
         }
       ],
       "error": null,
@@ -2397,8 +2293,8 @@
       "library": "T02",
       "predicted": "wrong-gateway",
       "repair_attempted": true,
-      "repair_detail": "reachable: config_consistent",
-      "repaired": true,
+      "repair_detail": "objective OBJ-A-1 already passes; no change is needed",
+      "repaired": false,
       "rollback_complete": false,
       "rolled_back": false
     },
@@ -2416,7 +2312,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-45e5d7392d19",
+          "diagnosis_id": "s4diag-64abc4ecf982",
           "evidence": [
             "pool network 10.0.10.0 255.255.255.0",
             "default-router 10.0.11.10"
@@ -2466,7 +2362,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-0a55d54fea57",
+          "diagnosis_id": "s4diag-0333f92c6d1b",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -2539,7 +2435,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-6e61a1be08db",
+          "diagnosis_id": "s4diag-8f2efd3843cc",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -2592,7 +2488,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-d3b5775b304b",
+          "diagnosis_id": "s4diag-02f7955d08f8",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 0: pc1",
@@ -2629,7 +2525,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-51edcaf140c5",
+          "diagnosis_id": "s4diag-236e4b4775ce",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -2678,7 +2574,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-dcf63781122a",
+          "diagnosis_id": "s4diag-15cf6fd7eae8",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -2745,7 +2641,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-35eccbafb6ae",
+          "diagnosis_id": "s4diag-28e6b6aefa3f",
           "evidence": [
             "expected peer s1",
             "observed peer c1"
@@ -2795,11 +2691,11 @@
             "first_failing_check": "stp",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-c425d6ff8f48",
+          "diagnosis_id": "s4diag-7035122d6f76",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
-            "s1:FastEthernet0/1 is BLK in spanning-tree",
+            "s1:FastEthernet0/1 is BLK in spanning-tree; no alternate path was found",
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
           "first_failing_hop": 1,
@@ -2829,7 +2725,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-8137eb6aef1a",
+          "diagnosis_id": "s4diag-9ab830cf3b87",
           "evidence": [
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
@@ -2878,7 +2774,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-32296a6f0a05",
+          "diagnosis_id": "s4diag-381c29d2bcf6",
           "evidence": [
             "observed 10.0.1.52/255.255.255.0",
             "expected 10.0.1.2/255.255.255.0"
@@ -2947,7 +2843,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-cf0115f71513",
+          "diagnosis_id": "s4diag-a71e9bfcf01a",
           "evidence": [
             "ipconfig /all gateway 10.0.1.51",
             "expected gateway 10.0.1.1"
@@ -3014,7 +2910,7 @@
             "first_failing_check": "route",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-3e0e19a55d5c",
+          "diagnosis_id": "s4diag-adb197b791a1",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 2: c1 port FastEthernet0/2",
@@ -3082,7 +2978,7 @@
             "first_failing_check": "next-hop",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-eef6a6339560",
+          "diagnosis_id": "s4diag-ef616fe9cd7e",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc2 (reachable)",
             "first failing hop 2: c1 port FastEthernet0/2",
@@ -3153,7 +3049,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-806dde6c4df4",
+          "diagnosis_id": "s4diag-379062bd37fa",
           "evidence": [
             "objective OBJ-A-1: pc2 reaches pc1 (reachable)",
             "first failing hop 1: br port FastEthernet0/0",
@@ -3226,7 +3122,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-e435ba2a7d6b",
+          "diagnosis_id": "s4diag-96d44b09c9dc",
           "evidence": [
             "objective OBJ-A-1: pc2 reaches pc1 (reachable)",
             "first failing hop 1: br port FastEthernet0/0",
@@ -3279,7 +3175,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-86263d1cfef0",
+          "diagnosis_id": "s4diag-6ea5363fb157",
           "evidence": [
             "objective OBJ-A-1: pc2 reaches pc1 (reachable)",
             "first failing hop 0: pc2",
@@ -3315,7 +3211,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-d03cfb3045ee",
+          "diagnosis_id": "s4diag-01e6be4c0e61",
           "evidence": [
             "expected link l-br-fastethernet0-0-pc2-fastethernet0",
             "observed peer list is empty"
@@ -3364,7 +3260,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-c83d38817337",
+          "diagnosis_id": "s4diag-ac6b45bb86f2",
           "evidence": [
             "expected link l-br-fastethernet0-0-pc2-fastethernet0",
             "observed peer list is empty"
@@ -3431,7 +3327,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-3b7149999521",
+          "diagnosis_id": "s4diag-f3c8fc9ac85b",
           "evidence": [
             "expected peer br",
             "observed peer hq"
@@ -3481,11 +3377,11 @@
             "first_failing_check": "stp",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-e00b85ecc8f5",
+          "diagnosis_id": "s4diag-634d6894f782",
           "evidence": [
             "objective OBJ-A-1: pc2 reaches pc1 (reachable)",
             "first failing hop 3: s1 port FastEthernet0/1",
-            "s1:FastEthernet0/1 is BLK in spanning-tree",
+            "s1:FastEthernet0/1 is BLK in spanning-tree; no alternate path was found",
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
           "first_failing_hop": 3,
@@ -3533,7 +3429,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-d6e86a021d25",
+          "diagnosis_id": "s4diag-352bb4276e38",
           "evidence": [
             "observed 10.0.1.52/255.255.255.0",
             "expected 10.0.1.2/255.255.255.0"
@@ -3602,7 +3498,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-a08dbd55a6fc",
+          "diagnosis_id": "s4diag-b29b6f6bf434",
           "evidence": [
             "observed 10.0.1.1/255.255.255.128",
             "expected 10.0.1.1/255.255.255.0"
@@ -3674,7 +3570,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-214e944d21a3",
+          "diagnosis_id": "s4diag-2e7c832ef7f8",
           "evidence": [
             "ipconfig /all gateway 10.0.1.51",
             "expected gateway 10.0.1.1"
@@ -3741,7 +3637,7 @@
             "first_failing_check": "route",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-a126014a8548",
+          "diagnosis_id": "s4diag-cebd35cf5351",
           "evidence": [
             "objective OBJ-A-1: pc2 reaches pc1 (reachable)",
             "first failing hop 1: br port FastEthernet0/0",
@@ -3809,7 +3705,7 @@
             "first_failing_check": "next-hop",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-fe4cb8bee830",
+          "diagnosis_id": "s4diag-f04ddd92bfda",
           "evidence": [
             "objective OBJ-A-1: pc2 reaches pc1 (reachable)",
             "first failing hop 1: br port FastEthernet0/0",
@@ -3880,7 +3776,7 @@
             "first_failing_check": "acl",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-355acbf82684",
+          "diagnosis_id": "s4diag-65269252a11e",
           "evidence": [
             "objective OBJ-A-1: pc2 reaches pc1 (reachable)",
             "first failing hop 1: br port FastEthernet0/0",
@@ -3954,7 +3850,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-cee24a6ebdbc",
+          "diagnosis_id": "s4diag-d5c181816bb2",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -4027,7 +3923,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-64738041e612",
+          "diagnosis_id": "s4diag-58b4b83af9a0",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -4080,7 +3976,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-ea6538227037",
+          "diagnosis_id": "s4diag-3ec44bddfae2",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 0: pc1",
@@ -4118,7 +4014,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-10b94a94aa0a",
+          "diagnosis_id": "s4diag-36a374b5c307",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -4167,7 +4063,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-f8590442767f",
+          "diagnosis_id": "s4diag-302515cf55fa",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -4234,7 +4130,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-c14fbf0d232a",
+          "diagnosis_id": "s4diag-a5e8476ad8b2",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: r1 port FastEthernet0/2",
@@ -4267,7 +4163,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-675e590999ee",
+          "diagnosis_id": "s4diag-998034c9638e",
           "evidence": [
             "expected peer s1",
             "observed peer r1"
@@ -4317,11 +4213,11 @@
             "first_failing_check": "stp",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-3df024fef2d6",
+          "diagnosis_id": "s4diag-98ad3d5804da",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
-            "s1:FastEthernet0/1 is BLK in spanning-tree",
+            "s1:FastEthernet0/1 is BLK in spanning-tree; no alternate path was found",
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
           "first_failing_hop": 1,
@@ -4351,7 +4247,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-e38f91fc608c",
+          "diagnosis_id": "s4diag-bb5bee771043",
           "evidence": [
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
@@ -4400,7 +4296,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-fd59637ffd67",
+          "diagnosis_id": "s4diag-d752d23cfe18",
           "evidence": [
             "observed 192.168.10.52/255.255.255.0",
             "expected 192.168.10.2/255.255.255.0"
@@ -4469,7 +4365,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-454853ce4349",
+          "diagnosis_id": "s4diag-aa2c562bf26c",
           "evidence": [
             "observed 192.168.10.1/255.255.255.128",
             "expected 192.168.10.1/255.255.255.0"
@@ -4541,7 +4437,7 @@
             "first_failing_check": "gateway",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-a50650ca386e",
+          "diagnosis_id": "s4diag-3001ae2d75eb",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 0: pc1 port FastEthernet0",
@@ -4593,7 +4489,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-4f06c71cb966",
+          "diagnosis_id": "s4diag-33d5b306a170",
           "evidence": [
             "ipconfig /all gateway 192.168.10.51",
             "expected gateway 192.168.10.1"
@@ -4660,7 +4556,7 @@
             "first_failing_check": "route",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-88c321cb60e2",
+          "diagnosis_id": "s4diag-457c586f3b77",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 2: r1 port FastEthernet0/0",
@@ -4728,7 +4624,7 @@
             "first_failing_check": "next-hop",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-04aa6023da83",
+          "diagnosis_id": "s4diag-c0243ff2dba3",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 2: r1 port FastEthernet0/0",
@@ -4799,7 +4695,7 @@
             "first_failing_check": "acl",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-1f2da94e9bb1",
+          "diagnosis_id": "s4diag-7287b6e2b389",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 2: r1 port FastEthernet0/0",
@@ -4873,7 +4769,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-93b1a1e116a9",
+          "diagnosis_id": "s4diag-662bd5b4ce14",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -4946,7 +4842,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-c63c7fd4e72c",
+          "diagnosis_id": "s4diag-d991f5a9303a",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -4999,7 +4895,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-0863b8dcc8ed",
+          "diagnosis_id": "s4diag-5e9c7b691a7c",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 0: pc1",
@@ -5035,7 +4931,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-41ccec0443d7",
+          "diagnosis_id": "s4diag-408dc484d085",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -5084,7 +4980,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-e78ced79d7b2",
+          "diagnosis_id": "s4diag-9ca500b229d1",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -5151,7 +5047,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-b099537afb26",
+          "diagnosis_id": "s4diag-55213b2aaf55",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 1: fw port FastEthernet0/2",
@@ -5184,7 +5080,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-0fdab2b5c9d0",
+          "diagnosis_id": "s4diag-5950f1c8636c",
           "evidence": [
             "expected peer s1",
             "observed peer fw"
@@ -5234,11 +5130,11 @@
             "first_failing_check": "stp",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-e41456723a67",
+          "diagnosis_id": "s4diag-01257619a790",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
-            "s1:FastEthernet0/1 is BLK in spanning-tree",
+            "s1:FastEthernet0/1 is BLK in spanning-tree; no alternate path was found",
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
           "first_failing_hop": 1,
@@ -5268,7 +5164,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-89f0e2758b16",
+          "diagnosis_id": "s4diag-02ba6f270126",
           "evidence": [
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
@@ -5317,7 +5213,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-841c3bf2e1d3",
+          "diagnosis_id": "s4diag-f86ebf754b17",
           "evidence": [
             "observed 10.0.1.52/255.255.255.0",
             "expected 10.0.1.2/255.255.255.0"
@@ -5386,7 +5282,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-89d11d8c7e3b",
+          "diagnosis_id": "s4diag-f0cf93511fed",
           "evidence": [
             "observed 10.0.1.1/255.255.255.128",
             "expected 10.0.1.1/255.255.255.0"
@@ -5458,7 +5354,7 @@
             "first_failing_check": "gateway",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-e92b772c6cc2",
+          "diagnosis_id": "s4diag-118f50d8aa22",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 0: pc1 port FastEthernet0",
@@ -5510,7 +5406,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-03c26525db80",
+          "diagnosis_id": "s4diag-ee9f97316d8e",
           "evidence": [
             "ipconfig /all gateway 10.0.1.51",
             "expected gateway 10.0.1.1"
@@ -5577,7 +5473,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-8fbfe8ef12bd",
+          "diagnosis_id": "s4diag-7bd748664bc7",
           "evidence": [
             "observed route table: 3 entries",
             "expected 0.0.0.0/0 -> 203.0.113.2"
@@ -5643,7 +5539,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-fa61d58951af",
+          "diagnosis_id": "s4diag-070a1582aece",
           "evidence": [
             "observed route route outside 0.0.0.0 0.0.0.0 203.0.113.3",
             "expected route route outside 0.0.0.0 0.0.0.0 203.0.113.2"
@@ -5711,7 +5607,7 @@
             "first_failing_check": "acl",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-d4cfe9dcfe97",
+          "diagnosis_id": "s4diag-35e64e2ad182",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 2: fw port GigabitEthernet1/1",
@@ -5763,7 +5659,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-1226742bdff6",
+          "diagnosis_id": "s4diag-513943c305c3",
           "evidence": [
             "defined ACLs: ['BLOCK', 'acl-dmz']",
             "bound ACLs: ['acl-dmz']"
@@ -5813,7 +5709,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-8bf9d9c8e7ac",
+          "diagnosis_id": "s4diag-4e74b9b8a4e2",
           "evidence": [
             "defined ACLs: ['OUTSIDE-IN', 'acl-dmz']",
             "bound ACLs: ['acl-dmz']"
@@ -5863,7 +5759,7 @@
             "first_failing_check": "nameif",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-c3ef43158d36",
+          "diagnosis_id": "s4diag-6c9c45972d21",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 2: fw port GigabitEthernet1/1",
@@ -5935,7 +5831,7 @@
             "first_failing_check": "security-level",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-5976b5f1f90f",
+          "diagnosis_id": "s4diag-35fb412ae4ba",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches websrv (reachable)",
             "first failing hop 2: fw port GigabitEthernet1/1",
@@ -6007,7 +5903,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-258395e03f52",
+          "diagnosis_id": "s4diag-2d2f29b2d892",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc3 (reachable)",
             "first failing hop 1: r1 port GigabitEthernet0/2",
@@ -6080,7 +5976,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-8c28d454a5e4",
+          "diagnosis_id": "s4diag-8ec0cd8e46ca",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc3 (reachable)",
             "first failing hop 1: r1 port GigabitEthernet0/2",
@@ -6133,7 +6029,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-e344ae509f39",
+          "diagnosis_id": "s4diag-90c992ef659c",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc3 (reachable)",
             "first failing hop 0: pc1",
@@ -6171,7 +6067,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-e2391ad37720",
+          "diagnosis_id": "s4diag-6f6d7d85ccac",
           "evidence": [
             "expected link l-pc1-fastethernet0-r1-gigabitethernet0-2",
             "observed peer list is empty"
@@ -6220,7 +6116,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-8a1272cf9c24",
+          "diagnosis_id": "s4diag-29c197fc9995",
           "evidence": [
             "expected link l-pc1-fastethernet0-r1-gigabitethernet0-2",
             "observed peer list is empty"
@@ -6287,7 +6183,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-2247ff7c18ed",
+          "diagnosis_id": "s4diag-02124bfcd010",
           "evidence": [
             "expected peer r1",
             "observed peer r2"
@@ -6337,7 +6233,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-16c8c9c98975",
+          "diagnosis_id": "s4diag-8d8410d3cec8",
           "evidence": [
             "observed 10.0.1.52/255.255.255.0",
             "expected 10.0.1.2/255.255.255.0"
@@ -6406,7 +6302,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-842725a944f6",
+          "diagnosis_id": "s4diag-3db5a3050448",
           "evidence": [
             "observed 10.0.1.1/255.255.255.128",
             "expected 10.0.1.1/255.255.255.0"
@@ -6478,7 +6374,7 @@
             "first_failing_check": "gateway",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-ecb250d7be4c",
+          "diagnosis_id": "s4diag-4dbce83c2144",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc3 (reachable)",
             "first failing hop 0: pc1 port FastEthernet0",
@@ -6530,7 +6426,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-a8a01ab0d407",
+          "diagnosis_id": "s4diag-b6f9a4fd9abb",
           "evidence": [
             "ipconfig /all gateway 10.0.1.51",
             "expected gateway 10.0.1.1"
@@ -6597,7 +6493,7 @@
             "first_failing_check": "acl",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-07b2b7d6e57f",
+          "diagnosis_id": "s4diag-5396c296f4dc",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches pc3 (reachable)",
             "first failing hop 1: r1 port GigabitEthernet0/2",
@@ -6671,7 +6567,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-04f58a0c30c6",
+          "diagnosis_id": "s4diag-c4d9174cbd52",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -6744,7 +6640,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-6cd54f06e66f",
+          "diagnosis_id": "s4diag-f2c45268f70f",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
@@ -6797,7 +6693,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-3ad27b90cf62",
+          "diagnosis_id": "s4diag-de6d31049014",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 0: pc1",
@@ -6833,7 +6729,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-5ffd65134019",
+          "diagnosis_id": "s4diag-83ad37dda98a",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -6882,7 +6778,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-a5c6dd1ab748",
+          "diagnosis_id": "s4diag-b2eb3cb49bde",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-2",
             "observed peer list is empty"
@@ -6949,7 +6845,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-c53a8d977fdd",
+          "diagnosis_id": "s4diag-ee3be7a0401b",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: edge port FastEthernet0/2",
@@ -6982,7 +6878,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-12aced2ff108",
+          "diagnosis_id": "s4diag-1cc2e6e453f1",
           "evidence": [
             "expected peer s1",
             "observed peer edge"
@@ -7032,11 +6928,11 @@
             "first_failing_check": "stp",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-b3fd6d44b7f2",
+          "diagnosis_id": "s4diag-b24c27723971",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 1: s1 port FastEthernet0/2",
-            "s1:FastEthernet0/1 is BLK in spanning-tree",
+            "s1:FastEthernet0/1 is BLK in spanning-tree; no alternate path was found",
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
           "first_failing_hop": 1,
@@ -7066,7 +6962,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-b93a3dfc05cd",
+          "diagnosis_id": "s4diag-6dbfdd242ae7",
           "evidence": [
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
@@ -7115,7 +7011,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-0da5f5d94aa4",
+          "diagnosis_id": "s4diag-ea12f31e00c6",
           "evidence": [
             "observed 192.168.20.52/255.255.255.0",
             "expected 192.168.20.2/255.255.255.0"
@@ -7184,7 +7080,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-a374f19662e1",
+          "diagnosis_id": "s4diag-533ad5104650",
           "evidence": [
             "observed 192.168.20.1/255.255.255.128",
             "expected 192.168.20.1/255.255.255.0"
@@ -7256,7 +7152,7 @@
             "first_failing_check": "gateway",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-1b62bd9832ba",
+          "diagnosis_id": "s4diag-7b2f1589e244",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 0: pc1 port FastEthernet0",
@@ -7308,7 +7204,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-587d34c73467",
+          "diagnosis_id": "s4diag-1319aaf4ca6b",
           "evidence": [
             "ipconfig /all gateway 192.168.20.51",
             "expected gateway 192.168.20.1"
@@ -7375,7 +7271,7 @@
             "first_failing_check": "route",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-eaf20e60e77f",
+          "diagnosis_id": "s4diag-3aa1e7721c0e",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 2: edge port GigabitEthernet0/0",
@@ -7443,7 +7339,7 @@
             "first_failing_check": "next-hop",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-a1a5c66e1789",
+          "diagnosis_id": "s4diag-7391c1c5a88a",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 2: edge port GigabitEthernet0/0",
@@ -7514,7 +7410,7 @@
             "first_failing_check": "acl",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-74515dcca100",
+          "diagnosis_id": "s4diag-f3215559527f",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches srv (reachable)",
             "first failing hop 2: edge port GigabitEthernet0/0",
@@ -7588,7 +7484,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-0c835029e634",
+          "diagnosis_id": "s4diag-1642d40c1d39",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches web (reachable)",
             "first failing hop 1: s1 port FastEthernet0/4",
@@ -7661,7 +7557,7 @@
             "first_failing_check": "port-state",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-5add0d856560",
+          "diagnosis_id": "s4diag-1338e80ba2ed",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches web (reachable)",
             "first failing hop 1: s1 port FastEthernet0/4",
@@ -7714,7 +7610,7 @@
             "first_failing_check": "link",
             "trace_status": "fail"
           },
-          "diagnosis_id": "s4diag-a333f3b0e04c",
+          "diagnosis_id": "s4diag-9345d4cf653d",
           "evidence": [
             "objective OBJ-A-1: pc1 reaches web (reachable)",
             "first failing hop 0: pc1",
@@ -7750,7 +7646,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-7f87d80c5ac3",
+          "diagnosis_id": "s4diag-1e74a02f1c28",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-4",
             "observed peer list is empty"
@@ -7799,7 +7695,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-55982d028b58",
+          "diagnosis_id": "s4diag-487be3e71fc4",
           "evidence": [
             "expected link l-pc1-fastethernet0-s1-fastethernet0-4",
             "observed peer list is empty"
@@ -7866,7 +7762,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-3b9bd1f2629f",
+          "diagnosis_id": "s4diag-ce384a756a9f",
           "evidence": [
             "expected peer s1",
             "observed peer r1"
@@ -7916,7 +7812,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-a038f46f032d",
+          "diagnosis_id": "s4diag-7c4c057d5d90",
           "evidence": [
             "show spanning-tree: {'vlan': 1, 'interface': 'FastEthernet0/1', 'role': 'Altn', 'state': 'BLK'}"
           ],
@@ -7965,7 +7861,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-4a7bf0ec882f",
+          "diagnosis_id": "s4diag-61b9cea0e3c8",
           "evidence": [
             "observed 10.0.40.60/255.255.255.0",
             "expected 10.0.40.10/255.255.255.0"
@@ -8034,7 +7930,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-492208a6d020",
+          "diagnosis_id": "s4diag-e62169e9e50f",
           "evidence": [
             "observed 10.0.40.1/255.255.255.128",
             "expected 10.0.40.1/255.255.255.0"
@@ -8106,7 +8002,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-529792beaa37",
+          "diagnosis_id": "s4diag-528fd61cb901",
           "evidence": [
             "ipconfig /all gateway 10.0.40.51",
             "expected gateway 10.0.40.1"
@@ -8173,7 +8069,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-6eaad08fb54d",
+          "diagnosis_id": "s4diag-d67a4de2f79f",
           "evidence": [
             "observed 10.0.5.60/255.255.255.0",
             "expected 10.0.5.10/255.255.255.0"
@@ -8242,7 +8138,7 @@
             "first_failing_check": null,
             "trace_status": null
           },
-          "diagnosis_id": "s4diag-22053bd0f88d",
+          "diagnosis_id": "s4diag-7074aa4a2e82",
           "evidence": [
             "ipconfig /all gateway 10.0.5.51",
             "expected gateway 10.0.5.1"
@@ -8421,9 +8317,9 @@
       }
     },
     "repairs_attempted": 57,
-    "repairs_succeeded": 36,
+    "repairs_succeeded": 35,
     "rollbacks": 0,
-    "run_at": "2026-10-23T23:39:33+00:00",
+    "run_at": "2026-10-24T13:56:14+00:00",
     "scenarios": 96
   }
 }
