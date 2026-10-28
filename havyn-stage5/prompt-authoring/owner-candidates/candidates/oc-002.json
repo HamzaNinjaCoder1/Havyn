@@ -1,0 +1,63 @@
+{
+  "id": "oc-002",
+  "language": "roman-urdu",
+  "difficulty": "L1",
+  "category": "basic",
+  "scenario": "Do PC, aik hi network, sirf aapas mein communicate.",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "prompt": "Mujhe apne chhote office ka network banana hai. Do desktop PCs hain, dono ko aapas mein chalna hai, bas itna hi kaam hai. Internet ki abhi zaroorat nahi.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "chota-office",
+    "sites": [
+      {
+        "id": "dokan",
+        "areas": [
+          {
+            "id": "main",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pc1",
+                "area": "main",
+                "count": 2,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "users",
+        "name": "Users",
+        "dhcp": false,
+        "site": "dokan",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Dono PCs aapas mein reach karein",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Build the two-PC LAN. Language stays Roman Urdu; tech terms (PC, network) remain English.",
+  "why_valuable": "Natural Roman-Urdu L1. Real users mix scripts; proves the model is not English-only.",
+  "research_inspiration": [],
+  "prompt_hash": "814904a5b67286685aa792d7a409e5428183d9d4505659ebcf17395be0cf4a98",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

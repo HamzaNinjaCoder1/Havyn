@@ -1,0 +1,92 @@
+{
+  "dataset": "havyn-intents-v1",
+  "generator_version": "0.1.0",
+  "expander_version": "1.1.0",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607",
+  "seed": 20261028,
+  "generated": "2026-10-27T21:31:23+00:00",
+  "counts": {
+    "cells": {
+      "large-s1-a4-multi-dhcp-cable-none-iot": 24,
+      "large-s1-a4-multi-dhcp-dsl-none": 24,
+      "large-s1-a4-multi-static-ospf-wan-none": 24,
+      "large-s1-a4-single-dhcp-wan-asa": 24,
+      "large-s1-a4-single-dhcp-wan-asa-dmz": 24,
+      "large-s1-a4-single-static-none-none": 24,
+      "medium-s1-a3-multi-dhcp-cable-none-iot": 60,
+      "medium-s1-a3-multi-dhcp-dsl-none": 60,
+      "medium-s1-a3-multi-static-ospf-wan-none": 60,
+      "medium-s1-a3-single-dhcp-wan-asa": 60,
+      "medium-s1-a3-single-dhcp-wan-asa-dmz": 60,
+      "medium-s1-a3-single-static-none-none": 60,
+      "medium-s2-a2-multi-dhcp-cable-none-iot": 60,
+      "medium-s2-a2-multi-dhcp-wan-none": 60,
+      "medium-s2-a2-single-dhcp-wan-asa": 60,
+      "medium-s2-a2-single-static-none-none": 60,
+      "small-s1-a1-multi-dhcp-cable-none-iot": 60,
+      "small-s1-a1-multi-dhcp-dsl-none": 60,
+      "small-s1-a1-multi-static-ospf-wan-none": 60,
+      "small-s1-a1-single-dhcp-wan-asa": 60,
+      "small-s1-a1-single-dhcp-wan-asa-dmz": 60,
+      "small-s1-a1-single-static-none-none": 60,
+      "small-s1-a2-multi-dhcp-cable-none-iot": 60,
+      "small-s1-a2-multi-dhcp-dsl-none": 60,
+      "small-s1-a2-multi-static-ospf-wan-none": 60,
+      "small-s1-a2-single-dhcp-wan-asa": 60,
+      "small-s1-a2-single-dhcp-wan-asa-dmz": 60,
+      "small-s1-a2-single-static-none-none": 60,
+      "small-s2-a1-multi-dhcp-cable-none-iot": 60,
+      "small-s2-a1-multi-dhcp-wan-none": 60,
+      "small-s2-a1-single-dhcp-wan-asa": 60,
+      "small-s2-a1-single-static-none-none": 60,
+      "small-s3-a1-multi-dhcp-cable-none-iot": 60,
+      "small-s3-a1-multi-dhcp-wan-none": 60,
+      "small-s3-a1-single-dhcp-wan-asa": 60,
+      "small-s3-a1-single-static-none-none": 60
+    },
+    "total_generated": 1944,
+    "unique_valid": 1944,
+    "duplicates_skipped": 0,
+    "failure_categories": {},
+    "coverage_dimensions": {
+      "site_count": [
+        1,
+        2,
+        3
+      ],
+      "vlan_mode": [
+        "single",
+        "multi"
+      ],
+      "routing": [
+        "static",
+        "ospf"
+      ],
+      "internet": [
+        "none",
+        "wan",
+        "dsl",
+        "cable"
+      ],
+      "firewall": [
+        "none",
+        "asa",
+        "asa-dmz"
+      ],
+      "addressing": [
+        "dhcp",
+        "static",
+        "mixed"
+      ],
+      "language": [
+        "en",
+        "roman-urdu",
+        "mixed"
+      ],
+      "security_requirements": [
+        true,
+        false
+      ]
+    }
+  }
+}

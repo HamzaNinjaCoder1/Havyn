@@ -1,0 +1,22 @@
+{
+  "id": "oc-054",
+  "language": "mixed",
+  "difficulty": "L5",
+  "category": "long-document",
+  "scenario": "Retail chain HQ + store: POS isolation, cameras, guest, WAN.",
+  "coverage_cell": "small-s2-a2-multi-static-wan-none-iot",
+  "length_category": "document",
+  "prompt": "Business: 'Al-Noor Mart' — ek head office aur ek retail store.\n\nHead office (Karachi):\n- 6 office PCs (accounts + admin).\n- Ek server jis par inventory system (HTTP) chale.\n\nRetail store (Lahore):\n- 2 POS terminals jo bilkul isolated honi chahiye (compliance).\n- 1 back-office PC.\n- 3 IP cameras jo store ke andar wired hon.\n- Customer ke liye WiFi (guest).\n\nRequirements:\n- POS terminals apne alag network par hon, so that koi doosra device unhe na dekh sake.\n- Cameras ka apna network ho.\n- Guest WiFi sirf internet tak.\n- Head office aur store aapas mein connected hon (static routing) so that inventory system dono jagah se open ho.\n- Internet dono jagah chahiye (store ki alag line).\nExclusion: DHCP POS par nahi, and POS ke addresses static hon.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME with three real reasons surfaced: (a) 'guest WiFi sirf internet tak' is a guest-isolation guarantee the engine refuses ('guest-isolation-unsupported'); (b) real IP cameras are not expressible — the schema's only IoT kind is smart_led, so the cameras cannot be built as asked; (c) 'internet dono jagah ... store ki alag line' over-claims — the engine builds one internet block at sites[0] (CG-3). The POS-static and two-site static-routing parts are otherwise buildable; the correct output names the three refusals rather than faking them.",
+  "why_valuable": "The most enterprise-flavoured long document: multi-site retail with compliance-driven POS isolation. Held at the honest capability boundary (cameras + guest isolation) instead of faking support.",
+  "research_inspiration": [
+    "https://ictally.com/resources/blog/restaurant-guest-wifi-vs-pos-network-setup"
+  ],
+  "prompt_hash": "ddd895a8e15c57edbb8c7c80ed66e9dadccb8e602d070ecaa55570dfdb9c8e84",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

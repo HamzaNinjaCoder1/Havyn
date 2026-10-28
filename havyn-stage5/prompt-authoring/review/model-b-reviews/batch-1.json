@@ -1,0 +1,256 @@
+[
+  {
+    "id": "oc-001",
+    "recovered_intent_summary": "A tiny back-office LAN: exactly four desktop PCs on a single shared network, mutual reachability only, explicitly no internet. Implies one LAN segment with connected routing.",
+    "missing_facts": [
+      "Addressing mode is never stated in the prompt, but the intent hardcodes dhcp:false (static). A model could reasonably build DHCP instead and 'violate' the intent."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "required_hosts: 10 for 4 PCs is a capacity choice the prompt does not constrain; harmless design slack but not derivable from the prompt."
+    ],
+    "human_likeness": 0.78,
+    "fidelity": 0.88,
+    "verdict": "ACCEPT",
+    "reason": "All substantive facts in the prompt (4 PCs, one network, mutual reachability, no internet) map cleanly onto the intent with no invention. The only drift is the unspecified addressing mode, which is a normal user omission for an L1 request."
+  },
+  {
+    "id": "oc-002",
+    "recovered_intent_summary": "Roman-Urdu version of a minimal office build: two desktop PCs that need to talk to each other on one network, no internet for now.",
+    "missing_facts": [
+      "Addressing mode unspecified in the prompt; intent sets dhcp:false (static)."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "required_hosts: 8 for 2 PCs is unverifiable from the prompt."
+    ],
+    "human_likeness": 0.82,
+    "fidelity": 0.88,
+    "verdict": "ACCEPT",
+    "reason": "Natural code-switching ('aapas mein chalna hai', 'Internet ki abhi zaroorat nahi'), device count stated explicitly, no invented facts. Only the static-addressing default is unanchored, same minor class as oc-001."
+  },
+  {
+    "id": "oc-003",
+    "recovered_intent_summary": "Two-department small office: reception PCs and finance PCs on separate networks so finance traffic is private, with automatic (DHCP) addressing for everyone. Two VLANs, inter-VLAN reachability, connected routing.",
+    "missing_facts": [
+      "Host counts (5 reception, 4 finance) appear only in the intent; the prompt gives no headcount at all."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "required_hosts 12/12 are planning padding not stated anywhere; not a prompt defect.",
+      "'finance traffic stays private' is mapped to subnet separation only — a grader must not expect ACL-level privacy."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.85,
+    "verdict": "ACCEPT",
+    "reason": "The prompt carries all three intent requirements (separate networks, finance isolation, DHCP) in plain small-business language. Host counts are underspecified but that is normal user behavior and affects capacity only, not topology class."
+  },
+  {
+    "id": "oc-004",
+    "recovered_intent_summary": "Two sites — head office and one branch — interconnected, DHCP at both sites, internet at both, and branch-to-HO traffic going via 'regular routing'.",
+    "missing_facts": [
+      "Site host counts (8 HO PCs, 5 branch PCs) absent from the prompt."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "'regular routing se jaani chahiye' is vague. The intent fixes routing mode to static, but 'regular routing' could just as easily be read as 'normal/standard routing' generically, or even misread as dynamic routing. The static requirement is not clearly communicated by the prompt.",
+      "DHCP and internet requirements are stated positively and map cleanly."
+    ],
+    "human_likeness": 0.78,
+    "fidelity": 0.75,
+    "verdict": "REVIEW",
+    "reason": "Mostly faithful and natural, but the static-routing requirement rests on a vague phrase. A model that chose OSPF or left routing to defaults would be penalized by the intent despite the prompt not clearly forbidding it. A human should confirm the phrasing or the grading."
+  },
+  {
+    "id": "oc-005",
+    "recovered_intent_summary": "Three-floor building, one network per floor (ground=customer kiosks, first=staff, second=management), full reachability between floors, a dynamic routing protocol (intent: OSPF area 0) instead of static routes because the network will grow, staff and management in separate broadcast domains, no internet.",
+    "missing_facts": [
+      "The intent sets dhcp:true on all three VLANs, but the prompt never mentions addressing at all. A build with static addressing would satisfy every sentence of the prompt.",
+      "Per-floor host counts (6 kiosks / 10 staff / 4 mgmt) are absent."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "'a proper routing protocol' is deliberately generic; intent scores OSPF specifically. Any dynamic protocol (EIGRP/RIP) satisfies the prompt but not the intent.",
+      "'kiosks' are modeled as device:pc — acceptable, but a grader should not expect actual kiosk device types."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.72,
+    "verdict": "REVIEW",
+    "reason": "Strong natural phrasing (the OSPF ask is embedded in a growth rationale, not a keyword), but two intent requirements — DHCP everywhere and OSPF specifically — are not stated or only weakly implied by the prompt. A human should decide whether those are graded or defaulted."
+  },
+  {
+    "id": "oc-006",
+    "recovered_intent_summary": "Two Pakistani offices, Karachi (head office with the internet line) and Lahore. Static routing between them (explicitly no dynamic protocol); Lahore reaches the internet through Karachi's connection via NAT.",
+    "missing_facts": [
+      "Intent marks both VLANs dhcp:true, but the prompt is silent on addressing. Karachi-side DHCP is never requested.",
+      "PC counts (8 Karachi, 6 Lahore) absent."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The 'static routing, no protocol' constraint is explicit and unambiguous — good.",
+      "Internet via HO is explicit for Lahore; Karachi's own internet access is implied by 'internet line hai' — acceptable."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.78,
+    "verdict": "REVIEW",
+    "reason": "All the stated requirements (two offices, static-only, internet through HO) are faithfully represented in natural Roman-Urdu. The one drift is DHCP: the intent requires it at both sites but the prompt never mentions addressing, which is a substantive build decision (DHCP server device), not just capacity slack."
+  },
+  {
+    "id": "oc-007",
+    "recovered_intent_summary": "Office WiFi with a staff SSID for laptops and a separate guest SSID for visitors; guests get internet only and must not be able to reach any internal machines; staff on the internal network; cable internet. A clear, coherent guest-isolation request.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The prompt itself is NOT ambiguous, contradictory, or impossible as a network requirement — it is one of the most common real-world requests there is. The refusal is justified solely by an asserted engine capability gap (no live-verified guest-isolation ACL), which I was instructed not to verify from Model A's fields.",
+      "expected_intent is null even though this request is perfectly expressible in intent terms (two WLANs + guest subnet + isolation flag). The dataset should be explicit that this is a capability-gap refusal, not an ambiguity case, so it is not conflated with oc-014.",
+      "If the engine later gains ACL enforcement, this item silently becomes wrong. The refusal needs a capability-version guard."
+    ],
+    "human_likeness": 0.75,
+    "fidelity": 0.8,
+    "verdict": "REVIEW",
+    "reason": "As a refusal-by-name probe the trigger phrase ('must not be able to reach any of our internal machines') is clearly present and the named refusal plus offer-to-build-on-separate-subnet is consistent with the project's refuse-by-name rule. But this is a deliberate capability-boundary item with a null intent; a human should confirm the capability gap is still real and that a clear, reasonable user request being refused is the intended eval signal."
+  },
+  {
+    "id": "oc-008",
+    "recovered_intent_summary": "Small shop: free customer WiFi plus staff laptops, with the guest WiFi limited to internet only, and cable internet available. Implies two wireless client populations (staff vs customers) with the guest side internet-scoped.",
+    "missing_facts": [
+      "The prompt's 'staff ke laptops' never appear in the intent — the staff population is modeled as 3 smartphones instead of laptops.",
+      "The prompt implies a staff-facing connectivity path alongside the guest WiFi; the intent has exactly one SSID (ShopGuest, open) attached to the staff phones, so the staff/guest distinction the prompt describes has no structural counterpart."
+    ],
+    "invented_facts": [
+      "Smartphone device type for staff — the prompt says laptops.",
+      "Single open SSID named ShopGuest attached to the staff device group, apparently merging staff and guest onto the guest network.",
+      "Counter PCs (2) are not mentioned in the prompt at all."
+    ],
+    "contradictions": [
+      "REQ-002 ('Guest WiFi is a separate network from staff') cannot be satisfied by the intent's own structure: there is only one wireless entry, and it is bound to the staff phones.",
+      "'Guest wali WiFi sirf internet tak mehdood ho' is semantically very close to oc-007's 'Guests should only get internet' — yet oc-007 must be refused for exactly this scoping while oc-008 must build. The contrast between the pair is thinner than claimed and a model could reasonably read oc-008 as the same isolation request."
+    ],
+    "ambiguity_notes": [
+      "Security posture is unstated: 'free WiFi' suggests open, but putting staff on an open SSID is a stretch the prompt does not authorize."
+    ],
+    "human_likeness": 0.7,
+    "fidelity": 0.55,
+    "verdict": "REJECT",
+    "reason": "Device-type drift (laptops to smartphones), an invented counter-PC group, and above all an intent whose single-SSID structure contradicts its own separate-network requirement and the prompt's two-population framing. A model following the prompt faithfully could build two SSIDs and diverge from the graded intent."
+  },
+  {
+    "id": "oc-009",
+    "recovered_intent_summary": "Single-site law firm behind a perimeter ASA: ~20 staff PCs on a DHCP inside LAN, WAN handoff from the ISP, a public HTTP/HTTPS website in a DMZ reachable from the internet, and the inside network kept private (no inbound initiations from the internet).",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "The intent places the web server in vlan 'inside' while firewall.dmz is true and both the prompt and REQ-002 demand the website sit in a DMZ segment separate from internal workstations. As written, the intent JSON puts the DMZ server on the inside VLAN, contradicting its own critical requirement."
+    ],
+    "ambiguity_notes": [
+      "'about twenty staff PCs' to 18 is a reasonable quantization.",
+      "Prompt uses a Context / What I need bullet scaffold that is structurally near-identical to oc-012's Background / Target / Constraints scaffold — reads a bit like a generated requirements doc rather than a human email."
+    ],
+    "human_likeness": 0.68,
+    "fidelity": 0.75,
+    "verdict": "REVIEW",
+    "reason": "The prompt is a faithful, well-formed expression of the DMZ intent — the problem is on the intent side: server placement on the inside VLAN contradicts the DMZ-isolation requirement, so a model that builds the DMZ the prompt asks for may score as divergent. Also shares template scaffolding with oc-012/oc-013; a human should confirm the graded build shape."
+  },
+  {
+    "id": "oc-010",
+    "recovered_intent_summary": "Roman-Urdu single office: ~15 computers, ISP direct line, an ASA firewall between, inside hosts on DHCP, and one public server reachable from outside that must not be able to see the private inside computers' data.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "The prompt's isolation requirement ('woh server andar ke private computers ka data na dekhe sake') is graded as REQ-003, yet the intent has no DMZ and places the public server on the inside VLAN — the same segment as the 15 private PCs. The intent's own structure makes REQ-003 unsatisfiable."
+    ],
+    "ambiguity_notes": [
+      "'taqreeban 15' matching count 15 exactly is fine.",
+      "Server services narrowed to http only; the prompt does not name a protocol, so this is a reasonable default rather than drift."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.7,
+    "verdict": "REVIEW",
+    "reason": "Natural, idiomatic prompt with all requirements represented — but like oc-009, the intent's build shape (server on inside, no DMZ) contradicts its own isolation requirement. A model that correctly isolates the public server (e.g. via DMZ or a separate segment) would diverge from the graded intent. Human must decide which side is authoritative."
+  },
+  {
+    "id": "oc-011",
+    "recovered_intent_summary": "Smart-office fit-out: normal office PCs on their own network, network-controlled LED lighting wired in as IoT devices on a separate network, cable internet, IoT not mixed with staff PCs.",
+    "missing_facts": [
+      "'a handful of ... LED units per floor' implies a multi-floor office; the intent is single-area (one 'ceilings' area) with no per-floor structure.",
+      "DHCP is never mentioned in the prompt but both intent VLANs are dhcp:true."
+    ],
+    "invented_facts": [
+      "A single controller PC in the 'ceilings' area (host_group panel, count 1) that the prompt never mentions.",
+      "Exact count of 4 LEDs where the prompt only says 'a handful per floor'."
+    ],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Device count/floor scaling is soft; acceptable if the grader only checks topology class (staff VLAN + IoT VLAN + cable internet)."
+    ],
+    "human_likeness": 0.78,
+    "fidelity": 0.72,
+    "verdict": "REVIEW",
+    "reason": "The core ask (separate staff and IoT networks, cabled lights) is faithfully represented in natural fit-out language, but the intent adds an unmentioned controller PC, drops the per-floor implication, and hardcodes DHCP the prompt never requested."
+  },
+  {
+    "id": "oc-012",
+    "recovered_intent_summary": "Long-form green-field build for a 45-person wholesaler: four separate wired networks (sales, warehouse, finance, reception/shared kiosks), finance unreachable from everyone else, an internal HTTP intranet server reachable by sales and warehouse, a company DNS server, DHCP for everyone except statically addressed finance servers, no wireless, no guest-isolation magic, no firewall appliance, internet deferred.",
+    "missing_facts": [
+      "The prompt explicitly requires 'the two finance servers' to be statically addressed — the intent contains zero finance servers. The finance server requirement is lost entirely."
+    ],
+    "invented_facts": [
+      "Static addressing is applied to all 8 finance PCs instead of the two finance servers the prompt names (the prompt says everyone else — i.e. including finance user PCs — gets addresses automatically).",
+      "Sales is modeled as 18 PCs plus 4 laptops = 22 devices, but the prompt says 'about 18 people' total in sales, 'mostly wired PCs plus a few laptops'. The 4 laptops appear to be added on top of the 18 rather than inside it."
+    ],
+    "contradictions": [
+      "Prompt says sales has 'a few laptops' and also 'No wireless for now; wired only' — internally reconcilable (wired laptops) but the intent's own expected-behaviour note ('laptops ... need an AP cell') contradicts the explicit no-wireless constraint, suggesting the intent is not settled here.",
+      "Intent routing mode is 'connected' while the prompt describes inter-group server reachability across four segments — plausibly inter-VLAN routing, but the prompt never says routing mode, so this is an unanchored intent choice."
+    ],
+    "ambiguity_notes": [
+      "'about 18 people' ambiguity (headcount vs device count) is what allows the 18+4 drift; the prompt should say which.",
+      "Template scaffolding (Background / Current / Target / Constraints / Priority) is shared with oc-009 and oc-013."
+    ],
+    "human_likeness": 0.6,
+    "fidelity": 0.55,
+    "verdict": "REJECT",
+    "reason": "A lost requirement (two static finance servers) and two invented facts (all-finance-PCs-static, inflated sales device count) in the highest-stakes L5 item, plus an internal no-wireless-vs-laptops tension the intent handles inconsistently. A model faithfully building the prompt's finance servers would diverge from the graded intent."
+  },
+  {
+    "id": "oc-013",
+    "recovered_intent_summary": "Two-site textile company: Karachi head office (sales ~12 PCs combined with accounts) and Faisalabad factory (production terminals ~10, static). Sites interconnected with OSPF; accounts on its own network invisible to sales; production separate; internet at Karachi shared to the factory; sales and accounts on DHCP; a DNS server at Karachi serving both sites; no wireless, no firewall appliance.",
+    "missing_facts": [
+      "DNS server placement (on the sales VLAN) is an intent choice the prompt does not constrain — fine if ungraded."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Content fidelity is high: every bullet maps to an intent requirement (OSPF, accounts isolation, static production, internet via HO, exclusions).",
+      "Style concern: the doc scaffold ('Company profile:' / 'Requirements:' / 'Exclusion:') and the closing exclusion pair (no wireless + no firewall, trust the ISP edge) are near-copies of oc-012's structure, in a different language and scenario. This parallel scaffolding across the two L5 items is a machine-generation tell.",
+      "'taqreeban 12 PCs' split as 6+6 sales/accounts is an unanchored but plausible choice."
+    ],
+    "human_likeness": 0.62,
+    "fidelity": 0.85,
+    "verdict": "REVIEW",
+    "reason": "Faithful and internally consistent — no lost or invented network facts of substance. Held back only because its document skeleton and exclusion clauses duplicate oc-012 almost clause-for-clause, which a human should diversify before this looks like real user traffic."
+  },
+  {
+    "id": "oc-014",
+    "recovered_intent_summary": "Deliberately underspecified request: connect 'our branches' with routing between them, no site count, no main-site location, no per-branch internet requirements. Nothing can be built without clarification.",
+    "missing_facts": [
+      "By design: site count, main-site identity, addressing, and internet placement are all absent."
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Genuinely ambiguous as claimed — 'branches' presupposes multiple sites but gives no count, and 'make it work' adds no constraints. A targeted clarification (how many branches, where is the main site, internet at main site only or everywhere) is the correct response; a full refusal would be wrong.",
+      "'Make it work' is a natural, human closing phrase."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.9,
+    "verdict": "ACCEPT",
+    "reason": "A clean clarify-don't-invent probe: the prompt is honestly unrepresentable as a build, and the expected clarification questions address exactly the missing facts. No drift, reads like a real vague manager."
+  }
+]

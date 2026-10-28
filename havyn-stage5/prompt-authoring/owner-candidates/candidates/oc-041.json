@@ -1,0 +1,143 @@
+{
+  "id": "oc-041",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "enterprise",
+  "scenario": "Clinic: reception, consulting, waiting — patient-data separation.",
+  "coverage_cell": "small-s1-a3-multi-dhcp-wan-none",
+  "length_category": "long",
+  "prompt": "Hum char doctors ki clinic khol rahe hain. Network aisa hona chahiye ke patient ki information waiting area se na dekhi ja sake.\n\n- Reception aur admin ke 6 computers (bookings aur records).\n- Consulting rooms mein har room ka ek PC (4 rooms).\n- Waiting area mein ek shared kiosk PC (1).\n- Records server ho jis par HTTP aur DNS chalen; woh static ho.\n- Baaki sab automatic addressing.\nISP se WAN handoff internet ke liye hai. Wireless ki abhi zaroorat nahi.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "clinic-urdu",
+    "sites": [
+      {
+        "id": "clinic",
+        "areas": [
+          {
+            "id": "reception",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "receptionpcs",
+                "area": "reception",
+                "count": 6,
+                "device": "pc",
+                "vlan": "adminnet"
+              }
+            ]
+          },
+          {
+            "id": "consulting",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "roompcs",
+                "area": "consulting",
+                "count": 4,
+                "device": "pc",
+                "vlan": "clinicalnet"
+              }
+            ]
+          },
+          {
+            "id": "waiting",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "kioskpc",
+                "area": "waiting",
+                "count": 1,
+                "device": "pc",
+                "vlan": "waitingnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "adminnet",
+        "name": "Admin",
+        "dhcp": true,
+        "site": "clinic",
+        "required_hosts": 12
+      },
+      {
+        "id": "clinicalnet",
+        "name": "Clinical",
+        "dhcp": true,
+        "site": "clinic",
+        "required_hosts": 10
+      },
+      {
+        "id": "waitingnet",
+        "name": "Waiting",
+        "dhcp": true,
+        "site": "clinic",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "recordssrv",
+        "site": "clinic",
+        "vlan": "clinicalnet",
+        "services": [
+          "http",
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Patient/consulting data is not reachable from the waiting area",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Admin, clinical and waiting are separate networks",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The records server is static with HTTP and DNS",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "WAN internet with NAT",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Three VLANs, static records server (http+dns) on the clinical VLAN, WAN internet. Roman Urdu healthcare scenario.",
+  "why_valuable": "Roman-Urdu healthcare counterpart to oc-025; keeps the language mix from clustering in 'basic' categories only.",
+  "research_inspiration": [
+    "https://www.cisa.gov/resources-tools/resources/enhanced-visibility-and-hardening-guidance-communications-infrastructure"
+  ],
+  "prompt_hash": "7aa018b1f345f8dacfca8aa363f6f9c321e4136f8ceb339273d4d5cc66328061",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

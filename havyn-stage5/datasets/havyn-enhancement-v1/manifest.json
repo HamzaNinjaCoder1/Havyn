@@ -1,0 +1,14 @@
+{
+  "dataset": "havyn-enhancement-v1",
+  "generator_version": "0.1.0",
+  "engine_commit": "06c57ced050c",
+  "seed": 20261028,
+  "examples": 60,
+  "impossible": 6,
+  "failures": {
+    "after:ExpansionRefusal: firewall-needs-single-vlan: expander v1 places the ASA as the ": 1,
+    "after:lint: [{'kind': 'missing_information', 'code': 'wireless-client-without-ap', 'me": 1,
+    "build:ValidationError": 1
+  },
+  "generated": "2026-10-27T21:38:56+00:00"
+}

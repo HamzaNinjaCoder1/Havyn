@@ -1,0 +1,107 @@
+{
+  "id": "oc-036",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "routing",
+  "scenario": "Two sites joined with OSPF, internet at the branch too.",
+  "coverage_cell": "small-s2-a1-multi-static-ospf-wan-none",
+  "length_category": "medium",
+  "prompt": "We're linking our main office and a remote site. Run OSPF between them so routes appear automatically as we add subnets. Both sites should be able to reach the internet and each other.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "main-remote-ospf",
+    "sites": [
+      {
+        "id": "mainoffice",
+        "areas": [
+          {
+            "id": "floor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "mainpcs",
+                "area": "floor",
+                "count": 8,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "remotesite",
+        "areas": [
+          {
+            "id": "shed",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "remotepcs",
+                "area": "shed",
+                "count": 4,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "mainnet",
+        "name": "Main",
+        "dhcp": true,
+        "site": "mainoffice",
+        "required_hosts": 16
+      },
+      {
+        "id": "remotenet",
+        "name": "Remote",
+        "dhcp": true,
+        "site": "remotesite",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "ospf",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Main office and remote site reach each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Both sites reach the internet",
+        "type": "connectivity",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "OSPF is used between the sites",
+        "type": "operational",
+        "priority": "high",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Two sites, OSPF, one WAN internet block + NAT built at the main site (the engine builds the internet only at sites[0], CG-3); the remote site reaches the internet through it. A second, independent line at the remote site is a capability gap, not something the engine delivers.",
+  "why_valuable": "OSPF across two sites with internet at both — a shape the coverage matrix certifies; keeps routing coverage from being static-only.",
+  "research_inspiration": [],
+  "prompt_hash": "3adaa39d0b46907b38cb81e0448cd7347c5a9e042c312565964bcd4a3452ca4f",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

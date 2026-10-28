@@ -1,0 +1,234 @@
+[
+  {
+    "id": "oc-015",
+    "recovered_intent_summary": "User wants an office network with two departments, but explicitly cannot provide per-department device counts or whether addressing should be DHCP or static. Correct response is to ask for both missing facts.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Department names are also unspecified, but that is minor; the two load-bearing unknowns (scale, addressing mode) are cleanly absent and the expected ASK covers both."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.85,
+    "verdict": "ACCEPT",
+    "reason": "Genuine, naturally phrased ambiguity; the user admits they cannot supply the numbers. The expected behaviour (ask about counts and DHCP vs static, do not assume) is correct and the prompt is realistic Roman-Urdu novice speech."
+  },
+  {
+    "id": "oc-016",
+    "recovered_intent_summary": "New office setup needing a server and internet; the ISP handoff type (WAN/DSL/cable) is unknown because the line is still being installed, and the server's role is unspecified. Correct response is to ask what the ISP handoff will be.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Server role is unspecified; the expected behaviour mentions confirming it only as optional, which is reasonable."
+    ],
+    "human_likeness": 0.82,
+    "fidelity": 0.85,
+    "verdict": "ACCEPT",
+    "reason": "Plausible real-world situation (line still being installed) that legitimately withholds the access type. Asking instead of guessing WAN vs DSL vs cable is the correct behaviour and the prompt reads like a real user. Minor quibble: metadata says 'mixed' language but the prompt is essentially all Roman-Urdu."
+  },
+  {
+    "id": "oc-017",
+    "recovered_intent_summary": "Guest WiFi must be completely isolated from everything internal, yet guests must also reach an internal booking page on an office server. Both stated as firm, so it is a deliberate isolation-vs-exception contradiction.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "The prompt intentionally contains the contradiction ('completely isolated, never touch anything internal' vs 'reach our booking page on an internal server') and correctly expects the model to surface it."
+    ],
+    "ambiguity_notes": [
+      "'Both are firm requirements' is a benchmark-style insistence tell; real users rarely flag their contradictions that explicitly.",
+      "The expected behaviour offers 'propose a narrow exception' as an option, but per the stated capability gap (guest isolation itself unsupported) that exception may not be buildable either, so the acceptable responses are narrower than advertised."
+    ],
+    "human_likeness": 0.68,
+    "fidelity": 0.8,
+    "verdict": "REVIEW",
+    "reason": "The contradiction is real and flag-and-ask is the right response, but the prompt signposts it too neatly (both the 'completely isolated — never' phrasing and 'Both are firm requirements' read engineered). A human should confirm the deliberately-contradictory register and whether the 'narrow exception' answer path is actually supportable."
+  },
+  {
+    "id": "oc-018",
+    "recovered_intent_summary": "Finance network must be fully isolated with no outside access, but sales staff must also be able to use finance's printer. Deliberate isolation-vs-shared-service contradiction; correct response is to surface the conflict and ask which wins or whether a single printer exception is intended.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "'Finance bilkul isolated, koi bahar se access na kare' vs 'sales must use the finance printer' — intentional and correctly identified."
+    ],
+    "ambiguity_notes": [
+      "Unlike oc-017 the contradiction is not explicitly flagged as 'both firm' in a meta way; it reads like an organic real request, which is a plus."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.85,
+    "verdict": "ACCEPT",
+    "reason": "Very common real-world request shape (segmentation vs shared printer), naturally phrased Roman-Urdu, and the expected behaviour (ask which wins or propose one narrow exception, do not flatten the network) is correct."
+  },
+  {
+    "id": "oc-019",
+    "recovered_intent_summary": "Two city offices, an ASA 5505 at each, site-to-site connectivity between them, each site with a DMZ hosting a public server, and the two offices sharing DMZ services. Expected: refuse by name (multi-site, no-DMZ, dmz-multi-site-unsupported) and offer a 5506-X single-site DMZ.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The proposed alternative (5506-X single-site DMZ) addresses only the DMZ half, not the two-connected-offices half; a human should confirm what the correct offered alternative is for the multi-site part.",
+      "The request packs three separate named refusals into one short prompt, which feels reverse-engineered from the refusal list rather than organically authored."
+    ],
+    "human_likeness": 0.72,
+    "fidelity": 0.8,
+    "verdict": "REVIEW",
+    "reason": "The refusal itself is plausibly correct for an engine that only verifies the 5505 as a single-site inside/outside perimeter, but the advertised remediation only solves part of the request, and the three-refusals-in-one structure looks engineered. Boundary case a human should confirm."
+  },
+  {
+    "id": "oc-020",
+    "recovered_intent_summary": "Run DHCP as a service on a Windows server in a server VLAN so all office computers get IPs from it. Expected: refuse by name (server-dhcp-service unsupported) and offer gateway per-VLAN DHCP pools instead.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [],
+    "human_likeness": 0.85,
+    "fidelity": 0.9,
+    "verdict": "ACCEPT",
+    "reason": "Extremely common real ask, phrased naturally, unambiguously targeting the unsupported server-side DHCP path. Named refusal plus gateway-pool alternative is the right behaviour. (Metadata says 'mixed' but the prompt is essentially all Roman-Urdu — cosmetic only.)"
+  },
+  {
+    "id": "oc-021",
+    "recovered_intent_summary": "An ASA firewall as the office perimeter, with three VLANs (staff, guests, cameras) all behind its single inside interface, the ASA doing inter-VLAN routing and internet routing. Expected: refuse by name (firewall-needs-single-vlan) and offer a single-inside-VLAN perimeter or a router-based inter-VLAN design.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "'three VLANs ... all inside the firewall's inside interface' (singular) is slightly artificial phrasing — a real engineer would say 'behind the ASA' or mention subinterfaces; this wording looks shaped to trip the single-VLAN lint, though a novice could plausibly write it."
+    ],
+    "human_likeness": 0.78,
+    "fidelity": 0.85,
+    "verdict": "ACCEPT",
+    "reason": "The scenario (multi-VLAN behind an ASA doing the routing) is a very realistic design ask and the expected named refusal with alternatives is sound. Minor concern that the 'single inside interface' wording was engineered to hit the lint, but not enough to fail."
+  },
+  {
+    "id": "oc-022",
+    "recovered_intent_summary": "Small static-addressing lab: six PCs on one network, all with fixed addresses the user sets, no DHCP anywhere, no internet. Rationale is a test bench whose addresses must never change.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Host count (6) is explicitly stated and matches the intent; the intent's required_hosts=10 is a planner detail, not a prompt fact."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.95,
+    "verdict": "ACCEPT",
+    "reason": "Near-lossless mapping to the intent: count, single network, all-static, no DHCP, no internet, plus a natural human rationale. Reads like a real lab-builder."
+  },
+  {
+    "id": "oc-023",
+    "recovered_intent_summary": "Small office: one internal server hosting an intranet website (HTTP) and DNS, reachable from office PCs so the site opens and names resolve; all office computers get IPs via DHCP.",
+    "missing_facts": [
+      "Number of office PCs (intent specifies 8 plus a server-room host group); the prompt gives no count at all.",
+      "The intent places the server on a separate server VLAN with its own area; the prompt implies nothing about a separate server segment, so the two-VLAN shape is not recoverable from the prompt."
+    ],
+    "invented_facts": [],
+    "contradictions": [
+      "Prompt says 'Sab computers DHCP se IP lein' (all computers take IPs via DHCP) while the intent's server VLAN is dhcp=true too — consistent only if the server itself is DHCP-addressed, which is unusual for a server and could push a builder toward the refused server-DHCP reading."
+    ],
+    "ambiguity_notes": [
+      "'Names resolve hon' could be read as resolving internet names, not only internal names; the intent scopes DNS to internal resolution.",
+      "The intent models the server as both a servers[] entry and a 'dummy' PC host group — an internal modelling detail, not visible in the prompt."
+    ],
+    "human_likeness": 0.78,
+    "fidelity": 0.65,
+    "verdict": "REVIEW",
+    "reason": "Business-terms framing is nice, but the prompt loses the host count and the separate-server-VLAN structure entirely, and 'all computers DHCP' sits awkwardly next to an intent that both places a server on a DHCP server VLAN and avoids server-side DHCP. A human should confirm counts and the server-addressing story."
+  },
+  {
+    "id": "oc-024",
+    "recovered_intent_summary": "Redesign an office: reception and finance on separate networks with finance private, every PC on proper automatic addressing (fixing APIPA symptoms), DSL internet. Diagnosis framing is narrative only; the build target is two DHCP VLANs plus DSL/NAT.",
+    "missing_facts": [
+      "Host counts (intent: 6 reception PCs, 5 finance PCs); the prompt states none, so any build's counts will not match the intent.",
+      "NAT is in the intent (internet.nat=true) but never stated in the prompt; it is only inferable as a DSL default."
+    ],
+    "invented_facts": [
+      "A printer that half the PCs allegedly cannot reach appears in the prompt's symptom narrative but exists nowhere in the intent or build target."
+    ],
+    "contradictions": [
+      "Intent requires REQ-002 'finance machines not visible to reception' yet uses routing mode 'connected' with no ACL/policy element, so the intent's own isolation requirement is not actually enforced by its topology."
+    ],
+    "ambiguity_notes": [
+      "'Finance private' is ambiguous between mere VLAN separation and blocking inter-VLAN traffic; with connected routing the builder cannot satisfy the strong reading.",
+      "The legacy symptom story (shared network last year, APIPA) is unverifiable narrative; fine as register, but it invites a diagnosis expectation the pipeline explicitly does not run."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.7,
+    "verdict": "REVIEW",
+    "reason": "Excellent realistic 'fix my mess' register, but the prompt loses the host counts, invents a printer absent from the build target, and the intent itself contradicts its finance-privacy requirement by using connected routing with no isolation policy. Human should reconcile the isolation clause with the topology."
+  },
+  {
+    "id": "oc-025",
+    "recovered_intent_summary": "Four-doctor clinic: reception/admin (~6 PCs), consulting rooms (4 wired PCs), waiting area kiosk (1 PC) doubling as the patient guest access; strict separation so patient/consulting traffic is unreachable from waiting/guest; everything DHCP except a statically addressed records server; WAN handoff internet; guest is wired-kiosk only, no wireless.",
+    "missing_facts": [
+      "The intent (and REQ-004) give the records server HTTP and DNS services, but the prompt never mentions any services on it — REQ-004 is marked source='prompt' when the prompt does not contain it.",
+      "The intent puts the records server on the clinical VLAN and gives it static addressing; the prompt says only 'static' without specifying placement (placement is defensible design, but it is an intent choice not recoverable verbatim)."
+    ],
+    "invented_facts": [],
+    "contradictions": [
+      "REQ-004 claims prompt provenance for HTTP+DNS on the records server, which is fabricated provenance."
+    ],
+    "ambiguity_notes": [
+      "'No wireless controller questions — keep the guest network wired-kiosk only for now' reads like the author pre-empting an engine limitation rather than a clinic user speaking; a real user would say 'patients can use the kiosk, we're not doing WiFi for patients yet'.",
+      "Whether the waiting kiosk segment and the 'patient guest network' are one VLAN (as the intent assumes: one waitingnet) or two segments is not fully determinable from the prompt."
+    ],
+    "human_likeness": 0.7,
+    "fidelity": 0.65,
+    "verdict": "REJECT",
+    "reason": "The intent manufactures a service requirement (records server with HTTP+DNS, REQ-004) that the prompt never requests and falsely attributes it to the prompt; an evaluator scoring prompt-vs-intent would find the prompt under-determines the build. Combined with the meta 'no wireless controller questions' phrasing, this needs authoring revision before use."
+  },
+  {
+    "id": "oc-026",
+    "recovered_intent_summary": "School campus: computer lab (20 student PCs), classrooms (12 wired PCs), staff room (6 PCs + 4 wireless laptops); separate student and staff networks with no sharing; a guest network for visitors that is internet-only with no internal access; cable internet.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "The scenario is fully specified and buildable except for one clause ('guest sirf internet, koi internal access nahi'), yet it is marked expect_refusal — so a correct build of the core could be scored as failure, and a full refusal throws away a well-specified buildable network."
+    ],
+    "ambiguity_notes": [
+      "'Internet only, no internal access' is a common user way of stating scope, not necessarily a hard isolation guarantee; treating it as firewall.guest_isolation is a judgement call, and the file's own expected_behaviour hedges ('REVIEW-then-refuse ... IF Model A maps it').",
+      "The correct system behaviour is underdetermined: refuse entirely, build with a named capability caveat, or ask to soften the clause are all defensible."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.7,
+    "verdict": "REVIEW",
+    "reason": "The prompt itself is natural and richly specified, but expect_refusal hinges entirely on how one clause is interpreted; the expected behaviour is explicitly conditional and unresolved. This needs a human decision on whether the internet-only guest phrasing triggers the named refusal or should be reworded."
+  },
+  {
+    "id": "oc-027",
+    "recovered_intent_summary": "Retail branch: two POS terminals needing compliance isolation, one back-office PC, IP security cameras, free guest WiFi for customers; POS and back office wired, guests wireless; cable internet.",
+    "missing_facts": [
+      "Number and placement of cameras is unspecified (intent expects the build to place cameras as IoT devices at all)."
+    ],
+    "invented_facts": [
+      "The expected_behaviour claims the guest 'reaches only the internet', but the prompt says only 'free guest WiFi for customers' and makes no internet-only or isolation claim for guests."
+    ],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The genuinely unbuildable element is the IP cameras (only smart_led IoT is verified), so refusal-by-name is justified on camera grounds — but the file's primary stated reason (guest isolation) is not actually present in the prompt.",
+      "POS 'isolated for compliance' is a second isolation-flavoured clause that the expected behaviour does not address at all.",
+      "Prompt never states whether the guest WiFi must be internet-only; an evaluator cannot know if guest segmentation was requested."
+    ],
+    "human_likeness": 0.78,
+    "fidelity": 0.65,
+    "verdict": "REVIEW",
+    "reason": "Realistic retail request and the camera capability gap does justify a named refusal, but the expected behaviour attributes an internet-only guest restriction the prompt never makes, and ignores the POS isolation clause. The refusal rationale needs to be re-anchored to the camera gap (and possibly POS) before use."
+  },
+  {
+    "id": "oc-028",
+    "recovered_intent_summary": "Distribution warehouse split by device role: operations segment with ~6 wireless handhelds/terminals talking to a warehouse system, office segment with 8 wired PCs plus 3 wireless supervisor laptops, contractor segment for third-party drivers needing internet only; all automatic addressing; cable internet; operations wireless kept separate from office and contractors.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "Marked expect_refusal even though the described three-segment, two-WiFi-cell core is admitted buildable; only the contractor 'internet only' clause triggers the hold, so a correct build risks being scored as a failure."
+    ],
+    "ambiguity_notes": [
+      "'Contractors occasionally need internet only' most naturally reads as a statement of what they need (scope), not a demanded isolation guarantee; refusing on it is a contestable interpretation.",
+      "The file concedes the ops/office split is valid, so the correct behaviour is genuinely ambiguous: build with a caveat, ask, or refuse are all defensible."
+    ],
+    "human_likeness": 0.82,
+    "fidelity": 0.7,
+    "verdict": "REVIEW",
+    "reason": "Well-specified, realistic warehouse scenario with a rare two-WiFi-cell shape, but it is held as a refusal candidate purely on a debatable reading of the contractor 'internet only' phrase. A human must decide whether that phrasing is an isolation requirement; if not, this should be a buildable candidate."
+  }
+]

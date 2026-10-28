@@ -1,0 +1,116 @@
+{
+  "id": "oc-055",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "diagnosis",
+  "scenario": "Post-VLAN-change DHCP breakage described as a fix request.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-dsl-none",
+  "length_category": "medium",
+  "prompt": "We recently split our network into two VLANs — one side has six PCs and the other five — and now half the machines can't get an address; they just self-assign and can't reach anything, not even our intranet server. It sits on the first VLAN and also does DNS for us. Redesign it so both VLANs hand out proper addresses and everything that should reach the server can. We're on DSL.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "dhcp-fix",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "sectiona",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "apcs",
+                "area": "sectiona",
+                "count": 6,
+                "device": "pc",
+                "vlan": "anet"
+              }
+            ]
+          },
+          {
+            "id": "sectionb",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "bpcs",
+                "area": "sectionb",
+                "count": 5,
+                "device": "pc",
+                "vlan": "bnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "anet",
+        "name": "Section A",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 12
+      },
+      {
+        "id": "bnet",
+        "name": "Section B",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "dsl",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "officesrv",
+        "site": "office",
+        "vlan": "anet",
+        "services": [
+          "http",
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Both VLANs hand out proper addresses (DHCP)",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Everything that should reach the server can",
+        "type": "connectivity",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "DSL internet with NAT",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Two DHCP VLANs + a server (http/dns) on VLAN A + DSL internet. The 'fix the DHCP breakage' narrative maps to a clean buildable target.",
+  "why_valuable": "Second diagnosis-flavoured case based on the very common 'VLAN split broke DHCP' real incident.",
+  "research_inspiration": [
+    "https://learningnetwork.cisco.com/s/question/0D53i00000KsvVbCAJ/dhcp-not-working-after-configuring-vlans"
+  ],
+  "prompt_hash": "34c34b9a537d01dc92183822b6c771605dcc353ec161c67ea41c36d0657f78c1",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

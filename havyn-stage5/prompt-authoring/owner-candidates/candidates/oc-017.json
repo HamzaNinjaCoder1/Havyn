@@ -1,0 +1,22 @@
+{
+  "id": "oc-017",
+  "language": "en",
+  "difficulty": "L5",
+  "category": "contradictory",
+  "scenario": "Guest must be fully isolated yet also reach an internal finance server.",
+  "coverage_cell": "contradiction-guest-isolation-vs-reach",
+  "length_category": "medium",
+  "prompt": "Set up a guest WiFi that is completely isolated — visitors must never touch anything internal. Oh, and they also need to open our booking page, which lives on a server inside the office network.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "SURFACE CONTRADICTION: 'completely isolated, never touch anything internal' conflicts with 'guest reaches an internal booking server'. The model must flag the conflict and ask which wins (or propose a narrow exception), not silently build one and drop the other. Note this also overlaps the real guest-isolation capability gap.",
+  "why_valuable": "Textbook real-world contradiction (isolation vs an exception), stated as if both are firm. Tests conflict detection rather than happy-path generation.",
+  "research_inspiration": [
+    "https://www.purple.ai/en-gb/blogs/how-to-set-up-guest-wifi"
+  ],
+  "prompt_hash": "0166d7f49dc70ffe36b4123b37c7ddef764b945ac046be3b481173b92c2afdd6",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "oc-051",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "impossible-refusal",
+  "scenario": "ASA 5505 with a DMZ — a single named refusal.",
+  "coverage_cell": "refusal-asa5505-dmz",
+  "length_category": "short",
+  "prompt": "Humein ASA 5505 firewall chahiye aur uske saath ek DMZ bhi jahan public server rakhein.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME: 'asa5505-no-dmz' — the ASA 5505 has no DMZ support in the verified shapes. Offer the ASA 5506-X DMZ perimeter instead.",
+  "why_valuable": "Single, clean named refusal; complements the multi-refusal oc-019 by isolating one limit.",
+  "research_inspiration": [],
+  "prompt_hash": "38a09fc4b123257955dcc9605ca65d08171c34e445e1ce2a82afd416f7729f07",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

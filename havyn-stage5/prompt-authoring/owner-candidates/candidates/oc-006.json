@@ -1,0 +1,110 @@
+{
+  "id": "oc-006",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "routing",
+  "scenario": "Do office, static routing, internet head office par.",
+  "coverage_cell": "small-s2-a1-multi-static-wan-none",
+  "length_category": "medium",
+  "prompt": "Hamare do offices hain, Karachi aur Lahore. Karachi head office hai jahan internet line hai, Lahore ko Karachi ke through routing chahiye. Lahore ke computers ko internet bhi head office se milna chahiye. Static routing theek rahegi, protocol mat lagana.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "karachi-lahore",
+    "sites": [
+      {
+        "id": "karachi",
+        "areas": [
+          {
+            "id": "hq",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "karachipcs",
+                "area": "hq",
+                "count": 8,
+                "device": "pc",
+                "vlan": "karachinet"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lahore",
+        "areas": [
+          {
+            "id": "office",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "lahorepcs",
+                "area": "office",
+                "count": 6,
+                "device": "pc",
+                "vlan": "lahorenet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "karachinet",
+        "name": "Karachi",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 16
+      },
+      {
+        "id": "lahorenet",
+        "name": "Lahore",
+        "dhcp": true,
+        "site": "lahore",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Lahore reaches Karachi",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Lahore gets internet through the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Use static routing, not a dynamic protocol",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Static routes Karachi<->Lahore; internet/NAT at Karachi; Lahore routes via Karachi.",
+  "why_valuable": "Roman-Urdu, real Pakistani cities, explicit 'don't use a protocol' constraint that tests instruction-following.",
+  "research_inspiration": [
+    "https://www.ibm.com/docs/en/i/7.5.0?topic=scenarios-scenario-basic-branch-office-connection"
+  ],
+  "prompt_hash": "152acca2c73b16e084591a922cb2566f492d94fddcfcb75f8e431378f48bc7e3",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

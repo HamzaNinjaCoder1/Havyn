@@ -1,0 +1,23 @@
+{
+  "id": "oc-007",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "wireless",
+  "scenario": "Office with staff WiFi and a separate guest WiFi.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-cable-none",
+  "length_category": "medium",
+  "prompt": "Our office needs WiFi for staff laptops and a separate guest WiFi for visitors. Guests should only get internet — they must not be able to reach any of our internal machines. Staff laptops stay on the internal network. Cable internet is fine.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME: guest_isolation is unsupported by expander v1 (no live-verified ACL enforcement point). The correct output is the named refusal 'guest-isolation-unsupported' plus an offer to build guest on a separate subnet without a guaranteed isolation ACL. This is a REAL current limitation, not an invented one.",
+  "why_valuable": "The single most-requested real-world feature (guest WiFi isolation) is exactly what the engine refuses today. Trains 'I cannot safely build this yet' instead of a fake build. Flagged as a capability gap.",
+  "research_inspiration": [
+    "https://help.ui.com/hc/en-us/articles/23948850278295-Best-Practices-Guest-WiFi",
+    "https://spaces.cisco.com/six-best-practices-for-guest-wi-fi-security"
+  ],
+  "prompt_hash": "15aaf16c6833307e8bfd0fe3b99b21e13a5c85723101903417887cda7d94513a",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

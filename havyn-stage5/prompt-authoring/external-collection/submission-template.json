@@ -1,0 +1,32 @@
+{
+  "submission_id": "sub-ext-001-1",
+  "contributor_id": "ext-001",
+  "prompt": "<your request, verbatim, in your own words and language>",
+  "language": "en",
+  "difficulty_self": "L1 | L2 | L3 | L4 | L5 | unsure",
+  "category_self": "basic | vlan-dhcp | routing | multi-site | wireless | security | iot | enterprise | troubleshooting | ambiguous | contradictory | long-document | other",
+  "intent_draft": null,
+  "variants": [],
+  "notes": "<anything you would ask back, or context a reader should know>",
+  "capture": {
+    "captured_by": "<collector id or name>",
+    "captured_at": "YYYY-MM-DDTHH:MM:SS+00:00",
+    "method": "typed | dictated-transcribed | handwritten-transcribed",
+    "verbatim": true,
+    "consent": {
+      "granted": true,
+      "scope": "private gold evaluation set + engine verification",
+      "recorded_at": "YYYY-MM-DD",
+      "withdrawal_window": "until adoption into datasets/gold-v1"
+    }
+  },
+  "redaction_confirmed": true,
+  "collector_engine_check": {
+    "run": false,
+    "status": null,
+    "failure_stage": null,
+    "checked_at": null,
+    "engine_commit": null
+  },
+  "collector_notes": "<filled by collector: what was asked back, what the contributor changed, in whose words>"
+}

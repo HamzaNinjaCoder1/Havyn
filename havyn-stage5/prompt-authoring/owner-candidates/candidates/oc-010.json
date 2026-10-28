@@ -1,0 +1,93 @@
+{
+  "id": "oc-010",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "firewall-security",
+  "scenario": "Office behind ASA, staff private, ek public server.",
+  "coverage_cell": "small-s1-a1-single-dhcp-wan-asa",
+  "length_category": "long",
+  "prompt": "Hamara office hai, taqreeban 15 computers hain. ISP se direct line aati hai. Mujhe beech mein firewall (ASA) chahiye taake andar ke computers hamesha safe rahen. Ek public server bhi lagana hai jise bahar se access karna ho, lekin woh server andar ke private computers ka data na dekhe sake. Andar ke sab computers automatically IP lein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "office-asa",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "floor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "floor",
+                "count": 15,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "inside",
+        "name": "Inside",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 20
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": true
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Firewall protects the inside network",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "A public server is reachable from outside",
+        "type": "connectivity",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The public server cannot read private inside computers",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Inside hosts use DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "ASA5506 perimeter, WAN internet + NAT, one inside VLAN. The public server is engine-created as srv-int on the 198.51.100.0/24 public segment (public_server=true), outside the inside subnet, so the server's separation from the inside is structural. No DMZ requested.",
+  "why_valuable": "Roman-Urdu security request that still names the real device (ASA) the way a real admin would.",
+  "research_inspiration": [],
+  "prompt_hash": "beec2fe92959455a877e61829a295e6d2a161f1bdc645e772df39da2a2f91655",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

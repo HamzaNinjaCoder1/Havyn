@@ -1,0 +1,422 @@
+{
+  "certified_cells": 36,
+  "candidates": 56,
+  "classification_counts": {
+    "exact": 1,
+    "extension-cell": 15,
+    "feature-match": 4,
+    "label-only": 14,
+    "refusal": 22
+  },
+  "per_certified_cell_exact_fill": {
+    "large-s1-a4-multi-dhcp-cable-none-iot": 0,
+    "large-s1-a4-multi-dhcp-dsl-none": 0,
+    "large-s1-a4-multi-static-ospf-wan-none": 0,
+    "large-s1-a4-single-dhcp-wan-asa": 0,
+    "large-s1-a4-single-dhcp-wan-asa-dmz": 0,
+    "large-s1-a4-single-static-none-none": 0,
+    "medium-s1-a3-multi-dhcp-cable-none-iot": 0,
+    "medium-s1-a3-multi-dhcp-dsl-none": 0,
+    "medium-s1-a3-multi-static-ospf-wan-none": 0,
+    "medium-s1-a3-single-dhcp-wan-asa": 0,
+    "medium-s1-a3-single-dhcp-wan-asa-dmz": 0,
+    "medium-s1-a3-single-static-none-none": 0,
+    "medium-s2-a2-multi-dhcp-cable-none-iot": 0,
+    "medium-s2-a2-multi-dhcp-wan-none": 0,
+    "medium-s2-a2-single-dhcp-wan-asa": 0,
+    "medium-s2-a2-single-static-none-none": 0,
+    "small-s1-a1-multi-dhcp-cable-none-iot": 0,
+    "small-s1-a1-multi-dhcp-dsl-none": 0,
+    "small-s1-a1-multi-static-ospf-wan-none": 0,
+    "small-s1-a1-single-dhcp-wan-asa": 0,
+    "small-s1-a1-single-dhcp-wan-asa-dmz": 0,
+    "small-s1-a1-single-static-none-none": 0,
+    "small-s1-a2-multi-dhcp-cable-none-iot": 0,
+    "small-s1-a2-multi-dhcp-dsl-none": 0,
+    "small-s1-a2-multi-static-ospf-wan-none": 0,
+    "small-s1-a2-single-dhcp-wan-asa": 0,
+    "small-s1-a2-single-dhcp-wan-asa-dmz": 0,
+    "small-s1-a2-single-static-none-none": 0,
+    "small-s2-a1-multi-dhcp-cable-none-iot": 0,
+    "small-s2-a1-multi-dhcp-wan-none": 1,
+    "small-s2-a1-single-dhcp-wan-asa": 0,
+    "small-s2-a1-single-static-none-none": 0,
+    "small-s3-a1-multi-dhcp-cable-none-iot": 0,
+    "small-s3-a1-multi-dhcp-wan-none": 0,
+    "small-s3-a1-single-dhcp-wan-asa": 0,
+    "small-s3-a1-single-static-none-none": 0
+  },
+  "rows": [
+    {
+      "id": "oc-001",
+      "declared_cell": "small-s1-a1-single-static-none-none",
+      "classification": "label-only",
+      "features": "connected+none+none+dhcp",
+      "detail": "cell features 'static+none+none+static' vs candidate 'connected+none+none+dhcp'"
+    },
+    {
+      "id": "oc-002",
+      "declared_cell": "small-s1-a1-single-static-none-none",
+      "classification": "label-only",
+      "features": "connected+none+none+dhcp",
+      "detail": "cell features 'static+none+none+static' vs candidate 'connected+none+none+dhcp'"
+    },
+    {
+      "id": "oc-003",
+      "declared_cell": "small-s1-a2-multi-dhcp-dsl-none",
+      "classification": "label-only",
+      "features": "connected+none+none+dhcp",
+      "detail": "cell features 'static+dsl+none+dhcp' vs candidate 'connected+none+none+dhcp'"
+    },
+    {
+      "id": "oc-004",
+      "declared_cell": "small-s2-a1-multi-dhcp-wan-none",
+      "classification": "exact",
+      "matched_cell": "small-s2-a1-multi-dhcp-wan-none",
+      "features": "static+wan+none+dhcp",
+      "detail": "site/area match: 2s/1a"
+    },
+    {
+      "id": "oc-005",
+      "declared_cell": "medium-s1-a3-multi-static-ospf-wan-none",
+      "classification": "label-only",
+      "features": "ospf+none+none+dhcp",
+      "detail": "cell features 'ospf+wan+none+static' vs candidate 'ospf+none+none+dhcp'"
+    },
+    {
+      "id": "oc-006",
+      "declared_cell": "small-s2-a1-multi-static-wan-none",
+      "classification": "feature-match",
+      "features": "static+wan+none+dhcp",
+      "detail": "certified cells with these features: medium-s2-a2-multi-dhcp-wan-none, small-s2-a1-multi-dhcp-wan-none, small-s3-a1-multi-dhcp-wan-none"
+    },
+    {
+      "id": "oc-007",
+      "declared_cell": "small-s1-a2-multi-dhcp-cable-none",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-008",
+      "declared_cell": "small-s1-a1-multi-dhcp-cable-none",
+      "classification": "extension-cell",
+      "features": "connected+cable+none+wireless+dhcp",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-009",
+      "declared_cell": "small-s1-a1-single-dhcp-wan-asa-dmz",
+      "classification": "label-only",
+      "features": "static+wan+asa-dmz+dhcp+security",
+      "detail": "cell features 'static+wan+asa-dmz+dhcp+servers1+security' vs candidate 'static+wan+asa-dmz+dhcp+security'"
+    },
+    {
+      "id": "oc-010",
+      "declared_cell": "small-s1-a1-single-dhcp-wan-asa",
+      "classification": "label-only",
+      "features": "static+wan+asa+dhcp+security",
+      "detail": "cell features 'static+wan+asa+wireless+dhcp+servers1+security' vs candidate 'static+wan+asa+dhcp+security'"
+    },
+    {
+      "id": "oc-011",
+      "declared_cell": "small-s1-a2-multi-dhcp-cable-none-iot",
+      "classification": "label-only",
+      "features": "connected+cable+none+iot+dhcp",
+      "detail": "cell features 'static+cable+none+wireless+iot+dhcp' vs candidate 'connected+cable+none+iot+dhcp'"
+    },
+    {
+      "id": "oc-012",
+      "declared_cell": "medium-s1-a3-multi-static-wan-none",
+      "classification": "extension-cell",
+      "features": "connected+none+none+mixed+servers2+security",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-013",
+      "declared_cell": "small-s2-a2-multi-static-ospf-wan-none",
+      "classification": "extension-cell",
+      "features": "ospf+wan+none+mixed+servers1",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-014",
+      "declared_cell": "ambiguous-missing-sites",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-015",
+      "declared_cell": "ambiguous-addressing",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-016",
+      "declared_cell": "ambiguous-internet-type",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-017",
+      "declared_cell": "contradiction-guest-isolation-vs-reach",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-018",
+      "declared_cell": "contradiction-isolation-vs-service",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-019",
+      "declared_cell": "refusal-asa5505-multisite-dmz",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-020",
+      "declared_cell": "refusal-server-dhcp",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-021",
+      "declared_cell": "refusal-firewall-multivlan",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-022",
+      "declared_cell": "small-s1-a1-single-static-none-none",
+      "classification": "label-only",
+      "features": "connected+none+none+static",
+      "detail": "cell features 'static+none+none+static' vs candidate 'connected+none+none+static'"
+    },
+    {
+      "id": "oc-023",
+      "declared_cell": "small-s1-a2-multi-dhcp-none-none",
+      "classification": "extension-cell",
+      "features": "connected+none+none+dhcp+servers1",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-024",
+      "declared_cell": "small-s1-a2-multi-dhcp-dsl-none",
+      "classification": "label-only",
+      "features": "connected+dsl+none+dhcp+security",
+      "detail": "cell features 'static+dsl+none+dhcp' vs candidate 'connected+dsl+none+dhcp+security'"
+    },
+    {
+      "id": "oc-025",
+      "declared_cell": "small-s1-a3-multi-dhcp-wan-none",
+      "classification": "extension-cell",
+      "features": "connected+wan+none+dhcp+servers1+security",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-026",
+      "declared_cell": "medium-s1-a3-multi-dhcp-cable-none",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-027",
+      "declared_cell": "small-s1-a3-multi-dhcp-cable-none-iot",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-028",
+      "declared_cell": "medium-s1-a2-multi-dhcp-cable-none",
+      "classification": "extension-cell",
+      "features": "connected+cable+none+wireless+dhcp+security",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-029",
+      "declared_cell": "small-s1-a2-multi-dhcp-dsl-none",
+      "classification": "label-only",
+      "features": "connected+dsl+none+dhcp",
+      "detail": "cell features 'static+dsl+none+dhcp' vs candidate 'connected+dsl+none+dhcp'"
+    },
+    {
+      "id": "oc-030",
+      "declared_cell": "small-s3-a1-multi-static-wan-none",
+      "classification": "feature-match",
+      "features": "static+wan+none+dhcp",
+      "detail": "certified cells with these features: medium-s2-a2-multi-dhcp-wan-none, small-s2-a1-multi-dhcp-wan-none, small-s3-a1-multi-dhcp-wan-none"
+    },
+    {
+      "id": "oc-031",
+      "declared_cell": "small-s1-a1-single-static-none-none",
+      "classification": "label-only",
+      "features": "connected+none+none+dhcp",
+      "detail": "cell features 'static+none+none+static' vs candidate 'connected+none+none+dhcp'"
+    },
+    {
+      "id": "oc-032",
+      "declared_cell": "small-s1-a1-single-static-none-none",
+      "classification": "label-only",
+      "features": "connected+none+none+dhcp",
+      "detail": "cell features 'static+none+none+static' vs candidate 'connected+none+none+dhcp'"
+    },
+    {
+      "id": "oc-033",
+      "declared_cell": "small-s1-a3-multi-dhcp-dsl-none",
+      "classification": "extension-cell",
+      "features": "connected+dsl+none+dhcp",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-034",
+      "declared_cell": "small-s1-a2-multi-dhcp-none-none",
+      "classification": "extension-cell",
+      "features": "connected+none+none+mixed",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-035",
+      "declared_cell": "small-s3-a1-multi-static-wan-none",
+      "classification": "feature-match",
+      "features": "static+wan+none+dhcp",
+      "detail": "certified cells with these features: medium-s2-a2-multi-dhcp-wan-none, small-s2-a1-multi-dhcp-wan-none, small-s3-a1-multi-dhcp-wan-none"
+    },
+    {
+      "id": "oc-036",
+      "declared_cell": "small-s2-a1-multi-static-ospf-wan-none",
+      "classification": "extension-cell",
+      "features": "ospf+wan+none+dhcp",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-037",
+      "declared_cell": "small-s2-a2-multi-static-wan-none",
+      "classification": "feature-match",
+      "features": "static+wan+none+dhcp",
+      "detail": "certified cells with these features: medium-s2-a2-multi-dhcp-wan-none, small-s2-a1-multi-dhcp-wan-none, small-s3-a1-multi-dhcp-wan-none"
+    },
+    {
+      "id": "oc-038",
+      "declared_cell": "small-s1-a1-multi-dhcp-cable-none",
+      "classification": "extension-cell",
+      "features": "connected+cable+none+wireless+dhcp",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-039",
+      "declared_cell": "small-s1-a2-multi-dhcp-cable-none",
+      "classification": "extension-cell",
+      "features": "connected+cable+none+wireless+dhcp",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-040",
+      "declared_cell": "small-s1-a2-multi-dhcp-cable-none-iot",
+      "classification": "label-only",
+      "features": "connected+cable+none+iot+dhcp",
+      "detail": "cell features 'static+cable+none+wireless+iot+dhcp' vs candidate 'connected+cable+none+iot+dhcp'"
+    },
+    {
+      "id": "oc-041",
+      "declared_cell": "small-s1-a3-multi-dhcp-wan-none",
+      "classification": "extension-cell",
+      "features": "connected+wan+none+dhcp+servers1+security",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-042",
+      "declared_cell": "medium-s1-a2-multi-dhcp-cable-none",
+      "classification": "extension-cell",
+      "features": "connected+cable+none+dhcp",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-043",
+      "declared_cell": "ambiguous-host-count",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-044",
+      "declared_cell": "ambiguous-routing",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-045",
+      "declared_cell": "ambiguous-server-internet",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-046",
+      "declared_cell": "contradiction-total-isolation-vs-full-mesh",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-047",
+      "declared_cell": "contradiction-static-vs-dhcp",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-048",
+      "declared_cell": "contradiction-internet-shape",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-049",
+      "declared_cell": "contradiction-guest-triple",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-050",
+      "declared_cell": "refusal-wireless-too-large",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-051",
+      "declared_cell": "refusal-asa5505-dmz",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-052",
+      "declared_cell": "refusal-dhcp-and-cidr",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-053",
+      "declared_cell": "medium-s1-a2-multi-static-wan-none",
+      "classification": "extension-cell",
+      "features": "connected+wan+none+dhcp+servers2+security",
+      "detail": "no certified cell carries these features"
+    },
+    {
+      "id": "oc-054",
+      "declared_cell": "small-s2-a2-multi-static-wan-none-iot",
+      "classification": "refusal",
+      "detail": "no intent (expected refusal) - cell coverage n/a"
+    },
+    {
+      "id": "oc-055",
+      "declared_cell": "small-s1-a2-multi-dhcp-dsl-none",
+      "classification": "label-only",
+      "features": "connected+dsl+none+dhcp+servers1",
+      "detail": "cell features 'static+dsl+none+dhcp' vs candidate 'connected+dsl+none+dhcp+servers1'"
+    },
+    {
+      "id": "oc-056",
+      "declared_cell": "small-s1-a2-multi-dhcp-none-none",
+      "classification": "extension-cell",
+      "features": "connected+none+none+mixed+servers1",
+      "detail": "no certified cell carries these features"
+    }
+  ]
+}

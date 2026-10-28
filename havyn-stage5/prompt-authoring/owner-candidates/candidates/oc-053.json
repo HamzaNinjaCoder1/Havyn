@@ -1,0 +1,156 @@
+{
+  "id": "oc-053",
+  "language": "en",
+  "difficulty": "L5",
+  "category": "long-document",
+  "scenario": "Two-floor office with servers, mixed addressing, exclusions, priorities.",
+  "coverage_cell": "medium-s1-a2-multi-static-wan-none",
+  "length_category": "document",
+  "prompt": "Company: a 20-person accounting firm on two floors of a building.\n\nPeople & devices:\n- Ground floor: 8 accountant PCs and 2 shared reception PCs.\n- First floor: 6 auditor PCs and a small server room with 2 servers.\n\nRequirements:\n- Auditors must be isolated from the accounting staff — auditors are external, so they get their own network and must not reach the accounting machines or the servers.\n- The two servers host our ledger application (HTTP) and internal DNS; accountants need them, auditors do not.\n- Accountant and reception PCs get addresses automatically; the two servers must be static.\n\nExclusions:\n- No wireless anywhere.\n- No guest/public internet kiosks.\nWe have a WAN internet handoff for the accounting side only.\nPriority: auditor isolation first, then server access, then internet.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "accounting-firm",
+    "sites": [
+      {
+        "id": "building",
+        "areas": [
+          {
+            "id": "serverroom",
+            "kind": "area",
+            "host_groups": []
+          },
+          {
+            "id": "ground",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountantpcs",
+                "area": "ground",
+                "count": 8,
+                "device": "pc",
+                "vlan": "accountingnet"
+              },
+              {
+                "id": "receptionpcs",
+                "area": "ground",
+                "count": 2,
+                "device": "pc",
+                "vlan": "accountingnet"
+              }
+            ]
+          },
+          {
+            "id": "first",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "auditorpcs",
+                "area": "first",
+                "count": 6,
+                "device": "pc",
+                "vlan": "auditornet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "accountingnet",
+        "name": "Accounting",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 20
+      },
+      {
+        "id": "auditornet",
+        "name": "Auditors",
+        "dhcp": false,
+        "site": "building",
+        "required_hosts": 12
+      },
+      {
+        "id": "servernet",
+        "name": "Servers",
+        "dhcp": false,
+        "site": "building",
+        "required_hosts": 6
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "ledgersrv",
+        "site": "building",
+        "vlan": "servernet",
+        "services": [
+          "http"
+        ]
+      },
+      {
+        "id": "dnssrv",
+        "site": "building",
+        "vlan": "servernet",
+        "services": [
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Auditors are isolated and cannot reach accounting machines or servers",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The ledger HTTP server and DNS server exist for accountants",
+        "type": "service",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Accountant and reception PCs use DHCP; servers are static",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "No wireless and no public kiosks",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "WAN internet for the accounting side",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Three VLANs (accounting DHCP, auditors isolated, servers static), two servers (http, dns) on the server VLAN, WAN internet. Auditor isolation is an internal-subnet separation the engine models via separate subnets — no guest_isolation flag needed, so it builds.",
+  "why_valuable": "Another true long-document with auditor-isolation, mixed addressing, and explicit priorities. Forces full-document extraction; the auditor-isolation-vs-server-access split is the hard part.",
+  "research_inspiration": [
+    "https://www.censinet.com/perspectives/network-segmentation-strategies-healthcare-it"
+  ],
+  "prompt_hash": "0616dc8838960ae476177a005d30d9d15b10e73cc5a2dbf45c77094253b0b613",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

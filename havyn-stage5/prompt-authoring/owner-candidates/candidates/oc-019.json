@@ -1,0 +1,20 @@
+{
+  "id": "oc-019",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "impossible-refusal",
+  "scenario": "Multi-site ASA 5505 with DMZ — a genuinely unsupported shape.",
+  "coverage_cell": "refusal-asa5505-multisite-dmz",
+  "length_category": "medium",
+  "prompt": "We have offices in two cities and want an ASA 5505 at each, both connected, and each with a DMZ hosting a public server. Link the two offices so they can share the DMZ services.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME: the ASA 5505 is verified only as a single-site inside/outside perimeter (lint 'asa5505-multi-site'), and it has no DMZ support (expander 'asa5505-no-dmz'); multi-site DMZ is 'dmz-multi-site-unsupported'. The engine must refuse by name and explain the 5505's limits, offering the 5506-X single-site DMZ instead.",
+  "why_valuable": "Packs three REAL named refusals into one plausible request. Trains precise, honest refusal with an alternative, not a hallucinated multi-site DMZ.",
+  "research_inspiration": [],
+  "prompt_hash": "cb665fc34670b022cff0183f9830a595bc76849005d6125b3486fdb5d352b8a9",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

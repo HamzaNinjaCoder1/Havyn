@@ -1,0 +1,47 @@
+# S5.18 Lite model (Qwen3-4B) config. Same recipe as the Standard, tuned for
+# smaller VRAM budgets and faster inference at the edge.
+
+base_model: Qwen/Qwen3-4B
+role: lite
+load_in_4bit: true
+max_seq_length: 4096
+
+lora:
+  r: 32
+  lora_alpha: 32
+  lora_dropout: 0.0
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: none
+  use_gradient_checkpointing: true
+
+train:
+  dataset: havyn-train-v1
+  dataset_dir: /content/drive/MyDrive/havyn-stage5/datasets/havyn-train-v1
+  task_tags:                     # the frozen dataset's task names
+    - intent
+    - prompt
+    - diagnosis
+    - enhancement
+    - clarification
+  epochs: 3
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  bf16: true
+  seed: 20261028
+  save_steps: 250
+  save_total_limit: 3
+
+output:
+  checkpoint_dir: /content/drive/MyDrive/havyn-stage5/checkpoints/lite
+  report_dir: /content/drive/MyDrive/havyn-stage5/reports/training-lite

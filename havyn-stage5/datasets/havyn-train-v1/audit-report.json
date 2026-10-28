@@ -1,0 +1,98 @@
+{
+  "per_task": {
+    "prompt": {
+      "examples": 147,
+      "duplicates_skipped": 0,
+      "families": 2,
+      "counts": {
+        "train": 0,
+        "validation": 59,
+        "heldout": 88
+      },
+      "ratios": {
+        "train": 0.0,
+        "validation": 0.401,
+        "heldout": 0.599
+      }
+    },
+    "intent": {
+      "examples": 1944,
+      "duplicates_skipped": 0,
+      "families": 36,
+      "counts": {
+        "train": 1656,
+        "validation": 168,
+        "heldout": 120
+      },
+      "ratios": {
+        "train": 0.852,
+        "validation": 0.086,
+        "heldout": 0.062
+      }
+    },
+    "diagnosis": {
+      "examples": 72,
+      "duplicates_skipped": 0,
+      "families": 8,
+      "counts": {
+        "train": 53,
+        "validation": 10,
+        "heldout": 9
+      },
+      "ratios": {
+        "train": 0.736,
+        "validation": 0.139,
+        "heldout": 0.125
+      }
+    },
+    "enhancement": {
+      "examples": 60,
+      "duplicates_skipped": 0,
+      "families": 5,
+      "counts": {
+        "train": 47,
+        "validation": 7,
+        "heldout": 6
+      },
+      "ratios": {
+        "train": 0.783,
+        "validation": 0.117,
+        "heldout": 0.1
+      }
+    },
+    "clarification": {
+      "examples": 40,
+      "duplicates_skipped": 0,
+      "families": 4,
+      "counts": {
+        "train": 20,
+        "validation": 6,
+        "heldout": 14
+      },
+      "ratios": {
+        "train": 0.5,
+        "validation": 0.15,
+        "heldout": 0.35
+      }
+    }
+  },
+  "engine_commits": [
+    "06c57ced050c",
+    "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  ],
+  "leaks": [],
+  "near_duplicate_prompts": {
+    "train": 833,
+    "validation": 165,
+    "heldout": 159
+  },
+  "total": 2263,
+  "ratios": {
+    "train": 0.785,
+    "validation": 0.11,
+    "heldout": 0.105
+  },
+  "generated": "2026-10-27T21:45:52+00:00",
+  "generator_version": "0.1.0",
+  "seed": 20261028
+}

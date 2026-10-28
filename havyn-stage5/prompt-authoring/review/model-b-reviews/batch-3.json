@@ -1,0 +1,237 @@
+[
+  {
+    "id": "oc-029",
+    "recovered_intent_summary": "Two-floor office: reception downstairs, accounts upstairs. Each floor on its own network, all hosts get addresses automatically (DHCP), internet via a DSL line.",
+    "missing_facts": [
+      "Host counts (5 reception PCs, 6 accounts PCs) are not stated; system must invent them",
+      "No explicit statement that the two floor networks should reach each other or the internet — only implied"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "DSL is stated in both prompt and intent and matches; routing mode (connected) is unstated in prompt but that is a reasonable planner default"
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.92,
+    "verdict": "ACCEPT",
+    "reason": "Every explicit requirement in the intent (two separate floor networks, DHCP for all, DSL internet) is present in the prompt with no invented network facts. Only planner-chosen details (counts) are unstated, which is normal underspecification, not drift."
+  },
+  {
+    "id": "oc-030",
+    "recovered_intent_summary": "Three sites: head office plus two branches. Only the head office has the internet line; branches route to the head office via static routing and get internet through it. No OSPF.",
+    "missing_facts": [
+      "Host counts (8 HO, 4+4 branch PCs) unstated",
+      "DHCP for all site networks is in the intent but never mentioned in the prompt"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "This is effectively the same scenario as oc-035 (head office + two branches, static routing, internet at HO only), differing only in language and phrasing. As a standalone prompt it is faithful, but as a dataset entry it duplicates oc-035's intent topology exactly; a human should confirm the duplication is deliberate language-diversity coverage and not accidental double-authoring."
+    ],
+    "human_likeness": 0.7,
+    "fidelity": 0.95,
+    "verdict": "REVIEW",
+    "reason": "Individually faithful and naturally phrased, but it is a near-verbatim scenario duplicate of oc-035 in Roman-Urdu/mixed. Flagging for human confirmation of the duplication rather than rejecting the prompt itself."
+  },
+  {
+    "id": "oc-031",
+    "recovered_intent_summary": "Three PCs wired together on a single flat LAN so they can share files. Explicitly no internet, no VLANs, nothing extra.",
+    "missing_facts": [
+      "Addressing scheme (intent has dhcp=false) is unstated, but 'keep it minimal' covers the planner choosing static"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Good negative-space test: the prompt explicitly rules out internet and VLANs and the intent honors that by omitting an internet block entirely"
+    ],
+    "human_likeness": 0.9,
+    "fidelity": 0.95,
+    "verdict": "ACCEPT",
+    "reason": "Faithful minimal scenario with deliberate exclusions that both prompt and intent respect. Reads like a real non-expert user ('Nothing fancy... keep it minimal')."
+  },
+  {
+    "id": "oc-032",
+    "recovered_intent_summary": "Two computers and one printer, all on one small network so both computers can print. Nothing else requested.",
+    "missing_facts": [
+      "Addressing (intent dhcp=false) unstated; 'Bas' (that's it) covers the minimal default"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [],
+    "human_likeness": 0.9,
+    "fidelity": 0.95,
+    "verdict": "ACCEPT",
+    "reason": "Exact match between prompt and intent: 2 PCs + 1 printer, single connected LAN. Natural terse Roman-Urdu; no drift."
+  },
+  {
+    "id": "oc-033",
+    "recovered_intent_summary": "Office split into three networks: staff computers, printers, and visitors. Staff and printers must be mutually reachable for printing; visitors kept separate. DHCP everywhere, DSL internet.",
+    "missing_facts": [
+      "Host counts (10 staff PCs, 2 printers, 3 visitor PCs) unstated"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The prompt does not say whether visitors should reach the internet; the intent adds DSL internet + NAT generically. A builder could reasonably give the visitor VLAN internet access, and the intent's lack of an 'internet-only' isolation requirement keeps this buildable — but the visitor segment's reachability policy is genuinely unstated",
+      "'Staff and printers need to reach each other' is stated as reachability, not as an isolation guarantee, which matches the intent's own phrasing"
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.9,
+    "verdict": "ACCEPT",
+    "reason": "All stated requirements map cleanly to the intent; the only gap (visitor internet policy) is genuine user underspecification rather than prompt-intent drift, and it is small enough not to change the topology."
+  },
+  {
+    "id": "oc-034",
+    "recovered_intent_summary": "Office where user PCs get IPs via DHCP, but two servers must have static IPs (their addresses need to be in logs). The servers are on their own separate network.",
+    "missing_facts": [
+      "User PC count (10) unstated; the count of 2 servers IS stated and matches"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The motivation ('addresses go into logs') is flavor that does not exist in the intent but does not alter the topology — acceptable human texture"
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.9,
+    "verdict": "ACCEPT",
+    "reason": "Mixed DHCP/static addressing with a separate server VLAN is represented exactly. The extra rationale sentence is natural and harmless."
+  },
+  {
+    "id": "oc-035",
+    "recovered_intent_summary": "Head office connected to two branches. Only HQ has the internet line; both branches reach HQ and get internet through it. Static routing only — no routing protocol.",
+    "missing_facts": [
+      "Host counts (10 HQ, 5+5 branch PCs) unstated",
+      "DHCP for all site networks present in intent but not mentioned in prompt"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Scenario is identical to oc-030 (same three-site topology, same static-routing constraint, same internet-at-HQ requirement), differing only in language (English vs Roman-Urdu) and the style of the no-OSPF justification. If both ship, the dataset has a duplicate topology counted twice; a human should confirm this is intentional language pairing."
+    ],
+    "human_likeness": 0.75,
+    "fidelity": 0.95,
+    "verdict": "REVIEW",
+    "reason": "Faithful and natural on its own ('we don't run a routing protocol on a network this size' is good human texture), but it duplicates oc-030's intent exactly. Flagging the pair for human confirmation."
+  },
+  {
+    "id": "oc-036",
+    "recovered_intent_summary": "Link a main office to a remote site, run OSPF between them for dynamic route learning. The remote site also has its own internet line; both sites should reach the internet and each other.",
+    "missing_facts": [
+      "The intent records only a single undifferentiated internet block (access=wan, nat=true) with no per-site attribution; it does not clearly encode that BOTH sites have internet lines",
+      "Host counts (8 main, 4 remote) unstated"
+    ],
+    "invented_facts": [
+      "The prompt says the remote site 'also has its own internet line', implying two independent internet/WAN entries with NAT at both sites — the intent has one internet object and cannot unambiguously represent dual-WAN with per-site NAT"
+    ],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "This is the sharpest prompt/intent gap in the batch: either the intent lost the second internet line, or the prompt invented it. If the engine builds a single WAN at one site only, the 'both sites reach the internet' requirement is silently unmet; if it builds NAT at both, the intent under-specified it. OSPF between the sites themselves is faithfully represented."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.65,
+    "verdict": "REVIEW",
+    "reason": "OSPF two-site part is faithful, but the dual-internet-line requirement in the prompt is not clearly representable in the intent's single internet block. A human must decide whether the intent can express per-site WAN+NAT or whether this prompt over-claims."
+  },
+  {
+    "id": "oc-037",
+    "recovered_intent_summary": "Karachi head office with two floors (sales downstairs, accounts upstairs) as separate networks; Hyderabad branch (one floor) connected to Karachi. Internet exists only at Karachi and Hyderabad reaches it through Karachi. DHCP everywhere. Static routing, explicitly no OSPF.",
+    "missing_facts": [
+      "Host counts (8 sales, 6 accounts, 5 branch PCs) unstated"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Combines oc-029's two-floor pattern with a multi-site WAN, but as a distinct scenario it stands on its own; no conflict with the intent"
+    ],
+    "human_likeness": 0.88,
+    "fidelity": 0.92,
+    "verdict": "ACCEPT",
+    "reason": "All five requirements (floor separation, branch connectivity, internet only at Karachi with transit, DHCP everywhere, static routing) appear verbatim in intent and prompt. Natural bullet-list Roman-Urdu a real user would write."
+  },
+  {
+    "id": "oc-038",
+    "recovered_intent_summary": "Office with 4 wired PCs and 3 laptops on WiFi, all on the same internal network (no guest network — everyone is staff). Cable internet.",
+    "missing_facts": [
+      "SSID, WPA2 security and passphrase in the intent are planner-chosen, not user-stated — acceptable defaults",
+      "DHCP unstated in prompt"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "'No separate guest network needed' explicitly matches the intent's single-VLAN design — good boundary handling"
+    ],
+    "human_likeness": 0.88,
+    "fidelity": 0.92,
+    "verdict": "ACCEPT",
+    "reason": "Counts, wireless requirement, single-network design and cable internet all match. The negation ('no guest network') is honored by the intent, which is exactly what an adversarial reviewer wants to see."
+  },
+  {
+    "id": "oc-039",
+    "recovered_intent_summary": "Cafe: free customer WiFi plus wired staff computers (billing and accounts). Customer WiFi and the staff wired network must be separate networks. Cable internet available.",
+    "missing_facts": [
+      "Host counts (1 billing PC, 1 accounts PC, 4 customer devices) unstated",
+      "Customer device type (smartphones in the intent) is not specified in the prompt — planner choice, but worth noting since 'customers' could be BYOD anything"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "'Free WiFi' is reasonably read as an open SSID and the intent sets security=open — a defensible inference, though 'free' could also mean captive-portal WPA2 in a stricter reading",
+      "Prompt says 'separate network', not 'internet-only isolation', which matches the intent's non-blocking isolation requirement — good, keeps it buildable"
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.88,
+    "verdict": "ACCEPT",
+    "reason": "Faithful cafe scenario: guest wireless VLAN separated from staff wired VLAN, cable internet. Minor unstated details are planner-domain, not drift."
+  },
+  {
+    "id": "oc-040",
+    "recovered_intent_summary": "New office IoT deployment: network-controlled LED light units and sensors. IoT lighting on its own network separate from staff PCs, lights wired in. Ordinary cable internet.",
+    "missing_facts": [
+      "The intent contains NO sensors — only a smart_led IoT group of 5 and a 1-device 'iotpanel' PC host group. The prompt's 'and sensors' has no representation in the intended network",
+      "Staff PC count (8) unstated"
+    ],
+    "invented_facts": [
+      "The intent's 'iotpanel' host group (1 PC in ceiling space) is not implied by anything in the prompt — planner-side elaboration, but it is an extra device the user never asked for"
+    ],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "'A few LED units' maps to 5 smart_leds fine, and 'wire the lights in' matches the wired-IoT requirement. The real issue is the trailing 'and sensors': a user asking for sensors will expect them built; the intent cannot deliver them, so acceptance of this prompt risks a silently-skipped requirement — the exact failure mode rule 9 exists to prevent"
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.72,
+    "verdict": "REVIEW",
+    "reason": "Core scenario (segregated wired IoT lighting VLAN, cable internet) is faithful, but the prompt promises sensors the intent does not include. Either drop 'and sensors' from the prompt or add sensors to the intent; a human should decide."
+  },
+  {
+    "id": "oc-041",
+    "recovered_intent_summary": "Four-doctor clinic. Patient information must not be reachable from the waiting area. Reception/admin: 6 computers (bookings and records). Consulting rooms: 1 PC each, 4 rooms. Waiting area: 1 shared kiosk PC. A static records server running HTTP and DNS. Everything else uses automatic addressing (DHCP). WAN handoff from ISP for internet. No wireless.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "The prompt says 'Baaki sab automatic addressing' (everything except the records server uses DHCP), but the intent sets the clinical VLAN (dhcp=false) which hosts the 4 consulting room PCs — so under the intent as written, consulting PCs would NOT get DHCP, contradicting the explicit 'everything else automatic' requirement. Either the intent needs per-host-group addressing (consulting PCs DHCP, server static in the same VLAN) or a separate server VLAN, or the prompt is over-promising"
+    ],
+    "ambiguity_notes": [
+      "The security requirement (waiting area cannot see patient data) is well represented by three separate VLANs plus the server on the clinical VLAN — that half is faithful",
+      "WAN internet, static http+dns server, and 'no wireless' all match the intent cleanly"
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.65,
+    "verdict": "REVIEW",
+    "reason": "Rich, natural scenario with one hard contradiction: the intent's clinical VLAN is non-DHCP while the prompt explicitly promises DHCP for everything except the server. A human must reconcile addressing semantics before this ships."
+  },
+  {
+    "id": "oc-042",
+    "recovered_intent_summary": "One college building, wired only: computer lab with 16 student PCs, four classrooms with 3 PCs each (also student machines), staff room with 5 PCs. Students and staff on separate networks. Cable internet. Guest WiFi explicitly out of scope.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Reads slightly specification-like ('Design the wired network for...', 'Leave guest WiFi out of scope for now') but is still within the range of a real IT requester drafting a brief",
+      "Classroom PCs being merged into the student VLAN matches the intent's two-VLAN design exactly; the explicit out-of-scope sentence closes the guest-isolation gap cleanly"
+    ],
+    "human_likeness": 0.78,
+    "fidelity": 0.95,
+    "verdict": "ACCEPT",
+    "reason": "Counts (16/12/5), the student-vs-staff split, the classroom-ownership clarification, cable internet and the guest-WiFi exclusion all match the intent with zero drift. Marginally formal phrasing is the only nit."
+  }
+]

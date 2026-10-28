@@ -1,0 +1,20 @@
+{
+  "id": "oc-052",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "impossible-refusal",
+  "scenario": "Server-side DHCP + a specific non-site-block subnet requested.",
+  "coverage_cell": "refusal-dhcp-and-cidr",
+  "length_category": "medium",
+  "prompt": "Run DHCP from a Windows server for the whole office, and put the office VLAN on 192.168.50.0/24 — that exact subnet, please.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "TWO named refusals: (1) server-side DHCP is 'server-dhcp-service' (unsupported; use gateway pools); (2) a user-fixed CIDR outside the engine's per-site 10.N.0.0/16 block triggers 'vlan-outside-site-block' at expansion. The model must surface both real constraints rather than fake them.",
+  "why_valuable": "Combines the DHCP-service limit with the fixed-CIDR site-block limit — two independent real constraints that a careless model would silently 'make work'.",
+  "research_inspiration": [],
+  "prompt_hash": "0664f50b8acffcff8d4c02024923623ea41acb2a89969da958f9e9791f71ea4a",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

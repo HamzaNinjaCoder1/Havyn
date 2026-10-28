@@ -1,0 +1,28 @@
+{
+  "name": "havyn-train-v1",
+  "created": "2026-10-27T21:45:52+00:00",
+  "engine_commits": [
+    "06c57ced050c",
+    "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  ],
+  "generator_version": "0.1.0",
+  "seed": 20261028,
+  "tasks": {
+    "prompt": 147,
+    "intent": 1944,
+    "diagnosis": 72,
+    "enhancement": 60,
+    "clarification": 40
+  },
+  "splits": {
+    "train": 0.785,
+    "validation": 0.11,
+    "heldout": 0.105
+  },
+  "leaks": 0,
+  "notes": [
+    "Split by family, never by row: siblings of one archetype never straddle splits.",
+    "Held-out contains complete families - whole archetypes the model never saw in training.",
+    "Round-trip gating: the prompt task uses only intents whose prompts passed S5.10 verification (ACCEPT queue)."
+  ]
+}

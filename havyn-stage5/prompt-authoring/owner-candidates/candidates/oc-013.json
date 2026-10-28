@@ -1,0 +1,170 @@
+{
+  "id": "oc-013",
+  "language": "mixed",
+  "difficulty": "L5",
+  "category": "enterprise",
+  "scenario": "Two-site company, multiple VLANs, servers, OSPF, internet at HQ.",
+  "coverage_cell": "small-s2-a2-multi-static-ospf-wan-none",
+  "length_category": "document",
+  "prompt": "Rehman Textiles ke do sites hain — Karachi head office aur Faisalabad factory. Karachi mein sales aur accounts ka staff hai (taqreeban 12 PCs), and Faisalabad mein production floor ke terminals (taqreeban 10). Mujhe Karachi aur Faisalabad ko aapas mein connect karna hai with OSPF, kyunki sites barh rahi hain, so manual routes maintain na karni parein. Accounts ka data sensitive hai, so uska alag network hona chahiye aur sales usay na dekh sake. Faisalabad ka production network bhi alag rahe. Internet head office par hai aur factory ko wohi se mile. Accounts aur sales dono DHCP use karein, production ke terminals static. Karachi mein ek DNS server ho jis se dono sites names resolve karein. Wireless ki zaroorat nahi, sab wired, aur firewall mat lagana — hum ISP ke edge par trust karte hain.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "rehman-textiles",
+    "sites": [
+      {
+        "id": "karachi",
+        "areas": [
+          {
+            "id": "salesarea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "salespcs",
+                "area": "salesarea",
+                "count": 6,
+                "device": "pc",
+                "vlan": "salesnet"
+              }
+            ]
+          },
+          {
+            "id": "accountsarea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountspcs",
+                "area": "accountsarea",
+                "count": 6,
+                "device": "pc",
+                "vlan": "accountsnet"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "faisalabad",
+        "areas": [
+          {
+            "id": "production",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "terminals",
+                "area": "production",
+                "count": 10,
+                "device": "pc",
+                "vlan": "productionnet",
+                "addressing": "static"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "salesnet",
+        "name": "Sales",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 12
+      },
+      {
+        "id": "accountsnet",
+        "name": "Accounts",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 12
+      },
+      {
+        "id": "productionnet",
+        "name": "Production",
+        "dhcp": false,
+        "site": "faisalabad",
+        "required_hosts": 16
+      }
+    ],
+    "routing": {
+      "mode": "ospf",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "dnssrv",
+        "site": "karachi",
+        "vlan": "salesnet",
+        "services": [
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Karachi and Faisalabad are connected with OSPF",
+        "type": "operational",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Accounts network is separate and not reachable by sales",
+        "type": "isolation",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Factory production network is separate",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Factory gets internet through the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "Accounts and sales use DHCP; production is static",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-006",
+        "statement": "A DNS server at head office serves both sites",
+        "type": "service",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-007",
+        "statement": "No wireless and no firewall appliance",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Two sites, OSPF, three VLANs, static production, WAN internet at Karachi, one DNS server. Exclusions (no wireless/firewall) must be honoured.",
+  "why_valuable": "Highest-value mixed-language L5: real Pakistani manufacturing company, OSPF, mixed addressing, cross-site internet, explicit exclusions. Genuine multi-constraint difficulty, not padding.",
+  "research_inspiration": [
+    "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
+  ],
+  "prompt_hash": "0e0dc67f4bf4d408daa8a7cf2d3393ca279e01cb04ff4e8d335e047d36a28d2c",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

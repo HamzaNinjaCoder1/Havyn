@@ -1,0 +1,22 @@
+{
+  "id": "oc-027",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "enterprise",
+  "scenario": "Retail store: POS, back office, guest WiFi, cameras.",
+  "coverage_cell": "small-s1-a3-multi-dhcp-cable-none-iot",
+  "length_category": "medium",
+  "prompt": "Design the network for a new retail branch. We have two POS terminals that must be isolated for compliance, a back-office PC, IP security cameras, and free guest WiFi for customers. POS and back office stay wired; guests are wireless. Cable internet on site.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME: real IP security cameras cannot be expressed — the schema's only IoT kind is smart_led ('kind: Literal[\"smart_led\"]'), and relabelling cameras as smart LEDs is exactly the mislabel the engine must not do. The correct output names the camera limitation and offers either the expressible smart-LED IoT device or an explicit statement that IP cameras are out of model scope. The POS/back-office/guest segmentation itself is buildable.",
+  "why_valuable": "Retail/POS realism (PCI-style isolation) plus an honest capability-gap probe: cameras aren't a verified IoT kind. Prevents the model from pretending it can place real IP cameras.",
+  "research_inspiration": [
+    "https://security.pditechnologies.com/blog/retail-network-segmentation-guide-secure-every-store-simplify-compliance"
+  ],
+  "prompt_hash": "916e0d0b2a9dfbd07d164056ace6b4dcdce19f390e025e1a7ef4b3f393f7cef7",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

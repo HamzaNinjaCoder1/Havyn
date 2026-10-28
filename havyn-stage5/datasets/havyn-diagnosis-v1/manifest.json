@@ -1,0 +1,22 @@
+{
+  "dataset": "havyn-diagnosis-v1",
+  "generator_version": "0.1.0",
+  "engine_commit": "06c57ced050c",
+  "seed": 20261028,
+  "examples": 72,
+  "counts": {
+    "fault": 37,
+    "healthy": 9,
+    "unknown": 9,
+    "multi-fault": 17
+  },
+  "per_fault": {
+    "port-shutdown": 7,
+    "route-missing": 7,
+    "wrong-access-vlan": 10,
+    "trunk-vlan-not-allowed": 4,
+    "wrong-gateway": 9
+  },
+  "live_share_reserved": 0.1,
+  "generated": "2026-10-27T21:41:21+00:00"
+}

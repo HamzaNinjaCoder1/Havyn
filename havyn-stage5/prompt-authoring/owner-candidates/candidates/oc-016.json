@@ -1,0 +1,20 @@
+{
+  "id": "oc-016",
+  "language": "mixed",
+  "difficulty": "L4",
+  "category": "ambiguous",
+  "scenario": "Internet requested but access type (WAN/DSL/cable) unspecified.",
+  "coverage_cell": "ambiguous-internet-type",
+  "length_category": "medium",
+  "prompt": "Humara naya office setup hai, ek server bhi rakhna hai and internet chahiye. Lekin ISP ki line abhi lag hi rahi hai, so humein abhi confirm nahi ke connection kaise aayega.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "ASK what the ISP handoff will be (WAN handoff, DSL, or cable), because InternetIntent.access only supports those three verified shapes and the model must not guess which. Also reasonable to confirm the server's role.",
+  "why_valuable": "Tests that the model knows internet access has three concrete verified shapes and asks which, instead of silently picking one.",
+  "research_inspiration": [],
+  "prompt_hash": "c9bbd05c6519cbdfc594d1833c0271d284a02f70aa7a57923b509f17cc4fc918",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

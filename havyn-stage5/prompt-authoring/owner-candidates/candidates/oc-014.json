@@ -1,0 +1,20 @@
+{
+  "id": "oc-014",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "ambiguous",
+  "scenario": "Branches + routing requested, but site count and internet are unstated.",
+  "coverage_cell": "ambiguous-missing-sites",
+  "length_category": "short",
+  "prompt": "We need to connect our branches and set up routing between them. Make it work.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "ASK: how many branches and where is the main site? Also unclear whether each branch needs its own internet or internet only at the main site. The model must NOT invent a site count. Correct behaviour is a targeted clarification, not a guess and not a full refusal.",
+  "why_valuable": "Deliberately missing the site count — the number one thing the expander cannot invent. Tests clarify-don't-invent.",
+  "research_inspiration": [],
+  "prompt_hash": "97f9f90a7ca6f8bfce8d11fa91147cb2ed9312aa24c00619afbd727d7f705219",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

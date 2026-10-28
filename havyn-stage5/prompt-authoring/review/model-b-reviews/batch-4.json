@@ -1,0 +1,258 @@
+[
+  {
+    "id": "oc-043",
+    "recovered_intent_summary": "Office LAN with two logical sections, staff and guest. Host count deliberately unstated; the user signals they do not know the sizing yet, so VLAN sizing cannot be derived without asking.",
+    "missing_facts": [
+      "Host count for the staff section",
+      "Host count for the guest section",
+      "Whether the guest section is wireless or wired"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Host count is genuinely absent; required_hosts-style sizing cannot be derived without asking or assuming, so a clarification is the honest behaviour.",
+      "'Not sure how big it needs to be yet' practically telegraphs the intended clarification, which lowers the test's difficulty slightly but is still natural speech."
+    ],
+    "human_likeness": 0.7,
+    "fidelity": 0.9,
+    "verdict": "ACCEPT",
+    "reason": "Genuine, realistic ambiguity (missing sizing) with the correct ask-don't-invent behaviour. Minor knock: the trailing sentence advertises the ambiguity, but real users do talk this way."
+  },
+  {
+    "id": "oc-044",
+    "recovered_intent_summary": "Two offices need interconnecting, both need internet, and the user explicitly delegates the routing choice (does not know static vs dynamic) expecting the model to decide or propose.",
+    "missing_facts": [
+      "Link type between the two offices",
+      "Rough host/site sizing"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Because the user delegated ('aap hi batayein'), a reasonable model may propose static routing for a 2-site network and proceed; grading that requires a clarification question would punish a defensible behaviour.",
+      "Labelled ambiguous/expect_refusal, but this is a delegation case, not an unrepresentable one. The expected behaviour's 'explain options then confirm or propose static' is correct, but the refusal framing is harsher than the text warrants."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.8,
+    "verdict": "REVIEW",
+    "reason": "Natural code-switching and realistic delegation, but the clarify-vs-decide boundary is soft: a model that picks static routing and builds is arguably correct. A human should confirm the grading standard before using this as an ambiguity case."
+  },
+  {
+    "id": "oc-045",
+    "recovered_intent_summary": "Four-person startup, novice user, tight budget: maybe a server, definitely internet, and an open 'you suggest the whole design' request. Any confident full build would be invention.",
+    "missing_facts": [],
+    "invented_facts": [
+      "'abhi 4 log hain' supplies a rough host count anchor; harmless but it is the only concrete number in the prompt"
+    ],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Scope is genuinely open at every layer (site layout, server necessity, internet type); a short clarifying dialogue or a modest proposed design with questions is clearly the correct behaviour.",
+      "Well-placed difficulty: the temptation to over-build is real and the prompt gives no pretext for it."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.85,
+    "verdict": "ACCEPT",
+    "reason": "Reads like a real novice business owner; the ambiguity is authentic and the expected behaviour (clarify, don't over-build) is right."
+  },
+  {
+    "id": "oc-046",
+    "recovered_intent_summary": "Four per-department networks with absolute inter-department isolation, yet every department must also print to an HR-hosted shared printer and reach a shared file server; the user declares both sides non-negotiable.",
+    "missing_facts": [
+      "Which department hosts the file server (only the printer's HR location is given)",
+      "Department names / sizes beyond 'four'"
+    ],
+    "invented_facts": [],
+    "contradictions": [
+      "'Absolutely nothing reaches outside its own department' directly conflicts with 'every department reaches the HR printer and the file server' — this is the deliberate contradiction.",
+      "Practically, most engineers would read this as ordinary segmentation plus shared-service exceptions (per-host ACLs); treating it as a hard contradiction is somewhat over-literal, though the expected behaviour does allow proposing exceptions."
+    ],
+    "ambiguity_notes": [
+      "'here's the key thing' and 'Both are non-negotiable' flag the trap to the model, reducing difficulty.",
+      "The expected behaviour (surface the conflict, ask which wins or propose per-host exceptions) is correct and flexible."
+    ],
+    "human_likeness": 0.6,
+    "fidelity": 0.85,
+    "verdict": "REVIEW",
+    "reason": "The contradiction is real on a literal reading, but the scaffolding phrasing reads constructed and a competent engineer could resolve it with service exceptions. Confirm that over-literal isolation should count as a contradiction before shipping."
+  },
+  {
+    "id": "oc-047",
+    "recovered_intent_summary": "All computers must get fixed (static) IPs, yet every computer must also obtain its IP automatically, and the user wants both to hold simultaneously.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "Deliberate static-vs-DHCP conflict, correctly mirrored from the intended ambiguity.",
+      "A charitable real-world reading (DHCP reservations) satisfies both 'fixed' and 'automatic', so the contradiction is reconcilable by a sophisticated answer; asking which the user actually wants remains the right response."
+    ],
+    "ambiguity_notes": [
+      "The parenthetical gloss '(static)' is mildly instructive but plausible for a non-native speaker.",
+      "Expected behaviour correctly allows either surfacing the conflict or clarifying static-servers-plus-DHCP-users."
+    ],
+    "human_likeness": 0.75,
+    "fidelity": 0.85,
+    "verdict": "ACCEPT",
+    "reason": "A classic real-world user confusion expressed naturally; the contradiction is genuine and clarification is unambiguously correct. Note the reservations escape hatch exists, but that does not make the ask wrong."
+  },
+  {
+    "id": "oc-048",
+    "recovered_intent_summary": "Single office needing internet that must arrive over both a DSL line and a cable modem simultaneously as one bonded link, with an ASA firewall (specifically a 5505) at the edge.",
+    "missing_facts": [
+      "VLAN/host layout at the single office (relevant to whether an ASA 5505 edge even fits)"
+    ],
+    "invented_facts": [],
+    "contradictions": [
+      "Demanding DSL + cable as a single bonded access type conflicts with the engine's single-access-shape model — but bonding/load-balancing is a real-world technique, so part of this 'impossibility' is an engine expressiveness limit rather than a semantic contradiction; a model proposing dual-router failover would be reasonable.",
+      "Stacking three independent traps (bonding + ASA placement + specific 5505 model) in one short prompt."
+    ],
+    "ambiguity_notes": [
+      "'Two hard requirements:' is test-author scaffolding that enumerates the traps for the model.",
+      "Expected behaviour (surface the access-shape problem, confirm topology, never fake a bonded link) is correct."
+    ],
+    "human_likeness": 0.5,
+    "fidelity": 0.7,
+    "verdict": "REVIEW",
+    "reason": "The refusal target is partly an engine limitation masquerading as a requirement contradiction, and the 'Two hard requirements:' framing sounds authored. Reword so the DSL+cable demand emerges naturally, or reclassify as a capability-boundary case."
+  },
+  {
+    "id": "oc-049",
+    "recovered_intent_summary": "Guest network must be strictly internet-only with no internal access, yet guests must reach the internal company website server, and additionally no firewall appliance may be deployed at all (cited security policy).",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [
+      "internet-only vs reaching an internal server — the deliberate pairwise conflict.",
+      "'No firewall because the security policy forbids it' has an implausible rationale: security policies normally mandate firewalls, not ban them. The justification reads invented to manufacture the third constraint."
+    ],
+    "ambiguity_notes": [
+      "Isolation could in principle be enforced with VLAN/ACL configuration on routers/switches without a dedicated firewall appliance, so 'cannot enforce isolation without a firewall' (the intended hard part) is debatable.",
+      "Expected behaviour is to surface all three constraints together, which is right, but whether the third constraint is truly blocking depends on the engine's enforcement model."
+    ],
+    "human_likeness": 0.65,
+    "fidelity": 0.8,
+    "verdict": "REVIEW",
+    "reason": "The core internet-only-vs-internal contradiction is excellent and realistic; the no-firewall clause is contrived with a backwards justification, and its claimed impossibility depends on engine enforcement semantics. Trim or re-justify the third constraint."
+  },
+  {
+    "id": "oc-050",
+    "recovered_intent_summary": "Provide wireless access to 20 laptops in one open area from a single access point, all in one group — deliberately exceeding the claimed verified 8-client-per-cell limit.",
+    "missing_facts": [],
+    "invented_facts": [
+      "'single access point cell' and 'all in one group' are lab/spec vocabulary engineered to trigger the exact 'wireless-group-too-large' refusal; an ordinary user says 'WiFi for 20 laptops in the hall from one AP'"
+    ],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The 8-client ceiling is asserted as a real verified limit but is not visible in the fields I am allowed to inspect; if that number is wrong, the entire candidate collapses.",
+      "Expected behaviour (refuse by name, offer multiple smaller cells) is correct if the limit holds."
+    ],
+    "human_likeness": 0.45,
+    "fidelity": 0.75,
+    "verdict": "REJECT",
+    "reason": "The refusal scenario may be valid, but the phrasing practically names the refusal trigger ('cell', 'all in one group') and reads machine-authored. Reword as a plain request ('WiFi for 20 laptops in one room from a single AP') and the same test works naturally."
+  },
+  {
+    "id": "oc-051",
+    "recovered_intent_summary": "An ASA 5505 firewall plus a DMZ hosting a public server — a single named-refusal request.",
+    "missing_facts": [],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The refusal 'asa5505-no-dmz' reflects engine support, not networking truth: real ASA 5505s do DMZs via VLAN security levels. Graders and future maintainers should treat this strictly as an engine-capability boundary, not a networking fact.",
+      "Metadata inconsistency: language is labelled 'mixed' but the prompt is pure Roman Urdu."
+    ],
+    "human_likeness": 0.85,
+    "fidelity": 0.9,
+    "verdict": "ACCEPT",
+    "reason": "Short, natural request that cleanly isolates one engine limit with an offered alternative (ASA 5506-X). The real-world-vs-engine nuance should be documented, but the prompt itself is faithful and human."
+  },
+  {
+    "id": "oc-052",
+    "invented_facts": [],
+    "recovered_intent_summary": "Run DHCP from a Windows server for the whole office and pin the office VLAN to exactly 192.168.50.0/24 — two independent engine limits (server-side DHCP, user-fixed CIDR outside the site block) deliberately combined.",
+    "missing_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Both requests are individually realistic (users do run Windows DHCP and do demand specific subnets), though stacking two unrelated refusal triggers in one short sentence is slightly test-author-ish.",
+      "Expected behaviour (surface both named refusals rather than faking compliance) is correct."
+    ],
+    "human_likeness": 0.75,
+    "fidelity": 0.9,
+    "verdict": "ACCEPT",
+    "reason": "Natural phrasing with genuine, well-motivated capability boundaries; a careless model would silently 'make both work', which is exactly the failure mode worth testing."
+  },
+  {
+    "id": "oc-053",
+    "recovered_intent_summary": "20-person accounting firm on two floors: ground floor has 8 accountant PCs + 2 reception PCs; first floor has 6 auditor PCs and a server room with 2 servers. Three VLANs (accounting DHCP, auditors isolated, servers static), ledger HTTP + internal DNS servers usable by accountants only, WAN internet for the accounting side, no wireless or guest kiosks; priorities are auditor isolation, then server access, then internet.",
+    "missing_facts": [
+      "How auditors get their addresses (intent sets the auditors VLAN dhcp=false; the prompt is silent)",
+      "Server-VLAN sizing headroom (intent requires 6 hosts for 2 servers) is not derivable from the prompt"
+    ],
+    "invented_facts": [],
+    "contradictions": [
+      "The prompt requires 'Ground and first floor accounting machines should be able to reach each other', but its own device inventory places ALL accountant and reception PCs on the ground floor — there are no first-floor accounting machines. The requirement references a group that does not exist. The same dangling requirement (REQ-004) is mirrored in expected_intent, so the prompt faithfully reproduces the intent, but the underlying intent is internally inconsistent."
+    ],
+    "ambiguity_notes": [
+      "'20-person' firm vs 18 listed devices is harmless but a grader may wonder.",
+      "The Company/Requirements/Exclusions/Priority document format is appropriate for the long-document category and plausible for an enterprise ask."
+    ],
+    "human_likeness": 0.7,
+    "fidelity": 0.9,
+    "verdict": "REVIEW",
+    "reason": "Faithful extraction of almost every element, but the candidate carries an ungrounded requirement (first-floor accounting machines that don't exist) that is not flagged as a contradiction. A human must decide whether to add first-floor accountants or drop REQ-004 before this is used."
+  },
+  {
+    "id": "oc-054",
+    "recovered_intent_summary": "Al-Noor Mart: Karachi head office (6 office PCs, one inventory HTTP server) and a Lahore retail store (2 POS terminals on their own isolated network with static IPs, 1 back-office PC, wired IP cameras on their own network, internet-only customer guest WiFi). The two sites interconnect via static routing so the inventory system is reachable from both, with internet at both sites (store on a separate line).",
+    "missing_facts": [
+      "Number of IP cameras is never stated, yet a camera host group needs a count",
+      "Whether the back-office PC shares the POS network or a general store LAN is unspecified",
+      "Head-office internet line type is unspecified (only the store's separate line is mentioned)"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Label inconsistency: expect_refusal=true but expected_behaviour is a hedge ('REVIEW on two points'), not a clarification question or a named refusal. The label and the behaviour disagree, so grading this candidate is undefined until the camera-as-smart_led and guest-isolation decisions are made.",
+      "POS isolation vs HQ-store connectivity is NOT a contradiction (POS is never said to need inventory access); a good model must notice that."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.75,
+    "verdict": "REVIEW",
+    "reason": "Very natural code-switched enterprise document, but it is parked in expect_refusal with a non-refusal expected behaviour and unstated camera count. Resolve the capability decisions and give it a definite grading target (build-with-caveats vs named refusal) before shipping."
+  },
+  {
+    "id": "oc-055",
+    "recovered_intent_summary": "Post-VLAN-split DHCP failure narrative: two VLANs, half the machines self-assign and lost access to the printer and the server; the user asks for a redesign so both VLANs hand out proper addresses and everything that should reach the server can, on DSL.",
+    "missing_facts": [
+      "Host counts are nowhere in the prompt, yet the intent fixes 6 + 5 PCs with required_hosts=12 each — a model cannot recover these, so grading against the intent penalises reasonable guesses",
+      "Server services (http+dns) and its placement on VLAN A are intent-side choices only weakly implied by 'the server'"
+    ],
+    "invented_facts": [
+      "The printer: 'they self-assign and lose the printer and the server' — expected_intent has no printer host group, no print service, and no printer requirement. The prompt invents a network element the source of truth does not model."
+    ],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "The diagnosis framing itself is natural and the DSL/DHCP-fix target is otherwise coherent, but the prompt-to-intent grading surface is leaky on counts."
+    ],
+    "human_likeness": 0.75,
+    "fidelity": 0.55,
+    "verdict": "REJECT",
+    "reason": "Invented fact relative to the source of truth: the printer exists in the prompt but not in expected_intent, and the incident narrative implies restoring printing. Additionally the intent's concrete host counts are unrecoverable from the prompt. Either add a printer (and accept vaguer counts) to the intent or remove it from the prompt."
+  },
+  {
+    "id": "oc-056",
+    "recovered_intent_summary": "Existing small single-network office; the user wants to add a file server and move the accounts team onto a separate network for an upcoming audit, with everything else staying on DHCP. No internet requirement mentioned.",
+    "missing_facts": [
+      "The existing network's size/composition is never quantified, yet the intent invents 8 general PCs — the target build's counts are unrecoverable from the prompt",
+      "Accounts VLAN addressing is left unstated while the intent sets dhcp=true for it",
+      "File server services (http+ftp in the intent) go beyond the generic 'file server' in the prompt"
+    ],
+    "invented_facts": [],
+    "contradictions": [],
+    "ambiguity_notes": [
+      "Enhancement framing ('I already have X, add Y') is natural and covers a request type templates under-cover.",
+      "Accounts-to-server access after segmentation is unstated in both prompt and intent — a real design question the candidate leaves open for the model to ask about.",
+      "Because counts are fixed in the intent but absent from the prompt, automated grading against the intent would be unfair."
+    ],
+    "human_likeness": 0.8,
+    "fidelity": 0.65,
+    "verdict": "REVIEW",
+    "reason": "Natural and a valuable request type, but the intent's host counts and server details are ungrounded in the prompt. Either state rough sizes in the prompt or grade only on structural properties (separate accounts VLAN, file server exists, rest DHCP)."
+  }
+]

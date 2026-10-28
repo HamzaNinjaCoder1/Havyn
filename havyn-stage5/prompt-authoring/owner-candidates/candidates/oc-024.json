@@ -1,0 +1,112 @@
+{
+  "id": "oc-024",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "diagnosis",
+  "scenario": "Enhancement-style: describes a broken inter-VLAN setup to be rebuilt correctly.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-dsl-none",
+  "length_category": "long",
+  "prompt": "Our existing office network is a mess: reception and finance were put on the same network last year and finance keeps complaining that everyone can see their machines. Reception has about six PCs and finance five, and half of them end up with a self-assigned address that goes nowhere.\n\nPlease design it properly this time: reception and finance on separate networks, finance private, and every PC getting a real automatic address so the self-assigned problem goes away. We use a DSL line for internet.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "office-rebuild",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "reception",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "receptionpcs",
+                "area": "reception",
+                "count": 6,
+                "device": "pc",
+                "vlan": "receptionnet"
+              }
+            ]
+          },
+          {
+            "id": "finance",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "financepcs",
+                "area": "finance",
+                "count": 5,
+                "device": "pc",
+                "vlan": "financenet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "receptionnet",
+        "name": "Reception",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 12
+      },
+      {
+        "id": "financenet",
+        "name": "Finance",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "dsl",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Reception and finance are on separate networks",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Finance machines are not visible to reception",
+        "type": "security",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Every PC gets a proper automatic address (DHCP)",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "DSL internet with NAT",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Two DHCP VLANs, finance separate, DSL internet + NAT. The 'diagnosis' framing is narrative only; the build target is fully specified.",
+  "why_valuable": "Diagnosis/enhancement flavour: the prompt describes symptoms and asks for a correct redesign. Adds a realistic 'fix my mess' register without requiring the live diagnosis engine.",
+  "research_inspiration": [
+    "https://www.engineerdirect.co.uk/guides/library/d/network-infrastructure/managed-switch-vlan-misconfiguration"
+  ],
+  "prompt_hash": "f4a5b74c336bdb15ac961a76ae1872af6240fcced98b5752d4ecfaf1091d2b51",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

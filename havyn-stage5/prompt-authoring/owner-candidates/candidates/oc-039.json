@@ -1,0 +1,117 @@
+{
+  "id": "oc-039",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "wireless",
+  "scenario": "Cafe with guest WiFi and a wired POS/back-of-house network.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-cable-none",
+  "length_category": "medium",
+  "prompt": "Cafe hai — customers ko free WiFi chahiye aur staff ke computers wired hain (billing aur accounts). Customer WiFi aur staff wired network alag hon. Cable internet available hai.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "cafe",
+    "sites": [
+      {
+        "id": "cafe",
+        "areas": [
+          {
+            "id": "counter",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "billingpc",
+                "area": "counter",
+                "count": 1,
+                "device": "pc",
+                "vlan": "staffnet"
+              },
+              {
+                "id": "accountspc",
+                "area": "counter",
+                "count": 1,
+                "device": "pc",
+                "vlan": "staffnet"
+              }
+            ]
+          },
+          {
+            "id": "seating",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "customerdevices",
+                "area": "seating",
+                "count": 4,
+                "device": "smartphone",
+                "vlan": "guestnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "cafe",
+        "required_hosts": 8
+      },
+      {
+        "id": "guestnet",
+        "name": "Guest",
+        "dhcp": true,
+        "site": "cafe",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "guestwifi",
+        "site": "cafe",
+        "area": "seating",
+        "ssid": "CafeGuest",
+        "security": "open",
+        "client_group_ids": [
+          "customerdevices"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Customer WiFi and the staff wired network are separate",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Both reach the internet",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Staff wired VLAN + guest wireless VLAN, open SSID, cable internet. Separation is stated as 'separate network', NOT as an enforced internet-only ACL, so it stays buildable.",
+  "why_valuable": "Cafe/hospitality register with a smartphone-only wireless cell — a device mix the templates skip.",
+  "research_inspiration": [
+    "https://www.micronet.global/insights/guest-wifi-hotels-restaurants"
+  ],
+  "prompt_hash": "4ef0e97eb43e0407ac5507d358d7c077c49c5ab36cff68fdb5d561dcf29b05ba",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "oc-049",
+  "language": "roman-urdu",
+  "difficulty": "L5",
+  "category": "contradictory",
+  "scenario": "Guest must be internet-only AND reach internal servers, plus no firewall allowed.",
+  "coverage_cell": "contradiction-guest-triple",
+  "length_category": "medium",
+  "prompt": "Guest network bilkul internet-only honi chahiye, koi internal access nahi. Lekin guest ko company ki website bhi dekhni hai jo andar ke server par hai. Alag firewall appliance ka budget bhi nahi hai, to us ke bagair hi yeh sab sort karna hai.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "TRIPLE conflict: (a) guest internet-only vs (b) guest reaching an internal server, and (c) no firewall appliance budget while guest isolation normally needs an enforcement point. The model must surface all of it — it cannot satisfy isolation without the enforcement device it was told not to deploy. Realistic budget-vs-requirement clash.",
+  "why_valuable": "Hardest contradiction: three interlocking constraints in Roman Urdu, including 'don't use the very tool that would enforce the policy'.",
+  "research_inspiration": [],
+  "prompt_hash": "ae0069c932818e70f09de492c5d50229253e37638f9465fc831517229ee2f83b",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

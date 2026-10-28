@@ -1,0 +1,132 @@
+{
+  "id": "oc-030",
+  "language": "mixed",
+  "difficulty": "L3",
+  "category": "routing",
+  "scenario": "Three sites, static routing, internet sirf head office.",
+  "coverage_cell": "small-s3-a1-multi-static-wan-none",
+  "length_category": "medium",
+  "prompt": "Teen sites hain: head office, aur do branches. Head office par internet line hai, and dono branches ko head office ke through routing chahiye — internet bhi wahi se mile. Static routing use karein, so OSPF ki abhi zaroorat nahi.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "three-sites",
+    "sites": [
+      {
+        "id": "headoffice",
+        "areas": [
+          {
+            "id": "hq",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "hopcs",
+                "area": "hq",
+                "count": 8,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branch1",
+        "areas": [
+          {
+            "id": "b1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "b1pcs",
+                "area": "b1",
+                "count": 4,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branch2",
+        "areas": [
+          {
+            "id": "b2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "b2pcs",
+                "area": "b2",
+                "count": 4,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "honet",
+        "name": "Head office",
+        "dhcp": true,
+        "site": "headoffice",
+        "required_hosts": 16
+      },
+      {
+        "id": "b1net",
+        "name": "Branch 1",
+        "dhcp": true,
+        "site": "branch1",
+        "required_hosts": 10
+      },
+      {
+        "id": "b2net",
+        "name": "Branch 2",
+        "dhcp": true,
+        "site": "branch2",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Both branches reach the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Both branches get internet through the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Use static routing, not OSPF",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Three sites, static routes branches<->HO, WAN internet + NAT at HO, DHCP each.",
+  "why_valuable": "Three-site static routing (a topology the coverage matrix exercises) in natural mixed language.",
+  "research_inspiration": [
+    "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
+  ],
+  "prompt_hash": "096917e810c8b6fc056ad30afd554ea40773f317e966922d7910bc50daab8e7d",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

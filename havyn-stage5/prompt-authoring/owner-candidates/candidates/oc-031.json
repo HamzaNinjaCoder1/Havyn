@@ -1,0 +1,63 @@
+{
+  "id": "oc-031",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "basic",
+  "scenario": "Three PCs, one network, nothing else — a bare minimum.",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "prompt": "Just three PCs wired together so they can share files. Nothing fancy, no internet, no VLANs — keep it minimal.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "three-pc",
+    "sites": [
+      {
+        "id": "room",
+        "areas": [
+          {
+            "id": "bench",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pcs",
+                "area": "bench",
+                "count": 3,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "lan",
+        "name": "LAN",
+        "dhcp": false,
+        "site": "room",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "The three PCs can share files with each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Single flat LAN of 3 PCs. Deliberately tests that the model does NOT invent VLANs/internet the user explicitly ruled out.",
+  "why_valuable": "Anti-over-engineering check: a real minimal request that a benchmark-trained model often inflates.",
+  "research_inspiration": [],
+  "prompt_hash": "d74ce72d94c007a3c5cb36e87ff12f9e0163e371676ac593e32473d985db7b48",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

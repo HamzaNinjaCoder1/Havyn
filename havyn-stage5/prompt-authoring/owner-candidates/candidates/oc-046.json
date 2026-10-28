@@ -1,0 +1,20 @@
+{
+  "id": "oc-046",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "contradictory",
+  "scenario": "All traffic must be isolated, yet every group must reach every other.",
+  "coverage_cell": "contradiction-total-isolation-vs-full-mesh",
+  "length_category": "medium",
+  "prompt": "I want four networks — one per department. Nothing should be able to reach anything outside its own department. But also, every department needs to print to the shared printer in HR and open the file server.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "SURFACE CONTRADICTION: 'absolutely nothing reaches outside its own department' cannot coexist with 'every department reaches the HR printer and the file server'. The model must flag the conflict and ask which wins (or propose per-port exceptions), not silently resolve it.",
+  "why_valuable": "A sharper form of the isolation-vs-service contradiction in oc-018, stated with 'non-negotiable' on both sides — the model must refuse to silently pick one.",
+  "research_inspiration": [],
+  "prompt_hash": "a579ad89fcbc478e73ef098abc58a3c206154236f3b9e424cec11a55553bf18f",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

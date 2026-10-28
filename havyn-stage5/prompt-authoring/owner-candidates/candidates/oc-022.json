@@ -1,0 +1,71 @@
+{
+  "id": "oc-022",
+  "language": "en",
+  "difficulty": "L2",
+  "category": "dhcp-static",
+  "scenario": "Small lab where every host is statically addressed.",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "medium",
+  "prompt": "Build a small lab network where nothing uses DHCP. Every PC should have a fixed address I set, because this is a test bench and the addresses must never change. Six PCs, all on one network, all static.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "static-lab",
+    "sites": [
+      {
+        "id": "lab",
+        "areas": [
+          {
+            "id": "bench",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "labpcs",
+                "area": "bench",
+                "count": 6,
+                "device": "pc",
+                "addressing": "static"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "labbench",
+        "name": "Lab bench",
+        "dhcp": false,
+        "site": "lab",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "All six PCs reach each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Every host is statically addressed, no DHCP",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Single VLAN, dhcp=False, all groups addressing='static'. No internet.",
+  "why_valuable": "Clean static-addressing case; tests dhcp=False + per-group static, the opposite of the DHCP-heavy norm.",
+  "research_inspiration": [],
+  "prompt_hash": "e6d83a6c41b59364d9d0ab7ff46f4a40954f5aaab8923aad34c082dfe2157136",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "oc-015",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "ambiguous",
+  "scenario": "Office network, but host counts and DHCP-vs-static unclear.",
+  "coverage_cell": "ambiguous-addressing",
+  "length_category": "short",
+  "prompt": "Mujhe office ka network banana hai, do alag departments hain. Sahi numbers aur addressing abhi nahi bata sakta.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "ASK: approximately how many devices per department, and should they get IPs automatically (DHCP) or fixed (static)? Do not pick a host count or an addressing mode on the user's behalf.",
+  "why_valuable": "Two missing facts at once (scale + addressing). Real novice phrasing; tests whether the model asks for both rather than assuming DHCP.",
+  "research_inspiration": [],
+  "prompt_hash": "cb0d437d23e97192b1f41fe61fe45df557431211a0fd172f68d6ffbf584e0303",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

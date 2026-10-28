@@ -1,0 +1,150 @@
+{
+  "id": "oc-025",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "enterprise",
+  "scenario": "Small clinic: reception, consulting rooms, patient guest network.",
+  "coverage_cell": "small-s1-a3-multi-dhcp-wan-none",
+  "length_category": "long",
+  "prompt": "We're a four-doctor clinic opening a new premises. I need the network designed with clear separation, because patient information must not be reachable from waiting areas.\n\n- Reception and admin PCs (about 6) handle bookings and records.\n- Consulting rooms have a wired PC each (4 rooms).\n- The waiting area has a shared kiosk PC (1) that patients can use.\n- Patient/consulting traffic must be separate from the waiting area.\n- The records server hosts the clinic's HTTP page and DNS, so it gets a fixed address; everything else is automatic addressing.\n\nWe have a WAN handoff from the ISP for internet. We're not doing patient WiFi yet, so the kiosk stays wired for now.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "clinic",
+    "sites": [
+      {
+        "id": "clinic",
+        "areas": [
+          {
+            "id": "reception",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "receptionpcs",
+                "area": "reception",
+                "count": 6,
+                "device": "pc",
+                "vlan": "adminnet"
+              }
+            ]
+          },
+          {
+            "id": "consulting",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "roompcs",
+                "area": "consulting",
+                "count": 4,
+                "device": "pc",
+                "vlan": "clinicalnet"
+              }
+            ]
+          },
+          {
+            "id": "waiting",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "kioskpc",
+                "area": "waiting",
+                "count": 1,
+                "device": "pc",
+                "vlan": "waitingnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "adminnet",
+        "name": "Admin",
+        "dhcp": true,
+        "site": "clinic",
+        "required_hosts": 12
+      },
+      {
+        "id": "clinicalnet",
+        "name": "Clinical",
+        "dhcp": true,
+        "site": "clinic",
+        "required_hosts": 10
+      },
+      {
+        "id": "waitingnet",
+        "name": "Waiting",
+        "dhcp": true,
+        "site": "clinic",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "recordssrv",
+        "site": "clinic",
+        "vlan": "clinicalnet",
+        "services": [
+          "http",
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Admin, clinical and waiting/guest are separate networks",
+        "type": "isolation",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Patient/consulting traffic is not reachable from the waiting area",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The records server is statically addressed",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "A records server with HTTP and DNS exists",
+        "type": "service",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "WAN internet with NAT",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Three VLANs, static records server (http+dns) on the clinical VLAN, WAN internet. The patient-facing access is the wired waiting kiosk (no wireless isolation claim), so this builds.",
+  "why_valuable": "Healthcare realism (patient-data separation) mapped into a shape the engine can actually build; demonstrates research -> original scenario -> validation.",
+  "research_inspiration": [
+    "https://www.cisco.com/c/dam/global/en_uk/solutions/industries/pdfs/healthcare-secure-infrastructure.pdf"
+  ],
+  "prompt_hash": "5045e1c6a3e2f52006f43d439975f24c363c36cd0086c5f82647e085ce19f533",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

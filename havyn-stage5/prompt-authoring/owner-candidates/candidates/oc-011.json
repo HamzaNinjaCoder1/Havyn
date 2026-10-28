@@ -1,0 +1,106 @@
+{
+  "id": "oc-011",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "iot",
+  "scenario": "Smart-office lighting: IoT LEDs cabled in alongside normal PCs.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-cable-none-iot",
+  "length_category": "medium",
+  "prompt": "We're fitting out a new office with smart lighting — a handful of network-controlled LED units. Put the normal office PCs on their own network and wire in the smart lights as IoT devices, keeping the lights off the staff network. Everything should get its IP automatically. Cable internet is fine.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "smart-office",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "workspace",
+                "count": 8,
+                "device": "pc",
+                "vlan": "staffnet"
+              }
+            ]
+          },
+          {
+            "id": "ceilings",
+            "kind": "area",
+            "host_groups": []
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 16
+      },
+      {
+        "id": "iotnet",
+        "name": "IoT",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "iot": [
+      {
+        "id": "lights",
+        "site": "office",
+        "area": "ceilings",
+        "kind": "smart_led",
+        "count": 4
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Office PCs are on their own network",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Smart LED lighting is wired in as IoT devices",
+        "type": "operational",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "IoT lights are not mixed with staff PCs",
+        "type": "isolation",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Staff VLAN + IoT VLAN declaration, 4 cabled smart_led things, cable internet. The 'keeping the lights off the staff network' clause verifies UNKNOWN — IoT things are created and cabled to an anchor with no IP/VLAN placement (expander _place_iot, CG-2), so they do not land on a separately verified segment.",
+  "why_valuable": "IoT as a real building fit-out, not 'add 5 lights'. Separation phrased in plain language.",
+  "research_inspiration": [
+    "https://blogs.cisco.com/industrial-iot/unpacking-iot-a-series-the-security-challenge-and-what-you-can-do-about-it"
+  ],
+  "prompt_hash": "70e5eee4ba68fd807181f88a463e9108e0f641e194a2be24fe1a504aa14e942d",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

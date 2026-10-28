@@ -1,0 +1,108 @@
+{
+  "id": "oc-004",
+  "language": "mixed",
+  "difficulty": "L2",
+  "category": "wan-multi-site",
+  "scenario": "Head office + one branch connected, DHCP at both, internet both.",
+  "coverage_cell": "small-s2-a1-multi-dhcp-wan-none",
+  "length_category": "medium",
+  "prompt": "Head office aur ek branch ko connect karna hai. Dono jagah DHCP chahiye and dono ko internet bhi chahiye. Branch se head office tak traffic static routing se jaani chahiye, so that routes haath se set karni parein aur koi dynamic protocol configure na karna pare.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "ho-branch",
+    "sites": [
+      {
+        "id": "headoffice",
+        "areas": [
+          {
+            "id": "floor1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "hopcs",
+                "area": "floor1",
+                "count": 8,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branch",
+        "areas": [
+          {
+            "id": "shop",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "branchpcs",
+                "area": "shop",
+                "count": 5,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "housers",
+        "name": "HO users",
+        "dhcp": true,
+        "site": "headoffice",
+        "required_hosts": 16
+      },
+      {
+        "id": "branchusers",
+        "name": "Branch users",
+        "dhcp": true,
+        "site": "branch",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Head office and branch reach each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Both sites have internet access",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Both sites use DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Two sites, static routing between them, WAN internet with NAT at each, DHCP per site.",
+  "why_valuable": "Mixed-language multi-site; tests cross-site routing + internet without leaking English-only phrasing.",
+  "research_inspiration": [
+    "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
+  ],
+  "prompt_hash": "9d870cc786412b4f6dbb8016f020605fdba1de47a1b3f17110ff927d21c599ab",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

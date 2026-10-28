@@ -1,0 +1,20 @@
+{
+  "id": "oc-045",
+  "language": "roman-urdu",
+  "difficulty": "L5",
+  "category": "ambiguous",
+  "scenario": "Server role + internet type both unclear in a business-context ask.",
+  "coverage_cell": "ambiguous-server-internet",
+  "length_category": "medium",
+  "prompt": "Humara startup hai, abhi 4 log hain. Ek server rakhna chahiye shayad, aur internet chahiye. Kya kya banwana hai aap hi suggest karein — mujhe networking ka idea nahi hai lekin budget tight hai.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "Highly open: no site layout, unclear whether a server is even needed, no internet type, no host counts, and the user asks for suggestions on a tight budget. Correct behaviour is a short clarifying dialogue (or a modest proposed design + questions), NOT a confident full build. This is the hardest ambiguity because it invites invention at every layer.",
+  "why_valuable": "L5 ambiguity: a novice, budget-constrained, open-ended business request. The temptation to over-build is maximal — exactly what we want to test.",
+  "research_inspiration": [],
+  "prompt_hash": "07eb10f356d1c8b3f5e468ee5ce92387a005d7dbb3aa89308e3872b4db0366a3",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

@@ -1,0 +1,100 @@
+{
+  "id": "oc-003",
+  "language": "en",
+  "difficulty": "L2",
+  "category": "vlan-dhcp",
+  "scenario": "Two-department office, staff + admin VLANs, DHCP everywhere.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-dsl-none",
+  "length_category": "medium",
+  "prompt": "We're moving into a small office with a reception area and a finance room. I want the reception PCs and the finance PCs on separate networks so finance traffic stays private. Everyone should get their IP automatically.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "office-two-dept",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "reception",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "receptionpcs",
+                "area": "reception",
+                "count": 5,
+                "device": "pc",
+                "vlan": "reception"
+              }
+            ]
+          },
+          {
+            "id": "finance",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "financepcs",
+                "area": "finance",
+                "count": 4,
+                "device": "pc",
+                "vlan": "finance"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "reception",
+        "name": "Reception",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 12
+      },
+      {
+        "id": "finance",
+        "name": "Finance",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Reception and finance are on separate networks",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Finance traffic is isolated from reception",
+        "type": "isolation",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "All hosts receive addresses automatically",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Two VLANs, both DHCP, finance isolated from reception via separate subnets.",
+  "why_valuable": "Classic small-business segmentation; maps to real 'reception vs finance' language, not textbook 'VLAN 10/20'.",
+  "research_inspiration": [
+    "https://netraclos.com/vlans-and-guest-wifi-for-small-business-networks"
+  ],
+  "prompt_hash": "a0958ec602b6c33fefbf2120c970575339233bcac0b435b03c2825e9b80cb3fa",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

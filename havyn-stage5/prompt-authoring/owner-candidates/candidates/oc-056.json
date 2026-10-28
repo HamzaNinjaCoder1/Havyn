@@ -1,0 +1,130 @@
+{
+  "id": "oc-056",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "enhancement",
+  "scenario": "Existing simple office to be enhanced with a new server + VLAN.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-none-none",
+  "length_category": "medium",
+  "prompt": "Mere paas ek chhota office network hai (sab ek hi network par). Ab mujhe naya ek file server chahiye aur accounts ko alag network par lena hai kyunki naya audit aa raha hai. Baaki sab waise hi DHCP rahe.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "office-enhance",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "generalpcs",
+                "area": "workspace",
+                "count": 8,
+                "device": "pc",
+                "vlan": "generalnet"
+              }
+            ]
+          },
+          {
+            "id": "accounts",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountspcs",
+                "area": "accounts",
+                "count": 4,
+                "device": "pc",
+                "vlan": "accountsnet"
+              }
+            ]
+          },
+          {
+            "id": "serverroom",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "filesrvhost",
+                "area": "serverroom",
+                "count": 1,
+                "device": "pc",
+                "vlan": "servernet",
+                "addressing": "static"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "generalnet",
+        "name": "General",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 16
+      },
+      {
+        "id": "accountsnet",
+        "name": "Accounts",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 10
+      },
+      {
+        "id": "servernet",
+        "name": "Servers",
+        "dhcp": false,
+        "site": "office",
+        "required_hosts": 6
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "servers": [
+      {
+        "id": "filesrv",
+        "site": "office",
+        "vlan": "servernet",
+        "services": [
+          "http",
+          "ftp"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "A new file server exists",
+        "type": "service",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Accounts are on a separate network for the audit",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "General machines keep using DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "General + accounts + server VLANs; file server (http/ftp) on the static server VLAN; general stays DHCP. Enhancement framing ('I already have X, add Y').",
+  "why_valuable": "Enhancement register (modify an existing network) rather than greenfield — a distinct request type the templates under-cover, in Roman Urdu.",
+  "research_inspiration": [],
+  "prompt_hash": "b0fa8c04d92efd204a548a3c14aadb63685a8136ee1e4e47974e295896d3dfd6",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

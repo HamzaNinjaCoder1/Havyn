@@ -1,0 +1,101 @@
+{
+  "id": "oc-023",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "servers",
+  "scenario": "Small office with an internal DNS + HTTP server.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-none-none",
+  "length_category": "medium",
+  "prompt": "Hamare chhote office mein ek internal server chahiye jis par company ka intranet (website) ho aur DNS bhi chal raha ho. Office ke aath computers se website open ho aur names resolve hon. Sab computers DHCP se IP lein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "office-server",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "officepcs",
+                "area": "workspace",
+                "count": 8,
+                "device": "pc",
+                "vlan": "officenet"
+              }
+            ]
+          },
+          {
+            "id": "serverroom",
+            "kind": "area",
+            "host_groups": []
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "officenet",
+        "name": "Office",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 16
+      },
+      {
+        "id": "servernet",
+        "name": "Servers",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 6
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "servers": [
+      {
+        "id": "intranet",
+        "site": "office",
+        "vlan": "servernet",
+        "services": [
+          "http",
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "An internal HTTP intranet server exists",
+        "type": "service",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "A DNS server resolves internal names",
+        "type": "service",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Office computers use DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Two VLANs (office + server), one server with http+dns on the server VLAN, DHCP for PCs. No DHCP service on the server (that would be the refused path).",
+  "why_valuable": "Server requirement expressed in business terms ('intranet', 'names resolve'); tests http+dns services without tripping the server-DHCP refusal.",
+  "research_inspiration": [],
+  "prompt_hash": "b1e6eba71a828bec68700df5886fa053d85c15a1caa5fa99655257080d7f1da9",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

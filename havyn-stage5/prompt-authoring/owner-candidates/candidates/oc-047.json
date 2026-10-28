@@ -1,0 +1,20 @@
+{
+  "id": "oc-047",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "contradictory",
+  "scenario": "Static addressing demanded, but also 'everyone gets IPs automatically'.",
+  "coverage_cell": "contradiction-static-vs-dhcp",
+  "length_category": "short",
+  "prompt": "Saare computers ko fixed (static) IP addresses dein, aur yeh bhi chahiye ke har computer automatically apna IP le. Dono same rehne chahiye.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "SURFACE CONTRADICTION: static addressing and automatic (DHCP) addressing are mutually exclusive for the same hosts. The model must point out the conflict and ask which the user actually wants (or clarify: static servers + DHCP users), not build a contradiction or pick silently.",
+  "why_valuable": "A very common real-world confusion (static vs DHCP) expressed as a flat contradiction. Great test of basic addressing concept grounding.",
+  "research_inspiration": [],
+  "prompt_hash": "7037a33bd8b55a52aa2c29ea530e3c2b9be1f5a6fdeac0adfdc81dc7dd270934",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "oc-050",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "impossible-refusal",
+  "scenario": "Wireless group larger than the verified 8-client cell limit.",
+  "coverage_cell": "refusal-wireless-too-large",
+  "length_category": "short",
+  "prompt": "We need WiFi for 20 laptops in one open room, all off a single access point.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME: 'wireless-group-too-large' — PT radio cells are verified up to 8 clients; 20 in one cell exceeds that. Explain and offer to split into multiple smaller cells. This is a REAL verified limit, not invented.",
+  "why_valuable": "A concrete numeric refusal grounded in the 8-client verified ceiling — tests honest limits over fake scalability.",
+  "research_inspiration": [],
+  "prompt_hash": "c401e558b57e108bc7ff4f7a8101471eae5f0a8cb7639b2debd1a59000ea3c46",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

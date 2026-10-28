@@ -1,0 +1,13 @@
+{
+  "dataset": "havyn-roundtrip-v1",
+  "generator_version": "0.1.0",
+  "model": "(dry-run: reconstruction == source)",
+  "examples": 147,
+  "queues": {
+    "ACCEPT": 77,
+    "REVIEW": 70,
+    "REJECT": 0
+  },
+  "near_duplicates_flagged": 70,
+  "generated": "2026-10-27T21:43:13+00:00"
+}

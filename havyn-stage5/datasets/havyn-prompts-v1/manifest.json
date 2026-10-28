@@ -1,0 +1,10 @@
+{
+  "dataset": "havyn-prompts-v1",
+  "generator_version": "0.1.0",
+  "seed": 20261028,
+  "prompts": 147,
+  "template": 147,
+  "teacher": 0,
+  "teacher_model": null,
+  "generated": "2026-10-27T21:43:01+00:00"
+}

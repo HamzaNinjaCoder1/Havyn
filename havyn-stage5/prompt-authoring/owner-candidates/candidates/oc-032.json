@@ -1,0 +1,69 @@
+{
+  "id": "oc-032",
+  "language": "roman-urdu",
+  "difficulty": "L1",
+  "category": "basic",
+  "scenario": "Two PCs + one printer on a shared network.",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "prompt": "Do computers aur ek printer hai, teeno ko ek network par lagana hai taake printer dono se chale. Bas.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "pc-printer",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "room",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "computers",
+                "area": "room",
+                "count": 2,
+                "device": "pc"
+              },
+              {
+                "id": "printer1",
+                "area": "room",
+                "count": 1,
+                "device": "printer"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "lan",
+        "name": "LAN",
+        "dhcp": false,
+        "site": "office",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Both computers can print to the shared printer",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "One LAN with 2 PCs and 1 printer. Exercises the printer device type.",
+  "why_valuable": "Introduces a printer in natural mixed phrasing — a device type templates rarely lead with.",
+  "research_inspiration": [],
+  "prompt_hash": "0b08d82338c28921a2bda1016325c1c1a903066da70c14e0c072f678f61050ed",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

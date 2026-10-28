@@ -1,0 +1,65 @@
+# S5.4 base-model bake-off candidates.
+#
+# These are candidates, not winners: the comparison table produced by
+# benchmark_harness.py decides. All IDs must be open-weight, GGUF-exportable
+# and license-compatible with commercial use. Swap or extend freely BEFORE
+# running the bake-off; never change the list after results are recorded.
+#
+# load_in_4bit needs bitsandbytes; on a 12 GB Colab GPU the 8B candidates
+# require it. On >=20 GB run one 8B candidate without quantisation as a
+# sanity check that quantisation is not distorting the comparison.
+
+system_prompt: >-
+  You convert natural-language networking requests into a single JSON object
+  matching the Havyn Intent Schema v1. Output ONLY the JSON object - no
+  markdown, no explanation. If the request is missing information or asks for
+  something impossible, do not invent values; reply with a short refusal or
+  clarification request instead.
+
+candidates:
+  - name: qwen3-8b
+    model_id: Qwen/Qwen3-8B
+    role: standard
+    load_in_4bit: true
+    max_new_tokens: 2048
+    temperature: 0.0
+
+  - name: qwen3-4b
+    model_id: Qwen/Qwen3-4B
+    role: lite
+    load_in_4bit: true
+    max_new_tokens: 2048
+    temperature: 0.0
+
+  - name: llama-3.1-8b-instruct
+    model_id: meta-llama/Meta-Llama-3.1-8B-Instruct
+    role: alternative
+    load_in_4bit: true
+    max_new_tokens: 2048
+    temperature: 0.0
+
+  - name: mistral-7b-instruct-v0.3
+    model_id: mistralai/Mistral-7B-Instruct-v0.3
+    role: alternative
+    load_in_4bit: true
+    max_new_tokens: 2048
+    temperature: 0.0
+
+  - name: gemma-2-9b-it
+    model_id: google/gemma-2-9b-it
+    role: alternative
+    load_in_4bit: true
+    max_new_tokens: 2048
+    temperature: 0.0
+
+selection_criteria:
+  - license
+  - fine-tuning support (Unsloth/TRL)
+  - GGUF export path
+  - valid JSON %
+  - schema validity %
+  - field accuracy
+  - requirement recall
+  - refusal correctness
+  - latency
+  - VRAM

@@ -1,0 +1,20 @@
+{
+  "id": "oc-043",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "ambiguous",
+  "scenario": "Host count unstated; model must ask how many devices.",
+  "coverage_cell": "ambiguous-host-count",
+  "length_category": "short",
+  "prompt": "I need a network for my office with a staff section and a guest section. Not sure how big it needs to be yet.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "ASK: roughly how many devices in the staff section (and guest section)? The VLAN sizing (required_hosts) depends on it and the model must not invent a count.",
+  "why_valuable": "Missing host count — a second, distinct ambiguity axis from oc-014 (sites) and oc-015 (addressing).",
+  "research_inspiration": [],
+  "prompt_hash": "28f317dfde3db02b3d69f62cfe3cc1fcc11dd2547ffd93ed59ee136fb03da8f2",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

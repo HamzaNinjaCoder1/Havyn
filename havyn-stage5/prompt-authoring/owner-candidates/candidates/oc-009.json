@@ -1,0 +1,96 @@
+{
+  "id": "oc-009",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "firewall-security",
+  "scenario": "Single office behind an ASA with a DMZ holding a public web server.",
+  "coverage_cell": "small-s1-a1-single-dhcp-wan-asa-dmz",
+  "length_category": "document",
+  "prompt": "We're a small law firm with a single office and about twenty staff PCs. We host our own client-intake website and outside visitors have to be able to reach it, but that website must never sit on the same network as our internal file workstations. I want a perimeter firewall between us and the ISP — we're getting a WAN handoff. The staff PCs go on one trusted inside network and should get their addresses automatically. The website goes in its own DMZ segment that's reachable from the internet, and nothing from the internet should be able to start a connection into the inside. Keep the inside to that single LAN.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "lawfirm-dmz",
+    "sites": [
+      {
+        "id": "firm",
+        "areas": [
+          {
+            "id": "office",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "office",
+                "count": 18,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "inside",
+        "name": "Inside users",
+        "dhcp": true,
+        "site": "firm",
+        "required_hosts": 24
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506",
+      "dmz": true
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Outside visitors reach the public intake website",
+        "type": "connectivity",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The website is in a DMZ separate from internal workstations",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The internet cannot initiate connections into the inside network",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Inside hosts are automatically addressed",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Single-VLAN inside + ASA5506 DMZ + WAN internet. The DMZ is engine-created (srv-dmz on 192.168.100.0/24, no services declared), so 'outside visitors reach the website' verifies UNKNOWN — the engine has no per-server service evidence for the auto-created DMZ host; the DMZ isolation and single-inside-VLAN shape match the verified T07/T08 DMZ shape.",
+  "why_valuable": "Long-form, business-context DMZ request in the engine's verified shape. Forces requirement extraction from prose, not keyword spotting.",
+  "research_inspiration": [
+    "https://www.cisa.gov/resources-tools/resources/enhanced-visibility-and-hardening-guidance-communications-infrastructure"
+  ],
+  "prompt_hash": "18afb623c8ab80b2c43ab55649afa89d4d80c4b12e638995b305f966a821ecba",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

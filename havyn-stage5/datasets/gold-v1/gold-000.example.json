@@ -1,0 +1,31 @@
+{
+  "id": "gold-000",
+  "author": "owner",
+  "language": "en",
+  "category": "enterprise",
+  "prompt": "Design a network called gold-demo. One site 'hq' with one area 'office' holding 8 PCs. VLAN 'hqusers' for the users. No internet.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gold-demo",
+    "sites": [
+      {
+        "id": "hq",
+        "areas": [
+          {
+            "id": "office",
+            "host_groups": [
+              { "id": "hg1", "area": "office", "count": 8, "device": "pc",
+                "vlan": "hqusers" }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      { "id": "hqusers", "name": "HQ users", "site": "hq", "required_hosts": 20 }
+    ]
+  },
+  "difficulty": "L1",
+  "notes": "TEMPLATE EXAMPLE - copy this structure for gold-001..gold-300 and DELETE this file once real examples exist."
+}

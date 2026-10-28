@@ -1,0 +1,56 @@
+{
+  "duplicates": {
+    "total_candidates": 56,
+    "exact_prompt_duplicates": [],
+    "normalized_prompt_duplicates": [],
+    "intent_level_duplicates": [],
+    "near_duplicates_minhash": [],
+    "minhash_threshold": 0.9,
+    "distinct_prompts": 56,
+    "distinct_intents": 34
+  },
+  "objective_quality": {
+    "language_distribution": {
+      "en": 30,
+      "roman-urdu": 18,
+      "mixed": 8
+    },
+    "difficulty_distribution": {
+      "L1": 4,
+      "L2": 8,
+      "L3": 19,
+      "L4": 16,
+      "L5": 9
+    },
+    "category_distribution": {
+      "basic": 4,
+      "vlan-dhcp": 3,
+      "wan-multi-site": 3,
+      "routing": 4,
+      "wireless": 4,
+      "firewall-security": 2,
+      "iot": 2,
+      "long-document": 3,
+      "enterprise": 6,
+      "ambiguous": 6,
+      "contradictory": 6,
+      "impossible-refusal": 6,
+      "dhcp-static": 2,
+      "servers": 1,
+      "diagnosis": 2,
+      "campus": 1,
+      "enhancement": 1
+    },
+    "length_distribution": {
+      "short": 12,
+      "medium": 31,
+      "long": 8,
+      "document": 5
+    },
+    "refusal_candidates": 22,
+    "buildable_candidates": 34,
+    "prompt_words_min": 15,
+    "prompt_words_max": 205,
+    "prompt_words_mean": 50.4
+  }
+}

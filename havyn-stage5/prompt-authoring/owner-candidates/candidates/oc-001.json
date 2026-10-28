@@ -1,0 +1,63 @@
+{
+  "id": "oc-001",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "basic",
+  "scenario": "Tiny four-PC office LAN, one VLAN, no internet.",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "prompt": "Set up a simple network for a small back-office. Four desktop PCs, all on one network, they just need to reach each other. No internet needed for now.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "small-backoffice",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "main",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pcs",
+                "area": "main",
+                "count": 4,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "officeusers",
+        "name": "Office users",
+        "dhcp": false,
+        "site": "office",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "All four PCs reach each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Build the single-VLAN LAN; confirm connectivity intent.",
+  "why_valuable": "Baseline L1: proves the model handles a plain, complete request without inventing internet or extra VLANs.",
+  "research_inspiration": [],
+  "prompt_hash": "3d2c7decc17a71ece1772d1cebfb9b4b2dbdab363079d7ca87218eeb393a71a0",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

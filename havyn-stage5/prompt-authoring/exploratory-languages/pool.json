@@ -1,0 +1,109 @@
+{
+  "dataset": "havyn-exploratory-languages",
+  "purpose": "Multilingual surface exploration outside Intent Schema v1. Not gold, not training data.",
+  "schema_note": "language_label values here are intentionally outside Schema v1 (en | roman-urdu | mixed); these records cannot pass validate_gold.py.",
+  "generated": "2026-10-28",
+  "engine_commit_of_base_candidates": "06c57ced050cda532915c15b1ce772b0a0eaf607",
+  "provenance": "AI-drafted (Model A) renderings of engine-verified owner candidates; no native-speaker review performed.",
+  "entries": [
+    {
+      "id": "xl-001",
+      "base_candidate": "oc-001",
+      "base_candidate_engine_verified": true,
+      "language_label": "ur-script",
+      "script": "Arabic (Nastaliq)",
+      "dir": "rtl",
+      "prompt": "ایک چھوٹے بیک آفس کے لیے سادہ نیٹ ورک بنانا ہے۔ چار ڈیسک ٹاپ پی سی، سب ایک ہی نیٹ ورک پر، صرف ایک دوسرے تک پہنچنا چاہیے۔ فی الحال انٹرنیٹ کی ضرورت نہیں۔",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-001 (4 PCs, one VLAN, no internet)."
+    },
+    {
+      "id": "xl-002",
+      "base_candidate": "oc-001",
+      "base_candidate_engine_verified": true,
+      "language_label": "hi-devanagari",
+      "script": "Devanagari",
+      "dir": "ltr",
+      "prompt": "छोटे बैक-ऑफ़िस के लिए एक साधारण नेटवर्क बनाना है। चार डेस्कटॉप पीसी, सब एक ही नेटवर्क पर, बस एक-दूसरे तक पहुँचना चाहिए। अभी इंटरनेट की ज़रूरत नहीं है।",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-001."
+    },
+    {
+      "id": "xl-003",
+      "base_candidate": "oc-001",
+      "base_candidate_engine_verified": true,
+      "language_label": "ar-msa",
+      "script": "Arabic",
+      "dir": "rtl",
+      "prompt": "أريد إعداد شبكة بسيطة لمكتب خلفي صغير. أربعة أجهزة كمبيوتر مكتبية، كلها على شبكة واحدة، ويكفي أن تتواصل مع بعضها. لا حاجة للإنترنت حالياً.",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-001."
+    },
+    {
+      "id": "xl-004",
+      "base_candidate": "oc-028",
+      "base_candidate_engine_verified": true,
+      "language_label": "ur-script",
+      "script": "Arabic (Nastaliq)",
+      "dir": "rtl",
+      "prompt": "ہمارا ایک ڈسٹری بیوشن گودام ہے۔ نیٹ ورک کو ڈیوائس کے کام کے مطابق الگ الگ کرنا ہے: گودام کے وائرلیس سکینر اور ٹرمینل (تقریباً 6 ڈیوائس) اپنے سیگمنٹ پر، آفس کے 8 وائرڈ پی سی اور 3 سپروائزر لیپ ٹاپ (وائرلیس)، اور ٹھیکیدار ڈرائیوروں کو صرف انٹرنیٹ۔ سب کو خودکار (DHCP) ایڈریس چاہیے، کیبل انٹرنیٹ دستیاب ہے۔ آپریشنز کو آفس اور ٹھیکیداروں سے الگ رکھیں۔",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-028 (three segments, two wireless cells, cable internet, contractors internet-only)."
+    },
+    {
+      "id": "xl-005",
+      "base_candidate": "oc-028",
+      "base_candidate_engine_verified": true,
+      "language_label": "hi-devanagari",
+      "script": "Devanagari",
+      "dir": "ltr",
+      "prompt": "हमारा एक डिस्ट्रिब्यूशन वेयरहाउस है। नेटवर्क को डिवाइस के काम के हिसाब से अलग-अलग करना है: वेयरहाउस के वायरलेस स्कैनर और टर्मिनल (लगभग 6 डिवाइस) अपने सेगमेंट पर, ऑफ़िस के 8 वायर्ड पीसी और 3 सुपरवाइज़र लैपटॉप (वायरलेस), और कॉन्ट्रैक्टर ड्राइवरों को सिर्फ़ इंटरनेट। सबको ऑटोमैटिक (DHCP) एड्रेस चाहिए, केबल इंटरनेट उपलब्ध है। ऑपरेशन्स को ऑफ़िस और कॉन्ट्रैक्टर से अलग रखें।",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-028."
+    },
+    {
+      "id": "xl-006",
+      "base_candidate": "oc-028",
+      "base_candidate_engine_verified": true,
+      "language_label": "ar-msa",
+      "script": "Arabic",
+      "dir": "rtl",
+      "prompt": "لدينا مستودع توزيع. نحتاج تقسيم الشبكة حسب دور الجهاز: أجهزة المسح والطرفيات اللاسلكية في المستودع (حوالي 6 أجهزة) على شبكتها الخاصة، و8 أجهزة مكتبية سلكية و3 حواسيب محمولة للمشرفين (لاسلكية) في المكتب، والمتعاقدون/السائقون يحتاجون الإنترنت فقط. الجميع يأخذ عناوين تلقائية (DHCP)، والإنترنت عبر الكيبل متوفر. أبقِ شبكة العمليات منفصلة عن المكتب والمتعاقدين.",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-028."
+    },
+    {
+      "id": "xl-007",
+      "base_candidate": "oc-029",
+      "base_candidate_engine_verified": true,
+      "language_label": "ur-script",
+      "script": "Arabic (Nastaliq)",
+      "dir": "rtl",
+      "prompt": "میرے دفتر کی دو منزلیں ہیں۔ نیچے ریسیپشن اور اوپر اکاؤنٹس کا دفتر ہے۔ دونوں منزلوں کے کمپیوٹر الگ نیٹ ورک پر ہوں اور سب کو آئی پی خودکار (DHCP) ملے۔ انٹرنیٹ DSL لائن سے چاہیے۔",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-029 (two floors/VLANs, DHCP, DSL internet)."
+    },
+    {
+      "id": "xl-008",
+      "base_candidate": "oc-029",
+      "base_candidate_engine_verified": true,
+      "language_label": "hi-devanagari",
+      "script": "Devanagari",
+      "dir": "ltr",
+      "prompt": "मेरे ऑफ़िस की दो मंज़िलें हैं। नीचे रिसेप्शन और ऊपर अकाउंट्स का ऑफ़िस है। दोनों मंज़िलों के कंप्यूटर अलग नेटवर्क पर हों और सबको IP अपने आप (DHCP) मिले। इंटरनेट DSL लाइन से चाहिए।",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-029."
+    },
+    {
+      "id": "xl-009",
+      "base_candidate": "oc-029",
+      "base_candidate_engine_verified": true,
+      "language_label": "ar-msa",
+      "script": "Arabic",
+      "dir": "rtl",
+      "prompt": "مكتبي في طابقين: الاستقبال في الأسفل والحسابات في الأعلى. أريد حواسيب كل طابق على شبكة منفصلة، والجميع يحصل على IP تلقائياً (DHCP). والإنترنت عبر خط DSL.",
+      "surface_reviewed_by_native": false,
+      "notes": "Facts identical to oc-029."
+    }
+  ]
+}

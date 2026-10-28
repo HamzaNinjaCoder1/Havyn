@@ -1,0 +1,22 @@
+{
+  "id": "oc-020",
+  "language": "mixed",
+  "difficulty": "L3",
+  "category": "impossible-refusal",
+  "scenario": "Server-side DHCP requested — unsupported service path.",
+  "coverage_cell": "refusal-server-dhcp",
+  "length_category": "short",
+  "prompt": "Ek Windows server pe DHCP service run karni hai, so that saare office computers us se IP lein. Server ko server VLAN mein rakhna hai.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME: server-side DHCP is 'server-dhcp-service' (unsupported). The verified path is per-VLAN DHCP pools on the gateway, not a Server-PT DHCP service. Explain and offer the supported alternative.",
+  "why_valuable": "A very common real ask that the engine cannot express. Trains refusing by name + offering the verified gateway-pool alternative instead of faking a server DHCP config.",
+  "research_inspiration": [
+    "https://www.cisco.com/c/en/us/support/docs/ip/dynamic-address-allocation-resolution/27470-100.html"
+  ],
+  "prompt_hash": "daebb854044f636cec54da5956d28636ef1704055e3621928a91696bf0a838ad",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}

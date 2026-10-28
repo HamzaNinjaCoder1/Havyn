@@ -1,0 +1,132 @@
+{
+  "id": "oc-035",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "wan-multi-site",
+  "scenario": "HQ + two branches, static routing, internet only at HQ.",
+  "coverage_cell": "small-s3-a1-multi-static-wan-none",
+  "length_category": "medium",
+  "prompt": "Connect our head office to two branches. Only the head office has the internet line; both branches should reach the head office and get internet through it. Use static routing — we don't run a routing protocol on a network this size.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "hq-two-branches",
+    "sites": [
+      {
+        "id": "hq",
+        "areas": [
+          {
+            "id": "main",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "hqpcs",
+                "area": "main",
+                "count": 10,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branchnorth",
+        "areas": [
+          {
+            "id": "north",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "northpcs",
+                "area": "north",
+                "count": 5,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branchsouth",
+        "areas": [
+          {
+            "id": "south",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "southpcs",
+                "area": "south",
+                "count": 5,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "hqnet",
+        "name": "HQ",
+        "dhcp": true,
+        "site": "hq",
+        "required_hosts": 20
+      },
+      {
+        "id": "northnet",
+        "name": "North",
+        "dhcp": true,
+        "site": "branchnorth",
+        "required_hosts": 10
+      },
+      {
+        "id": "southnet",
+        "name": "South",
+        "dhcp": true,
+        "site": "branchsouth",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Both branches reach the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Both branches get internet through the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Use static routing, not a dynamic protocol",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "Three sites, static routes, WAN internet + NAT at HQ only, DHCP each.",
+  "why_valuable": "English hub-and-spoke with an explicit anti-protocol constraint; complements the Urdu/mixed 3-site cases (oc-030) so the same topology appears across languages.",
+  "research_inspiration": [
+    "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
+  ],
+  "prompt_hash": "cb310ec19dae13fc3a6254047b68a1ff1dab91deb166fe5036423609d65605eb",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-28T18:19:24+00:00",
+  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+}
