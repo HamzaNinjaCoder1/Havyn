@@ -1,0 +1,394 @@
+{
+  "metadata": {
+    "title": "Post-fix semantic re-check — 16 remaining REVIEW candidates",
+    "reviewed_at": "2026-10-29",
+    "candidate_revision": "Working tree after the Stage-5 fix pass, engine commit e8503cdfb32a83817a2fbc84ad4245057acf75a2 (HEAD at review time).",
+    "reviewer": "Same base model as the drafter and as Model B (author-side semantic re-check).",
+    "independence": "NONE. This is not an independent Model-B run and it is not cross-family validation. The reviewer had access to drafting context, which a true independent reviewer would not.",
+    "prior_review_note": "batch-1..4 are the original Model-B verdicts on the checkpoint revision. batch-5 re-read 25 candidates, but several of its REVIEW reasons describe pre-fix text that the shipped revision no longer contains (for example oc-030's 'prompt states no endpoints' and oc-012's 'kiosks are dropped'). Those batch-5 texts are preserved unchanged; this re-check evaluates the emitted shipped text and supersedes the STATUS only.",
+    "scope": "oc-004, oc-005, oc-006, oc-007, oc-012, oc-013, oc-028, oc-030, oc-035, oc-040, oc-044, oc-048, oc-049, oc-053, oc-054, oc-056",
+    "status_counts": {
+      "ACCEPT": 8,
+      "REVIEW": 8,
+      "REJECT": 0
+    },
+    "evidence_classes": {
+      "engine_executed": "Buildable candidates: schema -> intent lint -> expander -> spec lint -> IPAM -> compile, run by verify_candidates.py.",
+      "expected_refusal_source_traced": "Refusal candidates: verify_candidates.py only asserts expected_intent is null. The named refusal code is traced in source, not executed end-to-end against Packet Tracer.",
+      "live_packet_tracer": "NOT RUN for any candidate in this re-check."
+    }
+  },
+  "entries": [
+    {
+      "id": "oc-004",
+      "prompt_hash": "5442e76f523512d6e4fb5eb650d7523a0bdb453f0870d98b2bc42f23e4f736f2",
+      "language": "mixed",
+      "difficulty": "L2",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-1",
+      "prior_issues": [
+        "Static-routing requirement rested on a vague phrase; the intent could be graded on static while the prompt allowed a dynamic protocol.",
+        "Site host counts (8 head-office PCs, 5 branch PCs) were absent from the prompt."
+      ],
+      "shipped_text_check": [
+        "Prompt now names static routing explicitly and forbids a dynamic protocol.",
+        "Prompt now states 8 head-office PCs and 5 branch PCs.",
+        "Expected behaviour over-claimed 'NAT at each'; corrected to one WAN block + NAT at the head office with the branch routed through it (CG-3)."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "Every prompt fact maps to the intent; the one engine limitation (single internet block) is now stated instead of over-claimed."
+    },
+    {
+      "id": "oc-005",
+      "prompt_hash": "ab854e3142f0db14068e46f4e3f5409e82be03fee3bc295c198d9b9b71403a34",
+      "language": "en",
+      "difficulty": "L3",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-1",
+      "prior_issues": [
+        "DHCP everywhere and OSPF specifically were not clearly stated by the prompt.",
+        "Per-floor host counts (6/10/4) were absent."
+      ],
+      "shipped_text_check": [
+        "Prompt now says 'run OSPF rather than hand-written routes'.",
+        "Prompt now says everyone gets addresses automatically.",
+        "Prompt now states the 6 kiosks, 10 staff and 4 management desks."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "The three flagged facts are explicit; staff/management separation is delivered as distinct pinned VLANs."
+    },
+    {
+      "id": "oc-006",
+      "prompt_hash": "b97d3f066cce8940c8d4370a66407499fca00c4caf77390ae20e479d0f1d8229",
+      "language": "roman-urdu",
+      "difficulty": "L3",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-1",
+      "prior_issues": [
+        "Intent requires DHCP at both sites but the prompt was silent on addressing.",
+        "PC counts (8 Karachi, 6 Lahore) were absent."
+      ],
+      "shipped_text_check": [
+        "Prompt now says both sides receive IP automatically.",
+        "Prompt now states 8 Karachi computers and 6 Lahore computers."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "Addressing and counts are explicit; static routing and internet-via-head-office are unambiguous."
+    },
+    {
+      "id": "oc-007",
+      "prompt_hash": "15aaf16c6833307e8bfd0fe3b99b21e13a5c85723101903417887cda7d94513a",
+      "language": "en",
+      "difficulty": "L3",
+      "engine_verified": true,
+      "evidence_class": "expected_refusal_source_traced",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-1",
+      "prior_issues": [
+        "Deliberate capability-boundary refusal with a null intent; a human must confirm the gap is real and that refusing a very common request is the intended eval signal.",
+        "The refusal needed to be explicit that it is a capability gap, not an ambiguity case.",
+        "The refusal needed a capability-version guard because it silently becomes wrong if guest isolation is implemented."
+      ],
+      "shipped_text_check": [
+        "Candidate now records refusal_kind 'capability-gap' and a refused_intent_shape.",
+        "Expected behaviour names the exact refusal code and the engine site (expander.py:299).",
+        "Expected behaviour pins the verdict to the recorded engine commit and says to re-derive it if support lands.",
+        "Source trace confirms the code exists and fires when firewall.enabled and firewall.guest_isolation are set. This is not a live Packet Tracer execution."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Do you want Gold to contain a named refusal for guest-WiFi isolation — a mainstream, reasonable request — knowing the refusal is source-traced but not live-PT-executed?",
+      "basis": "The capability gap is real in source; only the owner can decide that refusing this request is a desired evaluation signal."
+    },
+    {
+      "id": "oc-012",
+      "prompt_hash": "2e9fab02a96d5ff31f6488c715c1f93365f820fb70953b57e0411e0637ac97fd",
+      "language": "en",
+      "difficulty": "L5",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-1, re-read in batch-5",
+      "prior_issues": [
+        "Guest-facing kiosks named in the prompt were missing from the intent.",
+        "The intranet audience ('sales and warehouse can open it') was not expressed.",
+        "Four docked laptops were modelled as generic PCs.",
+        "The critical finance-isolation requirement coexists with connected routing and no ACL, so it is not enforced.",
+        "Section-labelled structure read like a form."
+      ],
+      "shipped_text_check": [
+        "Intent now models 3 reception kiosks on the reception VLAN.",
+        "Expected behaviour states the audience clause is served by connected routing.",
+        "Docked laptops were removed; sales is now 22 wired desks, matching the intent.",
+        "Prompt was rewritten as a flowing client brief without schema-style headings.",
+        "Finance isolation is still not machine-verified; expected behaviour discloses UNKNOWN (CG-1)."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Accept a buildable brief whose critical 'finance is unreachable from anyone else' clause is recorded UNKNOWN (no inter-VLAN ACL capability), or rewrite/drop that guarantee?",
+      "basis": "All objective text defects are fixed. The remaining issue is a policy choice about shipping a critical isolation requirement the engine cannot verify."
+    },
+    {
+      "id": "oc-013",
+      "prompt_hash": "a1316dd21886e31353e520b315184ed5b9cdc63b27db068c786763f5344cfd4b",
+      "language": "mixed",
+      "difficulty": "L5",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-1",
+      "prior_issues": [
+        "Document skeleton and exclusion clauses duplicated oc-012 almost clause-for-clause (machine-generation tell)."
+      ],
+      "shipped_text_check": [
+        "Prompt is now a single natural narrative, not a labelled document scaffold.",
+        "Exclusions remain in the prompt but no longer share oc-012's section structure.",
+        "Accounts isolation is disclosed as UNKNOWN (CG-1) in expected behaviour."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Accept a buildable two-site brief whose critical 'accounts not reachable by sales' clause is recorded UNKNOWN (CG-1)?",
+      "basis": "The style duplication is fixed. The remaining issue is the same isolation-policy choice as oc-012."
+    },
+    {
+      "id": "oc-028",
+      "prompt_hash": "62a4a9f77c36f182aee196b12f4c795ee33559e15f48be8fe786fb394ec4d390",
+      "language": "en",
+      "difficulty": "L4",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-2, re-read in batch-5",
+      "prior_issues": [
+        "Wireless handhelds and forklift terminals are modelled as six tablets, a device-class substitution.",
+        "The warehouse system the ops devices talk to is not modelled.",
+        "The contractor VLAN has no hosts and 'internet only' is resolved by interpretation.",
+        "Inter-VLAN blocking is not enforced."
+      ],
+      "shipped_text_check": [
+        "Expected behaviour records the tablet substitution as a forced mapping because HostDevice has no scanner/forklift value.",
+        "Expected behaviour explicitly says the WMS is out of scope for this candidate.",
+        "Expected behaviour records the empty contractor segment and the CG-3 single internet line.",
+        "Expected behaviour discloses inter-VLAN blocking as UNKNOWN (CG-1).",
+        "The candidate remains buildable and engine-verified."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Accept the disclosed compromises (tablets for handhelds/forklifts, WMS out of scope, empty contractor segment, 'internet only' read as scope rather than an enforced block)?",
+      "basis": "The compromises are unavoidable in Schema v1 and are now disclosed; whether they are acceptable Gold content is an owner decision."
+    },
+    {
+      "id": "oc-030",
+      "prompt_hash": "c63fbe714f67c361083270762fb3d42ebae6c62dbb8f0bb3c6ec41d2811f2262",
+      "language": "mixed",
+      "difficulty": "L3",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-3, re-read in batch-5 (batch-5 reason describes the pre-fix text)",
+      "prior_issues": [
+        "Host groups (8/4/4 PCs) were invented because the prompt stated no endpoints.",
+        "DHCP was never stated."
+      ],
+      "shipped_text_check": [
+        "Prompt now states 8 head-office computers and 4 at each branch.",
+        "Prompt now says every site gets IP automatically (DHCP).",
+        "NAT is a conventional planner default and is not asserted as a prompt fact."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "Every previously invented host fact is now stated. The deliberate topology pair with oc-035 is handled as oc-035's residual, not this candidate's."
+    },
+    {
+      "id": "oc-035",
+      "prompt_hash": "4ffbdf296a774b247f7cb7eb98f4bf2ea62278feda3a3626a31049cf74d5d290",
+      "language": "en",
+      "difficulty": "L3",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-3",
+      "prior_issues": [
+        "Duplicates oc-030's intent shape exactly (three sites, static routing, internet at HQ).",
+        "Host counts and DHCP were unstated."
+      ],
+      "shipped_text_check": [
+        "Prompt now states 10 HQ PCs and 5 PCs per branch.",
+        "Prompt now says all get addresses automatically.",
+        "The intent remains structurally the same as oc-030 with different counts and site ids; this is documented as deliberate language pairing."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Keep oc-030 and oc-035 as two Gold slots for one topology (English + Roman-Urdu variants), or keep only one?",
+      "basis": "The pair is intentional and documented, but counting one topology twice in a 100-slot gold set is an owner call."
+    },
+    {
+      "id": "oc-040",
+      "prompt_hash": "254f1a852e7f326c731459170bbcdbff148b640ac28bb5d4a5a736c0cddc76ec",
+      "language": "en",
+      "difficulty": "L3",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-3, re-read in batch-5 (batch-5 reason describes the pre-fix duplicate)",
+      "prior_issues": [
+        "Restated oc-011: same office-IoT-lighting scenario, same infrastructure, same expected behaviour.",
+        "IoT separation verifies UNKNOWN."
+      ],
+      "shipped_text_check": [
+        "Prompt is now a retail shop with four till PCs and six LED units, not an office with staff PCs.",
+        "Intents differ in population and counts (oc-011: office staff + 4 lights; oc-040: tills + 6 lights).",
+        "Duplicate checks report no exact, normalized, intent-level or MinHash near-duplicate.",
+        "IoT placement is still UNKNOWN and is disclosed (CG-2)."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Keep both smart-LED IoT candidates (oc-011 office and oc-040 retail) even though the engine can only express smart_led and the network shape is similar?",
+      "basis": "The scenario is now distinct, but the underlying shape remains an IoT VLAN plus one host VLAN; whether that earns two Gold slots is an owner decision."
+    },
+    {
+      "id": "oc-044",
+      "prompt_hash": "7afffd621ac8dc17c56e1dceae919c9bfdff5b392b04a63711e9f40f39100397",
+      "language": "roman-urdu",
+      "difficulty": "L4",
+      "engine_verified": true,
+      "evidence_class": "expected_refusal_source_traced",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-4, re-read in batch-5",
+      "prior_issues": [
+        "Expected behaviour offered an open menu (clarification preferred, stated assumption acceptable).",
+        "The clarification stopped at routing mode and did not request host counts or addressing."
+      ],
+      "shipped_text_check": [
+        "Expected behaviour now gives one definite response: recommend a concrete mode, do not bounce the decision back.",
+        "It asks only for the missing build data: device counts, DHCP vs static, and where the internet line enters.",
+        "It forbids inventing site sizes and forbids presenting a silent pick as the user's choice."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "The target response is now single and definite. Engine verification covers the null-intent rule only; this is a semantic judgement, not an executed refusal."
+    },
+    {
+      "id": "oc-048",
+      "prompt_hash": "843d2fab13b43916c2f212ca55e83aed1dc643b5125bdf3b0a113ff1e188c0c6",
+      "language": "en",
+      "difficulty": "L5",
+      "engine_verified": true,
+      "evidence_class": "expected_refusal_source_traced",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-4, re-read in batch-5",
+      "prior_issues": [
+        "The second required issue ('must confirm the topology') asked for a fact the prompt already supplied (single office)."
+      ],
+      "shipped_text_check": [
+        "Expected behaviour now names exactly one issue: DSL + cable bonding is not expressible.",
+        "It explicitly says no topology question is required and that the ASA 5505 is acceptable for a single inside network.",
+        "It requires the model to ask which single access type to use."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "The open ask was removed; the remaining response is definite and grounded in the single-valued access enum."
+    },
+    {
+      "id": "oc-049",
+      "prompt_hash": "ae0069c932818e70f09de492c5d50229253e37638f9465fc831517229ee2f83b",
+      "language": "roman-urdu",
+      "difficulty": "L5",
+      "engine_verified": true,
+      "evidence_class": "expected_refusal_source_traced",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-4, re-read in batch-5",
+      "prior_issues": [
+        "Limb (c) leaned on an unqualified generalisation about enforcement points.",
+        "No definite fallback deliverable was named."
+      ],
+      "shipped_text_check": [
+        "All three limbs are now explicitly engine-scoped.",
+        "Expected behaviour names one fallback: build a plain guest subnet that makes no isolation promise.",
+        "It requires asking which requirement to drop: guest access to the internal site, or the internet-only guarantee.",
+        "It forbids deploying an appliance the user excluded and forbids silently dropping isolation."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "The response is definite and engine-grounded. The refusal code is source-traced, not executed end-to-end."
+    },
+    {
+      "id": "oc-053",
+      "prompt_hash": "027c9a29583dda78e81f18b8077fafae775de39e15cbd33ba35874e3203e63e1",
+      "language": "en",
+      "difficulty": "L5",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-4, re-read in batch-5",
+      "prior_issues": [
+        "Auditor addressing was invented as static while the prompt was silent.",
+        "The auditors-cannot-reach-accounting-or-servers requirement is not enforced by connected routing with no ACL.",
+        "The 'WAN for the accounting side only' scope was not expressed.",
+        "Section-labelled structure read like a form."
+      ],
+      "shipped_text_check": [
+        "Auditor VLAN is now DHCP; the prompt names only the two servers as static.",
+        "Expected behaviour explains the DHCP choice and records the isolation clause as UNKNOWN (CG-1).",
+        "The accounting-only WAN scope is recorded as an inference/UNKNOWN rather than silently claimed.",
+        "Prompt was rewritten as a narrative brief.",
+        "Reception PCs sharing the accounting VLAN is recorded as an inference."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Accept a buildable brief whose critical auditor-isolation clause and accounting-only WAN scope are recorded UNKNOWN, or rewrite/drop those guarantees?",
+      "basis": "The invented static addressing and the form-like structure are fixed. The isolation and egress-scope promises remain unverifiable by design."
+    },
+    {
+      "id": "oc-054",
+      "prompt_hash": "1f90027c62063a9f62204e16f9a2eb2c50e0922d55c1465e2302287039d39340",
+      "language": "mixed",
+      "difficulty": "L5",
+      "engine_verified": true,
+      "evidence_class": "expected_refusal_source_traced",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-4, re-read in batch-5",
+      "prior_issues": [
+        "Refusal expectation was internally inconsistent: guest isolation refused while the identically-shaped POS isolation was declared buildable.",
+        "Reason (c) (one internet block) read like a planner default rather than a hard refusal.",
+        "A human had to confirm whether refusal or build-plus-UNKNOWN is the single correct answer.",
+        "The refused shape invented a 'camerapanel' PC that the prompt never mentions."
+      ],
+      "shipped_text_check": [
+        "Expected behaviour now explains the guest-vs-POS asymmetry: the guest clause requests the explicit guest_isolation capability, the POS clause does not.",
+        "It states that neither POS nor guest separation is machine-verified (CG-1), and that the POS separation must not be over-claimed.",
+        "CG-3 is now described as a reported limitation, not a silent build.",
+        "The invented camerapanel PC was removed from the refused shape; only the 3 cameras (as smart_led) remain."
+      ],
+      "post_fix_verdict": "REVIEW",
+      "residual_owner_question": "Is a named refusal the single correct answer for the guest-isolation clause, rather than building a plain guest subnet and reporting the isolation UNKNOWN? Confirm the POS separation is not over-claimed.",
+      "basis": "The internal contradiction and invented device are fixed. Refuse-vs-build-plus-UNKNOWN is a policy choice only the owner can make."
+    },
+    {
+      "id": "oc-056",
+      "prompt_hash": "c39d3d00dc39535b6f4158e412990f1c93393367e381f39c573202237d148ec6",
+      "language": "roman-urdu",
+      "difficulty": "L3",
+      "engine_verified": true,
+      "evidence_class": "engine_executed",
+      "prior_verdict": "REVIEW",
+      "prior_source": "batch-4",
+      "prior_issues": [
+        "The intent invented 8 general PCs while the prompt never quantified the existing network.",
+        "Accounts VLAN addressing was unstated while the intent set DHCP.",
+        "File-server services went beyond the generic 'file server'.",
+        "Expected behaviour left an open 'may ask' about accounts-to-server access."
+      ],
+      "shipped_text_check": [
+        "Prompt now states 8 general computers and 4 accounts computers.",
+        "Prompt now states accounts also take DHCP and the file server is static.",
+        "Expected behaviour now gives a definite build: FTP service on a static server VLAN, reached from both VLANs by connected routing; no clarification is required."
+      ],
+      "post_fix_verdict": "ACCEPT",
+      "residual_owner_question": null,
+      "basis": "Counts and addressing are explicit and the open menu was removed."
+    }
+  ]
+}

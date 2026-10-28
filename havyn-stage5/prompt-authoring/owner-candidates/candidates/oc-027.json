@@ -7,16 +7,133 @@
   "coverage_cell": "small-s1-a3-multi-dhcp-cable-none-iot",
   "length_category": "medium",
   "prompt": "Design the network for a new retail branch. We have two POS terminals that must be isolated for compliance, a back-office PC, IP security cameras, and free guest WiFi for customers. POS and back office stay wired; guests are wireless. Cable internet on site.",
-  "expected_intent": null,
+  "refused_intent_shape": {
+    "intent_version": "1",
+    "name": "retail-branch",
+    "sites": [
+      {
+        "id": "store",
+        "areas": [
+          {
+            "id": "salesfloor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pos1",
+                "area": "salesfloor",
+                "count": 1,
+                "device": "pc"
+              },
+              {
+                "id": "pos2",
+                "area": "salesfloor",
+                "count": 1,
+                "device": "pc"
+              }
+            ]
+          },
+          {
+            "id": "backoffice",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "officepc",
+                "area": "backoffice",
+                "count": 1,
+                "device": "pc"
+              }
+            ]
+          },
+          {
+            "id": "ceiling",
+            "kind": "area",
+            "host_groups": []
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "posnet",
+        "name": "POS",
+        "dhcp": true,
+        "site": "store",
+        "required_hosts": 6
+      },
+      {
+        "id": "officenet",
+        "name": "Back office",
+        "dhcp": true,
+        "site": "store",
+        "required_hosts": 6
+      },
+      {
+        "id": "guestnet",
+        "name": "Guest",
+        "dhcp": true,
+        "site": "store",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "iot": [
+      {
+        "id": "cameras",
+        "site": "store",
+        "area": "ceiling",
+        "kind": "smart_led",
+        "count": 3
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "POS terminals are isolated for compliance",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Back office is separate from POS",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Security cameras are wired in as IoT devices",
+        "type": "operational",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Guest WiFi reaches only the internet",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
   "expect_refusal": true,
+  "expected_intent": null,
   "expected_behaviour": "REFUSE-BY-NAME: real IP security cameras cannot be expressed — the schema's only IoT kind is smart_led ('kind: Literal[\"smart_led\"]'), and relabelling cameras as smart LEDs is exactly the mislabel the engine must not do. The correct output names the camera limitation and offers either the expressible smart-LED IoT device or an explicit statement that IP cameras are out of model scope. The POS/back-office/guest segmentation itself is buildable.",
   "why_valuable": "Retail/POS realism (PCI-style isolation) plus an honest capability-gap probe: cameras aren't a verified IoT kind. Prevents the model from pretending it can place real IP cameras.",
   "research_inspiration": [
     "https://security.pditechnologies.com/blog/retail-network-segmentation-guide-secure-every-store-simplify-compliance"
   ],
+  "refusal_kind": "capability-gap",
   "prompt_hash": "916e0d0b2a9dfbd07d164056ace6b4dcdce19f390e025e1a7ef4b3f393f7cef7",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

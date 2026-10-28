@@ -9,12 +9,13 @@
   "prompt": "Our single office needs internet. It has to come in over the DSL line, and at the same time over the cable modem, bonded together into one link. Security also wants the ASA firewall in front, and it has to be a 5505.",
   "expected_intent": null,
   "expect_refusal": true,
-  "expected_behaviour": "TWO issues the model must surface: (1) demanding both DSL and cable as one bonded link is not an expressible access shape (InternetIntent.access is exactly one of wan/dsl/cable) and bonding is unsupported; (2) an ASA 5505 with the described edge is fine only single-site/single-VLAN, so the model must confirm the topology. Must not silently pick one access type or fake a bonded link.",
+  "expected_behaviour": "ONE definite issue the model must surface: the request demands DSL and cable 'bonded together into one link', which is not an expressible access shape (InternetIntent.access is exactly one of wan/dsl/cable, src/network_autopilot/ai/intent.py:237; no bonding shape exists), so the model must say so by name and must not fake a bonded link or silently pick one access type. Everything else is satisfiable: a single office with one inside network is exactly the single inside/outside perimeter an ASA 5505 supports, so no topology question is required. Correct response: surface the bonding contradiction, ask which single access type to use, and accept the 5505.",
   "why_valuable": "L5 contradiction touching a real schema limit (single internet access shape) plus a device constraint — a genuinely hard, realistic 'requirements that can't both hold' case.",
   "research_inspiration": [],
+  "refusal_kind": "contradictory-surface-conflict",
   "prompt_hash": "843d2fab13b43916c2f212ca55e83aed1dc643b5125bdf3b0a113ff1e188c0c6",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

@@ -12,9 +12,10 @@
   "expected_behaviour": "ASK: roughly how many devices in the staff section (and guest section)? The VLAN sizing (required_hosts) depends on it and the model must not invent a count.",
   "why_valuable": "Missing host count — a second, distinct ambiguity axis from oc-014 (sites) and oc-015 (addressing).",
   "research_inspiration": [],
+  "refusal_kind": "ambiguous-clarify",
   "prompt_hash": "28f317dfde3db02b3d69f62cfe3cc1fcc11dd2547ffd93ed59ee136fb03da8f2",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

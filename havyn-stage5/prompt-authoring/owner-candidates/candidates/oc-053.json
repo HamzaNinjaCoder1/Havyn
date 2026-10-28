@@ -6,7 +6,7 @@
   "scenario": "Two-floor office with servers, mixed addressing, exclusions, priorities.",
   "coverage_cell": "medium-s1-a2-multi-static-wan-none",
   "length_category": "document",
-  "prompt": "Company: a 20-person accounting firm on two floors of a building.\n\nPeople & devices:\n- Ground floor: 8 accountant PCs and 2 shared reception PCs.\n- First floor: 6 auditor PCs and a small server room with 2 servers.\n\nRequirements:\n- Auditors must be isolated from the accounting staff — auditors are external, so they get their own network and must not reach the accounting machines or the servers.\n- The two servers host our ledger application (HTTP) and internal DNS; accountants need them, auditors do not.\n- Accountant and reception PCs get addresses automatically; the two servers must be static.\n\nExclusions:\n- No wireless anywhere.\n- No guest/public internet kiosks.\nWe have a WAN internet handoff for the accounting side only.\nPriority: auditor isolation first, then server access, then internet.",
+  "prompt": "We're a 20-person accounting firm redoing the network across our two floors. Downstairs we have 8 accountant PCs and 2 shared reception PCs; upstairs there are 6 auditor PCs and a small server room with 2 servers.\n\nThe auditors are external, so they must be isolated from our own staff — they get their own network and must not be able to reach the accounting machines or the servers. The two servers run our ledger application (HTTP) and internal DNS; the accountants need those, the auditors don't. Accountant and reception PCs should get their addresses automatically, and the two servers must be static.\n\nTwo exclusions: no wireless anywhere, and no guest/public internet kiosks. We do have a WAN internet handoff, but for the accounting side only. If you have to sequence it: auditor isolation first, then server access, then internet.",
   "expected_intent": {
     "intent_version": "1",
     "name": "accounting-firm",
@@ -66,7 +66,7 @@
       {
         "id": "auditornet",
         "name": "Auditors",
-        "dhcp": false,
+        "dhcp": true,
         "site": "building",
         "required_hosts": 12
       },
@@ -143,14 +143,14 @@
     ]
   },
   "expect_refusal": false,
-  "expected_behaviour": "Three VLANs (accounting DHCP, auditors isolated, servers static), two servers (http, dns) on the server VLAN, WAN internet. Auditor isolation is an internal-subnet separation the engine models via separate subnets — no guest_isolation flag needed, so it builds.",
+  "expected_behaviour": "Three VLANs (accounting DHCP, auditors DHCP, servers static), two servers (http, dns) on the server VLAN, WAN internet. Auditor addressing is DHCP because the prompt names only the two servers as static (the intent does not invent a static auditor network). Auditor isolation is an internal-subnet separation the engine models via separate subnets — no guest_isolation flag, so it builds — but the 'auditors cannot reach accounting or the servers' blocking clause has no ACL criterion in expander v1 and verifies UNKNOWN (CG-1), as does the 'WAN for the accounting side only' egress scope. It is recorded here as an inference (not a claim) that the reception PCs share the accounting VLAN.",
   "why_valuable": "Another true long-document with auditor-isolation, mixed addressing, and explicit priorities. Forces full-document extraction; the auditor-isolation-vs-server-access split is the hard part.",
   "research_inspiration": [
     "https://www.censinet.com/perspectives/network-segmentation-strategies-healthcare-it"
   ],
-  "prompt_hash": "0616dc8838960ae476177a005d30d9d15b10e73cc5a2dbf45c77094253b0b613",
+  "prompt_hash": "027c9a29583dda78e81f18b8077fafae775de39e15cbd33ba35874e3203e63e1",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

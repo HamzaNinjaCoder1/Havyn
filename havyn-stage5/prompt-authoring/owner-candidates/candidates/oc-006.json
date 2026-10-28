@@ -6,7 +6,7 @@
   "scenario": "Do office, static routing, internet head office par.",
   "coverage_cell": "small-s2-a1-multi-static-wan-none",
   "length_category": "medium",
-  "prompt": "Hamare do offices hain, Karachi aur Lahore. Karachi head office hai jahan internet line hai, Lahore ko Karachi ke through routing chahiye. Lahore ke computers ko internet bhi head office se milna chahiye. Static routing theek rahegi, protocol mat lagana.",
+  "prompt": "Hamare do offices hain, Karachi aur Lahore. Karachi head office hai jahan internet line hai, Lahore ko Karachi ke through routing chahiye. Karachi mein taqreeban 8 computers hain aur Lahore mein 6, aur dono taraf computers ko IP automatically milna chahiye. Lahore ke computers ko internet bhi head office se milna chahiye. Static routing theek rahegi, protocol mat lagana.",
   "expected_intent": {
     "intent_version": "1",
     "name": "karachi-lahore",
@@ -102,9 +102,9 @@
   "research_inspiration": [
     "https://www.ibm.com/docs/en/i/7.5.0?topic=scenarios-scenario-basic-branch-office-connection"
   ],
-  "prompt_hash": "152acca2c73b16e084591a922cb2566f492d94fddcfcb75f8e431378f48bc7e3",
+  "prompt_hash": "b97d3f066cce8940c8d4370a66407499fca00c4caf77390ae20e479d0f1d8229",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

@@ -61,7 +61,7 @@ reported as such, and shapes the matrix does not contain are marked
 | oc-037 | small-s2-a2-multi-static-wan-none | feature-match | static+wan+none+dhcp | certified cells with these features: medium-s2-a2-multi-dhcp-wan-none, small-s2-a1-multi-dhcp-wan-none, small-s3-a1-multi-dhcp-wan-none |
 | oc-038 | small-s1-a1-multi-dhcp-cable-none | extension-cell | connected+cable+none+wireless+dhcp | no certified cell carries these features |
 | oc-039 | small-s1-a2-multi-dhcp-cable-none | extension-cell | connected+cable+none+wireless+dhcp | no certified cell carries these features |
-| oc-040 | small-s1-a2-multi-dhcp-cable-none-iot | label-only | connected+cable+none+iot+dhcp | cell features 'static+cable+none+wireless+iot+dhcp' vs candidate 'connected+cable+none+iot+dhcp' |
+| oc-040 | small-s1-a2-multi-dhcp-dsl-none | label-only | connected+dsl+none+iot+dhcp | cell features 'static+dsl+none+dhcp' vs candidate 'connected+dsl+none+iot+dhcp' |
 | oc-041 | small-s1-a3-multi-dhcp-wan-none | extension-cell | connected+wan+none+dhcp+servers1+security | no certified cell carries these features |
 | oc-042 | medium-s1-a2-multi-dhcp-cable-none | extension-cell | connected+cable+none+dhcp | no certified cell carries these features |
 | oc-043 | ambiguous-host-count | refusal | - | no intent (expected refusal) - cell coverage n/a |
@@ -77,7 +77,7 @@ reported as such, and shapes the matrix does not contain are marked
 | oc-053 | medium-s1-a2-multi-static-wan-none | extension-cell | connected+wan+none+dhcp+servers2+security | no certified cell carries these features |
 | oc-054 | small-s2-a2-multi-static-wan-none-iot | refusal | - | no intent (expected refusal) - cell coverage n/a |
 | oc-055 | small-s1-a2-multi-dhcp-dsl-none | label-only | connected+dsl+none+dhcp+servers1 | cell features 'static+dsl+none+dhcp' vs candidate 'connected+dsl+none+dhcp+servers1' |
-| oc-056 | small-s1-a2-multi-dhcp-none-none | extension-cell | connected+none+none+mixed+servers1 | no certified cell carries these features |
+| oc-056 | small-s1-a2-multi-dhcp-none-none | extension-cell | connected+none+none+dhcp+servers1 | no certified cell carries these features |
 
 ## Exact fill per certified cell
 

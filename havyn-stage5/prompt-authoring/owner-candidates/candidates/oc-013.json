@@ -6,7 +6,7 @@
   "scenario": "Two-site company, multiple VLANs, servers, OSPF, internet at HQ.",
   "coverage_cell": "small-s2-a2-multi-static-ospf-wan-none",
   "length_category": "document",
-  "prompt": "Rehman Textiles ke do sites hain — Karachi head office aur Faisalabad factory. Karachi mein sales aur accounts ka staff hai (taqreeban 12 PCs), and Faisalabad mein production floor ke terminals (taqreeban 10). Mujhe Karachi aur Faisalabad ko aapas mein connect karna hai with OSPF, kyunki sites barh rahi hain, so manual routes maintain na karni parein. Accounts ka data sensitive hai, so uska alag network hona chahiye aur sales usay na dekh sake. Faisalabad ka production network bhi alag rahe. Internet head office par hai aur factory ko wohi se mile. Accounts aur sales dono DHCP use karein, production ke terminals static. Karachi mein ek DNS server ho jis se dono sites names resolve karein. Wireless ki zaroorat nahi, sab wired, aur firewall mat lagana — hum ISP ke edge par trust karte hain.",
+  "prompt": "Rehman Textiles ke do sites hain — Karachi head office aur Faisalabad factory. Karachi mein sales aur accounts ka staff hai (taqreeban 12 PCs — sales ke 6 aur accounts ke 6), and Faisalabad mein production floor ke terminals (taqreeban 10). Mujhe Karachi aur Faisalabad ko aapas mein connect karna hai with OSPF, kyunki sites barh rahi hain, so manual routes maintain na karni parein. Accounts ka data sensitive hai, so uska alag network hona chahiye aur sales usay na dekh sake. Faisalabad ka production network bhi alag rahe. Internet head office par hai aur factory ko wohi se mile. Accounts aur sales dono DHCP use karein, production ke terminals static. Karachi mein ek DNS server ho jis se dono sites names resolve karein. Wireless ki zaroorat nahi, sab wired, aur firewall mat lagana — hum ISP ke edge par trust karte hain.",
   "expected_intent": {
     "intent_version": "1",
     "name": "rehman-textiles",
@@ -162,9 +162,9 @@
   "research_inspiration": [
     "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
   ],
-  "prompt_hash": "0e0dc67f4bf4d408daa8a7cf2d3393ca279e01cb04ff4e8d335e047d36a28d2c",
+  "prompt_hash": "a1316dd21886e31353e520b315184ed5b9cdc63b27db068c786763f5344cfd4b",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

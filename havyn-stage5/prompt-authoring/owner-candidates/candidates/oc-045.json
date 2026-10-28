@@ -12,9 +12,10 @@
   "expected_behaviour": "Highly open: no site layout, unclear whether a server is even needed, no internet type, no host counts, and the user asks for suggestions on a tight budget. Correct behaviour is a short clarifying dialogue (or a modest proposed design + questions), NOT a confident full build. This is the hardest ambiguity because it invites invention at every layer.",
   "why_valuable": "L5 ambiguity: a novice, budget-constrained, open-ended business request. The temptation to over-build is maximal — exactly what we want to test.",
   "research_inspiration": [],
+  "refusal_kind": "ambiguous-clarify",
   "prompt_hash": "07eb10f356d1c8b3f5e468ee5ce92387a005d7dbb3aa89308e3872b4db0366a3",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

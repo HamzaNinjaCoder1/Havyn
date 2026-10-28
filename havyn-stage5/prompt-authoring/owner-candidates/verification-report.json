@@ -4,8 +4,8 @@
     "engine_verified": 56,
     "failed": 0,
     "refusals_expected": 22,
-    "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607",
-    "verified_at": "2026-10-28T18:19:24+00:00"
+    "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2",
+    "verified_at": "2026-10-28T22:01:26+00:00"
   },
   "failures": []
 }

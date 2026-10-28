@@ -12,9 +12,10 @@
   "expected_behaviour": "REFUSE-BY-NAME: 'asa5505-no-dmz' — the ASA 5505 has no DMZ support in the verified shapes. Offer the ASA 5506-X DMZ perimeter instead.",
   "why_valuable": "Single, clean named refusal; complements the multi-refusal oc-019 by isolating one limit.",
   "research_inspiration": [],
+  "refusal_kind": "capability-gap",
   "prompt_hash": "38a09fc4b123257955dcc9605ca65d08171c34e445e1ce2a82afd416f7729f07",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

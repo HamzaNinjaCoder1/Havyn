@@ -7,16 +7,144 @@
   "coverage_cell": "medium-s1-a3-multi-dhcp-cable-none",
   "length_category": "long",
   "prompt": "School hai — computer lab, classrooms aur staff room. Students ke liye alag network chahiye, aur staff ke liye bhi alag, while a guest network for visitors jo sirf internet tak mehdood ho.\n\n- Computer lab: 20 student PCs.\n- Classrooms: 12 wired PCs.\n- Staff room: 6 staff PCs aur 4 laptops (wireless).\n- Guest network sirf internet, so koi internal access nahi.\nCable internet available hai, and students aur staff ke beech koi sharing nahi honi chahiye.",
-  "expected_intent": null,
+  "refused_intent_shape": {
+    "intent_version": "1",
+    "name": "school",
+    "sites": [
+      {
+        "id": "school",
+        "areas": [
+          {
+            "id": "lab",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "labpcs",
+                "area": "lab",
+                "count": 20,
+                "device": "pc"
+              }
+            ]
+          },
+          {
+            "id": "classrooms",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "classpcs",
+                "area": "classrooms",
+                "count": 12,
+                "device": "pc"
+              }
+            ]
+          },
+          {
+            "id": "staffroom",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "staffroom",
+                "count": 6,
+                "device": "pc"
+              },
+              {
+                "id": "stafflaptops",
+                "area": "staffroom",
+                "count": 4,
+                "device": "laptop"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "studentnet",
+        "name": "Students",
+        "dhcp": true,
+        "site": "school",
+        "required_hosts": 34
+      },
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "school",
+        "required_hosts": 16
+      },
+      {
+        "id": "guestnet",
+        "name": "Guest",
+        "dhcp": true,
+        "site": "school",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "staffwifi",
+        "site": "school",
+        "area": "staffroom",
+        "ssid": "SchoolStaff",
+        "security": "wpa2",
+        "passphrase": "staffroom2026",
+        "client_group_ids": [
+          "stafflaptops"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Students, staff and guest are separate networks",
+        "type": "isolation",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Guest reaches only the internet",
+        "type": "security",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "No sharing between students and staff",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Staff laptops connect over WiFi",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
   "expect_refusal": true,
+  "expected_intent": null,
   "expected_behaviour": "REFUSE-BY-NAME: the guest clause ('sirf internet, koi internal access nahi') is a guest-isolation guarantee, and expander v1 refuses it by name ('guest-isolation-unsupported') — no live-verified shape puts a guest VLAN behind a verified ACL enforcement point. The correct output is the named refusal plus an offer to build the student/staff segmentation with the guest network as a plain separate subnet, making no 'cannot reach internal' promise.",
   "why_valuable": "Campus realism + a second encounter with the guest-isolation capability gap in a different domain and language. Reinforces honest refusal over fabrication.",
   "research_inspiration": [
     "https://www.cisco.com/c/dam/en_us/solutions/industries/docs/education/cisco_wlan_design_guide.pdf"
   ],
+  "refusal_kind": "capability-gap",
   "prompt_hash": "9c647bb47452dc12ff0bf74e7ed67546911388664b5e1e7ea59a010820bce725",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

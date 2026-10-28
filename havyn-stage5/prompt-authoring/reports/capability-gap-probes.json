@@ -1,0 +1,270 @@
+{
+  "source_state": "working tree at engine commit e8503cdfb32a83817a2fbc84ad4245057acf75a2 (ai/ was untracked there; see reproducibility note)",
+  "evidence_class": "engine-executed offline (schema -> intent lint -> expander); no Packet Tracer, no compile to PT",
+  "probes": [
+    {
+      "probe": "guest-isolation",
+      "gap": "CG-4",
+      "claim": "guest_isolation is refused by name",
+      "expected": {
+        "code": "guest-isolation-unsupported"
+      },
+      "observed": {
+        "stage": "expander",
+        "code": "guest-isolation-unsupported",
+        "detail": "Guest-VLAN isolation is not supported by expander v1: no live-verified shape puts a guest VLAN behind a verified ACL enforcement point yet. Remove guest_isolation or wait for a capability update."
+      },
+      "matched": true
+    },
+    {
+      "probe": "guest-vlan-without-isolation",
+      "gap": "CG-4",
+      "claim": "an is_guest VLAN without guest_isolation is a blocking lint finding",
+      "expected": {
+        "code": "guest-vlan-without-isolation"
+      },
+      "observed": {
+        "stage": "intent-lint",
+        "code": "guest-vlan-without-isolation",
+        "detail": "Guest VLAN(s) ['guest'] are declared but firewall.guest_isolation is not enabled, so guests would be able to reach internal networks. Confirm the isolation policy or drop the guest flag."
+      },
+      "matched": true
+    },
+    {
+      "probe": "dmz-multi-site",
+      "gap": "CG-6",
+      "claim": "a DMZ on a multi-site intent is refused by name",
+      "expected": {
+        "code": "dmz-multi-site-unsupported"
+      },
+      "observed": {
+        "stage": "expander",
+        "code": "dmz-multi-site-unsupported",
+        "detail": "A DMZ is only verified on a single-site ASA perimeter (S3.C2); expander v1 does not combine DMZ with a multi-site WAN."
+      },
+      "matched": true
+    },
+    {
+      "probe": "asa5505-no-dmz",
+      "gap": "CG-6",
+      "claim": "an ASA 5505 with a DMZ is refused by name",
+      "expected": {
+        "code": "asa5505-no-dmz"
+      },
+      "observed": {
+        "stage": "expander",
+        "code": "asa5505-no-dmz",
+        "detail": "the ASA 5505 has no third zone; a DMZ needs the 5506-X."
+      },
+      "matched": true
+    },
+    {
+      "probe": "firewall-needs-single-vlan",
+      "gap": "CG-6",
+      "claim": "the ASA inside gateway requires exactly one VLAN",
+      "expected": {
+        "code": "firewall-needs-single-vlan"
+      },
+      "observed": {
+        "stage": "expander",
+        "code": "firewall-needs-single-vlan",
+        "detail": "expander v1 places the ASA as the inside gateway (T07 shape), which requires the internet-facing site to have exactly one VLAN; site 's1' has 2."
+      },
+      "matched": true
+    },
+    {
+      "probe": "asa5505-multi-site",
+      "gap": "CG-6",
+      "claim": "an ASA 5505 on a multi-site intent is a blocking lint finding",
+      "expected": {
+        "code": "asa5505-multi-site"
+      },
+      "observed": {
+        "stage": "intent-lint",
+        "code": "asa5505-multi-site",
+        "detail": "The ASA 5505 has two VLAN-capable ports and is verified only as a single inside/outside perimeter; a multi-site deployment needs the 5506-X."
+      },
+      "matched": true
+    },
+    {
+      "probe": "vlan-outside-site-block",
+      "gap": "CG-10",
+      "claim": "a fixed VLAN CIDR outside the site block is refused by name",
+      "expected": {
+        "code": "vlan-outside-site-block"
+      },
+      "observed": {
+        "stage": "expander",
+        "code": "vlan-outside-site-block",
+        "detail": "VLAN 'v1' fixes 192.168.50.0/24, outside the site block 10.1.0.0/16 expander v1 allocates from. Give a cidr inside the block or use required_hosts."
+      },
+      "matched": true
+    },
+    {
+      "probe": "server-dhcp-service",
+      "gap": "CG-5",
+      "claim": "a Server-PT DHCP service is a blocking lint finding",
+      "expected": {
+        "code": "server-dhcp-service"
+      },
+      "observed": {
+        "stage": "intent-lint",
+        "code": "server-dhcp-service",
+        "detail": "A Server-PT DHCP service is requested. The verified engine path for DHCP is per-VLAN pools on the gateway; server-side DHCP pools are not exposed through the intent yet."
+      },
+      "matched": true
+    },
+    {
+      "probe": "wireless-group-too-large",
+      "gap": "CG-9",
+      "claim": "a wireless host group above 8 clients is a blocking lint finding",
+      "expected": {
+        "code": "wireless-group-too-large"
+      },
+      "observed": {
+        "stage": "intent-lint",
+        "code": "wireless-group-too-large",
+        "detail": "host group 'laptops' asks for 9 wireless laptops in one cell. Packet Tracer radio cells are verified up to 8 clients; split the group into smaller cells."
+      },
+      "matched": true
+    },
+    {
+      "probe": "iot-camera-kind",
+      "gap": "CG-7",
+      "claim": "the IoT kind enum cannot express a camera",
+      "expected": {
+        "code": "ValidationError"
+      },
+      "observed": {
+        "stage": "schema",
+        "code": "ValidationError",
+        "detail": "1 validation error for HavynIntent\niot.0.kind\n  Input should be 'smart_led' [type=literal_error, input_value='camera', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/literal_error"
+      },
+      "matched": true
+    },
+    {
+      "probe": "bonded-access",
+      "gap": "CG-7",
+      "claim": "the internet access enum cannot express a bonded DSL+cable link",
+      "expected": {
+        "code": "ValidationError"
+      },
+      "observed": {
+        "stage": "schema",
+        "code": "ValidationError",
+        "detail": "1 validation error for HavynIntent\ninternet.access\n  Input should be 'wan', 'dsl' or 'cable' [type=literal_error, input_value='bonded', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/literal_error"
+      },
+      "matched": true
+    },
+    {
+      "probe": "cg1-no-inter-vlan-acl",
+      "gap": "CG-1",
+      "claim": "a two-VLAN site emits no inter-VLAN ACL and no blocked criterion",
+      "expected": {
+        "acl_policy_count": 0,
+        "blocked_criteria": 0
+      },
+      "observed": {
+        "acl_policy_count": 0,
+        "acl_policy_ids": [],
+        "blocked_criteria": 0,
+        "iot_device_count": 0,
+        "iot_ip_assignments": [],
+        "net_wan_subnets": [
+          "net-wan"
+        ],
+        "net_wan_assignments": [
+          [
+            "s1-r1",
+            "203.0.113.1"
+          ],
+          [
+            "isp",
+            "203.0.113.2"
+          ]
+        ],
+        "isp_device_count": 1
+      },
+      "matched": true
+    },
+    {
+      "probe": "cg2-iot-no-ip-placement",
+      "gap": "CG-2",
+      "claim": "IoT things are created but receive no IP assignment",
+      "expected": {
+        "iot_device_count": 2,
+        "iot_ip_assignments": []
+      },
+      "observed": {
+        "acl_policy_count": 0,
+        "acl_policy_ids": [],
+        "blocked_criteria": 0,
+        "iot_device_count": 2,
+        "iot_ip_assignments": [],
+        "net_wan_subnets": [
+          "net-wan"
+        ],
+        "net_wan_assignments": [
+          [
+            "s1-r1",
+            "203.0.113.1"
+          ],
+          [
+            "isp",
+            "203.0.113.2"
+          ]
+        ],
+        "isp_device_count": 1
+      },
+      "matched": true
+    },
+    {
+      "probe": "cg3-one-internet-block",
+      "gap": "CG-3",
+      "claim": "a two-site intent builds exactly one internet block at sites[0]",
+      "expected": {
+        "net_wan_subnets": [
+          "net-wan"
+        ],
+        "isp_device_count": 1,
+        "net_wan_assignments": [
+          [
+            "s1-r1",
+            "203.0.113.1"
+          ],
+          [
+            "isp",
+            "203.0.113.2"
+          ]
+        ]
+      },
+      "observed": {
+        "acl_policy_count": 0,
+        "acl_policy_ids": [],
+        "blocked_criteria": 0,
+        "iot_device_count": 0,
+        "iot_ip_assignments": [],
+        "net_wan_subnets": [
+          "net-wan"
+        ],
+        "net_wan_assignments": [
+          [
+            "s1-r1",
+            "203.0.113.1"
+          ],
+          [
+            "isp",
+            "203.0.113.2"
+          ]
+        ],
+        "isp_device_count": 1
+      },
+      "matched": true
+    }
+  ],
+  "summary": {
+    "probes": 14,
+    "matched": 14,
+    "unmatched": []
+  }
+}

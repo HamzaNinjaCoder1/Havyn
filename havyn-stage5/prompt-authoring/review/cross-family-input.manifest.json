@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-10-28T22:02:18+00:00",
+  "records": 56,
+  "fields": [
+    "id",
+    "prompt_hash",
+    "prompt",
+    "expect_refusal",
+    "expected_intent",
+    "expected_behaviour"
+  ],
+  "excluded_fields": [
+    "why_valuable",
+    "research_inspiration",
+    "scenario",
+    "category",
+    "difficulty",
+    "language",
+    "coverage_cell",
+    "length_category"
+  ],
+  "file": "cross-family-input.jsonl",
+  "sha256": "c0baaa4482c0792f4cf03475a2dd2f1b3fc1157fc1f96799d5c439013662d0dd",
+  "candidate_revision": "working tree after the Stage-5 fix pass",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2",
+  "status": "INPUT ONLY — no cross-family review has been run"
+}

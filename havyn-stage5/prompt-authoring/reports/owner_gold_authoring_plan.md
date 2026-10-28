@@ -1,208 +1,273 @@
 # Owner-gold authoring plan (Stage 5)
 
-PROVENANCE — read this before using anything here.
+> **AI candidates are NOT Gold.** The 56 `oc-NNN` records are AI-assisted
+> drafts. Nothing becomes `gold-NNN` until **Hamza personally rewrites the
+> prompt in his own words, confirms the expected intent/refusal, and adopts the
+> record** with the provenance block below. An `oc-NNN` id is never a
+> `gold-NNN` id. Do not copy an AI prompt into `datasets/gold-v1/` unchanged.
 
-The 56 records in `../owner-candidates/` are **AI-assisted drafts** (`oc-NNN`),
-not owner-authored gold. Nothing in this plan is labelled lived experience, and
-no record may enter `datasets/gold-v1/` until Hamza **reviews it, rewrites it in
-his own words, confirms the expected intent/refusal, and adopts it** with
-`provenance.origin: "owner"` + `ai_assisted: true`. An `oc-NNN` id is never a
-`gold-NNN` id.
+## The 100 slots
 
-This file lays out **100 gold slots**:
+| Block | Slots | Basis | Status today |
+| --- | --- | --- | --- |
+| Candidate-backed | `gold-001..056` | 56 engine-verified AI drafts awaiting owner rewrite/adoption | none adopted |
+| Coverage-driven | `gold-057..100` | 35 certified cells with zero exact candidate + 9 language-completeness variants | no prompt exists |
 
-- **gold-001..056** — backed by an existing candidate (engine-verified; may still
-  carry a Model B `REVIEW` question for Hamza).
-- **gold-057..100** — **coverage-driven OPEN slots**: no candidate exists yet, so
-  they need an owner-authored prompt targeting that certified cell.
+Total: **100**. Candidate-backed and coverage-driven are not the same thing as
+coverage-exact: only **1** of the 56 candidates is an exact cell match (see the
+coverage column). The rest are label-only, feature-match, extension-cell or
+refusal. Do not relabel a candidate to pretend a cell is covered.
 
-## Status rule
+## Status of the candidate pool (shipped text)
 
-| final status | meaning |
-| --- | --- |
-| **ACCEPT** | engine-verified AND (post-fix Model B ACCEPT, or pre-fix ACCEPT with only mechanical pins/label changes) |
-| **REVIEW** | engine-verified, but a residual fidelity/naturalness/grading question remains — Hamza must confirm before adoption |
-| **REJECT** | engine-verified but the reviewer's catch stands — must not be adopted as-is (none remain) |
-| **OPEN** | no candidate; needs owner authoring |
+- Engine-verified: **56/56** in the current working tree (34 buildable + 22
+  refusal, 0 failures). See the reproducibility caveat in
+  `reproducibility_dependency.md`: a clean `e8503cd` checkout verifies 48/56
+  until the Stage 3/4 server-service support is committed.
+- Post-fix semantic re-check: **ACCEPT 48 / REVIEW 8 / REJECT 0**.
+  - Of the 16 candidates that were REVIEW at the checkpoint, **8 moved to
+    ACCEPT** after their flagged defects were fixed and re-checked
+    (`oc-004, oc-005, oc-006, oc-030, oc-044, oc-048, oc-049, oc-056`).
+  - **8 remain REVIEW** because the residual is an owner decision, not a text
+    defect (`oc-007, oc-012, oc-013, oc-028, oc-035, oc-040, oc-053, oc-054`).
+  - The re-check was performed by the **same base model** as the drafter and as
+    Model B. It is **not** independent and **not** cross-family validation.
+    Historical Model-B verdicts are preserved in `review/model-b-reviews/`;
+    the shipped-text statuses are in `review/post-fix-recheck.json`.
+- Language: **en 30 / roman-urdu 18 / mixed 8**.
+- Difficulty: **L1 4 / L2 8 / L3 19 / L4 16 / L5 9**.
+- Candidate-vs-certified coverage: exact 1 / label-only 14 / feature-match 4 /
+  extension-cell 15 / refusal 22.
 
-A candidate's final status is the Model B verdict for the revision that shipped.
-25 candidates were re-reviewed after the fix pass (`review/model-b-reviews/batch-5.json`);
-the rest kept a pre-fix verdict only where nothing but VLAN pins / language
-labels changed.
+### Language and difficulty targets for all 100
 
-## Counts as shipped
+| Dimension | Candidate-backed | Coverage-driven | Total target |
+| --- | --- | --- | --- |
+| en | 30 | 24 | **54** |
+| roman-urdu | 18 | 11 | **29** |
+| mixed | 8 | 9 | **17** |
+| L1 | 4 | 6 | **10** |
+| L2 | 8 | 0 | **8** |
+| L3 | 19 | 4 | **23** |
+| L4 | 16 | 29 | **45** |
+| L5 | 9 | 5 | **14** |
 
-- engine-verified: **56 / 56** (0 failures; 34 buildable + 22 refusal) at commit `06c57ced050cda532915c15b1ce772b0a0eaf607`
-- Model B, post-fix re-review (25 candidates): **ACCEPT 16 / REVIEW 9 / REJECT 0**
-- final status across all 56: **ACCEPT 40 / REVIEW 16 / REJECT 0**
-- language labels: **en 30 / roman-urdu 18 / mixed 8**
-- candidate-vs-certified coverage: exact 1 / label-only 14 / feature-match 4 / extension-cell 15 / refusal 22
-- open-slot target languages: en 24 / roman-urdu 11 / mixed 9
+The open-slot allocation is the plan's current target, not a frozen quota. If
+you change a slot's language, keep the total mix roughly intact and record the
+change in the slot row.
 
-The coverage classification is descriptive, not a relabel. `label-only` means the
-declared cell id exists but the intent's features differ from it; `extension-cell`
-means the certified matrix has no cell for that shape. Those are honest gaps, and
-several are deliberate capability-boundary/campus shapes.
+## How to use this plan
 
-## Table 1 — candidate-backed slots (gold-001..056)
+Three passes, in order:
 
-| slot | candidate | lang | diff | category | target cell | shape | coverage | final |
+1. **Resolve the 8 REVIEW residuals** (table below). Answer the owner question
+   first; then rewrite the prompt and adopt, or drop the candidate.
+2. **Rewrite and adopt the 48 ACCEPT candidates.** Do not skip the rewrite: the
+   value of the owner half is that the words are yours, not the model's.
+3. **Author the 44 open slots** (`gold-057..100`) from scratch, targeting the
+   listed certified cell.
+
+Every adopted record must pass `havyn-stage5/scripts/validate_gold.py` before it
+enters the frozen set.
+
+Action codes used below:
+
+- **A** — rewrite in your own words, confirm the intent, adopt as `gold-NNN`.
+- **R** — resolve the residual question first; then rewrite + adopt or drop.
+- **O** — author a new prompt from scratch for the target cell; validate + adopt.
+
+## Table 1 — candidate-backed slots (`gold-001..056`)
+
+`rewrite` is **full** for every row: AI text must not be adopted verbatim.
+`coverage` is the objective classification from `coverage-report.json`.
+
+| slot | candidate | lang | diff | coverage cell | coverage | rewrite | status | action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| gold-001 | oc-001 | en | L1 | basic | `small-s1-a1-single-static-none-none` | buildable | label-only | **ACCEPT** |
-| gold-002 | oc-002 | roman-urdu | L1 | basic | `small-s1-a1-single-static-none-none` | buildable | label-only | **ACCEPT** |
-| gold-003 | oc-003 | en | L2 | vlan-dhcp | `small-s1-a2-multi-dhcp-dsl-none` | buildable | label-only | **ACCEPT** |
-| gold-004 | oc-004 | mixed | L2 | wan-multi-site | `small-s2-a1-multi-dhcp-wan-none` | buildable | exact | **REVIEW** |
-| gold-005 | oc-005 | en | L3 | routing | `medium-s1-a3-multi-static-ospf-wan-none` | buildable | label-only | **REVIEW** |
-| gold-006 | oc-006 | roman-urdu | L3 | routing | `small-s2-a1-multi-static-wan-none` | buildable | feature-match | **REVIEW** |
-| gold-007 | oc-007 | en | L3 | wireless | `small-s1-a2-multi-dhcp-cable-none` | refusal | refusal | **REVIEW** |
-| gold-008 | oc-008 | mixed | L2 | wireless | `small-s1-a1-multi-dhcp-cable-none` | buildable | extension-cell | **ACCEPT** |
-| gold-009 | oc-009 | en | L4 | firewall-security | `small-s1-a1-single-dhcp-wan-asa-dmz` | buildable | label-only | **ACCEPT** |
-| gold-010 | oc-010 | roman-urdu | L4 | firewall-security | `small-s1-a1-single-dhcp-wan-asa` | buildable | label-only | **ACCEPT** |
-| gold-011 | oc-011 | en | L3 | iot | `small-s1-a2-multi-dhcp-cable-none-iot` | buildable | label-only | **ACCEPT** |
-| gold-012 | oc-012 | en | L5 | long-document | `medium-s1-a3-multi-static-wan-none` | buildable | extension-cell | **REVIEW** |
-| gold-013 | oc-013 | mixed | L5 | enterprise | `small-s2-a2-multi-static-ospf-wan-none` | buildable | extension-cell | **REVIEW** |
-| gold-014 | oc-014 | en | L4 | ambiguous | `ambiguous-missing-sites` | refusal | refusal | **ACCEPT** |
-| gold-015 | oc-015 | roman-urdu | L3 | ambiguous | `ambiguous-addressing` | refusal | refusal | **ACCEPT** |
-| gold-016 | oc-016 | mixed | L4 | ambiguous | `ambiguous-internet-type` | refusal | refusal | **ACCEPT** |
-| gold-017 | oc-017 | en | L5 | contradictory | `contradiction-guest-isolation-vs-reach` | refusal | refusal | **ACCEPT** |
-| gold-018 | oc-018 | roman-urdu | L5 | contradictory | `contradiction-isolation-vs-service` | refusal | refusal | **ACCEPT** |
-| gold-019 | oc-019 | en | L4 | impossible-refusal | `refusal-asa5505-multisite-dmz` | refusal | refusal | **ACCEPT** |
-| gold-020 | oc-020 | mixed | L3 | impossible-refusal | `refusal-server-dhcp` | refusal | refusal | **ACCEPT** |
-| gold-021 | oc-021 | en | L4 | impossible-refusal | `refusal-firewall-multivlan` | refusal | refusal | **ACCEPT** |
-| gold-022 | oc-022 | en | L2 | dhcp-static | `small-s1-a1-single-static-none-none` | buildable | label-only | **ACCEPT** |
-| gold-023 | oc-023 | roman-urdu | L3 | servers | `small-s1-a2-multi-dhcp-none-none` | buildable | extension-cell | **ACCEPT** |
-| gold-024 | oc-024 | en | L4 | diagnosis | `small-s1-a2-multi-dhcp-dsl-none` | buildable | label-only | **ACCEPT** |
-| gold-025 | oc-025 | en | L4 | enterprise | `small-s1-a3-multi-dhcp-wan-none` | buildable | extension-cell | **ACCEPT** |
-| gold-026 | oc-026 | mixed | L4 | enterprise | `medium-s1-a3-multi-dhcp-cable-none` | refusal | refusal | **ACCEPT** |
-| gold-027 | oc-027 | en | L3 | enterprise | `small-s1-a3-multi-dhcp-cable-none-iot` | refusal | refusal | **ACCEPT** |
-| gold-028 | oc-028 | en | L4 | enterprise | `medium-s1-a2-multi-dhcp-cable-none` | buildable | extension-cell | **REVIEW** |
-| gold-029 | oc-029 | roman-urdu | L2 | vlan-dhcp | `small-s1-a2-multi-dhcp-dsl-none` | buildable | label-only | **ACCEPT** |
-| gold-030 | oc-030 | mixed | L3 | routing | `small-s3-a1-multi-static-wan-none` | buildable | feature-match | **REVIEW** |
-| gold-031 | oc-031 | en | L1 | basic | `small-s1-a1-single-static-none-none` | buildable | label-only | **ACCEPT** |
-| gold-032 | oc-032 | roman-urdu | L1 | basic | `small-s1-a1-single-static-none-none` | buildable | label-only | **ACCEPT** |
-| gold-033 | oc-033 | en | L2 | vlan-dhcp | `small-s1-a3-multi-dhcp-dsl-none` | buildable | extension-cell | **ACCEPT** |
-| gold-034 | oc-034 | roman-urdu | L2 | dhcp-static | `small-s1-a2-multi-dhcp-none-none` | buildable | extension-cell | **ACCEPT** |
-| gold-035 | oc-035 | en | L3 | wan-multi-site | `small-s3-a1-multi-static-wan-none` | buildable | feature-match | **REVIEW** |
-| gold-036 | oc-036 | en | L3 | routing | `small-s2-a1-multi-static-ospf-wan-none` | buildable | extension-cell | **ACCEPT** |
-| gold-037 | oc-037 | roman-urdu | L4 | wan-multi-site | `small-s2-a2-multi-static-wan-none` | buildable | feature-match | **ACCEPT** |
-| gold-038 | oc-038 | en | L2 | wireless | `small-s1-a1-multi-dhcp-cable-none` | buildable | extension-cell | **ACCEPT** |
-| gold-039 | oc-039 | roman-urdu | L3 | wireless | `small-s1-a2-multi-dhcp-cable-none` | buildable | extension-cell | **ACCEPT** |
-| gold-040 | oc-040 | en | L3 | iot | `small-s1-a2-multi-dhcp-cable-none-iot` | buildable | label-only | **REVIEW** |
-| gold-041 | oc-041 | roman-urdu | L4 | enterprise | `small-s1-a3-multi-dhcp-wan-none` | buildable | extension-cell | **ACCEPT** |
-| gold-042 | oc-042 | en | L3 | campus | `medium-s1-a2-multi-dhcp-cable-none` | buildable | extension-cell | **ACCEPT** |
-| gold-043 | oc-043 | en | L3 | ambiguous | `ambiguous-host-count` | refusal | refusal | **ACCEPT** |
-| gold-044 | oc-044 | roman-urdu | L4 | ambiguous | `ambiguous-routing` | refusal | refusal | **REVIEW** |
-| gold-045 | oc-045 | roman-urdu | L5 | ambiguous | `ambiguous-server-internet` | refusal | refusal | **ACCEPT** |
-| gold-046 | oc-046 | en | L4 | contradictory | `contradiction-total-isolation-vs-full-mesh` | refusal | refusal | **ACCEPT** |
-| gold-047 | oc-047 | roman-urdu | L4 | contradictory | `contradiction-static-vs-dhcp` | refusal | refusal | **ACCEPT** |
-| gold-048 | oc-048 | en | L5 | contradictory | `contradiction-internet-shape` | refusal | refusal | **REVIEW** |
-| gold-049 | oc-049 | roman-urdu | L5 | contradictory | `contradiction-guest-triple` | refusal | refusal | **REVIEW** |
-| gold-050 | oc-050 | en | L3 | impossible-refusal | `refusal-wireless-too-large` | refusal | refusal | **ACCEPT** |
-| gold-051 | oc-051 | roman-urdu | L3 | impossible-refusal | `refusal-asa5505-dmz` | refusal | refusal | **ACCEPT** |
-| gold-052 | oc-052 | en | L4 | impossible-refusal | `refusal-dhcp-and-cidr` | refusal | refusal | **ACCEPT** |
-| gold-053 | oc-053 | en | L5 | long-document | `medium-s1-a2-multi-static-wan-none` | buildable | extension-cell | **REVIEW** |
-| gold-054 | oc-054 | mixed | L5 | long-document | `small-s2-a2-multi-static-wan-none-iot` | refusal | refusal | **REVIEW** |
-| gold-055 | oc-055 | en | L3 | diagnosis | `small-s1-a2-multi-dhcp-dsl-none` | buildable | label-only | **ACCEPT** |
-| gold-056 | oc-056 | roman-urdu | L3 | enhancement | `small-s1-a2-multi-dhcp-none-none` | buildable | extension-cell | **REVIEW** |
+| gold-001 | oc-001 | en | L1 | `small-s1-a1-single-static-none-none` | label-only | full | ACCEPT | A |
+| gold-002 | oc-002 | roman-urdu | L1 | `small-s1-a1-single-static-none-none` | label-only | full | ACCEPT | A |
+| gold-003 | oc-003 | en | L2 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | ACCEPT | A |
+| gold-004 | oc-004 | mixed | L2 | `small-s2-a1-multi-dhcp-wan-none` | exact | full | ACCEPT | A |
+| gold-005 | oc-005 | en | L3 | `medium-s1-a3-multi-static-ospf-wan-none` | label-only | full | ACCEPT | A |
+| gold-006 | oc-006 | roman-urdu | L3 | `small-s2-a1-multi-static-wan-none` | feature-match | full | ACCEPT | A |
+| gold-007 | oc-007 | en | L3 | `small-s1-a2-multi-dhcp-cable-none` | refusal | full | **REVIEW** | R |
+| gold-008 | oc-008 | mixed | L2 | `small-s1-a1-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
+| gold-009 | oc-009 | en | L4 | `small-s1-a1-single-dhcp-wan-asa-dmz` | label-only | full | ACCEPT | A |
+| gold-010 | oc-010 | roman-urdu | L4 | `small-s1-a1-single-dhcp-wan-asa` | label-only | full | ACCEPT | A |
+| gold-011 | oc-011 | en | L3 | `small-s1-a2-multi-dhcp-cable-none-iot` | label-only | full | ACCEPT | A |
+| gold-012 | oc-012 | en | L5 | `medium-s1-a3-multi-static-wan-none` | extension-cell | full | **REVIEW** | R |
+| gold-013 | oc-013 | mixed | L5 | `small-s2-a2-multi-static-ospf-wan-none` | extension-cell | full | **REVIEW** | R |
+| gold-014 | oc-014 | en | L4 | `ambiguous-missing-sites` | refusal | full | ACCEPT | A |
+| gold-015 | oc-015 | roman-urdu | L3 | `ambiguous-addressing` | refusal | full | ACCEPT | A |
+| gold-016 | oc-016 | mixed | L4 | `ambiguous-internet-type` | refusal | full | ACCEPT | A |
+| gold-017 | oc-017 | en | L5 | `contradiction-guest-isolation-vs-reach` | refusal | full | ACCEPT | A |
+| gold-018 | oc-018 | roman-urdu | L5 | `contradiction-isolation-vs-service` | refusal | full | ACCEPT | A |
+| gold-019 | oc-019 | en | L4 | `refusal-asa5505-multisite-dmz` | refusal | full | ACCEPT | A |
+| gold-020 | oc-020 | mixed | L3 | `refusal-server-dhcp` | refusal | full | ACCEPT | A |
+| gold-021 | oc-021 | en | L4 | `refusal-firewall-multivlan` | refusal | full | ACCEPT | A |
+| gold-022 | oc-022 | en | L2 | `small-s1-a1-single-static-none-none` | label-only | full | ACCEPT | A |
+| gold-023 | oc-023 | roman-urdu | L3 | `small-s1-a2-multi-dhcp-none-none` | extension-cell | full | ACCEPT | A |
+| gold-024 | oc-024 | en | L4 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | ACCEPT | A |
+| gold-025 | oc-025 | en | L4 | `small-s1-a3-multi-dhcp-wan-none` | extension-cell | full | ACCEPT | A |
+| gold-026 | oc-026 | mixed | L4 | `medium-s1-a3-multi-dhcp-cable-none` | refusal | full | ACCEPT | A |
+| gold-027 | oc-027 | en | L3 | `small-s1-a3-multi-dhcp-cable-none-iot` | refusal | full | ACCEPT | A |
+| gold-028 | oc-028 | en | L4 | `medium-s1-a2-multi-dhcp-cable-none` | extension-cell | full | **REVIEW** | R |
+| gold-029 | oc-029 | roman-urdu | L2 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | ACCEPT | A |
+| gold-030 | oc-030 | mixed | L3 | `small-s3-a1-multi-static-wan-none` | feature-match | full | ACCEPT | A |
+| gold-031 | oc-031 | en | L1 | `small-s1-a1-single-static-none-none` | label-only | full | ACCEPT | A |
+| gold-032 | oc-032 | roman-urdu | L1 | `small-s1-a1-single-static-none-none` | label-only | full | ACCEPT | A |
+| gold-033 | oc-033 | en | L2 | `small-s1-a3-multi-dhcp-dsl-none` | extension-cell | full | ACCEPT | A |
+| gold-034 | oc-034 | roman-urdu | L2 | `small-s1-a2-multi-dhcp-none-none` | extension-cell | full | ACCEPT | A |
+| gold-035 | oc-035 | en | L3 | `small-s3-a1-multi-static-wan-none` | feature-match | full | **REVIEW** | R |
+| gold-036 | oc-036 | en | L3 | `small-s2-a1-multi-static-ospf-wan-none` | extension-cell | full | ACCEPT | A |
+| gold-037 | oc-037 | roman-urdu | L4 | `small-s2-a2-multi-static-wan-none` | feature-match | full | ACCEPT | A |
+| gold-038 | oc-038 | en | L2 | `small-s1-a1-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
+| gold-039 | oc-039 | roman-urdu | L3 | `small-s1-a2-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
+| gold-040 | oc-040 | en | L3 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | **REVIEW** | R |
+| gold-041 | oc-041 | roman-urdu | L4 | `small-s1-a3-multi-dhcp-wan-none` | extension-cell | full | ACCEPT | A |
+| gold-042 | oc-042 | en | L3 | `medium-s1-a2-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
+| gold-043 | oc-043 | en | L3 | `ambiguous-host-count` | refusal | full | ACCEPT | A |
+| gold-044 | oc-044 | roman-urdu | L4 | `ambiguous-routing` | refusal | full | ACCEPT | A |
+| gold-045 | oc-045 | roman-urdu | L5 | `ambiguous-server-internet` | refusal | full | ACCEPT | A |
+| gold-046 | oc-046 | en | L4 | `contradiction-total-isolation-vs-full-mesh` | refusal | full | ACCEPT | A |
+| gold-047 | oc-047 | roman-urdu | L4 | `contradiction-static-vs-dhcp` | refusal | full | ACCEPT | A |
+| gold-048 | oc-048 | en | L5 | `contradiction-internet-shape` | refusal | full | ACCEPT | A |
+| gold-049 | oc-049 | roman-urdu | L5 | `contradiction-guest-triple` | refusal | full | ACCEPT | A |
+| gold-050 | oc-050 | en | L3 | `refusal-wireless-too-large` | refusal | full | ACCEPT | A |
+| gold-051 | oc-051 | roman-urdu | L3 | `refusal-asa5505-dmz` | refusal | full | ACCEPT | A |
+| gold-052 | oc-052 | en | L4 | `refusal-dhcp-and-cidr` | refusal | full | ACCEPT | A |
+| gold-053 | oc-053 | en | L5 | `medium-s1-a2-multi-static-wan-none` | extension-cell | full | **REVIEW** | R |
+| gold-054 | oc-054 | mixed | L5 | `small-s2-a2-multi-static-wan-none-iot` | refusal | full | **REVIEW** | R |
+| gold-055 | oc-055 | en | L3 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | ACCEPT | A |
+| gold-056 | oc-056 | roman-urdu | L3 | `small-s1-a2-multi-dhcp-none-none` | extension-cell | full | ACCEPT | A |
 
-## Review residuals (16 REVIEW candidates)
+## The 8 REVIEW residuals — exact owner questions
 
-Each is engine-verified; the note is what Hamza must confirm (or fix) before
-adoption. Sourced from `review/model-b-reviews/batch-5.json` or the pre-fix batch
-for mechanical-only candidates.
+Answer these before rewriting. If the answer is "no", drop the candidate or
+change the scenario; do not quietly weaken the verification.
 
-- **oc-004** (pre-fix REVIEW + mechanical-only): Mostly faithful and natural, but the static-routing requirement rests on a vague phrase. A model that chose OSPF or left routing to defaults would be penalized by the intent despite the prompt not clearly forbidding it. A human should confirm the phrasing or the grading.
-- **oc-005** (pre-fix REVIEW + mechanical-only): Strong natural phrasing (the OSPF ask is embedded in a growth rationale, not a keyword), but two intent requirements — DHCP everywhere and OSPF specifically — are not stated or only weakly implied by the prompt. A human should decide whether those are graded or defaulted.
-- **oc-006** (pre-fix REVIEW + mechanical-only): All the stated requirements (two offices, static-only, internet through HO) are faithfully represented in natural Roman-Urdu. The one drift is DHCP: the intent requires it at both sites but the prompt never mentions addressing, which is a substantive build decision (DHCP server device), not just capacity slack.
-- **oc-007** (pre-fix REVIEW + mechanical-only): As a refusal-by-name probe the trigger phrase ('must not be able to reach any of our internal machines') is clearly present and the named refusal plus offer-to-build-on-separate-subnet is consistent with the project's refuse-by-name rule. But this is a deliberate capability-boundary item with a null intent; a human should confirm the capability gap is still real and that a clear, reasonable user request being refused is the intended eval signal.
-- **oc-012** (batch-5 re-review): Strong long-form brief and the four-VLAN/DHCP-vs-static shape is faithful, but two real gaps remain: the guest-facing kiosks named in the prompt are silently dropped, and the stated 'sales and warehouse can open the intranet' audience is not expressed. Modelling the 4 docked laptops as PCs is a substitution a human should confirm. The finance-isolation requirement is carried as a critical REQ while the declared connected routing leaves it unenforceable - the candidate does not claim otherwise, but the contradiction is unresolved. Structure is section-labelled and slightly form-like ('Background:', 'Constraints / exclusions:'), which hurts naturalness.
-- **oc-013** (pre-fix REVIEW + mechanical-only): Faithful and internally consistent — no lost or invented network facts of substance. Held back only because its document skeleton and exclusion clauses duplicate oc-012 almost clause-for-clause, which a human should diversify before this looks like real user traffic.
-- **oc-028** (batch-5 re-review): The three-role split, two SSIDs and DHCP shape are faithful, but two defects need a human: (1) the wireless handhelds/forklift terminals are modelled as six tablets, a substitution the prompt never asks for, and (2) the 'warehouse system' the ops devices exist to talk to is dropped entirely, so a load-bearing part of the operations requirement is unrepresented. The contractor segment is declared with no hosts and the 'internet only' clause is resolved by interpretation - defensible, but worth confirming given the same phrasing is treated as a refusal in oc-054.
-- **oc-030** (batch-5 re-review): Routing requirements are faithful, but the intent invents host groups (8/4/4 PCs) plus DHCP/NAT facts from a prompt that states no endpoints at all — a human should confirm or strip them.
-- **oc-035** (pre-fix REVIEW + mechanical-only): Faithful and natural on its own ('we don't run a routing protocol on a network this size' is good human texture), but it duplicates oc-030's intent exactly. Flagging the pair for human confirmation.
-- **oc-040** (batch-5 re-review): Fidelity to its own prompt is good - staff VLAN, IoT VLAN, cabled smart LEDs, cable internet, and the honest UNKNOWN note on the separation clause. The defect is dataset-level rather than factual: oc-040 restates oc-011 (same scenario, same infrastructure, same expected_behaviour) and adds no new discriminating power, so a human should decide whether to keep both. No invented network facts and the English is natural.
-- **oc-044** (batch-5 re-review): The scenario is genuinely under-determined and the prompt reads like a real user, so the candidate is not nonsense; the problem is grading determinism. expected_behaviour offers two acceptable behaviours instead of one definite ASK, so a correct clarification ('which routing mode, and how many hosts?') and a correct stated assumption both count - that is an open menu. The clarification also stops at routing mode while the prompt is missing load-bearing build data (host counts, addressing), which the rule says an ASK candidate should request rather than assume.
-- **oc-048** (batch-5 re-review): The bonding refusal is solid and definite, but the second required issue is shaky — the prompt already states a single office, so 'must confirm the topology' is an open ask rather than a clearly correct response.
-- **oc-049** (batch-5 re-review): Language and the internet-only-vs-internal-server contradiction are clean, but limb (c) leans on an unqualified generalisation about enforcement points and the expected output names no definite fallback, leaving the target response looser than oc-026's.
-- **oc-053** (batch-5 re-review): The four-way structure (accounting, reception folded in, auditors, server room) and the DHCP/static split match the prompt well, and the two-server HTTP+DNS shape is right. Two defects keep it out of ACCEPT: auditor addressing is invented as static when the prompt is silent (unlike the explicitly automatic accountant/reception PCs), and the auditors-cannot-reach-servers requirement coexists with connected routing and no ACL, so the headline isolation ask is not actually enforced by the declared build. The 'accounting side only' internet scope is also unexpressed. Section-labelled phrasing reads form-like.
-- **oc-054** (batch-5 re-review): Prompt is faithful, language-authentic and human-sounding, but the refusal expectation is internally inconsistent: it refuses the guest 'no other device can see it' guarantee while declaring the identically-shaped POS isolation guarantee buildable, and reason (c) reads as a planner default rather than a hard refusal — a human should confirm whether refusal (or build-plus-UNKNOWN) is the single correct answer.
-- **oc-056** (pre-fix REVIEW + mechanical-only): Natural and a valuable request type, but the intent's host counts and server details are ungrounded in the prompt. Either state rough sizes in the prompt or grade only on structural properties (separate accounts VLAN, file server exists, rest DHCP).
+| slot | candidate | question |
+| --- | --- | --- |
+| gold-007 | oc-007 | Adopt a named refusal for guest-WiFi isolation — a mainstream request — knowing the refusal is source-traced and engine-probed offline, but not live-PT-executed? |
+| gold-012 | oc-012 | Accept a buildable brief whose critical "finance is unreachable from anyone else" clause is recorded UNKNOWN (no inter-VLAN ACL capability)? |
+| gold-013 | oc-013 | Accept a buildable brief whose critical "accounts not reachable by sales" clause is recorded UNKNOWN (CG-1)? |
+| gold-028 | oc-028 | Accept the disclosed compromises: tablets as handhelds/forklift terminals, WMS out of scope, empty contractor segment, "internet only" read as scope? |
+| gold-035 | oc-035 | Keep oc-030 and oc-035 as two slots for one topology (English + Roman-Urdu language pair)? |
+| gold-040 | oc-040 | Keep both smart-LED IoT candidates (oc-011 office, oc-040 retail) even though the engine can only express `smart_led` and the shape is similar? |
+| gold-053 | oc-053 | Accept UNKNOWN auditor isolation and accounting-only WAN scope? |
+| gold-054 | oc-054 | Is refusal (not build + UNKNOWN) the single correct answer for the guest-isolation clause? Confirm the POS separation is not over-claimed. |
 
-## Table 2 — coverage-driven open slots (gold-057..100)
+## Table 2 — coverage-driven open slots (`gold-057..100`)
 
-Derived deterministically: 35 certified cells currently have **zero exact-match
-candidate** (one slot each), plus 9 second-language variants of the largest
-cells (to spread `roman-urdu` / `mixed`). Each needs an owner-authored prompt.
+These 44 slots have **no candidate**. Each row names the certified cell the
+owner should hit. Author a prompt from scratch, then run it through
+`validate_gold.py`. If the cell cannot be built with a faithful prompt, record
+the refusal honestly or escalate — do not bend the prompt to fit the engine.
 
-| slot | target cell | lang | diff | status | basis |
+| slot | target cell | lang | diff | status | action |
 | --- | --- | --- | --- | --- | --- |
-| gold-057 | `large-s1-a4-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-058 | `large-s1-a4-multi-dhcp-dsl-none` | roman-urdu | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-059 | `large-s1-a4-multi-static-ospf-wan-none` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-060 | `large-s1-a4-single-dhcp-wan-asa` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-061 | `large-s1-a4-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-062 | `large-s1-a4-single-static-none-none` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-063 | `medium-s1-a3-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-064 | `medium-s1-a3-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-065 | `medium-s1-a3-multi-static-ospf-wan-none` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-066 | `medium-s1-a3-single-dhcp-wan-asa` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-067 | `medium-s1-a3-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-068 | `medium-s1-a3-single-static-none-none` | en | L1 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-069 | `medium-s2-a2-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-070 | `medium-s2-a2-multi-dhcp-wan-none` | roman-urdu | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-071 | `medium-s2-a2-single-dhcp-wan-asa` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-072 | `medium-s2-a2-single-static-none-none` | en | L1 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-073 | `small-s1-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-074 | `small-s1-a1-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-075 | `small-s1-a1-multi-static-ospf-wan-none` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-076 | `small-s1-a1-single-dhcp-wan-asa` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-077 | `small-s1-a1-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-078 | `small-s1-a1-single-static-none-none` | en | L1 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-079 | `small-s1-a2-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-080 | `small-s1-a2-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-081 | `small-s1-a2-multi-static-ospf-wan-none` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-082 | `small-s1-a2-single-dhcp-wan-asa` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-083 | `small-s1-a2-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-084 | `small-s1-a2-single-static-none-none` | en | L1 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-085 | `small-s2-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-086 | `small-s2-a1-single-dhcp-wan-asa` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-087 | `small-s2-a1-single-static-none-none` | en | L1 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-088 | `small-s3-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-089 | `small-s3-a1-multi-dhcp-wan-none` | roman-urdu | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-090 | `small-s3-a1-single-dhcp-wan-asa` | en | L4 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-091 | `small-s3-a1-single-static-none-none` | en | L1 | OPEN | uncovered certified cell (0 exact fill) |
-| gold-092 | `large-s1-a4-multi-dhcp-cable-none-iot` | en | L4 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-093 | `large-s1-a4-multi-dhcp-dsl-none` | mixed | L4 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-094 | `large-s1-a4-multi-static-ospf-wan-none` | roman-urdu | L4 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-095 | `large-s1-a4-single-dhcp-wan-asa` | roman-urdu | L4 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-096 | `large-s1-a4-single-dhcp-wan-asa-dmz` | roman-urdu | L5 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-097 | `large-s1-a4-single-static-none-none` | roman-urdu | L4 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-098 | `medium-s1-a3-multi-dhcp-cable-none-iot` | en | L4 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-099 | `medium-s1-a3-multi-dhcp-dsl-none` | mixed | L3 | OPEN | language-completeness variant of a large/high-value cell |
-| gold-100 | `medium-s1-a3-multi-static-ospf-wan-none` | roman-urdu | L4 | OPEN | language-completeness variant of a large/high-value cell |
+| gold-057 | `large-s1-a4-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
+| gold-058 | `large-s1-a4-multi-dhcp-dsl-none` | roman-urdu | L4 | OPEN | O |
+| gold-059 | `large-s1-a4-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
+| gold-060 | `large-s1-a4-single-dhcp-wan-asa` | en | L4 | OPEN | O |
+| gold-061 | `large-s1-a4-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
+| gold-062 | `large-s1-a4-single-static-none-none` | en | L4 | OPEN | O |
+| gold-063 | `medium-s1-a3-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
+| gold-064 | `medium-s1-a3-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | O |
+| gold-065 | `medium-s1-a3-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
+| gold-066 | `medium-s1-a3-single-dhcp-wan-asa` | en | L4 | OPEN | O |
+| gold-067 | `medium-s1-a3-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
+| gold-068 | `medium-s1-a3-single-static-none-none` | en | L1 | OPEN | O |
+| gold-069 | `medium-s2-a2-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
+| gold-070 | `medium-s2-a2-multi-dhcp-wan-none` | roman-urdu | L4 | OPEN | O |
+| gold-071 | `medium-s2-a2-single-dhcp-wan-asa` | en | L4 | OPEN | O |
+| gold-072 | `medium-s2-a2-single-static-none-none` | en | L1 | OPEN | O |
+| gold-073 | `small-s1-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
+| gold-074 | `small-s1-a1-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | O |
+| gold-075 | `small-s1-a1-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
+| gold-076 | `small-s1-a1-single-dhcp-wan-asa` | en | L4 | OPEN | O |
+| gold-077 | `small-s1-a1-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
+| gold-078 | `small-s1-a1-single-static-none-none` | en | L1 | OPEN | O |
+| gold-079 | `small-s1-a2-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
+| gold-080 | `small-s1-a2-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | O |
+| gold-081 | `small-s1-a2-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
+| gold-082 | `small-s1-a2-single-dhcp-wan-asa` | en | L4 | OPEN | O |
+| gold-083 | `small-s1-a2-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
+| gold-084 | `small-s1-a2-single-static-none-none` | en | L1 | OPEN | O |
+| gold-085 | `small-s2-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
+| gold-086 | `small-s2-a1-single-dhcp-wan-asa` | en | L4 | OPEN | O |
+| gold-087 | `small-s2-a1-single-static-none-none` | en | L1 | OPEN | O |
+| gold-088 | `small-s3-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
+| gold-089 | `small-s3-a1-multi-dhcp-wan-none` | roman-urdu | L4 | OPEN | O |
+| gold-090 | `small-s3-a1-single-dhcp-wan-asa` | en | L4 | OPEN | O |
+| gold-091 | `small-s3-a1-single-static-none-none` | en | L1 | OPEN | O |
+| gold-092 | `large-s1-a4-multi-dhcp-cable-none-iot` | en | L4 | OPEN | O |
+| gold-093 | `large-s1-a4-multi-dhcp-dsl-none` | mixed | L4 | OPEN | O |
+| gold-094 | `large-s1-a4-multi-static-ospf-wan-none` | roman-urdu | L4 | OPEN | O |
+| gold-095 | `large-s1-a4-single-dhcp-wan-asa` | roman-urdu | L4 | OPEN | O |
+| gold-096 | `large-s1-a4-single-dhcp-wan-asa-dmz` | roman-urdu | L5 | OPEN | O |
+| gold-097 | `large-s1-a4-single-static-none-none` | roman-urdu | L4 | OPEN | O |
+| gold-098 | `medium-s1-a3-multi-dhcp-cable-none-iot` | en | L4 | OPEN | O |
+| gold-099 | `medium-s1-a3-multi-dhcp-dsl-none` | mixed | L3 | OPEN | O |
+| gold-100 | `medium-s1-a3-multi-static-ospf-wan-none` | roman-urdu | L4 | OPEN | O |
 
-## How to adopt a candidate into gold-v1
+## Provenance rule (do not bend)
 
-1. Read the candidate prompt + `expected_behaviour` + its REVIEW residual if any.
-2. Rewrite the prompt in your own words (keep the network facts; do not "fix" a
-   refusal into a build or vice versa).
-3. Confirm the `expected_intent` still describes what you actually asked for. If
-   the engine refuses, confirm the named refusal is the correct answer.
-4. Write a `gold-NNN.json` per `datasets/gold-v1/README.md`: `provenance.origin =
-   "owner"`, `ai_assisted = true`, `adopted_from = "oc-NNN"`, your `author` id.
-5. Run `python scripts/validate_gold.py` (schema → lint → expand → spec-lint →
-   IPAM → compile) and only then add it to the frozen set.
+Every adopted `gold-NNN.json` carries:
 
-## Blockers / what is still unverified
+```json
+{
+  "id": "gold-004",
+  "author": "owner",
+  "language": "mixed",
+  "category": "wan-multi-site",
+  "prompt": "<Hamza's own words, not the oc-NNN prompt>",
+  "expect_refusal": false,
+  "expected_intent": { "...": "..." },
+  "difficulty": "L2",
+  "notes": "owner-authored rewrite; inspired by oc-004",
+  "provenance": {
+    "origin": "owner",
+    "author": "Hamza",
+    "ai_assisted": true,
+    "adopted_from": "oc-004",
+    "rewritten": true,
+    "adopted_at": "YYYY-MM-DD",
+    "engine_commit": "<commit that verified the record>"
+  }
+}
+```
 
-- **gold-001..100 do not exist yet.** gold-001..056 are candidates awaiting
-  adoption; gold-057..100 have no prompt at all.
-- **gold-101..300** need real human contributors; only the workflow/templates in
-  `../external-collection/` exist.
-- **Truly independent Model B**: both rounds ran on the same base model with
-  context isolation (`../review/README.md`), not a different model family. A
-  cross-family review is still required before freeze.
-- **Refusal candidates are source-verified, not executed end-to-end** — see
-  `refusal_source_verification.md`.
-- Live Packet Tracer, GPU training and GGUF export are out of scope here and
-  remain unverified.
+Rules:
+
+1. `prompt` must be rewritten by Hamza. If it is the AI draft verbatim,
+   `rewritten` is false and the record is **not** owner-authored Gold.
+2. `ai_assisted: true` is mandatory for candidate-backed slots. Hiding the AI
+   assistance would make the provenance false; the dataset's value depends on
+   this being honest.
+3. `adopted_from` records the candidate id; it does not make the candidate Gold.
+4. `expected_intent` must be confirmed against the rewritten prompt. If the
+   rewrite changes a network fact, update the intent and re-run
+   `validate_gold.py`; if the fact was load-bearing, do not change it.
+5. A refusal must stay a refusal. Do not "fix" a refusal into a build, or a
+   build into a refusal, to make a slot easier.
+6. Run `python havyn-stage5/scripts/validate_gold.py`; the record is not Gold
+   until it passes. A refusal record passes only with `expect_refusal: true`
+   and `expected_intent: null`.
+7. Never train on `datasets/gold-v1/`; the freeze/leak check is separate.
+
+## Blockers / what is still open
+
+- **0 of 100 Gold slots exist.** Candidate-backed slots are drafts; open slots
+  have no prompt.
+- **56 candidates are engine-verified in the working tree**, but a clean
+  `e8503cd` checkout verifies 48/56 until the Stage 3/4 server-service support
+  is committed. See `reproducibility_dependency.md`.
+- **8 candidates are REVIEW** and need an owner answer before adoption.
+- **Truly independent review is not done.** The previous Model-B rounds used
+  the same base model with context isolation; the post-fix re-check is also the
+  same base model. Cross-family review is still required before freeze; the
+  package is in `cross-family-review-protocol.md`.
+- **200 external examples (gold-101..300) do not exist.** Only the workflow
+  exists; see `external_gold_collection_plan.md`.
+- Live Packet Tracer, GPU training, evaluation, and GGUF export are outside this
+  document and remain unverified.

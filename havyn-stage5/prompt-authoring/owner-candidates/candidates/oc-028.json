@@ -137,7 +137,7 @@
     ]
   },
   "expect_refusal": false,
-  "expected_behaviour": "Three VLANs (operations/office/contractor) and two wireless cells. The operations and office client groups pin different VLANs, so they are delivered as separate subnets. The contractor 'internet only' clause is read as scope (what they need), not as an enforced block, so it does not trip the guest-isolation refusal. Two clauses verify UNKNOWN: inter-VLAN blocking between operations/office/contractors (CG-1 — the expander emits no inter-VLAN ACL), and the 'internet only' guarantee itself. The contractor VLAN is a planned segment with no hosts in this build; the internet is one line at the first site (CG-3).",
+  "expected_behaviour": "Three VLANs (operations/office/contractor) and two wireless cells. The operations and office client groups pin different VLANs, so they are delivered as separate subnets. The contractor 'internet only' clause is read as scope (what they need), not as an enforced block, so it does not trip the guest-isolation refusal. Two clauses verify UNKNOWN: inter-VLAN blocking between operations/office/contractors (CG-1 — the expander emits no inter-VLAN ACL), and the 'internet only' guarantee itself. The contractor VLAN is a planned segment with no hosts in this build; the internet is one line at the first site (CG-3). Two forced mappings are recorded, not hidden: (a) barcode handhelds and forklift terminals have no HostDevice equivalent (enum is pc/laptop/printer/ip_phone/smartphone/tablet), so they are modelled as 6 wireless tablets; (b) the 'warehouse system' the ops devices talk to is the WMS backend, which the prompt does not ask to build, so no server models it — this candidate covers only the segmented ops wireless segment and makes no claim about the WMS.",
   "why_valuable": "Warehouse/logistics realism with TWO wireless cells (a rarer, harder shape) and a third encounter with the isolation boundary in yet another register.",
   "research_inspiration": [
     "https://www.2mtechnology.net/unifi-warehouse-wifi-design"
@@ -145,6 +145,6 @@
   "prompt_hash": "62a4a9f77c36f182aee196b12f4c795ee33559e15f48be8fe786fb394ec4d390",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

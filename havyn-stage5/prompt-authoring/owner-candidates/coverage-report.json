@@ -312,10 +312,10 @@
     },
     {
       "id": "oc-040",
-      "declared_cell": "small-s1-a2-multi-dhcp-cable-none-iot",
+      "declared_cell": "small-s1-a2-multi-dhcp-dsl-none",
       "classification": "label-only",
-      "features": "connected+cable+none+iot+dhcp",
-      "detail": "cell features 'static+cable+none+wireless+iot+dhcp' vs candidate 'connected+cable+none+iot+dhcp'"
+      "features": "connected+dsl+none+iot+dhcp",
+      "detail": "cell features 'static+dsl+none+dhcp' vs candidate 'connected+dsl+none+iot+dhcp'"
     },
     {
       "id": "oc-041",
@@ -415,7 +415,7 @@
       "id": "oc-056",
       "declared_cell": "small-s1-a2-multi-dhcp-none-none",
       "classification": "extension-cell",
-      "features": "connected+none+none+mixed+servers1",
+      "features": "connected+none+none+dhcp+servers1",
       "detail": "no certified cell carries these features"
     }
   ]

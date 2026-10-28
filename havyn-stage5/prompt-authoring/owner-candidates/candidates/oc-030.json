@@ -6,7 +6,7 @@
   "scenario": "Three sites, static routing, internet sirf head office.",
   "coverage_cell": "small-s3-a1-multi-static-wan-none",
   "length_category": "medium",
-  "prompt": "Teen sites hain: head office, aur do branches. Head office par internet line hai, and dono branches ko head office ke through routing chahiye — internet bhi wahi se mile. Static routing use karein, so OSPF ki abhi zaroorat nahi.",
+  "prompt": "Teen sites hain: head office, aur do branches. Head office par taqreeban 8 computers hain, aur har branch par 4, aur sab ko IP automatically milna chahiye (DHCP). Head office par internet line hai, and dono branches ko head office ke through routing chahiye — internet bhi wahi se mile. Static routing use karein, so OSPF ki abhi zaroorat nahi.",
   "expected_intent": {
     "intent_version": "1",
     "name": "three-sites",
@@ -124,9 +124,9 @@
   "research_inspiration": [
     "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
   ],
-  "prompt_hash": "096917e810c8b6fc056ad30afd554ea40773f317e966922d7910bc50daab8e7d",
+  "prompt_hash": "c63fbe714f67c361083270762fb3d42ebae6c62dbb8f0bb3c6ec41d2811f2262",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

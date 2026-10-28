@@ -6,7 +6,7 @@
   "scenario": "Head office + one branch connected, DHCP at both, internet both.",
   "coverage_cell": "small-s2-a1-multi-dhcp-wan-none",
   "length_category": "medium",
-  "prompt": "Head office aur ek branch ko connect karna hai. Dono jagah DHCP chahiye and dono ko internet bhi chahiye. Branch se head office tak traffic static routing se jaani chahiye, so that routes haath se set karni parein aur koi dynamic protocol configure na karna pare.",
+  "prompt": "Head office aur ek branch ko connect karna hai. Head office mein taqreeban 8 PCs hain aur branch mein 5. Dono jagah DHCP chahiye and dono ko internet bhi chahiye. Branch se head office tak traffic static routing se jaani chahiye, so that routes haath se set karni parein aur koi dynamic protocol configure na karna pare.",
   "expected_intent": {
     "intent_version": "1",
     "name": "ho-branch",
@@ -95,14 +95,14 @@
     ]
   },
   "expect_refusal": false,
-  "expected_behaviour": "Two sites, static routing between them, WAN internet with NAT at each, DHCP per site.",
+  "expected_behaviour": "Two sites, static routing between them, DHCP per site, and one WAN internet block + NAT at the head office (CG-3); the branch reaches the internet through that static route.",
   "why_valuable": "Mixed-language multi-site; tests cross-site routing + internet without leaking English-only phrasing.",
   "research_inspiration": [
     "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
   ],
-  "prompt_hash": "9d870cc786412b4f6dbb8016f020605fdba1de47a1b3f17110ff927d21c599ab",
+  "prompt_hash": "5442e76f523512d6e4fb5eb650d7523a0bdb453f0870d98b2bc42f23e4f736f2",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

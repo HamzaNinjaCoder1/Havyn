@@ -6,7 +6,7 @@
   "scenario": "Three-floor building, one VLAN per floor, OSPF between floors.",
   "coverage_cell": "medium-s1-a3-multi-static-ospf-wan-none",
   "length_category": "long",
-  "prompt": "We occupy three floors of one building. Treat each floor as its own network — ground floor for walk-in customers' kiosks, first floor for staff, second floor for management. All floors must talk to each other and I'd like a proper routing protocol rather than hand-written routes, because this network will grow. Staff and management should not share a broadcast domain. No internet yet.",
+  "prompt": "We occupy three floors of one building. Treat each floor as its own network — ground floor for the walk-in customers' kiosks (about six), first floor for the ten staff, second floor for the four management desks. All floors must talk to each other and I'd like to run OSPF rather than hand-written routes, because this network will grow. Everyone should get their addresses automatically. Staff and management should not share a broadcast domain. No internet yet.",
   "expected_intent": {
     "intent_version": "1",
     "name": "three-floor",
@@ -100,7 +100,7 @@
       },
       {
         "id": "REQ-003",
-        "statement": "Use a dynamic routing protocol, not static routes",
+        "statement": "Use OSPF, not static routes",
         "type": "operational",
         "priority": "normal",
         "source": "prompt"
@@ -108,14 +108,14 @@
     ]
   },
   "expect_refusal": false,
-  "expected_behaviour": "Three VLANs, OSPF area 0, staff/management separated by subnet.",
-  "why_valuable": "Genuinely asks for OSPF by intent ('proper routing protocol'), not by keyword; realistic growth motivation.",
+  "expected_behaviour": "Three VLANs, OSPF area 0 (the prompt names OSPF explicitly), DHCP everywhere, staff/management separated by subnet.",
+  "why_valuable": "Genuinely asks for OSPF through a growth rationale, not a bare keyword; realistic motivation.",
   "research_inspiration": [
     "https://www.cisco.com/c/dam/en/us/td/docs/solutions/CVD/Oct2015/Campus_LAN_Wireless_LAN_Design_Oct2105.pdf"
   ],
-  "prompt_hash": "32bbd02bce833dbbbe827984501abab88361248cdf4cfa135c8d03229a6c3fc2",
+  "prompt_hash": "ab854e3142f0db14068e46f4e3f5409e82be03fee3bc295c198d9b9b71403a34",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

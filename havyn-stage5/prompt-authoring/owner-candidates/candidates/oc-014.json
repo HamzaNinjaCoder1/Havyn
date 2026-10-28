@@ -12,9 +12,10 @@
   "expected_behaviour": "ASK: how many branches and where is the main site? Also unclear whether each branch needs its own internet or internet only at the main site. The model must NOT invent a site count. Correct behaviour is a targeted clarification, not a guess and not a full refusal.",
   "why_valuable": "Deliberately missing the site count — the number one thing the expander cannot invent. Tests clarify-don't-invent.",
   "research_inspiration": [],
+  "refusal_kind": "ambiguous-clarify",
   "prompt_hash": "97f9f90a7ca6f8bfce8d11fa91147cb2ed9312aa24c00619afbd727d7f705219",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

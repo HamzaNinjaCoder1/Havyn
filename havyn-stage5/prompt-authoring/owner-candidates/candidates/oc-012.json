@@ -6,7 +6,7 @@
   "scenario": "Multi-area enterprise office: several VLANs, servers, internet, isolation.",
   "coverage_cell": "medium-s1-a3-multi-static-wan-none",
   "length_category": "document",
-  "prompt": "Background: Northwind Trading is a 45-person wholesale company moving into a single-floor unit. We have four functional groups: sales (18 desktop PCs plus 4 docked laptops), warehouse (about 12 people who use wired terminals), finance (about 8 people, wired PCs that hold our accounting system), and a reception/meeting area (about 7 shared PCs and guest-facing kiosks).\n\nCurrent environment: nothing — this is a green-field unit, we are pulling one fibre handoff from the ISP.\n\nTarget environment:\n- Sales, warehouse and finance must each be on their own network. Finance especially must not be reachable by anyone outside finance.\n- Reception/meeting PCs and the kiosks are shared and untrusted, so keep them apart from the working groups.\n- We need one internal server hosting our intranet (HTTP) that sales and warehouse can open, and a company DNS server.\n- Everyone gets addresses automatically, except finance — the finance machines use static addresses.\n\nConstraints / exclusions:\n- No wireless for now; wired only.\n- No guest internet kiosk isolation magic — just keep them on their own segment.\n- Don't add a firewall appliance; our ISP handles the edge.\nPriority: get the four segments right first; internet second (we'll add it after the segments are signed off).",
+  "prompt": "Hi — this is the brief for the Northwind Trading fit-out. We're a 45-person wholesale company moving into a single-floor unit that is currently empty; the only thing coming in from outside is one fibre handoff from the ISP, and we wire the rest ourselves.\n\nThe unit splits into four groups. Sales is 22 wired desks. Warehouse is about 12 people on wired terminals. Finance is about 8 people on wired PCs that hold our accounting system. Then there's a reception/meeting area with about 7 shared PCs and 3 guest-facing kiosks.\n\nWhat I need:\n- Sales, warehouse and finance each on their own network. Finance above all must not be reachable by anyone outside finance.\n- The reception PCs and the kiosks are shared and untrusted, so keep them apart from the working groups — no guest-isolation magic, just their own segment.\n- One internal server hosting our intranet (HTTP) that sales and warehouse can open, and a company DNS server.\n- Everyone gets addresses automatically, except finance — the finance machines are static.\n- No wireless for now, wired only; and don't add a firewall appliance, our ISP handles the edge.\n\nGet the four segments signed off first; internet comes second, we'll add it after.",
   "expected_intent": {
     "intent_version": "1",
     "name": "northwind",
@@ -21,14 +21,7 @@
               {
                 "id": "salespcs",
                 "area": "salesarea",
-                "count": 18,
-                "device": "pc",
-                "vlan": "salesnet"
-              },
-              {
-                "id": "saleslaptops",
-                "area": "salesarea",
-                "count": 4,
+                "count": 22,
                 "device": "pc",
                 "vlan": "salesnet"
               }
@@ -69,6 +62,13 @@
                 "id": "sharedpcs",
                 "area": "receptionarea",
                 "count": 7,
+                "device": "pc",
+                "vlan": "receptionnet"
+              },
+              {
+                "id": "kiosks",
+                "area": "receptionarea",
+                "count": 3,
                 "device": "pc",
                 "vlan": "receptionnet"
               }
@@ -174,14 +174,14 @@
     ]
   },
   "expect_refusal": false,
-  "expected_behaviour": "Four VLANs (sales/warehouse/finance/reception), servers on the sales VLAN, finance machines static while everyone else is DHCP, connected routing, no internet and no firewall (both explicitly excluded).",
+  "expected_behaviour": "Four VLANs (sales/warehouse/finance/reception), servers on the sales VLAN, finance machines static while everyone else is DHCP, connected routing, no internet and no firewall (both explicitly excluded). The kiosks share the reception subnet. The audience clause ('sales and warehouse can open the intranet') is served by connected routing; the inter-VLAN blocking clauses (finance unreachable from other groups, kiosks kept apart) have no ACL criterion in expander v1, so they verify UNKNOWN (CG-1) — the prompt keeps the request faithful and the build does not over-claim it.",
   "why_valuable": "True L5 long-document: multi-paragraph, four groups, mixed addressing, explicit exclusions, and a priority ordering. Forces full-document extraction; the 'no internet / no firewall' exclusions trap a model that only reads the first line.",
   "research_inspiration": [
     "https://www.purple.ai/en-us/guides/wifi-network-segmentation-vlans-ssids-and-guest-traffic"
   ],
-  "prompt_hash": "3f7a85905ce0e1fb9ed30b172c2bc192d5daa14e48ac9b4357654775e807e351",
+  "prompt_hash": "2e9fab02a96d5ff31f6488c715c1f93365f820fb70953b57e0411e0637ac97fd",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

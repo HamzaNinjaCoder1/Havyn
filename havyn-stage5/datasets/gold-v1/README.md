@@ -39,3 +39,34 @@ This directory holds the 300-example gold evaluation set:
 Authors write `prompt` (+ `expected_intent` or `expect_refusal`). Everything
 engine-related (`engine_verified`, `verified_at`) is filled by
 `validate_gold.py`, never by hand.
+
+## Provenance for owner slots (gold-001..100)
+
+AI-assisted drafts live in `../../prompt-authoring/owner-candidates/` as
+`oc-NNN.json`. **An `oc-NNN` draft is not gold and must never be copied here
+unchanged.** Owner adoption requires:
+
+1. Hamza rewrites the prompt in his own words (the draft text is not adopted
+   verbatim).
+2. He confirms the `expected_intent` / refusal against the rewritten prompt.
+3. The record carries this block:
+
+```json
+"provenance": {
+  "origin": "owner",
+  "author": "Hamza",
+  "ai_assisted": true,
+  "adopted_from": "oc-004",
+  "rewritten": true,
+  "adopted_at": "YYYY-MM-DD",
+  "engine_commit": "<commit that verified the record>"
+}
+```
+
+`ai_assisted: true` is mandatory for candidate-backed slots even after a full
+rewrite: the scenario and expected intent were AI-drafted. Hiding that would
+make the provenance false. `rewritten: false` is not owner-authored gold.
+
+The 100-slot plan (candidate-backed + coverage-driven, with per-slot actions and
+the 8 open owner questions) is
+`../../prompt-authoring/reports/owner_gold_authoring_plan.md`.

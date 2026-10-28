@@ -53,10 +53,10 @@ record per candidate:
 }
 ```
 
-Batch totals from the review run recorded in this directory:
+Batch totals from the first review run (batch-1..4, one record per candidate):
 **ACCEPT 24 / REVIEW 27 / REJECT 5** (REJECTs: oc-008, oc-012, oc-025, oc-050,
-oc-055). The batch JSONs are the authoritative record; nothing in them is
-edited after the fact.
+oc-055). batch-5 is a separate re-read of 25 candidates. The batch JSONs are
+the authoritative record; nothing in them is edited after the fact.
 
 ## Decisions taken on specific REVIEW verdicts (recorded, not hidden)
 
@@ -67,14 +67,24 @@ edited after the fact.
 | oc-044 | reviewer preferred a clarification over a silent assumption | kept as `expect_refusal`; `expected_behaviour` broadened to the agreed standard: surfacing options preferred, an explicitly stated assumption acceptable, a silent pick not acceptable |
 | oc-030 / oc-035 | two candidates share one topology (same network, two languages) | deliberate language-pairing, not a duplicate: prompts and language differ, the shape is intentionally identical; documented here rather than edited apart |
 
-## Fix pass and re-review
+## Fix pass and re-review — corrected record
 
-The first fix pass (`../owner-candidates/FIX_PASS_PLAN.md`) resolves the
-REJECT/REVIEW findings and adds the missing VLAN pins. Because pins and prompt
-edits change what a reviewer sees, Model B verdicts are only valid for the
-revision they reviewed: after the fix pass the candidates are re-verified by the
-engine, and the Model B verdict totals in this directory apply to the
-**pre-fix revision**. Post-fix statuses are recorded in
-`../owner-candidates/verification-report.json` (engine truth) and the sorted
-status table in `../reports/owner_gold_authoring_plan.md`; a re-review on a
-different model family is still required before the gold set is frozen.
+The fix pass (`../owner-candidates/FIX_PASS_PLAN.md`) was applied **after**
+the checkpoint. batch-5 is therefore not a blanket post-fix review: several of
+its REVIEW reasons describe text the fix pass replaced. For example, batch-5
+says oc-030's prompt "states no endpoints at all" and that oc-012's kiosks are
+"silently dropped"; the shipped prompts contain the counts and the kiosks.
+Those batch-5 texts are kept as-is because the batch record is immutable. They
+are valid for the revision they saw, not for the shipped text.
+
+Statuses for the shipped text are recorded in
+[`POST_FIX_RECHECK.md`](POST_FIX_RECHECK.md) and
+[`post-fix-recheck.json`](post-fix-recheck.json). That re-check was performed by
+the **same base model** as the drafter and as Model B, so it is **not**
+independent and **not** cross-family validation. It supersedes the *status*
+only; the historical verdicts above remain the record of what was reviewed.
+
+Engine truth for the shipped revision is
+`../owner-candidates/verification-report.json`. A genuine cross-family review
+is still required before the gold set is frozen; the input package and protocol
+are in `../reports/cross-family-review-protocol.md`.

@@ -163,7 +163,8 @@ CANDIDATES: list[dict] = [
     "scenario": "Head office + one branch connected, DHCP at both, internet both.",
     "coverage_cell": "small-s2-a1-multi-dhcp-wan-none",
     "length_category": "medium",
-    "prompt": "Head office aur ek branch ko connect karna hai. Dono jagah DHCP chahiye "
+    "prompt": "Head office aur ek branch ko connect karna hai. Head office mein "
+              "taqreeban 8 PCs hain aur branch mein 5. Dono jagah DHCP chahiye "
               "and dono ko internet bhi chahiye. Branch se head office tak traffic "
               "static routing se jaani chahiye, so that routes haath se set karni "
               "parein aur koi dynamic protocol configure na karna pare.",
@@ -186,7 +187,9 @@ CANDIDATES: list[dict] = [
         ],
     },
     "expect_refusal": False,
-    "expected_behaviour": "Two sites, static routing between them, WAN internet with NAT at each, DHCP per site.",
+    "expected_behaviour": "Two sites, static routing between them, DHCP per site, and one WAN internet "
+                          "block + NAT at the head office (CG-3); the branch reaches the internet through "
+                          "that static route.",
     "why_valuable": "Mixed-language multi-site; tests cross-site routing + internet without leaking English-only phrasing.",
     "research_inspiration": ["https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"],
 },
@@ -201,11 +204,12 @@ CANDIDATES: list[dict] = [
     "coverage_cell": "medium-s1-a3-multi-static-ospf-wan-none",
     "length_category": "long",
     "prompt": "We occupy three floors of one building. Treat each floor as its own "
-              "network — ground floor for walk-in customers' kiosks, first floor for "
-              "staff, second floor for management. All floors must talk to each other "
-              "and I'd like a proper routing protocol rather than hand-written routes, "
-              "because this network will grow. Staff and management should not share "
-              "a broadcast domain. No internet yet.",
+              "network — ground floor for the walk-in customers' kiosks (about six), "
+              "first floor for the ten staff, second floor for the four management "
+              "desks. All floors must talk to each other and I'd like to run OSPF "
+              "rather than hand-written routes, because this network will grow. "
+              "Everyone should get their addresses automatically. Staff and management "
+              "should not share a broadcast domain. No internet yet.",
     "expected_intent": {
         "intent_version": "1", "name": "three-floor",
         "sites": [_site("building", [
@@ -222,12 +226,13 @@ CANDIDATES: list[dict] = [
         "requirements": [
             _req("REQ-001", "Every floor reaches every other floor"),
             _req("REQ-002", "Staff and management are on separate networks", "isolation"),
-            _req("REQ-003", "Use a dynamic routing protocol, not static routes", "operational"),
+            _req("REQ-003", "Use OSPF, not static routes", "operational"),
         ],
     },
     "expect_refusal": False,
-    "expected_behaviour": "Three VLANs, OSPF area 0, staff/management separated by subnet.",
-    "why_valuable": "Genuinely asks for OSPF by intent ('proper routing protocol'), not by keyword; realistic growth motivation.",
+    "expected_behaviour": "Three VLANs, OSPF area 0 (the prompt names OSPF explicitly), DHCP everywhere, "
+                          "staff/management separated by subnet.",
+    "why_valuable": "Genuinely asks for OSPF through a growth rationale, not a bare keyword; realistic motivation.",
     "research_inspiration": ["https://www.cisco.com/c/dam/en/us/td/docs/solutions/CVD/Oct2015/Campus_LAN_Wireless_LAN_Design_Oct2105.pdf"],
 },
 {
@@ -238,7 +243,9 @@ CANDIDATES: list[dict] = [
     "length_category": "medium",
     "prompt": "Hamare do offices hain, Karachi aur Lahore. Karachi head office hai "
               "jahan internet line hai, Lahore ko Karachi ke through routing chahiye. "
-              "Lahore ke computers ko internet bhi head office se milna chahiye. "
+              "Karachi mein taqreeban 8 computers hain aur Lahore mein 6, aur dono "
+              "taraf computers ko IP automatically milna chahiye. Lahore ke computers "
+              "ko internet bhi head office se milna chahiye. "
               "Static routing theek rahegi, protocol mat lagana.",
     "expected_intent": {
         "intent_version": "1", "name": "karachi-lahore",
@@ -277,7 +284,11 @@ CANDIDATES: list[dict] = [
               "visitors. Guests should only get internet — they must not be able to "
               "reach any of our internal machines. Staff laptops stay on the internal "
               "network. Cable internet is fine.",
-    "expected_intent": {
+    # What a build WOULD look like if guest_isolation were supported. It is
+    # deliberately discarded (expected_intent is None) because this candidate is
+    # a refusal; kept under its own key so it is never a silently-overridden
+    # duplicate of expected_intent.
+    "refused_intent_shape": {
         "intent_version": "1", "name": "office-wifi",
         "sites": [_site("office", [
             _area("workspace", [
@@ -307,8 +318,12 @@ CANDIDATES: list[dict] = [
     "expected_intent": None,
     "expected_behaviour": "REFUSE-BY-NAME: guest_isolation is unsupported by expander v1 (no live-verified ACL "
                           "enforcement point). The correct output is the named refusal 'guest-isolation-unsupported' "
+                          "(raised at src/network_autopilot/ai/expander.py:299 when firewall.guest_isolation is set) "
                           "plus an offer to build guest on a separate subnet without a guaranteed isolation ACL. "
-                          "This is a REAL current limitation, not an invented one.",
+                          "This is a REAL current limitation, not an invented one. Capability-gap guard: this "
+                          "refusal is pinned to the engine commit recorded in the emitted JSON; if guest_isolation "
+                          "support ever lands, re-derive this candidate rather than trusting the old verdict.",
+    "refusal_kind": "capability-gap",
     "why_valuable": "The single most-requested real-world feature (guest WiFi isolation) is exactly what the engine "
                     "refuses today. Trains 'I cannot safely build this yet' instead of a fake build. Flagged as a capability gap.",
     "research_inspiration": ["https://help.ui.com/hc/en-us/articles/23948850278295-Best-Practices-Guest-WiFi",
@@ -484,44 +499,42 @@ CANDIDATES: list[dict] = [
     "scenario": "Multi-area enterprise office: several VLANs, servers, internet, isolation.",
     "coverage_cell": "medium-s1-a3-multi-static-wan-none",
     "length_category": "document",
-    "prompt": "Background: Northwind Trading is a 45-person wholesale company moving "
-              "into a single-floor unit. We have four functional groups: sales (18 "
-              "desktop PCs plus 4 docked laptops), warehouse (about 12 "
-              "people who use wired terminals), finance (about 8 people, wired PCs that "
-              "hold our accounting system), and a reception/meeting area (about 7 "
-              "shared PCs and guest-facing kiosks).\n\n"
-              "Current environment: nothing — this is a green-field unit, we are "
-              "pulling one fibre handoff from the ISP.\n\n"
-              "Target environment:\n"
-              "- Sales, warehouse and finance must each be on their own network. Finance "
-              "especially must not be reachable by anyone outside finance.\n"
-              "- Reception/meeting PCs and the kiosks are shared and untrusted, so keep "
-              "them apart from the working groups.\n"
-              "- We need one internal server hosting our intranet (HTTP) that sales and "
+    "prompt": "Hi — this is the brief for the Northwind Trading fit-out. We're a "
+              "45-person wholesale company moving into a single-floor unit that is "
+              "currently empty; the only thing coming in from outside is one fibre "
+              "handoff from the ISP, and we wire the rest ourselves.\n\n"
+              "The unit splits into four groups. Sales is 22 wired desks. Warehouse is "
+              "about 12 people on wired terminals. Finance is about 8 people on wired "
+              "PCs that hold our accounting system. Then there's a reception/meeting "
+              "area with about 7 shared PCs and 3 guest-facing kiosks.\n\n"
+              "What I need:\n"
+              "- Sales, warehouse and finance each on their own network. Finance above "
+              "all must not be reachable by anyone outside finance.\n"
+              "- The reception PCs and the kiosks are shared and untrusted, so keep "
+              "them apart from the working groups — no guest-isolation magic, just "
+              "their own segment.\n"
+              "- One internal server hosting our intranet (HTTP) that sales and "
               "warehouse can open, and a company DNS server.\n"
               "- Everyone gets addresses automatically, except finance — the finance "
-              "machines use static addresses.\n\n"
-              "Constraints / exclusions:\n"
-              "- No wireless for now; wired only.\n"
-              "- No guest internet kiosk isolation magic — just keep them on their own "
-              "segment.\n"
-              "- Don't add a firewall appliance; our ISP handles the edge.\n"
-              "Priority: get the four segments right first; internet second (we'll add "
-              "it after the segments are signed off).",
+              "machines are static.\n"
+              "- No wireless for now, wired only; and don't add a firewall appliance, "
+              "our ISP handles the edge.\n\n"
+              "Get the four segments signed off first; internet comes second, we'll "
+              "add it after.",
     "expected_intent": {
         "intent_version": "1", "name": "northwind",
         "sites": [_site("unit", [
             _area("salesarea", [
-                _pc("salespcs", "salesarea", 18, vlan="salesnet"),
-                # Prompt says "wired only" — the sales laptops are docked/wired,
-                # so they are ordinary PCs here (no wireless radio implied).
-                _pc("saleslaptops", "salesarea", 4, vlan="salesnet"),
+                _pc("salespcs", "salesarea", 22, vlan="salesnet"),
             ]),
             _area("warehousearea", [_pc("whsterminals", "warehousearea", 12, vlan="whsnet")]),
             _area("financearea", [
                 _pc("financepcs", "financearea", 8, addressing="static", vlan="financenet"),
             ]),
-            _area("receptionarea", [_pc("sharedpcs", "receptionarea", 7, vlan="receptionnet")]),
+            _area("receptionarea", [
+                _pc("sharedpcs", "receptionarea", 7, vlan="receptionnet"),
+                _pc("kiosks", "receptionarea", 3, vlan="receptionnet"),
+            ]),
         ])],
         "vlans": [
             _vlan("salesnet", "Sales", site="unit", required=26, dhcp=True),
@@ -546,7 +559,11 @@ CANDIDATES: list[dict] = [
     "expect_refusal": False,
     "expected_behaviour": "Four VLANs (sales/warehouse/finance/reception), servers on the sales VLAN, finance machines "
                           "static while everyone else is DHCP, connected routing, no internet and no firewall (both "
-                          "explicitly excluded).",
+                          "explicitly excluded). The kiosks share the reception subnet. The audience clause ('sales and "
+                          "warehouse can open the intranet') is served by connected routing; the inter-VLAN "
+                          "blocking clauses (finance unreachable from other groups, kiosks kept apart) have no ACL "
+                          "criterion in expander v1, so they verify UNKNOWN (CG-1) — the prompt keeps the request "
+                          "faithful and the build does not over-claim it.",
     "why_valuable": "True L5 long-document: multi-paragraph, four groups, mixed addressing, explicit exclusions, and a "
                     "priority ordering. Forces full-document extraction; the 'no internet / no firewall' exclusions trap "
                     "a model that only reads the first line.",
@@ -559,8 +576,9 @@ CANDIDATES: list[dict] = [
     "coverage_cell": "small-s2-a2-multi-static-ospf-wan-none",
     "length_category": "document",
     "prompt": "Rehman Textiles ke do sites hain — Karachi head office aur Faisalabad "
-              "factory. Karachi mein sales aur accounts ka staff hai (taqreeban 12 PCs), "
-              "and Faisalabad mein production floor ke terminals (taqreeban 10). Mujhe "
+              "factory. Karachi mein sales aur accounts ka staff hai (taqreeban 12 PCs — "
+              "sales ke 6 aur accounts ke 6), and Faisalabad mein production floor ke "
+              "terminals (taqreeban 10). Mujhe "
               "Karachi aur Faisalabad ko aapas mein connect karna hai with OSPF, kyunki "
               "sites barh rahi hain, so manual routes maintain na karni parein. Accounts "
               "ka data sensitive hai, so uska alag network hona chahiye aur sales usay na "
@@ -929,7 +947,9 @@ CANDIDATES: list[dict] = [
               "- Guest network sirf internet, so koi internal access nahi.\n"
               "Cable internet available hai, and students aur staff ke beech koi sharing "
               "nahi honi chahiye.",
-    "expected_intent": {
+    # Shape a build WOULD take if the guest-isolation capability existed; the
+    # candidate refuses, so expected_intent stays None (see oc-007 for the rule).
+    "refused_intent_shape": {
         "intent_version": "1", "name": "school",
         "sites": [_site("school", [
             _area("lab", [_pc("labpcs", "lab", 20)]),
@@ -979,7 +999,9 @@ CANDIDATES: list[dict] = [
               "that must be isolated for compliance, a back-office PC, IP security "
               "cameras, and free guest WiFi for customers. POS and back office stay "
               "wired; guests are wireless. Cable internet on site.",
-    "expected_intent": {
+    # Shape a build WOULD take if the smart_led-only IoT limit did not apply;
+    # the candidate refuses, so expected_intent stays None (see oc-007).
+    "refused_intent_shape": {
         "intent_version": "1", "name": "retail-branch",
         "sites": [_site("store", [
             _area("salesfloor", [
@@ -987,7 +1009,7 @@ CANDIDATES: list[dict] = [
                 _pc("pos2", "salesfloor", 1),
             ]),
             _area("backoffice", [_pc("officepc", "backoffice", 1)]),
-            _area("ceiling", [_pc("camerapanel", "ceiling", 1)]),
+            _area("ceiling", []),
         ])],
         "vlans": [
             _vlan("posnet", "POS", site="store", required=6, dhcp=True),
@@ -1074,7 +1096,12 @@ CANDIDATES: list[dict] = [
                           "not trip the guest-isolation refusal. Two clauses verify UNKNOWN: inter-VLAN blocking between "
                           "operations/office/contractors (CG-1 — the expander emits no inter-VLAN ACL), and the 'internet "
                           "only' guarantee itself. The contractor VLAN is a planned segment with no hosts in this build; "
-                          "the internet is one line at the first site (CG-3).",
+                          "the internet is one line at the first site (CG-3). Two forced mappings are recorded, not "
+                          "hidden: (a) barcode handhelds and forklift terminals have no HostDevice equivalent (enum is "
+                          "pc/laptop/printer/ip_phone/smartphone/tablet), so they are modelled as 6 wireless tablets; "
+                          "(b) the 'warehouse system' the ops devices talk to is the WMS backend, which the prompt does "
+                          "not ask to build, so no server models it — this candidate covers only the segmented ops "
+                          "wireless segment and makes no claim about the WMS.",
     "why_valuable": "Warehouse/logistics realism with TWO wireless cells (a rarer, harder shape) and a third encounter with "
                     "the isolation boundary in yet another register.",
     "research_inspiration": ["https://www.2mtechnology.net/unifi-warehouse-wifi-design"],
@@ -1121,7 +1148,9 @@ CANDIDATES: list[dict] = [
     "scenario": "Three sites, static routing, internet sirf head office.",
     "coverage_cell": "small-s3-a1-multi-static-wan-none",
     "length_category": "medium",
-    "prompt": "Teen sites hain: head office, aur do branches. Head office par internet "
+    "prompt": "Teen sites hain: head office, aur do branches. Head office par "
+              "taqreeban 8 computers hain, aur har branch par 4, aur sab ko IP "
+              "automatically milna chahiye (DHCP). Head office par internet "
               "line hai, and dono branches ko head office ke through routing chahiye — "
               "internet bhi wahi se mile. Static routing use karein, so OSPF ki abhi "
               "zaroorat nahi.",
@@ -1284,7 +1313,9 @@ CANDIDATES: list[dict] = [
     "scenario": "HQ + two branches, static routing, internet only at HQ.",
     "coverage_cell": "small-s3-a1-multi-static-wan-none",
     "length_category": "medium",
-    "prompt": "Connect our head office to two branches. Only the head office has the "
+    "prompt": "Connect our head office to two branches. The head office has about ten "
+              "PCs and each branch about five, and all of them should get their "
+              "addresses automatically. Only the head office has the "
               "internet line; both branches should reach the head office and get "
               "internet through it. Use static routing — we don't run a routing "
               "protocol on a network this size.",
@@ -1478,37 +1509,39 @@ CANDIDATES: list[dict] = [
 {
     "id": "oc-040",
     "language": "en", "difficulty": "L3", "category": "iot",
-    "scenario": "Smart building: IoT sensors plus a normal office LAN.",
-    "coverage_cell": "small-s1-a2-multi-dhcp-cable-none-iot",
+    "scenario": "Retail store: smart lighting VLAN separate from the till PCs.",
+    "coverage_cell": "small-s1-a2-multi-dhcp-dsl-none",
     "length_category": "medium",
-    "prompt": "We're putting a few network-controlled LED light units into a new office. "
-              "Keep the IoT lighting on its own network away from the staff PCs, and wire "
-              "the lights in. Ordinary cable internet is fine.",
+    "prompt": "We're fitting a small retail shop. There'll be four till PCs and about "
+              "six network-controlled LED light units. Keep the shop lighting on its own "
+              "network, away from the till PCs, and wire the lights in. Ordinary DSL "
+              "internet is fine.",
     "expected_intent": {
-        "intent_version": "1", "name": "smart-building",
-        "sites": [_site("office", [
-            _area("workspace", [_pc("staffpcs", "workspace", 8, vlan="staffnet")]),
-            _area("ceilingspace", []),
+        "intent_version": "1", "name": "smart-shop",
+        "sites": [_site("shop", [
+            _area("tillfloor", [_pc("pospcs", "tillfloor", 4, vlan="posnet")]),
+            _area("ceiling", []),
         ])],
         "vlans": [
-            _vlan("staffnet", "Staff", site="office", required=16, dhcp=True),
-            _vlan("iotnet", "IoT", site="office", required=8, dhcp=True),
+            _vlan("posnet", "Tills", site="shop", required=12, dhcp=True),
+            _vlan("iotnet", "Lighting", site="shop", required=8, dhcp=True),
         ],
         "routing": {"mode": "connected"},
-        "internet": {"access": "cable", "nat": True, "public_server": False},
-        "iot": [{"id": "lighting", "site": "office", "area": "ceilingspace",
-                 "kind": "smart_led", "count": 5}],
+        "internet": {"access": "dsl", "nat": True, "public_server": False},
+        "iot": [{"id": "lighting", "site": "shop", "area": "ceiling",
+                 "kind": "smart_led", "count": 6}],
         "requirements": [
-            _req("REQ-001", "IoT lighting is on its own network, separate from staff PCs", "isolation", "high"),
-            _req("REQ-002", "IoT light units are wired in", "operational"),
+            _req("REQ-001", "Shop lighting is on its own network, separate from the till PCs", "isolation", "high"),
+            _req("REQ-002", "The light units are wired in", "operational"),
         ],
     },
     "expect_refusal": False,
-    "expected_behaviour": "Staff VLAN + IoT VLAN declaration, 5 cabled smart_led things, cable internet. The "
-                          "'IoT lighting on its own network, separate from staff PCs' clause verifies UNKNOWN — IoT "
-                          "things are created and cabled with no IP/VLAN placement (expander _place_iot, CG-2), so they do "
-                          "not land on a separately verified segment.",
-    "why_valuable": "Second IoT case with different wording/device framing; reinforces the cabled-only IoT model.",
+    "expected_behaviour": "Till VLAN + IoT VLAN declaration, 6 cabled smart_led things, DSL internet. The "
+                          "'shop lighting on its own network, separate from the till PCs' clause verifies UNKNOWN — "
+                          "IoT things are created and cabled with no IP/VLAN placement (expander _place_iot, CG-2), so "
+                          "they do not land on a separately verified segment.",
+    "why_valuable": "Second IoT case with a different domain (retail tills) and a different internet shape (DSL) "
+                    "from oc-011, so it carries distinct discriminating power rather than restating the office case.",
     "research_inspiration": ["https://www.techgeeks.org/iot-isolation-homelab-vlans-firewall-mdns"],
 },
 {
@@ -1619,11 +1652,14 @@ CANDIDATES: list[dict] = [
               "aap hi batayein, mujhe difference nahi pata. Internet dono ko chahiye.",
     "expected_intent": None,
     "expect_refusal": True,
-    "expected_behaviour": "The user delegates the routing choice. Preferred behaviour: briefly lay out the static-vs-"
-                          "dynamic options and confirm one before building. Acceptable: proceed with a clearly stated "
-                          "assumption (static routing for a two-site network). Not acceptable: silently pick a routing mode "
-                          "and present it as the user's own choice. Recorded as ambiguous because the 'right' routing mode "
-                          "is not recoverable with certainty from the text.",
+    "expected_behaviour": "The user delegates the routing choice ('aap hi batayein') and supplies neither host counts, "
+                          "addressing, nor where the internet line sits. One definite response: do not bounce the routing "
+                          "decision back at a user who said they don't know — recommend a concrete mode with a one-line "
+                          "reason (static routing is the right fit for a two-site link), and ask only for the build data "
+                          "the engine actually needs: roughly how many devices sit at each site, whether addressing is "
+                          "DHCP or static, and where the internet line comes in. Must not silently pick and present it as "
+                          "the user's own choice, and must not invent site sizes. Recorded as ambiguous because that build "
+                          "data is not recoverable from the text.",
     "why_valuable": "Realistic 'I don't know, you tell me' delegation. Tests whether the model surfaces the decision "
                     "instead of burying an assumption.",
     "research_inspiration": [],
@@ -1696,11 +1732,13 @@ CANDIDATES: list[dict] = [
               "a 5505.",
     "expected_intent": None,
     "expect_refusal": True,
-    "expected_behaviour": "TWO issues the model must surface: (1) demanding both DSL and cable as one bonded link is not "
-                          "an expressible access shape (InternetIntent.access is exactly one of wan/dsl/cable) and bonding "
-                          "is unsupported; (2) an ASA 5505 with the described edge is fine only single-site/single-VLAN, so "
-                          "the model must confirm the topology. Must not silently pick one access type or fake a bonded "
-                          "link.",
+    "expected_behaviour": "ONE definite issue the model must surface: the request demands DSL and cable 'bonded together "
+                          "into one link', which is not an expressible access shape (InternetIntent.access is exactly one "
+                          "of wan/dsl/cable, src/network_autopilot/ai/intent.py:237; no bonding shape exists), so the model "
+                          "must say so by name and must not fake a bonded link or silently pick one access type. Everything "
+                          "else is satisfiable: a single office with one inside network is exactly the single inside/outside "
+                          "perimeter an ASA 5505 supports, so no topology question is required. Correct response: surface the "
+                          "bonding contradiction, ask which single access type to use, and accept the 5505.",
     "why_valuable": "L5 contradiction touching a real schema limit (single internet access shape) plus a device constraint "
                     "— a genuinely hard, realistic 'requirements that can't both hold' case.",
     "research_inspiration": [],
@@ -1717,10 +1755,16 @@ CANDIDATES: list[dict] = [
               "yeh sab sort karna hai.",
     "expected_intent": None,
     "expect_refusal": True,
-    "expected_behaviour": "TRIPLE conflict: (a) guest internet-only vs (b) guest reaching an internal server, and (c) no "
-                          "firewall appliance budget while guest isolation normally needs an enforcement point. The model "
-                          "must surface all of it — it cannot satisfy isolation without the enforcement device it was told "
-                          "not to deploy. Realistic budget-vs-requirement clash.",
+    "expected_behaviour": "TRIPLE conflict to surface, all engine-scoped: (a) 'guest internet-only, koi internal access "
+                          "nahi' versus (b) 'guest ko company ki website dekhni hai jo andar hai' — an internal server the "
+                          "guest must reach; and (c) the engine expresses guest isolation only through "
+                          "firewall.guest_isolation, which needs an enabled firewall appliance (it refuses by name "
+                          "'guest-isolation-unsupported' at src/network_autopilot/ai/expander.py:299), yet the user has no "
+                          "appliance budget. Definite response: state that (a) and (b) cannot both hold, refuse guest "
+                          "isolation by name because the enforcement appliance was excluded, offer the one fallback of a "
+                          "plain guest subnet that makes no isolation promise, and ask which requirement to drop (the "
+                          "internal website for guests, or the internet-only guarantee). Must not deploy an appliance it was "
+                          "told not to deploy, and must not silently drop the guest isolation promise.",
     "why_valuable": "Hardest contradiction: three interlocking constraints in Roman Urdu, including 'don't use the very "
                     "tool that would enforce the policy'.",
     "research_inspiration": [],
@@ -1785,23 +1829,19 @@ CANDIDATES: list[dict] = [
     "scenario": "Two-floor office with servers, mixed addressing, exclusions, priorities.",
     "coverage_cell": "medium-s1-a2-multi-static-wan-none",
     "length_category": "document",
-    "prompt": "Company: a 20-person accounting firm on two floors of a building.\n\n"
-              "People & devices:\n"
-              "- Ground floor: 8 accountant PCs and 2 shared reception PCs.\n"
-              "- First floor: 6 auditor PCs and a small server room with 2 servers.\n\n"
-              "Requirements:\n"
-              "- Auditors must be isolated from the accounting staff — auditors are "
-              "external, so they get their own network and must not reach the accounting "
-              "machines or the servers.\n"
-              "- The two servers host our ledger application (HTTP) and internal DNS; "
-              "accountants need them, auditors do not.\n"
-              "- Accountant and reception PCs get addresses automatically; the two servers "
-              "must be static.\n\n"
-              "Exclusions:\n"
-              "- No wireless anywhere.\n"
-              "- No guest/public internet kiosks.\n"
-              "We have a WAN internet handoff for the accounting side only.\n"
-              "Priority: auditor isolation first, then server access, then internet.",
+    "prompt": "We're a 20-person accounting firm redoing the network across our two "
+              "floors. Downstairs we have 8 accountant PCs and 2 shared reception PCs; "
+              "upstairs there are 6 auditor PCs and a small server room with 2 servers.\n\n"
+              "The auditors are external, so they must be isolated from our own staff — "
+              "they get their own network and must not be able to reach the accounting "
+              "machines or the servers. The two servers run our ledger application (HTTP) "
+              "and internal DNS; the accountants need those, the auditors don't. "
+              "Accountant and reception PCs should get their addresses automatically, and "
+              "the two servers must be static.\n\n"
+              "Two exclusions: no wireless anywhere, and no guest/public internet kiosks. "
+              "We do have a WAN internet handoff, but for the accounting side only. If you "
+              "have to sequence it: auditor isolation first, then server access, then "
+              "internet.",
     "expected_intent": {
         "intent_version": "1", "name": "accounting-firm",
         "sites": [_site("building", [
@@ -1816,7 +1856,7 @@ CANDIDATES: list[dict] = [
         ])],
         "vlans": [
             _vlan("accountingnet", "Accounting", site="building", required=20, dhcp=True),
-            _vlan("auditornet", "Auditors", site="building", required=12, dhcp=False),
+            _vlan("auditornet", "Auditors", site="building", required=12, dhcp=True),
             _vlan("servernet", "Servers", site="building", required=6, dhcp=False),
         ],
         "routing": {"mode": "connected"},
@@ -1834,9 +1874,14 @@ CANDIDATES: list[dict] = [
         ],
     },
     "expect_refusal": False,
-    "expected_behaviour": "Three VLANs (accounting DHCP, auditors isolated, servers static), two servers (http, dns) on "
-                          "the server VLAN, WAN internet. Auditor isolation is an internal-subnet separation the engine "
-                          "models via separate subnets — no guest_isolation flag needed, so it builds.",
+    "expected_behaviour": "Three VLANs (accounting DHCP, auditors DHCP, servers static), two servers (http, dns) on "
+                          "the server VLAN, WAN internet. Auditor addressing is DHCP because the prompt names only the "
+                          "two servers as static (the intent does not invent a static auditor network). Auditor isolation "
+                          "is an internal-subnet separation the engine models via separate subnets — no guest_isolation "
+                          "flag, so it builds — but the 'auditors cannot reach accounting or the servers' blocking clause "
+                          "has no ACL criterion in expander v1 and verifies UNKNOWN (CG-1), as does the 'WAN for the "
+                          "accounting side only' egress scope. It is recorded here as an inference (not a claim) that the "
+                          "reception PCs share the accounting VLAN.",
     "why_valuable": "Another true long-document with auditor-isolation, mixed addressing, and explicit priorities. "
                     "Forces full-document extraction; the auditor-isolation-vs-server-access split is the hard part.",
     "research_inspiration": ["https://www.censinet.com/perspectives/network-segmentation-strategies-healthcare-it"],
@@ -1847,25 +1892,21 @@ CANDIDATES: list[dict] = [
     "scenario": "Retail chain HQ + store: POS isolation, cameras, guest, WAN.",
     "coverage_cell": "small-s2-a2-multi-static-wan-none-iot",
     "length_category": "document",
-    "prompt": "Business: 'Al-Noor Mart' — ek head office aur ek retail store.\n\n"
-              "Head office (Karachi):\n"
-              "- 6 office PCs (accounts + admin).\n"
-              "- Ek server jis par inventory system (HTTP) chale.\n\n"
-              "Retail store (Lahore):\n"
-              "- 2 POS terminals jo bilkul isolated honi chahiye (compliance).\n"
-              "- 1 back-office PC.\n"
-              "- 3 IP cameras jo store ke andar wired hon.\n"
-              "- Customer ke liye WiFi (guest).\n\n"
-              "Requirements:\n"
-              "- POS terminals apne alag network par hon, so that koi doosra device unhe "
-              "na dekh sake.\n"
-              "- Cameras ka apna network ho.\n"
-              "- Guest WiFi sirf internet tak.\n"
-              "- Head office aur store aapas mein connected hon (static routing) so that "
-              "inventory system dono jagah se open ho.\n"
-              "- Internet dono jagah chahiye (store ki alag line).\n"
-              "Exclusion: DHCP POS par nahi, and POS ke addresses static hon.",
-    "expected_intent": {
+    "prompt": "'Al-Noor Mart' — ek head office (Karachi) aur ek retail store (Lahore) "
+              "hain.\n\n"
+              "Karachi mein 6 office PCs hain (accounts aur admin) aur ek server jis par "
+              "hamara inventory system (HTTP) chalta hai. Lahore wale store mein 2 POS "
+              "terminals hain jo compliance ki wajah se bilkul isolated hone chahiye, ek "
+              "back-office PC, aur 3 IP cameras jo store ke andar wired hain. Customers ke "
+              "liye guest WiFi bhi chahiye.\n\n"
+              "POS terminals apne alag network par hon so that koi doosra device unhe na "
+              "dekh sake, aur POS ke addresses static hon — DHCP nahi. Cameras ka apna "
+              "network ho, aur guest WiFi sirf internet tak rahe. Head office aur store "
+              "static routing se aapas mein connected hon so that inventory system dono "
+              "jagah se open ho. Internet dono jagah chahiye (store ki alag line).",
+    # Shape a build WOULD take if cameras and guest isolation were supported;
+    # the candidate refuses, so expected_intent stays None (see oc-007).
+    "refused_intent_shape": {
         "intent_version": "1", "name": "alnoor-mart",
         "sites": [
             _site("karachi", [
@@ -1877,7 +1918,7 @@ CANDIDATES: list[dict] = [
                     _pc("pos2", "salesfloor", 1, addressing="static"),
                 ]),
                 _area("backoffice", [_pc("backofficepc", "backoffice", 1)]),
-                _area("ceiling", [_pc("camerapanel", "ceiling", 1)]),
+                _area("ceiling", []),
             ]),
         ],
         "vlans": [
@@ -1903,12 +1944,19 @@ CANDIDATES: list[dict] = [
     },
     "expect_refusal": True,
     "expected_intent": None,
-    "expected_behaviour": "REFUSE-BY-NAME with three real reasons surfaced: (a) 'guest WiFi sirf internet tak' is a "
-                          "guest-isolation guarantee the engine refuses ('guest-isolation-unsupported'); (b) real IP "
-                          "cameras are not expressible — the schema's only IoT kind is smart_led, so the cameras cannot be "
-                          "built as asked; (c) 'internet dono jagah ... store ki alag line' over-claims — the engine builds "
-                          "one internet block at sites[0] (CG-3). The POS-static and two-site static-routing parts are "
-                          "otherwise buildable; the correct output names the three refusals rather than faking them.",
+    "expected_behaviour": "REFUSE-BY-NAME with three engine-scoped reasons surfaced, consistently: (a) 'guest WiFi sirf "
+                          "internet tak' is a guest-isolation guarantee, which the engine refuses by name "
+                          "('guest-isolation-unsupported', src/network_autopilot/ai/expander.py:299, raised when a firewall's "
+                          "guest_isolation is requested); (b) real IP cameras are not expressible — the schema's only IoT "
+                          "kind is smart_led (src/network_autopilot/ai/intent.py:299), so the cameras cannot be built as "
+                          "asked; (c) 'internet dono jagah ... store ki alag line' over-claims — the engine builds one "
+                          "internet block at sites[0] (CG-3), so the store's second line is a reported limitation, not a "
+                          "silent build. The POS-static and two-site static-routing parts are otherwise buildable. "
+                          "Consistency note: the POS 'koi doosra device unhe na dekh sake' clause and the guest clause are "
+                          "the SAME shape — both are separation guarantees, and neither is machine-verified (CG-1: the "
+                          "expander emits no inter-VLAN ACL, so both verify UNKNOWN). The guest clause additionally trips a "
+                          "named refusal because it asks for the explicit guest_isolation capability; the POS clause does "
+                          "not. The correct output names the three refusals and does not over-claim the POS separation.",
     "why_valuable": "The most enterprise-flavoured long document: multi-site retail with compliance-driven POS isolation. "
                     "Held at the honest capability boundary (cameras + guest isolation) instead of faking support.",
     "research_inspiration": ["https://ictally.com/resources/blog/restaurant-guest-wifi-vs-pos-network-setup"],
@@ -1959,15 +2007,17 @@ CANDIDATES: list[dict] = [
     "scenario": "Existing simple office to be enhanced with a new server + VLAN.",
     "coverage_cell": "small-s1-a2-multi-dhcp-none-none",
     "length_category": "medium",
-    "prompt": "Mere paas ek chhota office network hai (sab ek hi network par). Ab mujhe "
+    "prompt": "Mere paas ek chhota office network hai (sab ek hi network par) — "
+              "taqreeban 8 general computers hain aur 4 accounts ke. Ab mujhe "
               "naya ek file server chahiye aur accounts ko alag network par lena hai "
-              "kyunki naya audit aa raha hai. Baaki sab waise hi DHCP rahe.",
+              "kyunki naya audit aa raha hai. Accounts wale bhi DHCP se IP lein aur "
+              "file server static par ho; baaki sab waise hi DHCP rahe.",
     "expected_intent": {
         "intent_version": "1", "name": "office-enhance",
         "sites": [_site("office", [
             _area("workspace", [_pc("generalpcs", "workspace", 8, vlan="generalnet")]),
             _area("accounts", [_pc("accountspcs", "accounts", 4, vlan="accountsnet")]),
-            _area("serverroom", [_pc("filesrvhost", "serverroom", 1, addressing="static", vlan="servernet")]),
+            _area("serverroom", []),
         ])],
         "vlans": [
             _vlan("generalnet", "General", site="office", required=16, dhcp=True),
@@ -1976,7 +2026,7 @@ CANDIDATES: list[dict] = [
         ],
         "routing": {"mode": "connected"},
         "servers": [{"id": "filesrv", "site": "office", "vlan": "servernet",
-                     "services": ["http", "ftp"]}],
+                     "services": ["ftp"]}],
         "requirements": [
             _req("REQ-001", "A new file server exists", "service", "high"),
             _req("REQ-002", "Accounts are on a separate network for the audit", "isolation", "high"),
@@ -1984,11 +2034,30 @@ CANDIDATES: list[dict] = [
         ],
     },
     "expect_refusal": False,
-    "expected_behaviour": "General + accounts + server VLANs; file server (http/ftp) on the static server VLAN; general "
-                          "stays DHCP. Enhancement framing ('I already have X, add Y').",
+    "expected_behaviour": "General + accounts + server VLANs; general and accounts both DHCP; the file server "
+                          "(the engine's FTP service) is static on its own server VLAN and is reached from both "
+                          "VLANs by connected routing. The prompt supplies the device counts and addressing the "
+                          "build needs, so no clarification is required.",
     "why_valuable": "Enhancement register (modify an existing network) rather than greenfield — a distinct request type "
                     "the templates under-cover, in Roman Urdu.",
     "research_inspiration": [],
 },
 ]
+
+# ---------------------------------------------------------------------------
+# Derived classification (computed, never hand-set, so it cannot drift from
+# `category`). It tells a *capability-gap* refusal — a real engine limitation
+# the user must be told about (AGENTS.md rule 9) — apart from an ambiguity or
+# contradiction case, where the correct behaviour is a clarification or a
+# surfaced conflict rather than a build refusal.
+# ---------------------------------------------------------------------------
+_REFUSAL_KIND_BY_CATEGORY = {
+    "ambiguous": "ambiguous-clarify",
+    "contradictory": "contradictory-surface-conflict",
+}
+for _candidate in CANDIDATES:
+    if _candidate.get("expect_refusal") and "refusal_kind" not in _candidate:
+        _candidate["refusal_kind"] = _REFUSAL_KIND_BY_CATEGORY.get(
+            _candidate.get("category"), "capability-gap"
+        )
 

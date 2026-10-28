@@ -1,0 +1,11 @@
+{
+  "summary": {
+    "candidates": 56,
+    "buildable_candidates": 34,
+    "multi_vlan_sites": 21,
+    "host_groups_checked": 50,
+    "servers_checked": 10,
+    "violations": 0
+  },
+  "violations": []
+}

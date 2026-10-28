@@ -12,9 +12,10 @@
   "expected_behaviour": "REFUSE-BY-NAME: the ASA 5505 is verified only as a single-site inside/outside perimeter (lint 'asa5505-multi-site'), and it has no DMZ support (expander 'asa5505-no-dmz'); multi-site DMZ is 'dmz-multi-site-unsupported'. The engine must refuse by name and explain the 5505's limits, offering the 5506-X single-site DMZ instead.",
   "why_valuable": "Packs three REAL named refusals into one plausible request. Trains precise, honest refusal with an alternative, not a hallucinated multi-site DMZ.",
   "research_inspiration": [],
+  "refusal_kind": "capability-gap",
   "prompt_hash": "cb665fc34670b022cff0183f9830a595bc76849005d6125b3486fdb5d352b8a9",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

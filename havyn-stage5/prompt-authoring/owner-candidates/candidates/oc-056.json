@@ -6,7 +6,7 @@
   "scenario": "Existing simple office to be enhanced with a new server + VLAN.",
   "coverage_cell": "small-s1-a2-multi-dhcp-none-none",
   "length_category": "medium",
-  "prompt": "Mere paas ek chhota office network hai (sab ek hi network par). Ab mujhe naya ek file server chahiye aur accounts ko alag network par lena hai kyunki naya audit aa raha hai. Baaki sab waise hi DHCP rahe.",
+  "prompt": "Mere paas ek chhota office network hai (sab ek hi network par) — taqreeban 8 general computers hain aur 4 accounts ke. Ab mujhe naya ek file server chahiye aur accounts ko alag network par lena hai kyunki naya audit aa raha hai. Accounts wale bhi DHCP se IP lein aur file server static par ho; baaki sab waise hi DHCP rahe.",
   "expected_intent": {
     "intent_version": "1",
     "name": "office-enhance",
@@ -43,16 +43,7 @@
           {
             "id": "serverroom",
             "kind": "area",
-            "host_groups": [
-              {
-                "id": "filesrvhost",
-                "area": "serverroom",
-                "count": 1,
-                "device": "pc",
-                "vlan": "servernet",
-                "addressing": "static"
-              }
-            ]
+            "host_groups": []
           }
         ]
       }
@@ -89,7 +80,6 @@
         "site": "office",
         "vlan": "servernet",
         "services": [
-          "http",
           "ftp"
         ]
       }
@@ -119,12 +109,12 @@
     ]
   },
   "expect_refusal": false,
-  "expected_behaviour": "General + accounts + server VLANs; file server (http/ftp) on the static server VLAN; general stays DHCP. Enhancement framing ('I already have X, add Y').",
+  "expected_behaviour": "General + accounts + server VLANs; general and accounts both DHCP; the file server (the engine's FTP service) is static on its own server VLAN and is reached from both VLANs by connected routing. The prompt supplies the device counts and addressing the build needs, so no clarification is required.",
   "why_valuable": "Enhancement register (modify an existing network) rather than greenfield — a distinct request type the templates under-cover, in Roman Urdu.",
   "research_inspiration": [],
-  "prompt_hash": "b0fa8c04d92efd204a548a3c14aadb63685a8136ee1e4e47974e295896d3dfd6",
+  "prompt_hash": "c39d3d00dc39535b6f4158e412990f1c93393367e381f39c573202237d148ec6",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

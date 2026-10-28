@@ -7,9 +7,105 @@
   "coverage_cell": "small-s1-a2-multi-dhcp-cable-none",
   "length_category": "medium",
   "prompt": "Our office needs WiFi for staff laptops and a separate guest WiFi for visitors. Guests should only get internet — they must not be able to reach any of our internal machines. Staff laptops stay on the internal network. Cable internet is fine.",
-  "expected_intent": null,
+  "refused_intent_shape": {
+    "intent_version": "1",
+    "name": "office-wifi",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "wiredpcs",
+                "area": "workspace",
+                "count": 4,
+                "device": "pc"
+              },
+              {
+                "id": "stafflaptops",
+                "area": "workspace",
+                "count": 5,
+                "device": "laptop"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 20
+      },
+      {
+        "id": "guestnet",
+        "name": "Guest",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 15,
+        "is_guest": true
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506",
+      "guest_isolation": true
+    },
+    "wireless": [
+      {
+        "id": "staffwifi",
+        "site": "office",
+        "area": "workspace",
+        "ssid": "OfficeStaff",
+        "security": "wpa2",
+        "passphrase": "staffroom2026",
+        "client_group_ids": [
+          "stafflaptops"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Staff laptops join the internal network over WiFi",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Guest WiFi reaches only the internet, not internal machines",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Guest network is isolated from staff network",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      }
+    ]
+  },
   "expect_refusal": true,
-  "expected_behaviour": "REFUSE-BY-NAME: guest_isolation is unsupported by expander v1 (no live-verified ACL enforcement point). The correct output is the named refusal 'guest-isolation-unsupported' plus an offer to build guest on a separate subnet without a guaranteed isolation ACL. This is a REAL current limitation, not an invented one.",
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: guest_isolation is unsupported by expander v1 (no live-verified ACL enforcement point). The correct output is the named refusal 'guest-isolation-unsupported' (raised at src/network_autopilot/ai/expander.py:299 when firewall.guest_isolation is set) plus an offer to build guest on a separate subnet without a guaranteed isolation ACL. This is a REAL current limitation, not an invented one. Capability-gap guard: this refusal is pinned to the engine commit recorded in the emitted JSON; if guest_isolation support ever lands, re-derive this candidate rather than trusting the old verdict.",
+  "refusal_kind": "capability-gap",
   "why_valuable": "The single most-requested real-world feature (guest WiFi isolation) is exactly what the engine refuses today. Trains 'I cannot safely build this yet' instead of a fake build. Flagged as a capability gap.",
   "research_inspiration": [
     "https://help.ui.com/hc/en-us/articles/23948850278295-Best-Practices-Guest-WiFi",
@@ -18,6 +114,6 @@
   "prompt_hash": "15aaf16c6833307e8bfd0fe3b99b21e13a5c85723101903417887cda7d94513a",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

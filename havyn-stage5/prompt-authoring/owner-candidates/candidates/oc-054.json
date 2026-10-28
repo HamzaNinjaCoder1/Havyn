@@ -6,17 +6,184 @@
   "scenario": "Retail chain HQ + store: POS isolation, cameras, guest, WAN.",
   "coverage_cell": "small-s2-a2-multi-static-wan-none-iot",
   "length_category": "document",
-  "prompt": "Business: 'Al-Noor Mart' — ek head office aur ek retail store.\n\nHead office (Karachi):\n- 6 office PCs (accounts + admin).\n- Ek server jis par inventory system (HTTP) chale.\n\nRetail store (Lahore):\n- 2 POS terminals jo bilkul isolated honi chahiye (compliance).\n- 1 back-office PC.\n- 3 IP cameras jo store ke andar wired hon.\n- Customer ke liye WiFi (guest).\n\nRequirements:\n- POS terminals apne alag network par hon, so that koi doosra device unhe na dekh sake.\n- Cameras ka apna network ho.\n- Guest WiFi sirf internet tak.\n- Head office aur store aapas mein connected hon (static routing) so that inventory system dono jagah se open ho.\n- Internet dono jagah chahiye (store ki alag line).\nExclusion: DHCP POS par nahi, and POS ke addresses static hon.",
-  "expected_intent": null,
+  "prompt": "'Al-Noor Mart' — ek head office (Karachi) aur ek retail store (Lahore) hain.\n\nKarachi mein 6 office PCs hain (accounts aur admin) aur ek server jis par hamara inventory system (HTTP) chalta hai. Lahore wale store mein 2 POS terminals hain jo compliance ki wajah se bilkul isolated hone chahiye, ek back-office PC, aur 3 IP cameras jo store ke andar wired hain. Customers ke liye guest WiFi bhi chahiye.\n\nPOS terminals apne alag network par hon so that koi doosra device unhe na dekh sake, aur POS ke addresses static hon — DHCP nahi. Cameras ka apna network ho, aur guest WiFi sirf internet tak rahe. Head office aur store static routing se aapas mein connected hon so that inventory system dono jagah se open ho. Internet dono jagah chahiye (store ki alag line).",
+  "refused_intent_shape": {
+    "intent_version": "1",
+    "name": "alnoor-mart",
+    "sites": [
+      {
+        "id": "karachi",
+        "areas": [
+          {
+            "id": "office",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "officepcs",
+                "area": "office",
+                "count": 6,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lahore",
+        "areas": [
+          {
+            "id": "salesfloor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pos1",
+                "area": "salesfloor",
+                "count": 1,
+                "device": "pc",
+                "addressing": "static"
+              },
+              {
+                "id": "pos2",
+                "area": "salesfloor",
+                "count": 1,
+                "device": "pc",
+                "addressing": "static"
+              }
+            ]
+          },
+          {
+            "id": "backoffice",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "backofficepc",
+                "area": "backoffice",
+                "count": 1,
+                "device": "pc"
+              }
+            ]
+          },
+          {
+            "id": "ceiling",
+            "kind": "area",
+            "host_groups": []
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "officenet",
+        "name": "Head office",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 12
+      },
+      {
+        "id": "posnet",
+        "name": "POS",
+        "dhcp": false,
+        "site": "lahore",
+        "required_hosts": 6
+      },
+      {
+        "id": "storenet",
+        "name": "Store back office",
+        "dhcp": true,
+        "site": "lahore",
+        "required_hosts": 8
+      },
+      {
+        "id": "cameranet",
+        "name": "Cameras",
+        "dhcp": true,
+        "site": "lahore",
+        "required_hosts": 6
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "inventory",
+        "site": "karachi",
+        "vlan": "officenet",
+        "services": [
+          "http"
+        ]
+      }
+    ],
+    "iot": [
+      {
+        "id": "cameras",
+        "site": "lahore",
+        "area": "ceiling",
+        "kind": "smart_led",
+        "count": 3
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "POS terminals are isolated on their own network",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Cameras are on their own network",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The inventory HTTP server is reachable from both sites",
+        "type": "service",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Head office and store are connected via static routing",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "Internet at both sites",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-006",
+        "statement": "POS uses static addresses, not DHCP",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      }
+    ]
+  },
   "expect_refusal": true,
-  "expected_behaviour": "REFUSE-BY-NAME with three real reasons surfaced: (a) 'guest WiFi sirf internet tak' is a guest-isolation guarantee the engine refuses ('guest-isolation-unsupported'); (b) real IP cameras are not expressible — the schema's only IoT kind is smart_led, so the cameras cannot be built as asked; (c) 'internet dono jagah ... store ki alag line' over-claims — the engine builds one internet block at sites[0] (CG-3). The POS-static and two-site static-routing parts are otherwise buildable; the correct output names the three refusals rather than faking them.",
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME with three engine-scoped reasons surfaced, consistently: (a) 'guest WiFi sirf internet tak' is a guest-isolation guarantee, which the engine refuses by name ('guest-isolation-unsupported', src/network_autopilot/ai/expander.py:299, raised when a firewall's guest_isolation is requested); (b) real IP cameras are not expressible — the schema's only IoT kind is smart_led (src/network_autopilot/ai/intent.py:299), so the cameras cannot be built as asked; (c) 'internet dono jagah ... store ki alag line' over-claims — the engine builds one internet block at sites[0] (CG-3), so the store's second line is a reported limitation, not a silent build. The POS-static and two-site static-routing parts are otherwise buildable. Consistency note: the POS 'koi doosra device unhe na dekh sake' clause and the guest clause are the SAME shape — both are separation guarantees, and neither is machine-verified (CG-1: the expander emits no inter-VLAN ACL, so both verify UNKNOWN). The guest clause additionally trips a named refusal because it asks for the explicit guest_isolation capability; the POS clause does not. The correct output names the three refusals and does not over-claim the POS separation.",
   "why_valuable": "The most enterprise-flavoured long document: multi-site retail with compliance-driven POS isolation. Held at the honest capability boundary (cameras + guest isolation) instead of faking support.",
   "research_inspiration": [
     "https://ictally.com/resources/blog/restaurant-guest-wifi-vs-pos-network-setup"
   ],
-  "prompt_hash": "ddd895a8e15c57edbb8c7c80ed66e9dadccb8e602d070ecaa55570dfdb9c8e84",
+  "refusal_kind": "capability-gap",
+  "prompt_hash": "1f90027c62063a9f62204e16f9a2eb2c50e0922d55c1465e2302287039d39340",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

@@ -6,7 +6,7 @@
   "scenario": "HQ + two branches, static routing, internet only at HQ.",
   "coverage_cell": "small-s3-a1-multi-static-wan-none",
   "length_category": "medium",
-  "prompt": "Connect our head office to two branches. Only the head office has the internet line; both branches should reach the head office and get internet through it. Use static routing — we don't run a routing protocol on a network this size.",
+  "prompt": "Connect our head office to two branches. The head office has about ten PCs and each branch about five, and all of them should get their addresses automatically. Only the head office has the internet line; both branches should reach the head office and get internet through it. Use static routing — we don't run a routing protocol on a network this size.",
   "expected_intent": {
     "intent_version": "1",
     "name": "hq-two-branches",
@@ -124,9 +124,9 @@
   "research_inspiration": [
     "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
   ],
-  "prompt_hash": "cb310ec19dae13fc3a6254047b68a1ff1dab91deb166fe5036423609d65605eb",
+  "prompt_hash": "4ffbdf296a774b247f7cb7eb98f4bf2ea62278feda3a3626a31049cf74d5d290",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

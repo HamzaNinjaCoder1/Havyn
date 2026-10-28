@@ -9,12 +9,13 @@
   "prompt": "Guest network bilkul internet-only honi chahiye, koi internal access nahi. Lekin guest ko company ki website bhi dekhni hai jo andar ke server par hai. Alag firewall appliance ka budget bhi nahi hai, to us ke bagair hi yeh sab sort karna hai.",
   "expected_intent": null,
   "expect_refusal": true,
-  "expected_behaviour": "TRIPLE conflict: (a) guest internet-only vs (b) guest reaching an internal server, and (c) no firewall appliance budget while guest isolation normally needs an enforcement point. The model must surface all of it — it cannot satisfy isolation without the enforcement device it was told not to deploy. Realistic budget-vs-requirement clash.",
+  "expected_behaviour": "TRIPLE conflict to surface, all engine-scoped: (a) 'guest internet-only, koi internal access nahi' versus (b) 'guest ko company ki website dekhni hai jo andar hai' — an internal server the guest must reach; and (c) the engine expresses guest isolation only through firewall.guest_isolation, which needs an enabled firewall appliance (it refuses by name 'guest-isolation-unsupported' at src/network_autopilot/ai/expander.py:299), yet the user has no appliance budget. Definite response: state that (a) and (b) cannot both hold, refuse guest isolation by name because the enforcement appliance was excluded, offer the one fallback of a plain guest subnet that makes no isolation promise, and ask which requirement to drop (the internal website for guests, or the internet-only guarantee). Must not deploy an appliance it was told not to deploy, and must not silently drop the guest isolation promise.",
   "why_valuable": "Hardest contradiction: three interlocking constraints in Roman Urdu, including 'don't use the very tool that would enforce the policy'.",
   "research_inspiration": [],
+  "refusal_kind": "contradictory-surface-conflict",
   "prompt_hash": "ae0069c932818e70f09de492c5d50229253e37638f9465fc831517229ee2f83b",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

@@ -3,32 +3,32 @@
   "language": "en",
   "difficulty": "L3",
   "category": "iot",
-  "scenario": "Smart building: IoT sensors plus a normal office LAN.",
-  "coverage_cell": "small-s1-a2-multi-dhcp-cable-none-iot",
+  "scenario": "Retail store: smart lighting VLAN separate from the till PCs.",
+  "coverage_cell": "small-s1-a2-multi-dhcp-dsl-none",
   "length_category": "medium",
-  "prompt": "We're putting a few network-controlled LED light units into a new office. Keep the IoT lighting on its own network away from the staff PCs, and wire the lights in. Ordinary cable internet is fine.",
+  "prompt": "We're fitting a small retail shop. There'll be four till PCs and about six network-controlled LED light units. Keep the shop lighting on its own network, away from the till PCs, and wire the lights in. Ordinary DSL internet is fine.",
   "expected_intent": {
     "intent_version": "1",
-    "name": "smart-building",
+    "name": "smart-shop",
     "sites": [
       {
-        "id": "office",
+        "id": "shop",
         "areas": [
           {
-            "id": "workspace",
+            "id": "tillfloor",
             "kind": "area",
             "host_groups": [
               {
-                "id": "staffpcs",
-                "area": "workspace",
-                "count": 8,
+                "id": "pospcs",
+                "area": "tillfloor",
+                "count": 4,
                 "device": "pc",
-                "vlan": "staffnet"
+                "vlan": "posnet"
               }
             ]
           },
           {
-            "id": "ceilingspace",
+            "id": "ceiling",
             "kind": "area",
             "host_groups": []
           }
@@ -37,17 +37,17 @@
     ],
     "vlans": [
       {
-        "id": "staffnet",
-        "name": "Staff",
+        "id": "posnet",
+        "name": "Tills",
         "dhcp": true,
-        "site": "office",
-        "required_hosts": 16
+        "site": "shop",
+        "required_hosts": 12
       },
       {
         "id": "iotnet",
-        "name": "IoT",
+        "name": "Lighting",
         "dhcp": true,
-        "site": "office",
+        "site": "shop",
         "required_hosts": 8
       }
     ],
@@ -55,30 +55,30 @@
       "mode": "connected"
     },
     "internet": {
-      "access": "cable",
+      "access": "dsl",
       "nat": true,
       "public_server": false
     },
     "iot": [
       {
         "id": "lighting",
-        "site": "office",
-        "area": "ceilingspace",
+        "site": "shop",
+        "area": "ceiling",
         "kind": "smart_led",
-        "count": 5
+        "count": 6
       }
     ],
     "requirements": [
       {
         "id": "REQ-001",
-        "statement": "IoT lighting is on its own network, separate from staff PCs",
+        "statement": "Shop lighting is on its own network, separate from the till PCs",
         "type": "isolation",
         "priority": "high",
         "source": "prompt"
       },
       {
         "id": "REQ-002",
-        "statement": "IoT light units are wired in",
+        "statement": "The light units are wired in",
         "type": "operational",
         "priority": "normal",
         "source": "prompt"
@@ -86,14 +86,14 @@
     ]
   },
   "expect_refusal": false,
-  "expected_behaviour": "Staff VLAN + IoT VLAN declaration, 5 cabled smart_led things, cable internet. The 'IoT lighting on its own network, separate from staff PCs' clause verifies UNKNOWN — IoT things are created and cabled with no IP/VLAN placement (expander _place_iot, CG-2), so they do not land on a separately verified segment.",
-  "why_valuable": "Second IoT case with different wording/device framing; reinforces the cabled-only IoT model.",
+  "expected_behaviour": "Till VLAN + IoT VLAN declaration, 6 cabled smart_led things, DSL internet. The 'shop lighting on its own network, separate from the till PCs' clause verifies UNKNOWN — IoT things are created and cabled with no IP/VLAN placement (expander _place_iot, CG-2), so they do not land on a separately verified segment.",
+  "why_valuable": "Second IoT case with a different domain (retail tills) and a different internet shape (DSL) from oc-011, so it carries distinct discriminating power rather than restating the office case.",
   "research_inspiration": [
     "https://www.techgeeks.org/iot-isolation-homelab-vlans-firewall-mdns"
   ],
-  "prompt_hash": "6836acf1bbf1c9d030e8a4e552d8b407171bb25791895958c140280c8333e993",
+  "prompt_hash": "254f1a852e7f326c731459170bbcdbff148b640ac28bb5d4a5a736c0cddc76ec",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

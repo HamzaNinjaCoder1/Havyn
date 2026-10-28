@@ -12,9 +12,10 @@
   "expected_behaviour": "REFUSE-BY-NAME: expander 'firewall-needs-single-vlan' — the verified T07 ASA perimeter is the inside gateway for exactly ONE inside VLAN. A multi-VLAN inside behind one ASA is not a verified shape. Explain and offer the supported single-inside-VLAN perimeter or a router-inter-VLAN design without the ASA perimeter claim.",
   "why_valuable": "Realistic but currently unbuildable; forces an honest refusal grounded in the actual single-VLAN perimeter constraint.",
   "research_inspiration": [],
+  "refusal_kind": "capability-gap",
   "prompt_hash": "4f781f565763b7f72826a2195e6168b95a47d86333b5c5d48b7f420a0da1ffe9",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }

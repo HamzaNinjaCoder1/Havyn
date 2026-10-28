@@ -14,9 +14,10 @@
   "research_inspiration": [
     "https://www.purple.ai/en-gb/blogs/how-to-set-up-guest-wifi"
   ],
+  "refusal_kind": "contradictory-surface-conflict",
   "prompt_hash": "0166d7f49dc70ffe36b4123b37c7ddef764b945ac046be3b481173b92c2afdd6",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T18:19:24+00:00",
-  "engine_commit": "06c57ced050cda532915c15b1ce772b0a0eaf607"
+  "verified_at": "2026-10-28T22:01:26+00:00",
+  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
 }
