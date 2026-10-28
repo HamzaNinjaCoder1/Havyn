@@ -22,7 +22,7 @@ end.
 | Dataset freeze | **not frozen** (`FROZEN.json` absent) |
 | Certificates | 108/108 cells, 61/61 fault injectors, 5/5 mutations at `06c57ce`; `--check` says **STALE** vs `e8503cd` |
 | Gold template validation | 1/1 engine-verified; leak check clean against the training set |
-| Offline test suite | **1,176 passed, 32 skipped, 0 failed** (202.66 s) |
+| Offline test suite | Run 1: **1,176 passed / 32 skipped / 0 failed** (202.66 s). Post-commit rerun: **1,175 passed / 1 failed / 32 skipped** (293.91 s). The single failure is a pre-existing timing-sensitive bridge test, not Stage 5; see "Known test flake". |
 | Live Packet Tracer | **not run** |
 
 ---
@@ -31,7 +31,9 @@ end.
 
 1. **Engine and Stage-5 pipeline code exist.** The closed-loop engine, intent
    schema/lint/expander, Stage-5 scripts, configs and 11 notebooks are in the
-   tree. The full offline suite passes (1,176 passed, 32 skipped).
+   tree. The full offline suite passed 1,176 with 32 skipped on the first run; a
+   post-commit rerun hit one pre-existing timing-sensitive bridge test (see
+   "Known test flake" below).
 2. **Capability-gap evidence is engine-executed offline.** 14/14 probes matched
    (`capability-gap-probes.json`): guest isolation, guest-VLAN lint,
    DMZ/multi-site, ASA 5505 DMZ, ASA single-VLAN, ASA multi-site, VLAN outside
@@ -123,6 +125,17 @@ Known local data issues to fix before freeze:
 The thresholds above are from `evaluate_model.py` (S5.19) and are copied, not
 invented. A NOT VERIFIED gate blocks release exactly like a FAIL.
 
+## Known test flake (not Stage 5)
+
+`tests/test_bridge_results.py::test_unclaimed_results_are_purged` sets
+`bridge._result_ttl = 0.2`, posts five results, and asserts all five are still
+present. Under full-suite load the five HTTP posts take longer than 0.2 s, so
+the first entries are purged before the assertion (observed `2 == 5`). The test
+passes in isolation and passed on the first full run. No Stage-5 code is
+involved: neither the bridge nor the test is changed by the Stage-5 commit.
+Fix it separately (for example, fill with a long TTL, then lower the TTL for
+the purge assertion) rather than inside a Stage-5 commit.
+
 ## E. Final release blockers
 
 1. **0/100 owner Gold** records; 8 REVIEW decisions open.
@@ -136,6 +149,8 @@ invented. A NOT VERIFIED gate blocks release exactly like a FAIL.
 8. **No live Packet Tracer gate** (50 Gold prompts, ≥90%).
 9. **No merged model, no GGUF**, no model card/manifest, no release GO.
 10. **No leak check against real Gold** is possible until Gold exists.
+11. **One known offline test flake** (`test_unclaimed_results_are_purged`);
+    fix it separately before claiming a fully deterministic CI.
 
 ---
 
