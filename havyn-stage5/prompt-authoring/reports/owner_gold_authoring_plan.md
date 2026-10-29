@@ -6,6 +6,11 @@
 > record** with the provenance block below. An `oc-NNN` id is never a
 > `gold-NNN` id. Do not copy an AI prompt into `datasets/gold-v1/` unchanged.
 
+> **2026-10-29:** the 8 former REVIEW candidates now have a technical
+> resolution applied (`owner_decisions_resolution.md`): 6 BUILD (one
+> after rewrite), 2 REFUSAL, 0 owner approvals. Owner confirmation is
+> still required before any adoption.
+
 ## The 100 slots
 
 | Block | Slots | Basis | Status today |

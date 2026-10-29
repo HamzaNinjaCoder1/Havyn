@@ -112,9 +112,23 @@ DECISIONS = [
 ]
 
 
+RESOLVED_AT = "2026-10-29"
+RESOLUTION = {
+    "resolution_status": "technical_recommendation_applied",
+    "resolved_at": RESOLVED_AT,
+    "owner_approval": False,
+    "owner_action_required": (
+        "Confirm or reject this technical recommendation. Adoption still "
+        "requires the owner's own wording; no approval is recorded here."
+    ),
+}
+
+
 def main() -> None:
+    for decision in DECISIONS:
+        decision.update(RESOLUTION)
     payload = {
-        "status": "TECHNICAL RECOMMENDATIONS — owner approval has NOT been recorded",
+        "status": "TECHNICAL DECISIONS APPLIED — owner approval has NOT been recorded",
         "candidate_revision": "working tree after the Stage-5 engine criterion fix and the 8 technical decisions",
         "engine_commit_at_decision": "b69be22d0118647691d189da89624ac8edfef004 (working tree not yet committed)",
         "provenance_rule": "All eight remain ai_assisted_candidate; none is owner-authored Gold. owner_confirmation_required is true for every row.",
@@ -124,6 +138,7 @@ def main() -> None:
             "build": sum(1 for d in DECISIONS if d["technical_recommendation"].startswith("BUILD")),
             "refusal": sum(1 for d in DECISIONS if d["technical_recommendation"] == "REFUSAL"),
             "owner_approved": 0,
+            "technically_resolved": len(DECISIONS),
         },
     }
     (OUT / "owner_decisions.json").write_text(
@@ -133,9 +148,12 @@ def main() -> None:
     lines = [
         "# Owner-decision recommendations (8 candidates)",
         "",
-        "> **No owner approval has been recorded.** These are technical",
-        "> recommendations. Every record remains an AI-assisted candidate with",
-        "> `owner_confirmation_required: true`; none is owner-authored Gold.",
+        "> **Technical decisions applied on 2026-10-29; no owner approval has",
+        "> been recorded.** The recommendation below is the resolution used for",
+        "> the current candidate pool. Every record remains an AI-assisted",
+        "> candidate with `owner_confirmation_required: true`; none is",
+        "> owner-authored Gold. Owner confirmation is still required before",
+        "> adoption into `datasets/gold-v1/`.",
         "",
         "| ID | Recommendation | Basis | Engine can verify | Engine cannot verify |",
         "| --- | --- | --- | --- | --- |",

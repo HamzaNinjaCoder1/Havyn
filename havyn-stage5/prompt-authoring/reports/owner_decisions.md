@@ -1,8 +1,11 @@
 # Owner-decision recommendations (8 candidates)
 
-> **No owner approval has been recorded.** These are technical
-> recommendations. Every record remains an AI-assisted candidate with
-> `owner_confirmation_required: true`; none is owner-authored Gold.
+> **Technical decisions applied on 2026-10-29; no owner approval has
+> been recorded.** The recommendation below is the resolution used for
+> the current candidate pool. Every record remains an AI-assisted
+> candidate with `owner_confirmation_required: true`; none is
+> owner-authored Gold. Owner confirmation is still required before
+> adoption into `datasets/gold-v1/`.
 
 | ID | Recommendation | Basis | Engine can verify | Engine cannot verify |
 | --- | --- | --- | --- | --- |

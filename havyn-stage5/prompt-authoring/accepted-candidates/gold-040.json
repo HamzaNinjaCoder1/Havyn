@@ -94,7 +94,11 @@
     "technical_recommendation": "BUILD",
     "decision_basis": "Till VLAN, IoT VLAN declaration, six cabled smart_led and DSL compile. IoT placement is not modelled, so lighting separation stays UNKNOWN. It shares an IoT shape with oc-011; that is a dataset note, not a fidelity defect.",
     "provenance_status": "ai_assisted_candidate",
-    "owner_confirmation_required": true
+    "owner_confirmation_required": true,
+    "resolution_status": "technical_recommendation_applied",
+    "resolved_at": "2026-10-29",
+    "owner_approval": false,
+    "owner_action_required": "Confirm or reject this technical recommendation. Adoption still requires the owner's own wording; no approval is recorded here."
   },
   "provenance": {
     "origin": "ai_assisted_candidate",

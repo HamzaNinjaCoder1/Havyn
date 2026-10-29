@@ -182,7 +182,11 @@
     "technical_recommendation": "BUILD",
     "decision_basis": "Four VLANs, static finance, DHCP elsewhere and two servers compile. Finance isolation has no ACL and is recorded UNKNOWN; generic reachability is no longer attached to the isolation requirement.",
     "provenance_status": "ai_assisted_candidate",
-    "owner_confirmation_required": true
+    "owner_confirmation_required": true,
+    "resolution_status": "technical_recommendation_applied",
+    "resolved_at": "2026-10-29",
+    "owner_approval": false,
+    "owner_action_required": "Confirm or reject this technical recommendation. Adoption still requires the owner's own wording; no approval is recorded here."
   },
   "provenance": {
     "origin": "ai_assisted_candidate",

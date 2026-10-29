@@ -28,16 +28,33 @@ def _clean(text: str) -> str:
     return re.sub(r"[ \t]+", " ", text).strip()
 
 
-def _decision_limits() -> dict[str, str]:
+def _decision_records() -> dict[str, dict]:
     if not DECISIONS_FILE.exists():
         return {}
     payload = json.loads(DECISIONS_FILE.read_text(encoding="utf-8"))
-    return {d["id"]: d["engine_cannot_verify"] for d in payload.get("decisions", [])}
+    return {d["id"]: d for d in payload.get("decisions", [])}
+
+
+def _merge_decision(record: dict, records: dict[str, dict]) -> dict | None:
+    decision = record.get("decision")
+    if not decision:
+        return None
+    source = records.get(record["id"], {})
+    extra = {
+        key: source[key]
+        for key in ("resolution_status", "resolved_at", "owner_approval",
+                    "owner_action_required")
+        if key in source
+    }
+    return {**decision, **extra}
 
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    decision_limits = _decision_limits()
+    decision_records = _decision_records()
+    decision_limits = {
+        key: value["engine_cannot_verify"] for key, value in decision_records.items()
+    }
     records = [
         json.loads(path.read_text(encoding="utf-8"))
         for path in sorted(CAND_DIR.glob("oc-*.json"))
@@ -76,7 +93,7 @@ def main() -> None:
                 )
             ),
             "why_suitable": record["why_valuable"],
-            "decision": record.get("decision"),
+            "decision": _merge_decision(record, decision_records),
             "provenance": {
                 "origin": "ai_assisted_candidate",
                 "author_status": "ai_generated_or_ai_assisted",

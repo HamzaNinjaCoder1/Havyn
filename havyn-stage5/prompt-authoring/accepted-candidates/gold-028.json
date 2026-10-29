@@ -162,7 +162,11 @@
     "technical_recommendation": "BUILD_AFTER_REWRITE",
     "decision_basis": "Segmentation, two wireless cells, DHCP and cable internet are buildable; the WMS is now modelled as an HTTP server. Handheld terminals map to tablets because the schema has no scanner/terminal device. Contractor internet-only remains scope, not an enforced block.",
     "provenance_status": "ai_assisted_candidate",
-    "owner_confirmation_required": true
+    "owner_confirmation_required": true,
+    "resolution_status": "technical_recommendation_applied",
+    "resolved_at": "2026-10-29",
+    "owner_approval": false,
+    "owner_action_required": "Confirm or reject this technical recommendation. Adoption still requires the owner's own wording; no approval is recorded here."
   },
   "provenance": {
     "origin": "ai_assisted_candidate",

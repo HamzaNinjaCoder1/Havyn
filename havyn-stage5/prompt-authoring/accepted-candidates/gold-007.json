@@ -17,7 +17,11 @@
     "technical_recommendation": "REFUSAL",
     "decision_basis": "The engine refuses guest_isolation by name; there is no buildable form of the requested guarantee. Keeping the refusal is the only faithful answer.",
     "provenance_status": "ai_assisted_candidate",
-    "owner_confirmation_required": true
+    "owner_confirmation_required": true,
+    "resolution_status": "technical_recommendation_applied",
+    "resolved_at": "2026-10-29",
+    "owner_approval": false,
+    "owner_action_required": "Confirm or reject this technical recommendation. Adoption still requires the owner's own wording; no approval is recorded here."
   },
   "provenance": {
     "origin": "ai_assisted_candidate",
