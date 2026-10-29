@@ -9,7 +9,7 @@ end to end.
 
 | Item | State |
 | --- | --- |
-| Prompt-authoring pool | 56 candidates: 34 buildable + 22 refusal; **56/56** engine-verified in the working tree (clean checkout needs the Stage 3/4 engine work for 8; see Phase 7 note) |
+| Prompt-authoring pool | 56 candidates: 34 buildable + 22 refusal; **56/56** engine-verified at clean commit `d47588c` |
 | Post-fix semantic status | **ACCEPT 48 / owner-decision 8 / REJECT 0** (same-base re-check, not cross-family) |
 | Owner-Gold drafts | **56** in `accepted-candidates/`: 48 ACCEPT + 8 with technical recommendations; **0 owner-approved** |
 | Coverage-driven slots | **44** in `coverage-candidates/`: 41 buildable + 3 capability-gap refusals; 35 distinct cells + 9 language variants |
@@ -22,8 +22,8 @@ end to end.
 | Cross-family review | **NOT RUN**; package regenerated, SHA-256 `f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492` |
 | Synthetic training data | **2,332** rows: train 1,989 / validation 223 / heldout 120 (0.853/0.096/0.051) |
 | Prompt task | 216 examples across 36 families: train 185 / validation 21 / heldout 10 |
-| Dataset freeze | **frozen** (`FROZEN.json` present; `--check` valid) |
-| Certificates | 108/108 cells, 58/58 fault injectors, 5/5 mutations at `src-tree:3c05f72d9809+dirty-src`; `--check` **valid** |
+| Dataset freeze | **frozen at final engine** (`FROZEN.json`, train `74d529e2…`, `--check` valid) |
+| Certificates | 108/108 cells, 58/58 fault injectors, 5/5 mutations at `src-tree:5e437ba66b14`; `--check` **valid** |
 | Gold template validation | 1/1 engine-verified; leak check clean against the training set |
 | Offline test suite | **1,195 passed / 32 skipped / 0 failed** (195 s) |
 | Colab/HF preparation | **READY** (not executed in Colab): registry, preflight, dashboard, DRY_RUN, HF dataset snapshot, publish off |
@@ -101,10 +101,10 @@ Fixed 2026-10-29 (commit `64f15ff`):
   construction (`prompt_gate: template_construction`); teacher prompts require
   an ACCEPT from an independent model (`--model`). Dataset card records
   `independent_model_verified: false`.
-- **Certificates are current.** Regenerated at `src-tree:3c05f72d9809+dirty-src` (the engine
+- **Certificates are current.** Regenerated at `src-tree:5e437ba66b14` (the engine
   source is still the uncommitted Stage 3/4 work); `certify.py --check` passes.
 - **Prompt/round-trip manifests now carry an engine pin**, including a
-  `+dirty-src` marker while the engine tree is uncommitted.
+  clean engine pin with no dirty marker.
 
 ## C. Requires Hamza / human contributors
 
@@ -115,7 +115,7 @@ Fixed 2026-10-29 (commit `64f15ff`):
 | 44 open Gold slots | No candidate exists | Author prompts for `gold-057..100` from scratch; validate with `validate_gold.py` |
 | 200 external examples | Must be real people, not AI | Recruit ≥8 contributors; use `external-collection/contributor-guide.md`; consent + ledger; second-person fidelity read; engine check |
 | Cross-family review | Needs a different model family/provider | Run `cross-family-review-protocol.md` on the 56-record package; commit the raw review |
-| Commit the Stage 3/4 engine work | This work is forbidden to touch it | Decide where that commit lands; then re-certify and re-run the clean-clone check |
+| ~~Commit the Stage 3/4 engine work~~ | DONE: `d47588c`, sanitized and separate | Re-run certification after future engine changes |
 | Approve provenance extension | Dataset policy | Approve `provenance` fields / `ai_assisted` rule in `datasets/gold-v1/README.md` |
 
 ## D. Requires GPU / live Packet Tracer
@@ -154,18 +154,15 @@ the purge assertion) rather than inside a Stage-5 commit.
 3. **No cross-family review**; the package and protocol are ready, but the
    local different-family models (TinyLlama-1.1B, flan-t5-small) cannot review
    56 records on CPU. This is NOT RUN, not passed.
-4. **Clean-clone verification is 48/56**, not 56/56, until the Stage 3/4
-   server-service support is committed. The 8 affected candidates are
-   `oc-012, 013, 023, 025, 041, 053, 055, 056`.
+4. **Clean-clone verification is 56/56** at `d47588c`; resolved.
 5. **No bake-off result**, no trained checkpoint, no evaluation gate report.
 6. **No live Packet Tracer gate** (50 Gold prompts, ≥90%); there is no owner
    Gold set to draw 50 prompts from.
 7. **No merged model, no GGUF**, no model card/manifest, no release GO.
 8. **No leak check against real Gold** is possible until Gold exists; the
    template-only check proves the pipeline, not the final set.
-9. **Engine provenance is dirty**: all pins read `src-tree:3c05f72d9809+dirty-src` because the
-   Stage 3/4 work is uncommitted. Re-run certification and validation after
-   that commit lands.
+9. **Engine provenance is clean**: certificates read
+   `src-tree:5e437ba66b14`; candidate verification reads `d47588c`.
 
 ---
 
@@ -174,9 +171,8 @@ the purge assertion) rather than inside a Stage-5 commit.
 1. Hamza: answer the 8 REVIEW questions; rewrite/adopt the 48 ACCEPT drafts;
    author the 44 open slots.
 2. Run the cross-family review on the frozen 56-record package; resolve REJECTs.
-3. Owner: commit the Stage 3/4 engine work; re-run `certify.py`; regenerate
-   datasets if the engine changed; re-assemble; fix the 0-train prompt task;
-   freeze the training data.
+3. DONE: Stage 3/4 committed (`d47588c`); re-certified; datasets regenerated
+   at that engine; re-assembled and frozen.
 4. Collect the 200 external examples with consent + ledger + second read.
 5. Colab: notebook 01 (setup) → 02 (engine validation) → 03 (bake-off) →
    09 (training) → 10 (evaluation + live gate + GGUF) → 11 (improvement loop).
@@ -185,9 +181,8 @@ the purge assertion) rather than inside a Stage-5 commit.
 
 ## Honest boundaries
 
-- The 56/56 candidate verification was run in the working tree, which contains
-  pre-existing uncommitted Stage 3/4 changes. It is not reproducible from the
-  Stage-5 commit alone.
+- The 56/56 candidate verification is pinned to the clean Stage 3/4 commit
+  `d47588c` and is reproducible from it.
 - All capability probes are offline engine probes. None is a live Packet
   Tracer run.
 - No GPU training, bake-off, evaluation, GGUF export or live PT gate has been

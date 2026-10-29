@@ -98,6 +98,6 @@
   "prompt_hash": "99857bd6aca9a17cb08518da2fe000bd6a92533ff8d1ac523c4f3276cb6461c9",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-29T13:04:02+00:00",
-  "engine_commit": "3aabae42451b54b44b3fb17b8678f0d0567e6d37+dirty-src"
+  "verified_at": "2026-10-29T13:52:33+00:00",
+  "engine_commit": "d47588c50ec78eef3f6d133436b97e15e7ecdcd9"
 }

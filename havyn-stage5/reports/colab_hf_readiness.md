@@ -50,8 +50,8 @@ no model weights were downloaded, and nothing was uploaded to Hugging Face.
   prompts yet. The pipeline is ready; the data is not.
 - Cross-family review: package ready, model not run; `REVIEW_MODEL_ID` must be
   a family different from the teacher and the fine-tune base.
-- Stage 3/4 engine work is uncommitted, so every pin says `+dirty-src`; commit
-  it separately after sanitising the evidence, then re-run certification.
+- The Stage 3/4 engine is committed separately as `d47588c` with sanitized lab
+  credentials; pins are clean (`src-tree:5e437ba66b14`).
 - Gated models (Llama 3.1/3.2, Gemma 2) require accepting their licences on the
   Hugging Face account behind `HF_TOKEN`.
 
@@ -107,7 +107,7 @@ Modified: `train_lora.py`, `benchmark_harness.py` (engine verification, hallucin
 `generate_prompts.py`, `roundtrip_verify.py`, all 11 notebooks,
 `configs/train-standard.yaml`, `configs/train-lite.yaml`, `.gitignore`.
 
-Generated locally (gitignored): `datasets/hf-export/havyn-sft-20261029-b29fa9f8/`
+Generated locally (gitignored): `datasets/hf-export/havyn-sft-20261029-74d529e2/`
 (7 files, 8.9 MB), with a SHA-256 table in the card, manifest and Gold exclusion.
 
 ## 8. Exact remaining user actions

@@ -24,7 +24,7 @@
     "expected_refusal_no_engine_code": 20
   },
   "verification_failures": [],
-  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
-  "generated_at": "2026-10-29T10:27:12+00:00",
+  "engine_commit": "d47588c50ec78eef3f6d133436b97e15e7ecdcd9",
+  "generated_at": "2026-10-29T14:35:41+00:00",
   "separation": "This directory is separate from datasets/gold-v1 and from any future external-human-v1."
 }

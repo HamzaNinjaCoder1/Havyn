@@ -1,7 +1,7 @@
 {
   "dataset": "havyn-diagnosis-v1",
   "generator_version": "0.1.0",
-  "engine_commit": "06c57ced050c",
+  "engine_commit": "src-tree:5e437ba66b14",
   "seed": 20261028,
   "examples": 72,
   "counts": {
@@ -18,5 +18,5 @@
     "wrong-gateway": 9
   },
   "live_share_reserved": 0.1,
-  "generated": "2026-10-27T21:41:21+00:00"
+  "generated": "2026-10-29T14:05:39+00:00"
 }

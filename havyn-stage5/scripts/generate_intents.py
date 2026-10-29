@@ -302,7 +302,7 @@ def verify_intent(intent: HavynIntent) -> tuple[str, str | None, dict | None]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="dataset/intents")
+    parser.add_argument("--out", default="havyn-stage5/datasets/havyn-intents-v1")
     parser.add_argument("--limit", type=int, default=None,
                         help="max variants per coverage pass (for smoke runs)")
     parser.add_argument("--seed", type=int, default=20261028)

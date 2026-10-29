@@ -217,6 +217,6 @@
   "prompt_hash": "92baa7ad04667badd019bb671b0c15280a61152a7d5f44f69d6593469cb1fffe",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-29T11:08:14+00:00",
-  "engine_commit": "3758c8ee20397aa513fef369b1ec931cb1a02035+dirty-src"
+  "verified_at": "2026-10-29T14:30:03+00:00",
+  "engine_commit": "d47588c50ec78eef3f6d133436b97e15e7ecdcd9"
 }

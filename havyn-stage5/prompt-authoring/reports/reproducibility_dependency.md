@@ -1,7 +1,8 @@
 # Stage-5 reproducibility and the `src/network_autopilot/ai/` dependency
 
-Status: **partially resolved, with one documented blocker that this work is not
-allowed to fix.**
+Status: **RESOLVED 2026-10-29.** The Stage 3/4 engine work is committed
+separately as `d47588c`. A clean checkout of that engine verifies **56/56**
+candidates. The historical finding below is preserved for context.
 
 ## Finding
 
@@ -61,7 +62,7 @@ Evidence that the package is Stage-5-only, not Stage 3/4:
 ## Reproducibility test (isolated, working tree untouched)
 
 ```bash
-TMP=/c/Users/Hamza/AppData/Local/Temp/havyn-head-repro
+TMP=${TMPDIR:-/tmp}/havyn-head-repro
 rm -rf "$TMP"; mkdir -p "$TMP"
 git archive HEAD | tar -x -C "$TMP"
 cp -r src/network_autopilot/ai "$TMP/src/network_autopilot/ai"
@@ -102,22 +103,25 @@ Without copying `ai/`, the same clean tree fails at import:
   Stage-5 output diverge from the engine's real capability. The correct fix is
   to commit the Stage 3/4 work separately.
 
-## Residual blocker (explicit)
+## Resolution (2026-10-29)
 
-Until the Stage 3/4 Server-PT service support is committed, a clean checkout of
-the Stage-5 commit verifies **48/56**, not 56/56. The **56/56** figure in
-`verification-report.json` is reproducible **only in the current working tree**,
-which contains those uncommitted Stage 3/4 changes. This is a reproducibility
-limitation, not a candidate defect: all 56 candidates pass in the tree that
-contains the engine they were written against.
+The pre-existing Stage 3/4 engine work is committed separately as `d47588c`
+(device/feature coverage with sanitized evidence). It includes the Server-PT
+service support, the executor/port-solver changes and the Stage-5 criterion fix
+in `ai/expander.py`.
 
-The same limitation applies to `validate_gold.py` for any Gold record that uses
-a DNS/HTTP/FTP service: the record will fail at compile on a clean `e8503cd`
-checkout until Stage 3/4 lands.
+- `src/network_autopilot/ai/` is tracked at `d47588c` (4 files), so a clean
+  clone runs every Stage-5 script.
+- The candidate pool re-verifies **56/56** at `d47588c` with no `+dirty-src`
+  marker (`verification-report.json`).
+- The Stage-5 commits are on top of that engine checkpoint; no Stage 3/4 file
+  was included in a Stage-5 commit.
+- Certificates are pinned to `src-tree:5e437ba66b14`, the committed engine tree.
 
-## What the owner must do
+The historical 48/56 finding above applied to `e8503cd` before the Stage 3/4
+checkpoint; it is no longer the current state.
 
-1. Commit the Stage 3/4 engine changes (or approve a separate commit) before
-   claiming a clean-clone Stage-5 verification.
-2. After that commit, re-run the full suite from a clean checkout. The expected
-   result is 56/56; this document should be updated with the new SHA.
+## What remains
+
+Only the owner gates remain: confirm the 8 technical decisions, rewrite/adopt
+Gold drafts, and run the GPU/Colab and live-Packet-Tracer stages.

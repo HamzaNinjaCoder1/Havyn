@@ -1,72 +1,50 @@
-# Stage 3/4 checkpoint — safety blocker
+# Stage 3/4 checkpoint — RESOLVED
 
-Status: **NOT COMMITTED.** The engine work is test-covered in the working tree,
-but the surrounding Stage 3/4 evidence set contains credential-like material.
-Committing it would expose secrets, so it is left untouched for owner
-sanitisation.
+Status: **RESOLVED 2026-10-29.** The Stage 3/4 engine and evidence are committed
+separately as `d47588c`, on top of the Stage-5 commits. No Stage 3/4 file is in
+a Stage-5 commit, and no Stage-5 file is in the Stage 3/4 commit.
 
-## What the 8 clean-checkout failures need
+## What was committed
 
-The 8 candidates (`oc-012, 013, 023, 025, 041, 053, 055, 056`) fail on a clean
-`e8503cd` tree with:
-
-```text
-CompileError: spec requires features outside the compiler scope: Server-PT
-services (...)
-```
-
-The working tree resolves them with:
-
-| Area | Working-tree site |
+| Area | Contents |
 | --- | --- |
-| Server-service compile support | `src/network_autopilot/compiler/compiler.py:133-160` |
-| Server service fields / records / pages / pools | `src/network_autopilot/core/network_spec.py` (`ServerServiceSpec`) |
-| Spec lint alignment | `src/network_autopilot/compiler/spec_lint.py` |
-| Live server configuration helpers | `src/network_autopilot/adapter/packet_tracer/stage3_commands.py` (imported by `bridge_adapter.py:57`) |
-| Executor / port solver additions | `compiler/executor.py`, `compiler/port_solver.py` |
+| Engine | Server-PT services (DNS/HTTP/DHCP/NTP/Syslog/FTP/AAA), Cloud-PT DSL/cable and Frame Relay, RSA key generation, ASA DHCP/object handling, switch SVIs/EtherChannel/STP/port-security/VTP/voice VLAN |
+| Compile guards | by-name refusals for unsupported shapes; port solver, executor and spec lint aligned |
+| Stage-5 dependency | `ai/expander.py` criterion fix; the 8 candidates that needed Server-PT services now verify |
+| Evidence | `probes/raw/`, `probes/live/`, `library/stage3/`, probes and labs |
+| Reports | capability map, Stage 3 scorecard, CHANGELOG, skill notes, runner summary |
+| Tests | `test_stage3_features.py`, `test_capability_map.py`, `test_compiler.py` |
 
-Tests that cover this work in the working tree:
+## Sanitisation applied
 
-- `tests/autopilot/test_stage3_features.py`
-- `tests/autopilot/test_compiler.py`
-- `tests/autopilot/test_capability_map.py`
+- `probes/stage3_ssh_lab.py`: username/password from `HAVYN_LAB_USER` /
+  `HAVYN_LAB_PASSWORD`, random per run otherwise.
+- `probes/stage3_ftp_lab.py`: `HAVYN_FTP_USER` / `HAVYN_FTP_PASSWORD`, random
+  per run otherwise.
+- `probes/stage3_aaa_lab.py`: `HAVYN_LAB_USER`, `HAVYN_LAB_PASSWORD`,
+  `HAVYN_AAA_KEY`, random per run otherwise; the ACS JS is built with
+  `json.dumps`, not string interpolation.
+- `library/stage3/S3-A15-ssh.json` and the Stage 3 test fixture now use
+  `LAB-ONLY-CHANGE-ME`.
+- Raw captures contain CLI prompts, masked values and redacted hashes
+  (`***REDACTED***`, `LAB-REDACTED`), not secret values.
+- No token, private key, API key or personal credential is in the commit.
+- Originals of the four edited files are kept locally, outside Git, in
+  `.audit-tmp/stage34-originals/` (gitignored). They contained only synthetic
+  lab defaults.
 
-The full offline suite passed in this working tree (1,176 passed / 32 skipped
-on the first run; one unrelated bridge timing flake on the rerun).
+## Verification
 
-## Why it is not safe to commit
+- Stage 3 tests: 86 passed.
+- Full offline suite at the committed engine: 1,197 passed / 32 skipped.
+- Candidate verification at `d47588c`: **56/56**, clean engine pin (no
+  `+dirty-src`).
+- Dataset re-generated and frozen at this engine; certificates pinned to
+  `src-tree:5e437ba66b14`.
 
-The Stage 3/4 evidence set is not just source:
+## Owner action
 
-- **34 files** under `probes/raw/` and `library/stage3/` contain credential-like
-  strings (password/passwd/secret/enable secret/username/token), including
-  router, switch, ASA and SSH/FTP/AAA captures.
-- The capability map tests require real evidence pointers, so committing the
-  capability work without the evidence would break those tests; committing the
-  evidence would expose the credentials.
-- There are also 69 probe files, 9 library fixtures and several `.pkt` scratch
-  artifacts in the working tree. They are not a coherent, sanitised checkpoint.
-
-A commit that includes only the compiler files would be a partial Stage 3/4
-checkpoint and would still leave the capability-map/tests uncommitted. That is
-not a safe checkpoint either.
-
-## Required owner action
-
-1. Sanitise or replace the credential-bearing captures under `probes/raw/` and
-   `library/stage3/` (redact passwords, keys, tokens, usernames where sensitive).
-2. Decide the Stage 3/4 checkpoint boundary (source + tests + capability map +
-   sanitised evidence).
-3. Commit that work **separately** from Stage 5.
-4. Re-run:
-   ```bash
-   python havyn-stage5/scripts/certify.py
-   python havyn-stage5/prompt-authoring/owner-candidates/verify_candidates.py --emit
-   python -m pytest
-   ```
-5. Re-test a clean checkout; the expected result is 56/56 candidates and no
-   Server-PT compile failures.
-
-Until then, the Stage-5 commit is self-contained for the `ai/` layer but a clean
-checkout still verifies **48/56**, not 56/56. This is recorded in
-`reproducibility_dependency.md` and `stage5_handoff.md`.
+Review the sanitised lab values. If you prefer different lab credentials, set
+`HAVYN_LAB_PASSWORD`, `HAVYN_FTP_PASSWORD` and `HAVYN_AAA_KEY` in the
+environment when running the probes; do not commit real credentials. No
+approval or signature is required for this checkpoint.

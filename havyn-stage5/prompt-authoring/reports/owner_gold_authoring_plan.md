@@ -37,8 +37,8 @@ refusal. Do not relabel a candidate to pretend a cell is covered.
 
 - Engine-verified: **56/56** in the current working tree (34 buildable + 22
   refusal, 0 failures). See the reproducibility caveat in
-  `reproducibility_dependency.md`: a clean `e8503cd` checkout verifies 48/56
-  until the Stage 3/4 server-service support is committed.
+  `reproducibility_dependency.md`: a clean checkout at the Stage 3/4
+  checkpoint `d47588c` verifies 56/56 (resolved 2026-10-29).
 - Post-fix semantic re-check: **ACCEPT 48 / REVIEW 8 / REJECT 0**.
 - Technical decision pass: **ACCEPT 56 / REVIEW 0 / REJECT 0**. The 8 former
   REVIEWs now have recorded technical recommendations
@@ -276,7 +276,7 @@ Rules:
 - **0 of 100 Gold slots exist.** Candidate-backed slots are drafts; open slots
   have no prompt.
 - **56 candidates are engine-verified in the working tree**, but a clean
-  `e8503cd` checkout verifies 48/56 until the Stage 3/4 server-service support
+  checkout at `d47588c` verifies 56/56 (resolved 2026-10-29; no longer 48/56)
   is committed. See `reproducibility_dependency.md`.
 - **The 8 technical decisions still need your confirmation** before adoption;
   they are not owner approvals. See `owner_decisions.md`.
