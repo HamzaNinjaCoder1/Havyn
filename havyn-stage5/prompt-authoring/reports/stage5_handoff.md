@@ -23,7 +23,7 @@ end to end.
 | Synthetic training data | **2,332** rows: train 1,989 / validation 223 / heldout 120 (0.853/0.096/0.051) |
 | Prompt task | 216 examples across 36 families: train 185 / validation 21 / heldout 10 |
 | Dataset freeze | **frozen** (`FROZEN.json` present; `--check` valid) |
-| Certificates | 108/108 cells, 58/58 fault injectors, 5/5 mutations at `64f15ff+dirty-src`; `--check` **valid** |
+| Certificates | 108/108 cells, 58/58 fault injectors, 5/5 mutations at `src-tree:3c05f72d9809+dirty-src`; `--check` **valid** |
 | Gold template validation | 1/1 engine-verified; leak check clean against the training set |
 | Offline test suite | **1,186 passed / 32 skipped / 0 failed** (179 s) |
 | Live Packet Tracer | **not run** |
@@ -100,7 +100,7 @@ Fixed 2026-10-29 (commit `64f15ff`):
   construction (`prompt_gate: template_construction`); teacher prompts require
   an ACCEPT from an independent model (`--model`). Dataset card records
   `independent_model_verified: false`.
-- **Certificates are current.** Regenerated at `64f15ff+dirty-src` (the engine
+- **Certificates are current.** Regenerated at `src-tree:3c05f72d9809+dirty-src` (the engine
   source is still the uncommitted Stage 3/4 work); `certify.py --check` passes.
 - **Prompt/round-trip manifests now carry an engine pin**, including a
   `+dirty-src` marker while the engine tree is uncommitted.
@@ -162,7 +162,7 @@ the purge assertion) rather than inside a Stage-5 commit.
 7. **No merged model, no GGUF**, no model card/manifest, no release GO.
 8. **No leak check against real Gold** is possible until Gold exists; the
    template-only check proves the pipeline, not the final set.
-9. **Engine provenance is dirty**: all pins read `64f15ff+dirty-src` because the
+9. **Engine provenance is dirty**: all pins read `src-tree:3c05f72d9809+dirty-src` because the
    Stage 3/4 work is uncommitted. Re-run certification and validation after
    that commit lands.
 

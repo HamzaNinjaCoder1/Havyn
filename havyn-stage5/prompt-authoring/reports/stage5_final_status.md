@@ -20,7 +20,7 @@ the checks were executed here.
 | Stage 3/4 dependency | BLOCKED | `stage34_checkpoint_blocker.md`: server-service support in `src/`, tests, but the evidence set contains credential-like strings | Owner must sanitise `probes/raw/` and `library/stage3/` before a separate checkpoint |
 | Dataset assembly | COMPLETE | 2,332 rows: train 1,989 / validation 223 / heldout 120 (0.853/0.096/0.051); per-task counts below; 0 errors, 0 family overlaps, 0 cross-split duplicates | — |
 | Dataset freeze | COMPLETE | `havyn-train-v1/FROZEN.json`; `freeze_dataset.py --check` valid; SHA-256 for all five files | Re-freeze after any engine-driven regeneration |
-| Certificates | COMPLETE | `certify.py --check` valid at `64f15ff+dirty-src`: cells 108/108, fault injectors 58/58, mutations 5/5 | Engine source still dirty; re-run after the Stage 3/4 commit |
+| Certificates | COMPLETE | `certify.py --check` valid at `src-tree:3c05f72d9809+dirty-src`: cells 108/108, fault injectors 58/58, mutations 5/5 | Engine source still dirty; re-run after the Stage 3/4 commit |
 | Colab preparation | READY | 11 notebooks statically checked: every referenced script exists; 05 requires `INDEPENDENT_MODEL_ID` and passes `--model`; 08 assembles/validates/freezes; 09 copies the frozen set to Drive; 10 uses Drive checkpoint paths | Not executed on a GPU runtime here |
 | Base-model bake-off | READY / NOT RUN | `configs/bakeoff.yaml` (5 candidates, metrics), `benchmark_harness.run_bakeoff`, 125 benchmark prompts built (`bench-prompts-v1.jsonl`) | No GPU; no measured results exist and none are invented |
 | Training (standard/lite) | NOT RUN | `train_lora.py` refuses unfrozen/changed data; configs and resume recipe ready | No GPU; no checkpoint, loss curve or score exists |

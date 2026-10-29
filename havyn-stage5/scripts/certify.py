@@ -66,14 +66,20 @@ CERT_DIR = REPO / "havyn-stage5" / "certificates"
 
 
 def engine_commit() -> str:
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True
+    """Identify the engine by its content, not by HEAD.
+
+    Pinning HEAD made every later commit (including docs) report the
+    certificates stale although src/ had not changed. The src tree hash is
+    stable across unrelated commits and still changes when the engine does.
+    """
+    tree = subprocess.run(
+        ["git", "rev-parse", "HEAD:src"], cwd=REPO, capture_output=True, text=True
     ).stdout.strip()[:12]
     dirty = subprocess.run(
         ["git", "status", "--porcelain", "--", "src"],
         cwd=REPO, capture_output=True, text=True,
     ).stdout.strip()
-    return f"{head}+dirty-src" if dirty else head
+    return f"src-tree:{tree}+dirty-src" if dirty else f"src-tree:{tree}"
 
 
 @dataclass
