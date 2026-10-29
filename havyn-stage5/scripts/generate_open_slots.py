@@ -85,7 +85,7 @@ SCENARIOS = [
 def _parse_plan() -> list[dict]:
     text = PLAN.read_text(encoding="utf-8")
     rows = re.findall(
-        r"\| (gold-\d{3}) \| `([^`]+)` \| ([a-z-]+) \| (L\d) \| OPEN \| O \|", text
+        r"\| (gold-\d{3}) \| `([^`]+)` \| ([a-z-]+) \| (L\d) \| (?:OPEN|CANDIDATE) \| O \|", text
     )
     if len(rows) != 44:
         raise SystemExit(f"expected 44 open slots in the plan, found {len(rows)}")

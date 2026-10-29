@@ -22,7 +22,7 @@
   "prompt_hash": "6452bd87141e4ccb1b5a9fb29d4ff0c660fe4708701dc0bcfc8b1115578e2bac",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-29T10:23:34+00:00",
-  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
+  "verified_at": "2026-10-29T11:08:12+00:00",
+  "engine_commit": "3758c8ee20397aa513fef369b1ec931cb1a02035+dirty-src",
   "refusal_evidence": "refusal: wan-device-missing: the serial WAN needs 'site1-r1', which was never created"
 }

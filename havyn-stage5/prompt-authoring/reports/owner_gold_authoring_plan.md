@@ -11,7 +11,17 @@
 | Block | Slots | Basis | Status today |
 | --- | --- | --- | --- |
 | Candidate-backed | `gold-001..056` | 56 engine-verified AI drafts awaiting owner rewrite/adoption | none adopted |
-| Coverage-driven | `gold-057..100` | 35 certified cells with zero exact candidate + 9 language-completeness variants | no prompt exists |
+| Coverage-driven | `gold-057..100` | 35 certified cells with zero exact candidate + 9 language-completeness variants | 44 AI candidates verified; owner wording pending |
+
+All 44 coverage-driven slots now have a verified AI candidate in
+`../coverage-candidates/candidates/cc-NNN.json` (41 buildable + 3
+capability-gap refusals, 44/44 engine-checked). **None is owner-authored
+Gold.** They are ready for rapid owner adoption: rewrite or confirm the
+prompt in your own words, confirm the expected intent/refusal, and adopt
+with `origin: owner`, `ai_assisted: true`. The three refusals (`cc-071`,
+`cc-086`, `cc-090`) record a real engine gap (multi-site WAN with an ASA
+at site 1 -> `wan-device-missing`) and need the refusal wording confirmed
+by the owner.
 
 Total: **100**. Candidate-backed and coverage-driven are not the same thing as
 coverage-exact: only **1** of the 56 candidates is an exact cell match (see the
@@ -166,50 +176,50 @@ the refusal honestly or escalate — do not bend the prompt to fit the engine.
 
 | slot | target cell | lang | diff | status | action |
 | --- | --- | --- | --- | --- | --- |
-| gold-057 | `large-s1-a4-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
-| gold-058 | `large-s1-a4-multi-dhcp-dsl-none` | roman-urdu | L4 | OPEN | O |
-| gold-059 | `large-s1-a4-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
-| gold-060 | `large-s1-a4-single-dhcp-wan-asa` | en | L4 | OPEN | O |
-| gold-061 | `large-s1-a4-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
-| gold-062 | `large-s1-a4-single-static-none-none` | en | L4 | OPEN | O |
-| gold-063 | `medium-s1-a3-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
-| gold-064 | `medium-s1-a3-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | O |
-| gold-065 | `medium-s1-a3-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
-| gold-066 | `medium-s1-a3-single-dhcp-wan-asa` | en | L4 | OPEN | O |
-| gold-067 | `medium-s1-a3-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
-| gold-068 | `medium-s1-a3-single-static-none-none` | en | L1 | OPEN | O |
-| gold-069 | `medium-s2-a2-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
-| gold-070 | `medium-s2-a2-multi-dhcp-wan-none` | roman-urdu | L4 | OPEN | O |
-| gold-071 | `medium-s2-a2-single-dhcp-wan-asa` | en | L4 | OPEN | O |
-| gold-072 | `medium-s2-a2-single-static-none-none` | en | L1 | OPEN | O |
-| gold-073 | `small-s1-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
-| gold-074 | `small-s1-a1-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | O |
-| gold-075 | `small-s1-a1-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
-| gold-076 | `small-s1-a1-single-dhcp-wan-asa` | en | L4 | OPEN | O |
-| gold-077 | `small-s1-a1-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
-| gold-078 | `small-s1-a1-single-static-none-none` | en | L1 | OPEN | O |
-| gold-079 | `small-s1-a2-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
-| gold-080 | `small-s1-a2-multi-dhcp-dsl-none` | roman-urdu | L3 | OPEN | O |
-| gold-081 | `small-s1-a2-multi-static-ospf-wan-none` | en | L4 | OPEN | O |
-| gold-082 | `small-s1-a2-single-dhcp-wan-asa` | en | L4 | OPEN | O |
-| gold-083 | `small-s1-a2-single-dhcp-wan-asa-dmz` | en | L5 | OPEN | O |
-| gold-084 | `small-s1-a2-single-static-none-none` | en | L1 | OPEN | O |
-| gold-085 | `small-s2-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
-| gold-086 | `small-s2-a1-single-dhcp-wan-asa` | en | L4 | OPEN | O |
-| gold-087 | `small-s2-a1-single-static-none-none` | en | L1 | OPEN | O |
-| gold-088 | `small-s3-a1-multi-dhcp-cable-none-iot` | mixed | L4 | OPEN | O |
-| gold-089 | `small-s3-a1-multi-dhcp-wan-none` | roman-urdu | L4 | OPEN | O |
-| gold-090 | `small-s3-a1-single-dhcp-wan-asa` | en | L4 | OPEN | O |
-| gold-091 | `small-s3-a1-single-static-none-none` | en | L1 | OPEN | O |
-| gold-092 | `large-s1-a4-multi-dhcp-cable-none-iot` | en | L4 | OPEN | O |
-| gold-093 | `large-s1-a4-multi-dhcp-dsl-none` | mixed | L4 | OPEN | O |
-| gold-094 | `large-s1-a4-multi-static-ospf-wan-none` | roman-urdu | L4 | OPEN | O |
-| gold-095 | `large-s1-a4-single-dhcp-wan-asa` | roman-urdu | L4 | OPEN | O |
-| gold-096 | `large-s1-a4-single-dhcp-wan-asa-dmz` | roman-urdu | L5 | OPEN | O |
-| gold-097 | `large-s1-a4-single-static-none-none` | roman-urdu | L4 | OPEN | O |
-| gold-098 | `medium-s1-a3-multi-dhcp-cable-none-iot` | en | L4 | OPEN | O |
-| gold-099 | `medium-s1-a3-multi-dhcp-dsl-none` | mixed | L3 | OPEN | O |
-| gold-100 | `medium-s1-a3-multi-static-ospf-wan-none` | roman-urdu | L4 | OPEN | O |
+| gold-057 | `large-s1-a4-multi-dhcp-cable-none-iot` | mixed | L4 | CANDIDATE | O |
+| gold-058 | `large-s1-a4-multi-dhcp-dsl-none` | roman-urdu | L4 | CANDIDATE | O |
+| gold-059 | `large-s1-a4-multi-static-ospf-wan-none` | en | L4 | CANDIDATE | O |
+| gold-060 | `large-s1-a4-single-dhcp-wan-asa` | en | L4 | CANDIDATE | O |
+| gold-061 | `large-s1-a4-single-dhcp-wan-asa-dmz` | en | L5 | CANDIDATE | O |
+| gold-062 | `large-s1-a4-single-static-none-none` | en | L4 | CANDIDATE | O |
+| gold-063 | `medium-s1-a3-multi-dhcp-cable-none-iot` | mixed | L4 | CANDIDATE | O |
+| gold-064 | `medium-s1-a3-multi-dhcp-dsl-none` | roman-urdu | L3 | CANDIDATE | O |
+| gold-065 | `medium-s1-a3-multi-static-ospf-wan-none` | en | L4 | CANDIDATE | O |
+| gold-066 | `medium-s1-a3-single-dhcp-wan-asa` | en | L4 | CANDIDATE | O |
+| gold-067 | `medium-s1-a3-single-dhcp-wan-asa-dmz` | en | L5 | CANDIDATE | O |
+| gold-068 | `medium-s1-a3-single-static-none-none` | en | L1 | CANDIDATE | O |
+| gold-069 | `medium-s2-a2-multi-dhcp-cable-none-iot` | mixed | L4 | CANDIDATE | O |
+| gold-070 | `medium-s2-a2-multi-dhcp-wan-none` | roman-urdu | L4 | CANDIDATE | O |
+| gold-071 | `medium-s2-a2-single-dhcp-wan-asa` | en | L4 | CANDIDATE | O |
+| gold-072 | `medium-s2-a2-single-static-none-none` | en | L1 | CANDIDATE | O |
+| gold-073 | `small-s1-a1-multi-dhcp-cable-none-iot` | mixed | L4 | CANDIDATE | O |
+| gold-074 | `small-s1-a1-multi-dhcp-dsl-none` | roman-urdu | L3 | CANDIDATE | O |
+| gold-075 | `small-s1-a1-multi-static-ospf-wan-none` | en | L4 | CANDIDATE | O |
+| gold-076 | `small-s1-a1-single-dhcp-wan-asa` | en | L4 | CANDIDATE | O |
+| gold-077 | `small-s1-a1-single-dhcp-wan-asa-dmz` | en | L5 | CANDIDATE | O |
+| gold-078 | `small-s1-a1-single-static-none-none` | en | L1 | CANDIDATE | O |
+| gold-079 | `small-s1-a2-multi-dhcp-cable-none-iot` | mixed | L4 | CANDIDATE | O |
+| gold-080 | `small-s1-a2-multi-dhcp-dsl-none` | roman-urdu | L3 | CANDIDATE | O |
+| gold-081 | `small-s1-a2-multi-static-ospf-wan-none` | en | L4 | CANDIDATE | O |
+| gold-082 | `small-s1-a2-single-dhcp-wan-asa` | en | L4 | CANDIDATE | O |
+| gold-083 | `small-s1-a2-single-dhcp-wan-asa-dmz` | en | L5 | CANDIDATE | O |
+| gold-084 | `small-s1-a2-single-static-none-none` | en | L1 | CANDIDATE | O |
+| gold-085 | `small-s2-a1-multi-dhcp-cable-none-iot` | mixed | L4 | CANDIDATE | O |
+| gold-086 | `small-s2-a1-single-dhcp-wan-asa` | en | L4 | CANDIDATE | O |
+| gold-087 | `small-s2-a1-single-static-none-none` | en | L1 | CANDIDATE | O |
+| gold-088 | `small-s3-a1-multi-dhcp-cable-none-iot` | mixed | L4 | CANDIDATE | O |
+| gold-089 | `small-s3-a1-multi-dhcp-wan-none` | roman-urdu | L4 | CANDIDATE | O |
+| gold-090 | `small-s3-a1-single-dhcp-wan-asa` | en | L4 | CANDIDATE | O |
+| gold-091 | `small-s3-a1-single-static-none-none` | en | L1 | CANDIDATE | O |
+| gold-092 | `large-s1-a4-multi-dhcp-cable-none-iot` | en | L4 | CANDIDATE | O |
+| gold-093 | `large-s1-a4-multi-dhcp-dsl-none` | mixed | L4 | CANDIDATE | O |
+| gold-094 | `large-s1-a4-multi-static-ospf-wan-none` | roman-urdu | L4 | CANDIDATE | O |
+| gold-095 | `large-s1-a4-single-dhcp-wan-asa` | roman-urdu | L4 | CANDIDATE | O |
+| gold-096 | `large-s1-a4-single-dhcp-wan-asa-dmz` | roman-urdu | L5 | CANDIDATE | O |
+| gold-097 | `large-s1-a4-single-static-none-none` | roman-urdu | L4 | CANDIDATE | O |
+| gold-098 | `medium-s1-a3-multi-dhcp-cable-none-iot` | en | L4 | CANDIDATE | O |
+| gold-099 | `medium-s1-a3-multi-dhcp-dsl-none` | mixed | L3 | CANDIDATE | O |
+| gold-100 | `medium-s1-a3-multi-static-ospf-wan-none` | roman-urdu | L4 | CANDIDATE | O |
 
 ## Provenance rule (do not bend)
 
