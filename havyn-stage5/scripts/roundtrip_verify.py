@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import re
 import sys
@@ -131,8 +132,8 @@ def main() -> None:
     parser.add_argument("--prompts", default="havyn-stage5/datasets/havyn-prompts-v1/prompts.jsonl")
     parser.add_argument("--intents", default="havyn-stage5/datasets/havyn-intents-v1/valid.jsonl")
     parser.add_argument("--out", default="havyn-stage5/datasets/havyn-roundtrip-v1")
-    parser.add_argument("--model", default=None,
-                        help="independent-family model id (GPU required)")
+    parser.add_argument("--model", default=os.environ.get("REVIEW_MODEL_ID"),
+                        help="independent-family model id (GPU required); defaults to REVIEW_MODEL_ID")
     parser.add_argument("--dry-run", action="store_true",
                         help="reconstruction := source intent; queue logic only")
     args = parser.parse_args()

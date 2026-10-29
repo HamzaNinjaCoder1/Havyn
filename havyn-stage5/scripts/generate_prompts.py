@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import random
 import sys
 from datetime import datetime, timezone
@@ -146,8 +147,8 @@ def main() -> None:
     parser.add_argument("--out", default="havyn-stage5/datasets/havyn-prompts-v1")
     parser.add_argument("--share", type=float, default=0.3,
                         help="template share; the rest goes to the teacher")
-    parser.add_argument("--teacher", default=None,
-                        help="teacher model id (GPU required)")
+    parser.add_argument("--teacher", default=os.environ.get("TEACHER_MODEL_ID"),
+                        help="teacher model id (GPU required); defaults to TEACHER_MODEL_ID")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--per-cell", type=int, default=None,
                         help="cap source intents per coverage cell (spreads families)")

@@ -318,17 +318,28 @@ def run_bakeoff(
 
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    vram_before = torch.cuda.max_memory_allocated() / 1e6 if torch.cuda.is_available() else None
 
     for candidate in config["candidates"]:
         name = candidate["name"]
         print(f"[bakeoff] loading {name}")
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
         tokenizer = AutoTokenizer.from_pretrained(candidate["model_id"])
+        quant_config = None
+        if candidate.get("load_in_4bit") and torch.cuda.is_available():
+            from transformers import BitsAndBytesConfig
+
+            quant_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+            )
         model = AutoModelForCausalLM.from_pretrained(
             candidate["model_id"],
             torch_dtype="auto",
             device_map="auto",
-            load_in_4bit=candidate.get("load_in_4bit", False),
+            quantization_config=quant_config,
         )
         model.eval()
         scores: list[GenerationScore] = []
@@ -379,7 +390,10 @@ def run_bakeoff(
         summary = summarise(scores)
         summary["model"] = name
         summary["model_id"] = candidate["model_id"]
-        summary["peak_vram_mb"] = round(vram_before or 0, 1)
+        summary["peak_vram_mb"] = (
+            round(torch.cuda.max_memory_allocated() / 1e6, 1)
+            if torch.cuda.is_available() else None
+        )
         summary["recorded_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         (out / f"{name.replace('/', '_')}-summary.json").write_text(
             json.dumps(summary, indent=2), encoding="utf-8",

@@ -1,0 +1,58 @@
+# Colab / Hugging Face runtime configuration.
+#
+# Secrets are NEVER stored here. Only environment-variable NAMES are listed.
+# The defaults are deliberately safe: publishing is disabled and nothing is
+# uploaded unless both HF_PUBLISH=true and --publish are supplied.
+
+storage:
+  # Drive is optional; when it is not mounted use runtime_root.
+  drive_root: /content/drive/MyDrive/havyn-stage5
+  runtime_root: /content/havyn-artifacts
+  artifacts_that_must_survive:
+    - datasets/havyn-train-v1
+    - checkpoints
+    - reports/training-*
+    - evaluation
+    - artifacts
+    - manifests
+
+publish:
+  hf_publish: false                 # hard default: DO NOT UPLOAD
+  hf_private: true                  # any future repo must be private
+  hf_dataset_repo: ""               # e.g. <user>/havyn-sft-private
+  hf_model_repo: ""                 # e.g. <user>/havyn-standard
+  require_gate_for_model: true      # model card says NOT VERIFIED unless gates pass
+
+secrets:
+  hf_token_env: HF_TOKEN
+  hf_username_env: HF_USERNAME
+  github_token_env: GITHUB_TOKEN
+  never_commit:
+    - HF_TOKEN
+    - HF_USERNAME
+    - GITHUB_TOKEN
+    - .env
+    - hf_token
+
+models:
+  registry: havyn-stage5/configs/models.yaml
+  teacher_env: TEACHER_MODEL_ID
+  review_env: REVIEW_MODEL_ID
+  standard_config: havyn-stage5/configs/train-standard.yaml
+  lite_config: havyn-stage5/configs/train-lite.yaml
+  bakeoff_config: havyn-stage5/configs/bakeoff.yaml
+
+runtime:
+  dry_run_env: DRY_RUN
+  python_min: "3.11"
+  gpu_required_for:
+    - bakeoff
+    - training
+    - evaluation
+    - gguf
+    - cross_family_review
+  min_vram_gb:
+    standard_4bit: 12
+    lite_4bit: 6
+    teacher_4bit: 24
+    review_4bit: 24

@@ -9,18 +9,24 @@ Task -> example mapping (record = one row of train/validation.jsonl):
 
   prompt         user = payload.prompt (template/teacher, round-trip ACCEPT)
                  assistant = payload.intent JSON
-  intent         user = payload.intent.source_excerpt (template request)
+  intent         user = a deterministic request rendered from the intent
                  assistant = payload.intent JSON
   enhancement    user = current intent JSON + mutation request
                  assistant = payload.expected_output (patch or named refusal)
-  clarification  user = the request text the draft came from
+  clarification  user = the draft intent JSON + "what is missing?"
                  assistant = payload.expected_output (questions or none)
   diagnosis      user = spec + evidence, no labels
                  assistant = payload.expected_output (verdict/causes/repair)
 
-Records whose request text is missing (source_excerpt is None on some
-teacher-sourced rows) are skipped and counted, never invented - the
-formatted-count report is written into the training report.
+The intent request is rendered from the intent itself, never from the saved
+`source_excerpt` field: those excerpts were synthetic placeholders that did
+not describe the full intent, so training on them would teach the model to
+output facts the request never contained. The rendered request is
+deterministic (same intent + renderer => same text) and is labelled
+`request_source: rendered_intent`.
+
+Clarification always shows the draft JSON. Showing an invented excerpt
+instead would hide the draft the expected questions were computed from.
 """
 
 from __future__ import annotations
@@ -69,6 +75,16 @@ def _dump(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
+def _render_intent_request(intent: dict[str, Any]) -> str:
+    """Deterministic request rendered from the intent (fidelity by design)."""
+    from benchmark_harness import render_prompt
+    from src.network_autopilot.ai.intent import HavynIntent
+
+    model = HavynIntent.model_validate(intent)
+    language = "roman-urdu" if intent.get("language") == "roman-urdu" else "en"
+    return render_prompt(model, language=language)
+
+
 def format_record(row: dict[str, Any]) -> dict[str, Any] | None:
     """One frozen-split row -> chat messages, or None when unformattable."""
     task = row.get("task")
@@ -77,12 +93,17 @@ def format_record(row: dict[str, Any]) -> dict[str, Any] | None:
     if system is None:
         return None
 
+    request_source = "payload"
     if task == "prompt":
         request = payload.get("prompt")
         intent = payload.get("intent")
     elif task == "intent":
         intent = payload.get("intent") or {}
-        request = intent.get("source_excerpt")
+        try:
+            request = _render_intent_request(intent)
+            request_source = "rendered_intent"
+        except Exception:
+            request = None
     elif task == "enhancement":
         before = payload.get("before_intent")
         request = None
@@ -94,12 +115,11 @@ def format_record(row: dict[str, Any]) -> dict[str, Any] | None:
         intent = payload.get("expected_output")
     elif task == "clarification":
         draft = payload.get("prompt_intent") or {}
-        request = draft.get("source_excerpt")
-        if request is None:
-            request = (
-                "Here is a draft network intent as JSON:\n" + _dump(draft)
-                + "\n\nWhat information is missing before this can be built?"
-            )
+        request = (
+            "Here is a draft network intent as JSON:\n" + _dump(draft)
+            + "\n\nWhat information is missing before this can be built?"
+        )
+        request_source = "draft_json"
         intent = payload.get("expected_output")
     elif task == "diagnosis":
         request = (
@@ -121,6 +141,7 @@ def format_record(row: dict[str, Any]) -> dict[str, Any] | None:
         "task": task,
         "family": row.get("family"),
         "id": record_id,
+        "request_source": request_source,
         "payload": payload,
         "messages": [
             {"role": "system", "content": system},
@@ -177,12 +198,31 @@ def balance_tasks(examples: list[dict], rng: random.Random,
     return balanced
 
 
+def _dedupe(examples: list[dict]) -> tuple[list[dict], int]:
+    """Drop exact chat duplicates across tasks (rendered intent vs template)."""
+    seen: set[str] = set()
+    kept: list[dict] = []
+    duplicates = 0
+    for example in examples:
+        key = hashlib.sha256(
+            json.dumps(example["messages"], sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        if key in seen:
+            duplicates += 1
+            continue
+        seen.add(key)
+        kept.append(example)
+    return kept, duplicates
+
+
 def load_training_data(dataset_dir: str | Path, seed: int,
                        balance: str = "oversample") -> tuple[list[dict], dict]:
     """Load + format train/validation splits from the frozen dataset."""
     root = Path(dataset_dir)
     train, train_skipped = format_split(root / "train.jsonl")
     val, val_skipped = format_split(root / "validation.jsonl")
+    train, train_dupes = _dedupe(train)
+    val, val_dupes = _dedupe(val)
     rng = random.Random(seed)
     train_balanced = balance_tasks(train, rng, balance)
     counts: dict[str, int] = {}
@@ -194,6 +234,8 @@ def load_training_data(dataset_dir: str | Path, seed: int,
         "validation": len(val),
         "train_skipped": train_skipped,
         "validation_skipped": val_skipped,
+        "train_duplicates_removed": train_dupes,
+        "validation_duplicates_removed": val_dupes,
         "train_task_counts": dict(sorted(counts.items())),
     }
     return train_balanced, val, stats

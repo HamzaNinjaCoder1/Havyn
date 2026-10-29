@@ -28,8 +28,9 @@ the checks were executed here.
 | Live Packet Tracer gate | NOT RUN | Harness exists; no simulated PASS is recorded | Needs live PT and 50 owner-Gold prompts (0 exist) |
 | GGUF / release | NOT RUN | `export_gguf.py` (Q4_K_M, SHA-256, model card) prepared | Requires trained merged weights and a PASS gate report |
 | Git | COMPLETE | Stage-5 commits contain only `havyn-stage5/**` and `tests/autopilot/test_s5_*.py`; Stage 3/4 files untouched | — |
-| Offline tests | COMPLETE | `python -m pytest -q`: 1,186 passed, 32 skipped, 0 failed (179 s) | Known bridge timing flake still possible under load (separate issue) |
-| Documentation | COMPLETE | Handoff rewritten to the verified state; this report; candidate/review/capability reports | — |
+| Offline tests | COMPLETE | `python -m pytest -q`: 1,195 passed, 32 skipped, 0 failed (195 s) | Known bridge timing flake still possible under load (separate issue) |
+| Colab/HF preparation | READY | `reports/colab_hf_readiness.md`, `reports/COLAB_RUNBOOK.md`, model registry, preflight, dashboard, DRY_RUN for every stage, private HF dataset snapshot, publish default off; public Hub smoke passed | No GPU/token here; not executed in Colab; 0 owner Gold |
+| Documentation | COMPLETE | Handoff rewritten to the verified state; this report; candidate/review/capability reports; Colab runbook | — |
 
 ## Exact dataset row counts
 

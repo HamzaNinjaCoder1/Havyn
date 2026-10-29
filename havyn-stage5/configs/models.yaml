@@ -1,0 +1,233 @@
+# Havyn Stage 5 model registry.
+#
+# Selection policy: NO WINNER IS DECLARED HERE. Every candidate is
+# `candidate_not_measured` until the bake-off (notebook 03, measured on the
+# same frozen prompt set) produces results. Changing this file after results
+# exist is not allowed without recording a new bake-off.
+#
+# Licenses are recorded from the model card at registry time; verify the
+# current license on the Hugging Face page before any redistribution or
+# commercial release. The release decision is a human decision, not a model
+# card claim.
+#
+# Fields per candidate: model_id, hf_repository, family, parameter_size,
+# license, license_url, context_length, quantization, tokenizer,
+# chat_template, recommended_vram_gb, inference_backend,
+# training_compatible, known_limitations, selection_status.
+
+version: 1
+selection_policy: measured_bakeoff_only
+selection_status: candidates_only
+
+standard_candidates:
+  - model_id: Qwen/Qwen3-8B
+    hf_repository: https://huggingface.co/Qwen/Qwen3-8B
+    family: Qwen3
+    parameter_size: 8.2B
+    license: Apache-2.0
+    license_url: https://huggingface.co/Qwen/Qwen3-8B
+    context_length: 32768
+    quantization: 4bit-nf4 for bake-off; bf16 where VRAM allows
+    tokenizer: Qwen/Qwen3-8B
+    chat_template: tokenizer_default
+    recommended_vram_gb: 12
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Chat template enables thinking by default; the bake-off must disable or
+      strip reasoning traces before JSON scoring. Verify the exact license
+      text on the model card before release.
+    selection_status: candidate_not_measured
+    why_included: >-
+      Apache-2.0, strong instruction following and multilingual coverage,
+      4-bit fits a 12 GB Colab GPU, and the same family has a 4B Lite option.
+
+  - model_id: meta-llama/Meta-Llama-3.1-8B-Instruct
+    hf_repository: https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct
+    family: Llama-3.1
+    parameter_size: 8.0B
+    license: Llama 3.1 Community License
+    license_url: https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct
+    context_length: 131072
+    quantization: 4bit-nf4 for bake-off
+    tokenizer: meta-llama/Meta-Llama-3.1-8B-Instruct
+    chat_template: tokenizer_default
+    recommended_vram_gb: 12
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Gated repository (HF access request + token required). Community license
+      has an acceptable-use policy and naming requirements; review before
+      release. Long context is not needed for most Havyn prompts.
+    selection_status: candidate_not_measured
+    why_included: >-
+      Widely used instruct baseline with a stable chat template; a useful
+      cross-family contrast to Qwen.
+
+  - model_id: mistralai/Mistral-7B-Instruct-v0.3
+    hf_repository: https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3
+    family: Mistral
+    parameter_size: 7.2B
+    license: Apache-2.0
+    license_url: https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3
+    context_length: 32768
+    quantization: 4bit-nf4 for bake-off
+    tokenizer: mistralai/Mistral-7B-Instruct-v0.3
+    chat_template: tokenizer_default
+    recommended_vram_gb: 12
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Older v0.3 instruct tuning; weaker multilingual coverage than newer
+      models. Included as an independent-family baseline.
+    selection_status: candidate_not_measured
+    why_included: >-
+      Apache-2.0, 7B class, stable tooling; tests whether a non-Qwen family
+      handles the intent schema better or worse.
+
+  - model_id: google/gemma-2-9b-it
+    hf_repository: https://huggingface.co/google/gemma-2-9b-it
+    family: Gemma-2
+    parameter_size: 9.2B
+    license: Gemma Terms of Use
+    license_url: https://huggingface.co/google/gemma-2-9b-it
+    context_length: 8192
+    quantization: 4bit-nf4 for bake-off
+    tokenizer: google/gemma-2-9b-it
+    chat_template: tokenizer_default
+    recommended_vram_gb: 16
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Gated repository; Gemma Terms include use restrictions and a prohibited
+      use policy. 8K context. 9B at bf16 does not fit a 12 GB card.
+    selection_status: candidate_not_measured
+    why_included: >-
+      Different family and tokenizer; included to test whether structured
+      output quality holds outside the Qwen/Llama/Mistral cluster.
+
+lite_candidates:
+  - model_id: Qwen/Qwen3-4B
+    hf_repository: https://huggingface.co/Qwen/Qwen3-4B
+    family: Qwen3
+    parameter_size: 4.0B
+    license: Apache-2.0
+    license_url: https://huggingface.co/Qwen/Qwen3-4B
+    context_length: 32768
+    quantization: 4bit-nf4 for bake-off; q4_k_m for GGUF
+    tokenizer: Qwen/Qwen3-4B
+    chat_template: tokenizer_default
+    recommended_vram_gb: 8
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Thinking mode is on by default; disable it for latency-sensitive local
+      deployment. Smaller models may lose field-level intent fidelity.
+    selection_status: candidate_not_measured
+    why_included: >-
+      Same family as the Standard candidate, so a Standard/Lite pair shares
+      tokenizer behaviour; 4-bit fits an 8 GB GPU.
+
+  - model_id: microsoft/Phi-3.5-mini-instruct
+    hf_repository: https://huggingface.co/microsoft/Phi-3.5-mini-instruct
+    family: Phi-3.5
+    parameter_size: 3.8B
+    license: MIT
+    license_url: https://huggingface.co/microsoft/Phi-3.5-mini-instruct
+    context_length: 131072
+    quantization: 4bit-nf4 for bake-off
+    tokenizer: microsoft/Phi-3.5-mini-instruct
+    chat_template: tokenizer_default
+    recommended_vram_gb: 8
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Small model with limited world knowledge; may omit requirement fields.
+      Its chat template differs from Qwen/Llama, so prompt formatting must be
+      per-model.
+    selection_status: candidate_not_measured
+    why_included: >-
+      MIT license, strong reasoning per size, and a genuinely different family
+      for the Lite bake-off.
+
+  - model_id: meta-llama/Llama-3.2-3B-Instruct
+    hf_repository: https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct
+    family: Llama-3.2
+    parameter_size: 3.2B
+    license: Llama 3.2 Community License
+    license_url: https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct
+    context_length: 131072
+    quantization: 4bit-nf4 for bake-off
+    tokenizer: meta-llama/Llama-3.2-3B-Instruct
+    chat_template: tokenizer_default
+    recommended_vram_gb: 6
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Gated repository; Community License terms apply. 3B class is more prone
+      to schema drift under long prompts.
+    selection_status: candidate_not_measured
+    why_included: >-
+      Low-VRAM Llama-family option; tests whether a 3B model can hold the
+      schema without the 4B Qwen.
+
+  - model_id: google/gemma-2-2b-it
+    hf_repository: https://huggingface.co/google/gemma-2-2b-it
+    family: Gemma-2
+    parameter_size: 2.6B
+    license: Gemma Terms of Use
+    license_url: https://huggingface.co/google/gemma-2-2b-it
+    context_length: 8192
+    quantization: 4bit-nf4 for bake-off
+    tokenizer: google/gemma-2-2b-it
+    chat_template: tokenizer_default
+    recommended_vram_gb: 4
+    inference_backend: transformers
+    training_compatible: true
+    known_limitations: >-
+      Gated; Gemma Terms apply. 8K context limits long-document prompts;
+      smallest model in the Lite class.
+    selection_status: candidate_not_measured
+    why_included: >-
+      A true low-end option for local deployment; measures the quality floor.
+
+smoke_test_model:
+  model_id: hf-internal-testing/tiny-random-LlamaForCausalLM
+  family: test-only
+  parameter_size: <0.01B
+  license: Apache-2.0
+  license_url: https://huggingface.co/hf-internal-testing/tiny-random-LlamaForCausalLM
+  purpose: >-
+    Connectivity, token resolution and tokenizer-load smoke test only. It is
+    never a bake-off candidate and its output is meaningless.
+
+teacher:
+  model_id: Qwen/Qwen3-32B
+  family: Qwen3
+  parameter_size: 32B
+  license: Apache-2.0
+  license_url: https://huggingface.co/Qwen/Qwen3-32B
+  context_length: 32768
+  quantization: 4bit-nf4
+  recommended_vram_gb: 24
+  status: configured_not_run
+  env_var: TEACHER_MODEL_ID
+  provenance_rule: >-
+    Teacher output is synthetic_ai. It is never attributed to Hamza or to a
+    human contributor, even after owner rewrite.
+
+review:
+  model_id: mistralai/Mistral-Small-24B-Instruct-2501
+  family: Mistral
+  parameter_size: 24B
+  license: Apache-2.0
+  license_url: https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501
+  context_length: 32768
+  quantization: 4bit-nf4
+  recommended_vram_gb: 24
+  status: configured_not_run
+  env_var: REVIEW_MODEL_ID
+  independence_rule: >-
+    The review family must differ from the teacher and the fine-tune base.
+    Record teacher family, review family and model ids with every run; a
+    same-family review does not satisfy the cross-family gate.

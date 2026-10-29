@@ -17,7 +17,9 @@ checkpoint back up.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,21 +32,73 @@ for p in (str(REPO), str(REPO / "havyn-stage5" / "scripts")):
 from format_examples import TASKS, load_config, load_training_data  # noqa: E402
 
 
-def adjust_for_vram(train_cfg: dict, free_bytes: int) -> tuple[dict, str]:
+def _git_pin() -> str | None:
+    try:
+        head = subprocess.run(
+            ["git", "-C", str(REPO), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(REPO), "status", "--porcelain", "--", "src"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        return f"{head}+dirty-src" if dirty else head
+    except Exception:
+        return None
+
+
+def _sha256_file(path: Path) -> str | None:
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as fh:
+            while chunk := fh.read(1 << 20):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return None
+
+
+def _freeze_info(dataset_dir: Path) -> dict:
+    frozen = dataset_dir / "FROZEN.json"
+    if not frozen.exists():
+        return {"frozen": False, "manifest_sha256": None, "frozen_at": None}
+    payload = json.loads(frozen.read_text(encoding="utf-8"))
+    return {
+        "frozen": True,
+        "manifest_sha256": _sha256_file(frozen),
+        "frozen_at": payload.get("frozen_at"),
+        "file_sha256": payload.get("sha256", {}),
+    }
+
+
+def adjust_for_vram(train_cfg: dict, free_bytes: int,
+                    weights_bytes: int = 0) -> tuple[dict, str]:
     """Safest-config fallback: halve the batch and double accumulation until
-    the per-step batch plausibly fits the reported free VRAM. Never raises
-    VRAM; reports what it changed."""
+    the per-step batch plausibly fits the free VRAM that remains after the
+    quantised base model is loaded. Never raises; reports every change."""
     note = "no adjustment needed"
     batch = int(train_cfg.get("per_device_train_batch_size", 2))
     accum = int(train_cfg.get("gradient_accumulation_steps", 8))
     # ~0.5 GB per sequence at 4-bit 8B with activation checkpointing; keep
     # 60% headroom for optimizer state spikes.
     per_seq_bytes = 0.5 * 1e9
-    budget = int(free_bytes * 0.6)
+    if free_bytes <= weights_bytes:
+        note = (
+            f"base model weights (~{weights_bytes / 1e9:.1f} GB) do not fit in "
+            f"{free_bytes / 1e9:.1f} GB free VRAM; preflight must block training"
+        )
+        budget = 0
+    else:
+        budget = int((free_bytes - weights_bytes) * 0.6)
     while batch > 1 and batch * per_seq_bytes > budget:
         batch //= 2
         accum *= 2
-        note = f"batch halved to {batch}, accumulation doubled to {accum} for free VRAM"
+        note = (
+            f"batch halved to {batch}, accumulation doubled to {accum} after "
+            f"reserving {weights_bytes / 1e9:.1f} GB for weights"
+        )
+    if batch == 1 and batch * per_seq_bytes > budget and budget > 0:
+        note += "; one sequence still exceeds the remaining budget"
     train_cfg["per_device_train_batch_size"] = batch
     train_cfg["gradient_accumulation_steps"] = accum
     return train_cfg, note
@@ -106,7 +160,10 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         "role": cfg.get("role"),
         "base_model": cfg.get("base_model"),
         "config": str(config_path),
+        "config_sha256": _sha256_file(Path(config_path)),
+        "code_commit": _git_pin(),
         "dataset": str(root),
+        "dataset_freeze": _freeze_info(root),
         "dataset_stats": stats,
         "missing_tasks": missing,
         "seed": seed,
@@ -133,9 +190,19 @@ def train(config_path: str, resume: bool, output_dir: str | None,
     except ImportError:
         _unsloth = False
 
+    weights_bytes = int(float(cfg.get("model_weight_gb", 0)) * 1e9)
     if torch.cuda.is_available():
         free_bytes, _total = torch.cuda.mem_get_info()
-        train_cfg, vram_note = adjust_for_vram(train_cfg, free_bytes)
+        if weights_bytes and free_bytes <= weights_bytes:
+            raise SystemExit(
+                f"not enough free VRAM to load {cfg['base_model']}: "
+                f"{free_bytes / 1e9:.1f} GB free, ~{weights_bytes / 1e9:.1f} GB "
+                "needed for the quantised weights. Use a smaller role or a "
+                "larger GPU; the script will not silently degrade the model."
+            )
+        train_cfg, vram_note = adjust_for_vram(train_cfg, free_bytes, weights_bytes)
+        report["free_vram_gb"] = round(free_bytes / 1e9, 2)
+        report["model_weight_gb"] = round(weights_bytes / 1e9, 2)
         report["vram_adjustment"] = vram_note
 
     if _unsloth:
@@ -158,11 +225,21 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         from peft import LoraConfig, get_peft_model
         from transformers import AutoModelForCausalLM, AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(cfg["base_model"])
+        quant_config = None
+        if cfg.get("load_in_4bit", True) and torch.cuda.is_available():
+            from transformers import BitsAndBytesConfig
+
+            quant_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+            )
         model = AutoModelForCausalLM.from_pretrained(
             cfg["base_model"],
             torch_dtype="auto",
             device_map="auto",
-            load_in_4bit=bool(cfg.get("load_in_4bit", True)),
+            quantization_config=quant_config,
         )
         model = get_peft_model(model, LoraConfig(
             r=int(cfg["lora"]["r"]),
@@ -214,6 +291,10 @@ def train(config_path: str, resume: bool, output_dir: str | None,
 
     report["status"] = "completed"
     report["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    report["checkpoint_dir"] = str(checkpoint_dir)
+    report["latest_checkpoint"] = (
+        str(found) if (found := latest_checkpoint(checkpoint_dir)) else None
+    )
     report["adapter_dir"] = str(checkpoint_dir / "adapter")
     metrics = getattr(trainer, "state", None)
     if metrics is not None and getattr(metrics, "log_history", None):

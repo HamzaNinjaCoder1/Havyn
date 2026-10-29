@@ -4,6 +4,8 @@
 base_model: Qwen/Qwen3-4B
 role: lite
 load_in_4bit: true
+# Planning reserve for the quantised base weights; VRAM fallback subtracts it.
+model_weight_gb: 2.5
 max_seq_length: 4096
 
 lora:

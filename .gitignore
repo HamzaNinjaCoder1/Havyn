@@ -94,3 +94,20 @@ live*_pid.txt
 
 # Stage 4 live backup artifacts (contain user workspace copies)
 probes/stage4-backups/
+
+# Secrets and tokens: never commit, never write into Drive notebooks
+.env
+.env.*
+secrets/
+hf_token
+hf_token.txt
+*.pem
+*.key
+
+# Stage 5 runtime artifacts (Colab / Drive outputs, not source)
+havyn-stage5/artifacts/
+havyn-stage5/checkpoints/
+havyn-stage5/evaluation/
+havyn-stage5/bakeoff/
+havyn-stage5/improvement/
+havyn-stage5/datasets/hf-export/

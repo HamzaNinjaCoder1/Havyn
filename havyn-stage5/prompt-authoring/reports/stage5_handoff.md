@@ -25,7 +25,8 @@ end to end.
 | Dataset freeze | **frozen** (`FROZEN.json` present; `--check` valid) |
 | Certificates | 108/108 cells, 58/58 fault injectors, 5/5 mutations at `src-tree:3c05f72d9809+dirty-src`; `--check` **valid** |
 | Gold template validation | 1/1 engine-verified; leak check clean against the training set |
-| Offline test suite | **1,186 passed / 32 skipped / 0 failed** (179 s) |
+| Offline test suite | **1,195 passed / 32 skipped / 0 failed** (195 s) |
+| Colab/HF preparation | **READY** (not executed in Colab): registry, preflight, dashboard, DRY_RUN, HF dataset snapshot, publish off |
 | Live Packet Tracer | **not run** |
 
 ---

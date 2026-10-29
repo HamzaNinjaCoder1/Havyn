@@ -76,16 +76,23 @@ def test_prompt_row_without_payload_id_gets_stable_hash_id() -> None:
     assert a["id"] and a["id"] == b["id"]
 
 
-def test_intent_row_uses_source_excerpt() -> None:
+def test_intent_row_renders_a_faithful_request() -> None:
     ex = format_record(_row("intent", {"intent": _intent()}))
     assert ex is not None
-    assert "VLAN v1" in ex["messages"][1]["content"]
+    assert ex["request_source"] == "rendered_intent"
+    user = ex["messages"][1]["content"]
+    assert "Design a network called net1" in user
+    assert "v1" in user
+    # The stored excerpt was an invented placeholder; it must not be used.
+    assert "Do PCs on VLAN v1." not in user
 
 
-def test_intent_row_without_excerpt_is_skipped_never_invented() -> None:
+def test_intent_row_without_excerpt_is_not_dropped() -> None:
     intent = _intent()
     intent["source_excerpt"] = None
-    assert format_record(_row("intent", {"intent": intent})) is None
+    ex = format_record(_row("intent", {"intent": intent}))
+    assert ex is not None
+    assert ex["request_source"] == "rendered_intent"
 
 
 def test_diagnosis_row_carries_spec_and_evidence_without_labels() -> None:
