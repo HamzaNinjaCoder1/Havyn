@@ -19,7 +19,7 @@ end to end.
 | Owner Gold adopted | **0 / 100** records exist (only a template) |
 | External human Gold | **0 / 200** records exist |
 | External synthetic corpus | **200** rows (160 buildable / 20 refusal / 20 ambiguous), all engine-checked, `origin: synthetic_ai` |
-| Cross-family review | **NOT RUN**; package regenerated, SHA-256 `f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492` |
+| Cross-family review | **BLOCKED**; package SHA-256 `f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492`; no runnable Mistral-family model locally |
 | Synthetic training data | **2,332** rows: train 1,989 / validation 223 / heldout 120 (0.853/0.096/0.051) |
 | Prompt task | 216 examples across 36 families: train 185 / validation 21 / heldout 10 |
 | Dataset freeze | **frozen at final engine** (`FROZEN.json`, train `74d529e2…`, `--check` valid) |

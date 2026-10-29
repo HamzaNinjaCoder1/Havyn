@@ -16,7 +16,7 @@ the checks were executed here.
 | Coverage slots (44) | COMPLETE | `coverage-candidates/`: 44/44 verified, 41 build + 3 capability-gap refusals; 35 distinct cells + 9 language variants; prompts match labels (24 en / 11 roman-urdu / 9 mixed) | Owner adoption into `gold-057..100` |
 | External synthetic corpus (200) | COMPLETE | `datasets/external-synthetic-v1`: 160 buildable + 20 refusal + 20 ambiguous, 200/200 engine-checked; per-row `origin: synthetic_ai`, `human_contributor: false`, `consent: not_applicable` | Not human Gold and never labelled as such |
 | Real external human Gold (200) | BLOCKED | `external-collection/` guide, template, ledger ready | No real contributors recruited; consent/provenance cannot be fabricated |
-| Cross-family review | NOT RUN | 56-record package, SHA-256 `f7a0a1f4…c02bc492`; protocol and deterministic commands ready; results file records NOT_RUN | Only TinyLlama-1.1B and flan-t5-small are cached; CPU cannot review 56 records in a useful budget |
+| Cross-family review | BLOCKED | 56-record package, SHA-256 `f7a0a1f4…c02bc492`; environment audit in `cross-family-review-report.md` (CPU-only, 8 GB RAM, no Mistral weights/API) | No runnable different-family reviewer; run on Colab GPU with Mistral-Small-24B |
 | Stage 3/4 dependency | COMPLETE | committed separately as `d47588c` after sanitising lab credentials; 86 Stage 3 tests pass; `stage34_checkpoint_blocker.md` records the resolution | — |
 | Dataset assembly | COMPLETE | 2,332 rows: train 1,989 / validation 223 / heldout 120 (0.853/0.096/0.051); per-task counts below; 0 errors, 0 family overlaps, 0 cross-split duplicates | — |
 | Dataset freeze | COMPLETE | final `havyn-train-v1/FROZEN.json`; `--check` valid; train SHA-256 `74d529e2…`; regenerated at `d47588c` | — |

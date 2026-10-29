@@ -9,6 +9,7 @@ no model weights were downloaded, and nothing was uploaded to Hugging Face.
 | --- | --- | --- |
 | Colab pipeline preparation | **90%** | scripts, notebooks, gates, dry-run, preflight, storage and resume paths exist and were exercised offline; not executed in Colab |
 | Hugging Face readiness | **80%** | auth helper, smoke test, private dataset snapshot, publish gate (default off); public Hub access verified; token path untested because no token exists here |
+| Cross-family review | **BLOCKED locally** | no runnable Mistral-family model; run it in Colab with `REVIEW_MODEL_ID` |
 | Model selection | **0% measured** | 4 Standard + 4 Lite candidates registered; no winner declared; bake-off NOT RUN |
 | Training readiness | **NOT VERIFIED** | preflight is implemented but cannot pass on this CPU-only machine; it is designed to pass on a GPU runtime after `requirements-colab.txt` |
 | Live Packet Tracer | **NOT RUN** | Colab cannot reach a local Packet Tracer; this gate stays on the Windows machine |
@@ -48,8 +49,9 @@ no model weights were downloaded, and nothing was uploaded to Hugging Face.
 
 - Owner Gold: 0/100 adopted, so the evaluation and live gates have no real
   prompts yet. The pipeline is ready; the data is not.
-- Cross-family review: package ready, model not run; `REVIEW_MODEL_ID` must be
-  a family different from the teacher and the fine-tune base.
+- Cross-family review: package ready, **BLOCKED locally** (CPU-only, 8 GB RAM,
+  no Mistral weights/API). Run it in Colab; `REVIEW_MODEL_ID` must be a family
+  different from the teacher and the fine-tune base.
 - The Stage 3/4 engine is committed separately as `d47588c` with sanitized lab
   credentials; pins are clean (`src-tree:5e437ba66b14`).
 - Gated models (Llama 3.1/3.2, Gemma 2) require accepting their licences on the

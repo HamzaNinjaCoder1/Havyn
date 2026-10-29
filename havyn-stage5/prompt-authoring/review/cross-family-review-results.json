@@ -1,23 +1,78 @@
 {
-  "status": "NOT_RUN",
+  "status": "BLOCKED",
+  "checked_at": "2026-10-29T16:16:50+00:00",
+  "reason": "No genuinely different, sufficiently capable model family is runnable in this environment. The preferred Mistral-Small-24B cannot fit or run, and the only local generative models are explicitly excluded from validity.",
   "input_package": {
     "file": "havyn-stage5/prompt-authoring/review/cross-family-input.jsonl",
     "sha256": "f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492",
     "records": 56
   },
-  "attempted_model": {
-    "model_id": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "family": "Llama-2-derived (different from the same-base Model B)",
-    "runtime": "CPU only (torch 2.10.0+cpu, transformers 5.3.0); CUDA unavailable",
-    "local_cache": true,
-    "outcome": "Model weights loaded; a single-record smoke generation did not complete within a 10-minute budget. The process was terminated. No verdicts were produced."
+  "reviewed": 0,
+  "counts": {
+    "ACCEPT": 0,
+    "REVIEW": 0,
+    "REJECT": 0
   },
-  "independent_reviews": [],
-  "blocker": "A genuinely different family is present locally but is not practical for 56 records on CPU. No review result exists, so this does not satisfy the cross-family freeze gate.",
-  "what_would_satisfy_the_gate": [
-    "Run the same 56-record package on a GPU runtime or a different hosted family using havyn-stage5/prompt-authoring/reports/cross-family-review-protocol.md.",
-    "Record the exact model id/version, input SHA-256, temperature, and raw per-record output.",
-    "Do not reuse same-base Model B verdicts as cross-family evidence."
+  "disagreements_with_previous_review": null,
+  "records_requiring_action": [
+    "all 56 records: no independent-family verdict"
   ],
-  "note": "The previous Model-B review (batch-1..5) and the post-fix re-check are same-base-model work. They are not cross-family validation."
+  "dataset_unchanged": true,
+  "stage5_can_proceed_to_colab": false,
+  "environment": {
+    "gpu": "none: torch 2.10.0+cpu, CUDA unavailable",
+    "cpu": "Intel Core i5-6300U, 2 cores / 4 threads",
+    "ram_gb": 8,
+    "disk_free_gb": 52,
+    "ollama_or_lmstudio": false,
+    "hosted_api_keys_present": false,
+    "mistral_weights_present": false,
+    "cached_models": [
+      "TinyLlama-1.1B-Chat-v1.0 (2.1G)",
+      "flan-t5-small (9K; placeholder config, not a reviewer)",
+      "hf-internal-testing/tiny-random-LlamaForCausalLM (2.3M; test-only)",
+      "BAAI/bge-small-en-v1.5 (embedding)",
+      "cross-encoder/nli-deberta-v3-small (classifier)",
+      "Systran/faster-whisper-* (ASR)"
+    ]
+  },
+  "models_considered": [
+    {
+      "model_id": "mistralai/Mistral-Small-24B-Instruct-2501",
+      "family": "Mistral",
+      "verdict": "NOT_FEASIBLE",
+      "reason": "4-bit weights need roughly 14 GB; the machine has 8 GB RAM and no GPU. Downloading it is a large model download, which this task forbids."
+    },
+    {
+      "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+      "family": "Mistral",
+      "verdict": "NOT_FEASIBLE",
+      "reason": "No local weights. A ~4 GB 4-bit download is a large model download; CPU-only 2-core inference over 56 long records is not reasonable; bitsandbytes is not installed."
+    },
+    {
+      "model_id": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+      "family": "Llama-2-derived",
+      "verdict": "INVALID_PER_INSTRUCTION",
+      "reason": "Only local generative model. The previously recorded smoke attempt did not finish one record in 10 minutes on CPU; the task says not to treat it as a valid cross-family reviewer."
+    },
+    {
+      "model_id": "google/flan-t5-small",
+      "family": "T5",
+      "verdict": "INVALID_PER_INSTRUCTION",
+      "reason": "Explicitly excluded by the task; cached copy is only a 9 KB placeholder config, not usable weights."
+    },
+    {
+      "model_id": "hf-internal-testing/tiny-random-LlamaForCausalLM",
+      "family": "test-only",
+      "verdict": "INVALID",
+      "reason": "Random test weights; output is meaningless."
+    }
+  ],
+  "blocker": "A Mistral-family reviewer requires either a GPU runtime (Colab with >=24 GB for Mistral-Small-24B, or >=8 GB for a 4-bit 7B) or a hosted Mistral endpoint/API key. Neither exists in this environment, and downloading large weights is disallowed for this step.",
+  "what_would_unblock": [
+    "Run the prepared protocol on a Colab GPU runtime with REVIEW_MODEL_ID=mistralai/Mistral-Small-24B-Instruct-2501 (24 GB class) or a 4-bit 7B Mistral on >=8 GB VRAM.",
+    "Or provide a hosted Mistral-family endpoint/API key and let the same 56-record package run there.",
+    "Record the model id, revision, temperature, input SHA and raw per-record output as the protocol requires."
+  ],
+  "note": "No verdict was produced. Same-base Model B and the post-fix re-check are not cross-family evidence."
 }

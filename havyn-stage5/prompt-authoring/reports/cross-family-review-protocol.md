@@ -1,7 +1,8 @@
 # Cross-family review protocol (Stage 5 candidates)
 
-> **STATUS: NOT DONE.** No model from a different family has reviewed these
-> candidates. The previous "Model B" review used the **same base model** as the
+> **STATUS: BLOCKED.** No runnable different-family model exists in the
+> current environment (CPU-only, 8 GB RAM, no Mistral weights or API key). No
+> model from a different family has reviewed these candidates. The previous "Model B" review used the **same base model** as the
 > drafter (MiMo-V2.6) with **context isolation**, and the post-fix re-check used
 > the same base model again. Neither counts as cross-family validation. Do not
 > mark the gold set as cross-family-reviewed until this protocol has actually
@@ -161,5 +162,5 @@ Rules:
 | Same-base Model B (batch-1..4) | done; **not cross-family** |
 | Same-base batch-5 re-read | done; **not cross-family** |
 | Same-base post-fix re-check | done; **not cross-family** |
-| Different-family review | **not done** |
-| Cross-family freeze gate | **not met** |
+| Different-family review | **BLOCKED** — no runnable Mistral-family model in the current environment |
+| Cross-family freeze gate | **not met** (review blocked) |
