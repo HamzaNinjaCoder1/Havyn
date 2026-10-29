@@ -35,7 +35,12 @@ from format_examples import (  # noqa: E402
     format_split,
     load_training_data,
 )
-from train_lora import adjust_for_vram, latest_checkpoint
+from train_lora import (
+    adjust_for_vram,
+    latest_checkpoint,
+    latest_valid_checkpoint,
+    warmup_plan,
+)
 
 # --- formatting ---------------------------------------------------------------
 
@@ -523,3 +528,42 @@ def test_adjust_for_vram_halves_batch_doubles_accum() -> None:
     big_free = int(40.0 * 1e9)
     untouched, note2 = adjust_for_vram(dict(cfg), big_free)
     assert untouched == cfg and note2 == "no adjustment needed"
+
+
+def test_latest_valid_checkpoint_skips_interrupted_save(tmp_path: Path) -> None:
+    good = tmp_path / "checkpoint-250"
+    good.mkdir()
+    (good / "trainer_state.json").write_text("{}", encoding="utf-8")
+    (good / "adapter_model.safetensors").write_bytes(b"x")
+    partial = tmp_path / "checkpoint-500"
+    partial.mkdir()
+    (partial / "trainer_state.json").write_text("{", encoding="utf-8")
+    assert latest_valid_checkpoint(tmp_path).name == "checkpoint-250"
+    (partial / "trainer_state.json").write_text("{}", encoding="utf-8")
+    assert latest_valid_checkpoint(tmp_path).name == "checkpoint-250"
+    (partial / "adapter_model.safetensors").write_bytes(b"x")
+    assert latest_valid_checkpoint(tmp_path).name == "checkpoint-500"
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert latest_valid_checkpoint(empty) is None
+
+
+def test_warmup_plan_uses_formatted_examples_and_effective_batch() -> None:
+    plan = warmup_plan(4492, 1, 16, 3, 0.05)
+    assert plan["updates_per_epoch"] == 281
+    assert plan["total_updates"] == 843
+    assert plan["warmup_steps"] == 42
+    coarse = warmup_plan(4492, 1, 16, 3, 0.10)
+    assert coarse["warmup_steps"] == 84
+
+
+def test_sft_config_uses_supported_training_arguments() -> None:
+    src = (SCRIPTS / "train_lora.py").read_text(encoding="utf-8")
+    block = src[src.index("sft_cfg = SFTConfig("):
+                src.index("trainer = SFTTrainer(")]
+    assert "warmup_ratio=" not in block
+    assert 'warmup_steps=plan["warmup_steps"]' in block
+    assert 'eval_strategy="steps"' in block
+    assert 'save_strategy="steps"' in block
+    assert "Dataset.from_list" in src
+    assert 'device_map={"": 0}' in src

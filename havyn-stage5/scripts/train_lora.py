@@ -129,8 +129,42 @@ def latest_checkpoint(checkpoint_dir: Path) -> Path | None:
     return candidates[-1] if candidates else None
 
 
+def latest_valid_checkpoint(checkpoint_dir: Path) -> Path | None:
+    candidates = sorted(
+        (p for p in checkpoint_dir.glob("checkpoint-*") if p.is_dir()),
+        key=lambda p: int(p.name.rsplit("-", 1)[1])
+        if p.name.rsplit("-", 1)[1].isdigit() else -1,
+    )
+    for candidate in reversed(candidates):
+        try:
+            json.loads((candidate / "trainer_state.json").read_text(
+                encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if (candidate / "adapter_model.safetensors").exists() or (
+                candidate / "adapter_model.bin").exists():
+            return candidate
+    return None
+
+
+def warmup_plan(train_size: int, batch: int, accumulation: int, epochs: int,
+                ratio: float) -> dict:
+    micro_batches_per_epoch = max(1, (train_size + batch - 1) // batch)
+    updates_per_epoch = max(
+        1, (micro_batches_per_epoch + accumulation - 1) // accumulation)
+    total_updates = max(1, updates_per_epoch * epochs)
+    steps = max(1, round(total_updates * ratio))
+    return {
+        "train_examples": train_size,
+        "micro_batches_per_epoch": micro_batches_per_epoch,
+        "updates_per_epoch": updates_per_epoch,
+        "total_updates": total_updates,
+        "warmup_steps": min(steps, max(1, total_updates - 1)),
+    }
+
+
 def train(config_path: str, resume: bool, output_dir: str | None,
-          dataset_dir: str | None) -> dict:
+          dataset_dir: str | None, preflight: bool = False) -> dict:
     cfg = load_config(config_path)
     train_cfg = cfg["train"]
     seed = int(train_cfg.get("seed", 20261028))
@@ -175,10 +209,11 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         "missing_tasks": missing,
         "seed": seed,
         "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "status": "started",
+        "status": "preflight" if preflight else "started",
     }
-    (report_dir / "training-report.json").write_text(
-        json.dumps(report, indent=2), encoding="utf-8")
+    if not preflight:
+        (report_dir / "training-report.json").write_text(
+            json.dumps(report, indent=2), encoding="utf-8")
 
     # GPU half: imports happen here so the offline half never needs torch.
     try:
@@ -207,6 +242,16 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         _unsloth = True
     except ImportError:
         _unsloth = False
+
+    use_bf16 = bool(train_cfg.get("bf16", True)) and torch.cuda.is_available()
+    if use_bf16:
+        capability = torch.cuda.get_device_capability(0)
+        use_bf16 = bool(torch.cuda.is_bf16_supported()) and capability[0] >= 8
+    compute_dtype = torch.bfloat16 if use_bf16 else torch.float16
+    report["precision"] = "bf16" if use_bf16 else "fp16"
+    report["device_capability"] = (
+        ".".join(str(part) for part in torch.cuda.get_device_capability(0))
+        if torch.cuda.is_available() else None)
 
     weights_bytes = int(float(cfg.get("model_weight_gb", 0)) * 1e9)
     if torch.cuda.is_available():
@@ -242,7 +287,10 @@ def train(config_path: str, resume: bool, output_dir: str | None,
     else:
         from peft import LoraConfig, get_peft_model
         from transformers import AutoModelForCausalLM, AutoTokenizer
-        tokenizer = AutoTokenizer.from_pretrained(cfg["base_model"])
+        tokenizer = AutoTokenizer.from_pretrained(
+            cfg["base_model"], trust_remote_code=True)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
         quant_config = None
         if cfg.get("load_in_4bit", True) and torch.cuda.is_available():
             from transformers import BitsAndBytesConfig
@@ -250,14 +298,15 @@ def train(config_path: str, resume: bool, output_dir: str | None,
             quant_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_compute_dtype=compute_dtype,
                 bnb_4bit_use_double_quant=True,
             )
         model = AutoModelForCausalLM.from_pretrained(
             cfg["base_model"],
             torch_dtype="auto",
-            device_map="auto",
+            device_map={"": 0},
             quantization_config=quant_config,
+            trust_remote_code=True,
         )
         model = get_peft_model(model, LoraConfig(
             r=int(cfg["lora"]["r"]),
@@ -267,29 +316,76 @@ def train(config_path: str, resume: bool, output_dir: str | None,
             bias=cfg["lora"].get("bias", "none"),
             task_type="CAUSAL_LM",
         ))
+        if bool(cfg["lora"].get("use_gradient_checkpointing", True)):
+            model.gradient_checkpointing_enable(
+                gradient_checkpointing_kwargs={"use_reentrant": False})
+            model.enable_input_require_grads()
+            model.config.use_cache = False
 
+    from datasets import Dataset
     from trl import SFTConfig, SFTTrainer
+
+    batch = int(train_cfg["per_device_train_batch_size"])
+    accumulation = int(train_cfg["gradient_accumulation_steps"])
+    epochs = int(train_cfg["epochs"])
+    train_ds = Dataset.from_list(build_sft_dataset(examples, tokenizer))
+    val_ds = Dataset.from_list(build_sft_dataset(val, tokenizer))
+    plan = warmup_plan(
+        len(train_ds), batch, accumulation, epochs,
+        float(train_cfg.get("warmup_ratio", 0.05)),
+    )
+    save_steps = int(train_cfg.get("save_steps", 250))
+    resume_from = None
+    if resume:
+        found = latest_valid_checkpoint(checkpoint_dir)
+        if found:
+            resume_from = str(found)
+
+    summary = {
+        "base_model": cfg["base_model"],
+        "max_seq_length": int(cfg["max_seq_length"]),
+        "per_device_train_batch_size": batch,
+        "gradient_accumulation_steps": accumulation,
+        "effective_batch_size": batch * accumulation,
+        "epochs": epochs,
+        "learning_rate": float(train_cfg["learning_rate"]),
+        "warmup_ratio": float(train_cfg.get("warmup_ratio", 0.05)),
+        "precision": report["precision"],
+        "train_examples": len(train_ds),
+        "validation_examples": len(val_ds),
+        "checkpoint_dir": str(checkpoint_dir),
+        "resume_from_checkpoint": resume_from,
+        **plan,
+    }
+    if not preflight:
+        print(json.dumps(summary, indent=2), flush=True)
 
     sft_cfg = SFTConfig(
         output_dir=str(checkpoint_dir),
-        num_train_epochs=int(train_cfg["epochs"]),
-        per_device_train_batch_size=int(train_cfg["per_device_train_batch_size"]),
-        gradient_accumulation_steps=int(train_cfg["gradient_accumulation_steps"]),
+        num_train_epochs=epochs,
+        per_device_train_batch_size=batch,
+        gradient_accumulation_steps=accumulation,
+        per_device_eval_batch_size=1,
         learning_rate=float(train_cfg["learning_rate"]),
         lr_scheduler_type=train_cfg.get("lr_scheduler", "cosine"),
-        warmup_ratio=float(train_cfg.get("warmup_ratio", 0.05)),
+        warmup_steps=plan["warmup_steps"],
         weight_decay=float(train_cfg.get("weight_decay", 0.01)),
-        bf16=bool(train_cfg.get("bf16", True)),
+        bf16=use_bf16,
+        fp16=not use_bf16,
         seed=seed,
-        save_steps=int(train_cfg.get("save_steps", 250)),
+        save_strategy="steps",
+        save_steps=save_steps,
         save_total_limit=int(train_cfg.get("save_total_limit", 3)),
         logging_steps=10,
+        eval_strategy="steps",
+        eval_steps=int(train_cfg.get("eval_steps", save_steps)),
+        gradient_checkpointing=not _unsloth,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        optim="paged_adamw_8bit",
         report_to=[],
         dataset_text_field="text",
         max_length=int(cfg["max_seq_length"]),
     )
-    train_ds = build_sft_dataset(examples, tokenizer)
-    val_ds = build_sft_dataset(val, tokenizer)
     trainer = SFTTrainer(
         model=model,
         args=sft_cfg,
@@ -297,21 +393,36 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         eval_dataset=val_ds,
         processing_class=tokenizer,
     )
-    resume_from = None
-    if resume:
-        found = latest_checkpoint(checkpoint_dir)
-        if found:
-            resume_from = str(found)
-            report["resumed_from"] = resume_from
-    trainer.train(resume_from_checkpoint=resume_from)
-    model.save_pretrained(str(checkpoint_dir / "adapter"))
-    tokenizer.save_pretrained(str(checkpoint_dir / "adapter"))
+    report["training_plan"] = plan
+    report["precision"] = summary["precision"]
+    report["effective_batch_size"] = summary["effective_batch_size"]
+    if resume_from:
+        report["resumed_from"] = resume_from
+    if preflight:
+        print(json.dumps({"status": "preflight-pass", **summary}, indent=2),
+              flush=True)
+        return {"status": "preflight-pass", **summary}
+    try:
+        trainer.train(resume_from_checkpoint=resume_from)
+        model.save_pretrained(str(checkpoint_dir / "adapter"))
+        tokenizer.save_pretrained(str(checkpoint_dir / "adapter"))
+    except BaseException as exc:  # noqa: BLE001
+        report["status"] = "failed"
+        report["reason"] = f"{type(exc).__name__}: {exc}"
+        report["finished"] = datetime.now(timezone.utc).isoformat(
+            timespec="seconds")
+        report["latest_checkpoint"] = (
+            str(found) if (found := latest_valid_checkpoint(checkpoint_dir)) else None
+        )
+        (report_dir / "training-report.json").write_text(
+            json.dumps(report, indent=2), encoding="utf-8")
+        raise
 
     report["status"] = "completed"
     report["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     report["checkpoint_dir"] = str(checkpoint_dir)
     report["latest_checkpoint"] = (
-        str(found) if (found := latest_checkpoint(checkpoint_dir)) else None
+        str(found) if (found := latest_valid_checkpoint(checkpoint_dir)) else None
     )
     report["adapter_dir"] = str(checkpoint_dir / "adapter")
     metrics = getattr(trainer, "state", None)
@@ -332,6 +443,8 @@ def main() -> None:
                         help="override the frozen dataset directory")
     parser.add_argument("--dry-run", action="store_true",
                         help="format the data, write the report, do not train")
+    parser.add_argument("--preflight", action="store_true",
+                        help="load model, attach LoRA, build trainer, do not train")
     args = parser.parse_args()
 
     if args.dry_run:
@@ -341,7 +454,8 @@ def main() -> None:
             root, int(cfg["train"].get("seed", 20261028)))
         print(json.dumps({"dry_run": True, "dataset_stats": stats}, indent=2))
         return
-    report = train(args.config, args.resume, args.output_dir, args.dataset_dir)
+    report = train(args.config, args.resume, args.output_dir, args.dataset_dir,
+                   preflight=args.preflight)
     print(json.dumps({"status": report["status"]}, indent=2))
     if report["status"] == "blocked":
         sys.exit(2)
