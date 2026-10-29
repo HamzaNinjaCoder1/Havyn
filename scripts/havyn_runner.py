@@ -306,7 +306,16 @@ def _clean_build_verify(case: dict[str, Any], adapter, results_dir: Path,
                           detail=f"spec unreadable: {exc}",
                           elapsed_s=time.monotonic() - t0)
 
-    cleaning = clean(adapter)
+    # `clean_all` is an opt-in for a controlled gate/Nightly workspace: the
+    # Power Distribution Devices are then build-created placeholders, not the
+    # user's physical-environment devices. Keeping them between ten reference
+    # runs measurably slows PT (262 s -> ~300 s by run 3); deleting them each
+    # run restores the blank canvas the blueprint's "workspace saaf karke"
+    # asks for. The default stays protected for ordinary user workspaces.
+    if case.get("clean_all"):
+        cleaning = clean(adapter, protected_prefixes=())
+    else:
+        cleaning = clean(adapter)
     # `clean()`'s ``remaining`` is the full post-run read-back, so it always
     # contains the *protected* devices that were never meant to go. Only a
     # leftover that should have been deleted means the canvas is still dirty.

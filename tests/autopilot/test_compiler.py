@@ -1383,7 +1383,7 @@ def test_the_lint_reports_every_offline_problem_in_one_pass():
     # 2. a policy aimed at a device with no enforcement path (a host)
     assert "not an ASA firewall" in joined, joined
     # 3. a DHCP subnet with no server that could hand out a lease
-    assert "no router or firewall holds an address" in joined, joined
+    assert "no router, firewall or Server-PT with a dhcp service holds an address" in joined, joined
     # 4. a TCP probe PT cannot make
     assert "TCP" in joined, joined
 
@@ -1403,7 +1403,7 @@ def test_net_build_returns_all_the_problems_in_a_single_message():
     # every finding is in the one message, not just the first
     assert error.count("\n  - ") == expected, error
     for fragment in ("not inside 10.1.1.0/24", "not an ASA firewall",
-                     "no router or firewall holds an address", "TCP"):
+                     "no router, firewall or Server-PT with a dhcp service holds an address", "TCP"):
         assert fragment in error, (fragment, error)
 
 

@@ -26,7 +26,16 @@ def test_verified_means_a_live_test_and_refused_means_a_reason():
     refused = [f for f in rows if f.status == "Refused"]
     assert verified and refused
     for row in verified:
-        assert "test_live" in row.evidence or "live" in row.evidence.lower(), row.id
+        evidence = row.evidence.lower()
+        # Live proof is either a live test or a verbatim capture written by a
+        # probe/lab under probes/live or probes/raw (the latter is where the
+        # stage3_* scripts write console output).
+        assert (
+            "test_live" in evidence
+            or "live" in evidence
+            or "probes/raw/" in evidence
+            or "probes/live/" in evidence
+        ), row.id
     for row in refused:
         assert row.refusal_reason, row.id
 

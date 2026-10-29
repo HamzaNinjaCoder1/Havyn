@@ -678,6 +678,9 @@ class DagExecutor:
             "configure_ios": self._op_configure_ios,
             "configure_gateway_lan": self._op_configure_gateway_lan,
             "configure_host": self._op_configure_host,
+            "configure_server": self._op_configure_server,
+            "configure_cloud": self._op_configure_cloud,
+            "generate_rsa_key": self._op_generate_rsa_key,
             "verify_flow": self._op_verify_flow,
             "wait_dhcp": self._op_wait_dhcp,
             "verify_state": self._op_verify_state,
@@ -1441,6 +1444,60 @@ class DagExecutor:
             node.status = OpStatus.SUCCEEDED
         else:
             self._fail(node, op.operation_id, result, receipt.error or "host config failed")
+
+    def _op_configure_server(self, op, node, result: ExecutionResult) -> None:
+        if not self._authorize(op):
+            node.status = OpStatus.BLOCKED
+            node.note = "safety gate did not authorize execution"
+            result.blocked.append(op.operation_id)
+            return
+        receipt = self.adapter.configure_server_services(
+            op.inputs["device"], op.inputs["services"],
+            operation_id=op.operation_id,
+        )
+        self._record(receipt)
+        node.receipt = receipt
+        if receipt.executed_ok:
+            node.status = OpStatus.SUCCEEDED
+        else:
+            self._fail(node, op.operation_id, result,
+                       receipt.error or "server service configuration failed")
+
+    def _op_configure_cloud(self, op, node, result: ExecutionResult) -> None:
+        if not self._authorize(op):
+            node.status = OpStatus.BLOCKED
+            node.note = "safety gate did not authorize execution"
+            result.blocked.append(op.operation_id)
+            return
+        receipt = self.adapter.configure_cloud_mapping(
+            op.inputs["device"], op.inputs["mappings"],
+            operation_id=op.operation_id,
+        )
+        self._record(receipt)
+        node.receipt = receipt
+        if receipt.executed_ok:
+            node.status = OpStatus.SUCCEEDED
+        else:
+            self._fail(node, op.operation_id, result,
+                       receipt.error or "cloud mapping configuration failed")
+
+    def _op_generate_rsa_key(self, op, node, result: ExecutionResult) -> None:
+        if not self._authorize(op):
+            node.status = OpStatus.BLOCKED
+            node.note = "safety gate did not authorize execution"
+            result.blocked.append(op.operation_id)
+            return
+        receipt = self.adapter.generate_rsa_key(
+            op.inputs["device"], bits=int(op.inputs.get("bits", 1024)),
+            operation_id=op.operation_id,
+        )
+        self._record(receipt)
+        node.receipt = receipt
+        if receipt.executed_ok:
+            node.status = OpStatus.SUCCEEDED
+        else:
+            self._fail(node, op.operation_id, result,
+                       receipt.error or "RSA key generation failed")
 
     def _op_verify_flow(self, op, node, result: ExecutionResult) -> None:
         source = op.inputs["source"]

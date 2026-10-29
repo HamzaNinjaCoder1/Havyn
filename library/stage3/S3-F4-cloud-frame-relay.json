@@ -1,0 +1,103 @@
+{
+ "name": "S3.F4 Cloud serial Frame Relay",
+ "description": "Two routers forward IP over a Frame Relay circuit mapped inside one Cloud-PT.",
+ "devices": [
+  {
+   "id": "r1",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "r2",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "cl1",
+   "role": "cloud",
+   "model_hint": "Cloud-PT"
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "a": {
+    "device": "r1",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "cl1",
+    "interface_hint": "Serial0"
+   },
+   "media": "serial"
+  },
+  {
+   "id": "l2",
+   "a": {
+    "device": "r2",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "cl1",
+    "interface_hint": "Serial1"
+   },
+   "media": "serial"
+  }
+ ],
+ "subnets": [
+  {
+   "id": "wan",
+   "cidr": "10.0.12.0/30"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "wan",
+   "ip": "10.0.12.1",
+   "interface_hint": "Serial2/0"
+  },
+  {
+   "device": "r2",
+   "subnet": "wan",
+   "ip": "10.0.12.2",
+   "interface_hint": "Serial2/0"
+  }
+ ],
+ "cloud_mappings": [
+  {
+   "cloud": "cl1",
+   "cloud_port": "Serial0",
+   "peer_cloud_port": "Serial1",
+   "connection_type": "serial",
+   "sub_link": "r1",
+   "peer_sub_link": "r2",
+   "dlci": 100,
+   "peer_dlci": 200
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "The two sites reach each other through the cloud"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "r1 reaches r2",
+   "test": {
+    "kind": "flow",
+    "source": "r1",
+    "destination": "r2",
+    "expect": "reachable"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

@@ -1,0 +1,71 @@
+# IoT probe @ 2026-10-23T12:21:43+00:00
+
+## ports
+led=['FastEthernet0'] gateway=['Vlan1', 'Internet', 'Virtual-Access1', 'Dialer1', 'GigabitEthernet 1', 'GigabitEthernet 2', 'GigabitEthernet 3', 'GigabitEthernet 4', 'Wireless 1', 'Wireless 2', 'Wireless 3', 'Wireless 4', 'Wireless 5', 'Wireless 6', 'Wireless0/0']
+## smart-led processes
+{
+ "Ioe": "E:invalid string position",
+ "IoeClient": [
+  "getClassName",
+  "getObjectUuid",
+  "getOwnerDevice",
+  "registerObjectEvent",
+  "reportStates",
+  "setupRemoteApi",
+  "unregisterObjectEvent"
+ ],
+ "IoeServer": null,
+ "IoEComponent": null,
+ "CustomIO": null,
+ "WirelessRouter": null,
+ "AccessPointSwitcher": null,
+ "WirelessServer": null
+}
+## home-gateway processes
+{
+ "Ioe": "E:invalid string position",
+ "IoeClient": null,
+ "IoeServer": null,
+ "IoEComponent": null,
+ "CustomIO": null,
+ "WirelessRouter": null,
+ "AccessPointSwitcher": null,
+ "WirelessServer": [
+  "addToMacFilterAddrList",
+  "getAllMacEntries",
+  "getAuthenType",
+  "getClassName",
+  "getEncryptType",
+  "getMacAddressAt",
+  "getMacAddressCount",
+  "getNetworkType",
+  "getObjectUuid",
+  "getOwnerDevice",
+  "getPort",
+  "getRadioBand",
+  "getSsid",
+  "getStandardChannel",
+  "getWepProcess",
+  "getWideChannel",
+  "getWpaProcess",
+  "isAccessAllowed",
+  "isMacFilterEnabled",
+  "isSsidBrdCastEnabled",
+  "registerObjectEvent",
+  "removeAllMacEntries",
+  "removeFromMacFilterAddrList",
+  "resetAllAssociations",
+  "setAllowAccess",
+  "setAuthenType",
+  "setEncryptType",
+  "setMacFilterEnabled",
+  "setNetworkType",
+  "setPort",
+  "setRadioBand",
+  "setSsid",
+  "setSsidBrdCastEnabled",
+  "setStandardChannel",
+  "setWideChannel",
+  "unregisterObjectEvent"
+ ]
+}

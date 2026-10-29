@@ -150,6 +150,13 @@ def dhcp_issues(spec: NetworkSpec) -> list[str]:
     """A DHCP subnet with nothing that can hand out a lease."""
     issues: list[str] = []
     subnets = {s.id: s for s in spec.subnets}
+    # A Server-PT can serve the subnet too (S3.D4): it needs an address on it
+    # and a `service: dhcp` intent. Only routers/firewalls were counted before,
+    # which rejected a valid server-backed DHCP lab.
+    service_servers = {
+        service.device for service in spec.services
+        if service.service == "dhcp" and service.enabled
+    }
     for subnet in spec.subnets:
         if not subnet.dhcp:
             continue
@@ -159,13 +166,14 @@ def dhcp_issues(spec: NetworkSpec) -> list[str]:
                 continue
             device = spec.device_by_id(assignment.device)
             role = str(getattr(getattr(device, "role", None), "value", ""))
-            if role in _DHCP_SERVER_ROLES:
+            if role in _DHCP_SERVER_ROLES or assignment.device in service_servers:
                 servers.add(assignment.device)
         if not servers:
             issues.append(
-                f"subnet {subnet.id!r} is marked dhcp but no router or "
-                "firewall holds an address on it, so there is no pool to serve "
-                "it: its clients would never get a lease"
+                f"subnet {subnet.id!r} is marked dhcp but no router, firewall "
+                "or Server-PT with a dhcp service holds an address on it, so "
+                "there is no pool to serve it: its clients would never get a "
+                "lease"
             )
     return issues
 

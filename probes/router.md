@@ -21,8 +21,8 @@ command, and deleted the device. Raw captures are under `probes/raw/`.
 | S3.A12 | Basic BGP | Per-device AS/neighbor/network config read back; live 2-AS lab flow PASS. | **Verified** (`probes/live/S3-A12-bgp.md`) |
 | S3.A13 | IPv6 addressing | `ipv6 unicast-routing`, address and `ipv6 enable` read back; live IPv6 ping 5/5 between two routers. | **Verified** (`probes/raw/ipv6-ospfv3.txt`) |
 | S3.A14 | OSPFv3 | With IPv6 enabled first, `ipv6 ospf 1 area 0` is accepted and both routers report FULL OSPFv3 neighbors. | **Verified** (`probes/raw/ipv6-ospfv3.txt`) |
-| S3.A15 | SSH + local AAA | `ip domain-name`, `username ... privilege 15 secret`, `login local`, `transport input ssh`, `ip ssh version 2` read back. SSH login from a PC is not observable through the Script Engine. | **Unverified** |
-| S3.A16 | NTP, Syslog, SNMP | `ntp server`, `logging <host>` and `snmp-server community` read back; the router-side configuration is accepted. Server-side effect is unobservable because Server-PT services are refused. | **Unverified** |
+| S3.A15 | SSH + local AAA | Config read back; the RSA key must be generated in **global config** (`crypto key generate rsa`, answer the modulus prompt) or `show ip ssh` says "SSH Disabled". The PC then reaches `Password:`, logs in, and the router shows `vty 0 admin` in `show users` and a `Session Started` entry in `show ssh`. | **Verified** (`probes/raw/S3.ssh-login.txt`) |
+| S3.A16 | NTP, Syslog, SNMP | `ntp server`, `logging <host>` and `snmp-server community` read back; the server's Syslog process receives real router entries (host, timestamp, message). PT does not implement router NTP synchronisation (`show ntp status` is invalid and the clock stays at 1993), so time sync is unobservable. | **Verified** for logs (`probes/raw/S3.ntp-syslog.txt`) |
 
 ## Refusal evidence
 
@@ -48,4 +48,6 @@ python probes/stage3_live_lab.py library/stage3/S3-A8-hsrp.json --failover-devic
 python probes/stage3_live_lab.py library/stage3/S3-A12-bgp.json
 python probes/stage3_ipv6_probe.py
 python probes/stage3_gre_probe.py
+python probes/stage3_ssh_lab.py
+python probes/stage3_ntp_syslog_lab.py
 ```

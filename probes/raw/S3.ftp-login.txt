@@ -1,0 +1,76 @@
+# FTP login lab @ 2026-10-23T13:05:45+00:00
+
+## server
+{"enabled":true,"users":2}
+## ftp connect
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ftp 10.89.0.2
+Trying to connect...10.89.0.2
+Connected to 10.89.0.2
+220- Welcome to PT Ftp server
+Username:
+## username
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ftp 10.89.0.2
+Trying to connect...10.89.0.2
+Connected to 10.89.0.2
+220- Welcome to PT Ftp server
+Username:ftpuser
+331- Username ok, need password
+Password:
+## password
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ftp 10.89.0.2
+Trying to connect...10.89.0.2
+Connected to 10.89.0.2
+220- Welcome to PT Ftp server
+Username:ftpuser
+331- Username ok, need password
+Password:*******
+230- Logged in
+(passive mode On)
+ftp>
+## dir
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ftp 10.89.0.2
+Trying to connect...10.89.0.2
+Connected to 10.89.0.2
+220- Welcome to PT Ftp server
+Username:ftpuser
+331- Username ok, need password
+Password:*******
+230- Logged in
+(passive mode On)
+ftp>dir
+
+Listing /ftp directory from 10.89.0.2: 
+%Error ftp://10.89.0.2/ (No such file or directory Or Permission denied)
+550-Requested action not taken. permission denied).
+
+ftp>
+## quit
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ftp 10.89.0.2
+Trying to connect...10.89.0.2
+Connected to 10.89.0.2
+220- Welcome to PT Ftp server
+Username:ftpuser
+331- Username ok, need password
+Password:*******
+230- Logged in
+(passive mode On)
+ftp>dir
+
+Listing /ftp directory from 10.89.0.2: 
+%Error ftp://10.89.0.2/ (No such file or directory Or Permission denied)
+550-Requested action not taken. permission denied).
+
+ftp>quit
+
+221- Service closing control connection.
+C:\>

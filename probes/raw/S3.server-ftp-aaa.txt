@@ -1,0 +1,63 @@
+# FTP/AAA probe @ 2026-10-23T12:21:12+00:00
+
+## ftp server
+{
+ "enabled": true,
+ "users": [
+  {
+   "name": "cisco",
+   "perm": "RWDNL"
+  },
+  {
+   "name": "ftpuser",
+   "perm": "rw"
+  }
+ ]
+}
+## aaa server
+{
+ "userAdded": true,
+ "clientAdded": true,
+ "enabled": true,
+ "users": "admin:admin,,radiuspass",
+ "clients": "10.89.0.1::T:sharedsecret,0,10.89.0.1,"
+}
+## router aaa processes
+{
+ "Aaa": "E:invalid string position",
+ "AcsServer": null,
+ "RadiusClient": [
+  "addToServerVect",
+  "getClassName",
+  "getObjectUuid",
+  "getOwnerDevice",
+  "getServerCount",
+  "registerObjectEvent",
+  "removeFromServerVect",
+  "removeFromServerVectByName",
+  "unregisterObjectEvent"
+ ],
+ "RadiusServer": null,
+ "TacacsClient": [
+  "addToServerVect",
+  "getClassName",
+  "getObjectUuid",
+  "getOwnerDevice",
+  "getServerCount",
+  "registerObjectEvent",
+  "removeFromServerVect",
+  "unregisterObjectEvent"
+ ],
+ "TacacsServer": null
+}
+## ftp client surface
+{
+ "present": true,
+ "methods": [
+  "getClassName",
+  "getObjectUuid",
+  "getOwnerDevice",
+  "registerObjectEvent",
+  "unregisterObjectEvent"
+ ]
+}

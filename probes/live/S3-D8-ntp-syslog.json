@@ -1,0 +1,23 @@
+{
+  "lab": "S3.D8 NTP and Syslog server",
+  "spec": "library\\stage3\\S3-D8-ntp-syslog.json",
+  "tag": "q24b6ce",
+  "started_at": "2026-10-23T16:23:05+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "r1",
+      "destination": "srv1",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q24b6ce-r1->10.76.0.2: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "q24b6ce-srv1": "deleted",
+    "q24b6ce-r1": "deleted"
+  },
+  "finished_at": "2026-10-23T16:23:36+00:00"
+}

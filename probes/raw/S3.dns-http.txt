@@ -1,0 +1,134 @@
+# DNS/HTTP lab @ 2026-10-23T10:52:03+00:00
+
+## server dns
+{
+ "enabled": true,
+ "hostAdded": true,
+ "zoneAdded": true,
+ "exists": true,
+ "resolved": "10.88.0.2",
+ "entries": 1,
+ "zoneSize": 1
+}
+## server http
+{
+ "enabled": true,
+ "page": "<html><body>HAVYN-APP-PROOF</body></html>",
+ "port": 80
+}
+## pc dns
+{
+ "server": "10.88.0.2",
+ "enabled": true
+}
+## pc http go
+{
+ "ok": true
+}
+## pc http body
+{
+ "body": "<html><body>HAVYN-APP-PROOF</body></html>"
+}
+## pc console: nslookup server.local
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>nslookup server.local
+
+Server: [10.88.0.2]
+Address:  10.88.0.2
+
+Non-authoritative answer:
+Name:   server.local
+Address:   10.88.0.2
+           
+C:\>
+## pc console: ping server.local
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>nslookup server.local
+
+Server: [10.88.0.2]
+Address:  10.88.0.2
+
+Non-authoritative answer:
+Name:   server.local
+Address:   10.88.0.2
+           
+C:\>ping server.local
+
+Pinging 10.88.0.2 with 32 bytes of data:
+
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+
+Ping statistics for 10.88.0.2:
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 0ms, Maximum = 0ms, Average = 0ms
+
+C:\>
+## pc console: ipconfig /all
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>nslookup server.local
+
+Server: [10.88.0.2]
+Address:  10.88.0.2
+
+Non-authoritative answer:
+Name:   server.local
+Address:   10.88.0.2
+           
+C:\>ping server.local
+
+Pinging 10.88.0.2 with 32 bytes of data:
+
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+Reply from 10.88.0.2: bytes=32 time<1ms TTL=128
+
+Ping statistics for 10.88.0.2:
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 0ms, Maximum = 0ms, Average = 0ms
+
+C:\>ipconfig /all
+
+FastEthernet0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0001.969A.ACC9
+   Link-local IPv6 Address.........: FE80::201:96FF:FE9A:ACC9
+   IPv6 Address....................: ::
+   IPv4 Address....................: 10.88.0.10
+   Subnet Mask.....................: 255.255.255.0
+   Default Gateway.................: ::
+                                     10.88.0.2
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-E9-2C-4D-2B-00-01-96-9A-AC-C9
+   DNS Servers.....................: ::
+                                     10.88.0.2
+
+Bluetooth Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 00E0.B07C.0DA5
+   Link-local IPv6 Address.........: ::
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-E9-2C-4D-2B-00-01-96-9A-AC-C9
+   DNS Servers.....................: ::
+                                     10.88.0.2
+
+
+C:\>
+C:\>

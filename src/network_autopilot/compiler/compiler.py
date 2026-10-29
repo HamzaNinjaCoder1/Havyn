@@ -42,7 +42,10 @@ _PHASE2_FEATURES = {
     "links": "auto-media ethernet links",
     "addressing": "static IPv4 interface addressing",
     "routing": "static routes, OSPF (multi-area), EIGRP, RIP v2, BGP, DHCP, NAT, IPv6, VLANs",
-    "stage3": "HSRP, DHCP relay, tunnels/IPsec/SSH/NTP/Syslog/SNMP rendering, switch features, ASA NAT/DHCP/object groups",
+    "stage3": "HSRP, DHCP relay, tunnels/IPsec/SSH/NTP/Syslog/SNMP rendering, switch features, ASA DHCP",
+    "server_services": "Server-PT DNS/HTTP/HTTPS/DHCP/NTP/Syslog/FTP/AAA",
+    "cloud_mapping": "explicit Cloud-PT port and Frame Relay sub-link mappings",
+    "ssh_keys": "router RSA key generation after the SSH config",
     "wireless": "wireless interface modules (wireless laptops, access points)",
     "verification": "structural, addressing and ICMP flow verification",
     "persistence": "project save",
@@ -127,21 +130,52 @@ def _check_phase2_support(spec: NetworkSpec) -> None:
         unsupported.append(f"routing mode {spec.routing.mode!r}")
     if spec.routing.static_routes and spec.routing.mode == "connected":
         unsupported.append("static routes with routing.mode=connected (use 'static')")
-    # Server-PT exposes no service-configuration API through the Script Engine
-    # (probes/server-services.md, S3.D0): the device prototype has only generic
-    # device methods and `getProcess(<name>)` rejects every service name. A
-    # service block would compile and then configure nothing, so it is refused
-    # by name instead of silently dropped.
+    # Server-PT services ARE reachable through the documented process names
+    # (probes/server-services.md). The email API blocks the Script Engine and
+    # closes PT (measured twice), and IoT has no server-side registration
+    # process, so those two are refused by name; the rest compile into a
+    # configure_server operation.
     if spec.services:
-        names = ", ".join(sorted({s.service for s in spec.services}))
-        unsupported.append(
-            f"Server-PT services ({names}): PT's Script Engine exposes no "
-            "service-configuration API (see probes/server-services.md)"
-        )
+        refused = sorted({
+            s.service for s in spec.services
+            if s.service in ("email", "iot")
+        })
+        if refused:
+            unsupported.append(
+                "Server-PT services "
+                + ", ".join(refused)
+                + ": email updateAllAccounts/sendMail blocks the Script Engine "
+                  "and closes PT, and IoT has no server-side registration "
+                  "process (see probes/server-services.md, probes/iot.md)"
+            )
     if spec.iot:
         unsupported.append(
-            "IoT registration: PT exposes no Script Engine API for registering "
-            "a smart device with a server or home gateway (see probes/iot.md)"
+            "IoT registration: PT exposes a client-side IoeClient but no "
+            "server/registration process on the gateway or Server-PT "
+            "(see probes/iot.md)"
+        )
+    if spec.wireless_config:
+        unsupported.append(
+            "custom wireless SSID/WPA2: the AP accepts it, but PT's client "
+            "profile API (addProfile/setCurrentProfile) rejects the custom "
+            "SSID and no association forms (see probes/wireless.md); use the "
+            "default SSID"
+        )
+    # PT's ASA 9.6 image rejects every NAT form and every object-group line
+    # (CLI status 2); emitting them would be the half-configure failure the
+    # engine exists to prevent (rule 9). Use a router for NAT and a plain
+    # address-scoped ACL for policy.
+    if spec.firewall.nat:
+        unsupported.append(
+            "ASA NAT: PT's ASA image rejects object NAT, twice NAT and classic "
+            "nat/global (CLI status 2); use a router for NAT (S3.A6) or "
+            "terminate outside PT (see probes/asa.md)"
+        )
+    if spec.firewall.object_groups:
+        unsupported.append(
+            "ASA object groups: PT's ASA image rejects object-group lines "
+            "(CLI status 2); use a plain address-scoped ACL (S3.C1) "
+            "(see probes/asa.md)"
         )
     if unsupported:
         raise CompileError(
@@ -485,34 +519,20 @@ def _build_switch_feature_commands(spec: NetworkSpec) -> dict[str, list[str]]:
 
 
 def _build_asa_feature_commands(spec: NetworkSpec) -> dict[str, list[str]]:
-    """Stage 3 ASA intents: object NAT, DHCP server and object groups."""
+    """Stage 3 ASA intents that PT's image accepts: the DHCP server.
+
+    NAT and object groups are refused in ``_check_phase2_support`` because the
+    ASA image rejects every form (probes/asa.md); they must never reach this
+    builder.
+    """
     commands: dict[str, list[str]] = {}
     fw = spec.firewall
-    for nat in fw.nat:
-        lines = commands.setdefault(nat.device, [])
-        # PT's ASA accepts object NAT and, on the 5506-X/5505, a static
-        # one-to-one NAT; dynamic interface PAT is the measured form.
-        lines.extend([
-            f"object network {nat.object_name}",
-            f" subnet {nat.subnet}",
-            f" nat ({nat.inside_nameif},{nat.outside_nameif}) dynamic interface",
-            " exit",
-        ])
     for dhcp in fw.dhcp:
         lines = commands.setdefault(dhcp.device, [])
         lines.extend([
             f"dhcpd address {dhcp.start}-{dhcp.end} {dhcp.nameif}",
             f"dhcpd enable {dhcp.nameif}",
         ])
-    for group in fw.object_groups:
-        lines = commands.setdefault(group.device, [])
-        lines.append(f"object-group {group.group_type} {group.name}")
-        for member in group.members:
-            if group.group_type == "network":
-                lines.append(f" network-object host {member}")
-            else:
-                lines.append(f" service-object {member}")
-        lines.append(" exit")
     return commands
 
 
@@ -805,6 +825,185 @@ def _build_management_commands(spec: NetworkSpec) -> dict[str, list[str]]:
                 f"snmp-server community {mgmt.snmp_community} {mgmt.snmp_access}"
             )
     return commands
+
+
+def _build_frame_relay_commands(
+    spec: NetworkSpec, plan: AddressPlan
+) -> dict[str, list[str]]:
+    """Frame Relay encapsulation + DLCI maps for serial cloud mappings.
+
+    The Cloud-PT serial ports are a Frame Relay switch (`addSubLink` +
+    `addSubLinkConnection`); a router that only gets an IP on that serial port
+    keeps speaking HDLC and the circuit stays blocked (measured in
+    S3-F4-cloud-frame-relay). The DLCI on each side is the one the cloud
+    mapping assigned to that cloud port.
+    """
+    commands: dict[str, list[str]] = {}
+    for mapping in spec.cloud_mappings:
+        if mapping.connection_type != "serial":
+            continue
+        sides = (
+            (mapping.cloud_port, mapping.dlci),
+            (mapping.peer_cloud_port, mapping.peer_dlci),
+        )
+        for cloud_port, dlci in sides:
+            if dlci is None:
+                continue
+            device_id = ""
+            interface = ""
+            for link in spec.links:
+                for endpoint, other in ((link.a, link.b), (link.b, link.a)):
+                    if (
+                        endpoint.device == mapping.cloud
+                        and (endpoint.interface_hint or "") == cloud_port
+                    ):
+                        device_id = other.device
+                        interface = other.interface_hint or ""
+            if not device_id or not interface:
+                continue
+            local = next(
+                (
+                    a for a in plan.assignments
+                    if a.device == device_id and a.ip
+                    and (not a.interface_hint or a.interface_hint == interface)
+                ),
+                None,
+            )
+            if local is None:
+                continue
+            peer = next(
+                (
+                    a for a in plan.assignments
+                    if a.device != device_id and a.subnet_id == local.subnet_id
+                    and a.ip
+                ),
+                None,
+            )
+            if peer is None:
+                continue
+            lines = commands.setdefault(device_id, [])
+            lines.extend([
+                f"interface {interface}",
+                " encapsulation frame-relay",
+                f" frame-relay map ip {peer.ip} {int(dlci)} broadcast",
+                " exit",
+            ])
+    return commands
+
+
+def _build_server_service_ops(
+    spec: NetworkSpec,
+    dag: OperationDag,
+    device_ops: dict[str, str],
+) -> None:
+    """One `configure_server` op per server, after its address is set."""
+    by_device: dict[str, list[dict]] = {}
+    for service in spec.services:
+        by_device.setdefault(service.device, []).append(service.model_dump())
+    for device_id, services in by_device.items():
+        deps: list[str] = []
+        create = _create_op_for_device(dag, device_id)
+        if create:
+            deps.append(create)
+        deps.extend(_device_config_ops(dag, device_id))
+        dag.add(NetworkOperation(
+            operation_id=f"op-server-{device_id}",
+            operation_type="configure_server",
+            inputs={"device": device_id, "services": services},
+            dependencies=tuple(dict.fromkeys(deps)),
+            preconditions=(Check("device_present", device_id, "present"),),
+            expected_postconditions=tuple(
+                Check("service_enabled", f"{device_id}:{row['service']}", "True")
+                for row in services
+            ),
+            classification=MutationClassification.CONFIGURE,
+            risk=Risk.MEDIUM,
+            blast_radius=(device_id,),
+            retry_policy=1,
+            idempotency_key=key_for(
+                "configure_server", device_id,
+                tuple(sorted(row["service"] for row in services)),
+            ),
+        ))
+
+
+def _build_cloud_mapping_ops(
+    spec: NetworkSpec,
+    dag: OperationDag,
+    device_ops: dict[str, str],
+) -> None:
+    """One `configure_cloud` op per cloud, after its links exist."""
+    by_cloud: dict[str, list[dict]] = {}
+    for mapping in spec.cloud_mappings:
+        if not mapping.peer_cloud_port:
+            raise CompileError(
+                f"cloud mapping on {mapping.cloud!r}: peer_cloud_port is "
+                "required (the second cloud port to map to)"
+            )
+        by_cloud.setdefault(mapping.cloud, []).append(mapping.model_dump())
+    for cloud, mappings in by_cloud.items():
+        deps: list[str] = []
+        create = _create_op_for_device(dag, cloud)
+        if create:
+            deps.append(create)
+        deps.extend(_link_ops_for_device(dag, cloud))
+        dag.add(NetworkOperation(
+            operation_id=f"op-cloud-{cloud}",
+            operation_type="configure_cloud",
+            inputs={"device": cloud, "mappings": mappings},
+            dependencies=tuple(dict.fromkeys(deps)),
+            preconditions=(Check("device_present", cloud, "present"),),
+            expected_postconditions=tuple(
+                Check("mapping_created", f"{cloud}:{row['cloud_port']}:{row['peer_cloud_port']}", "True")
+                for row in mappings
+            ),
+            classification=MutationClassification.CONFIGURE,
+            risk=Risk.MEDIUM,
+            blast_radius=(cloud,),
+            retry_policy=1,
+            idempotency_key=key_for(
+                "configure_cloud", cloud,
+                tuple(sorted(
+                    f"{row['cloud_port']}->{row['peer_cloud_port']}"
+                    for row in mappings
+                )),
+            ),
+        ))
+
+
+def _build_ssh_key_ops(
+    spec: NetworkSpec,
+    dag: OperationDag,
+    device_ops: dict[str, str],
+) -> None:
+    """Generate the RSA key after the SSH configuration that names it."""
+    for ssh in spec.routing.ssh:
+        deps: list[str] = []
+        create = _create_op_for_device(dag, ssh.device)
+        if create:
+            deps.append(create)
+        for node in dag.nodes.values():
+            op = node.operation
+            if (
+                op.operation_type == "configure_ios"
+                and op.inputs.get("device") == ssh.device
+            ):
+                deps.append(op.operation_id)
+        dag.add(NetworkOperation(
+            operation_id=f"op-ssh-key-{ssh.device}",
+            operation_type="generate_rsa_key",
+            inputs={"device": ssh.device, "bits": ssh.rsa_bits},
+            dependencies=tuple(dict.fromkeys(deps)),
+            preconditions=(Check("device_present", ssh.device, "present"),),
+            expected_postconditions=(
+                Check("ssh_enabled", ssh.device, "True"),
+            ),
+            classification=MutationClassification.CONFIGURE,
+            risk=Risk.MEDIUM,
+            blast_radius=(ssh.device,),
+            retry_policy=1,
+            idempotency_key=key_for("generate_rsa_key", ssh.device, ssh.rsa_bits),
+        ))
 
 
 def _build_dhcp_commands(spec: NetworkSpec, plan: AddressPlan) -> dict[str, list[str]]:
@@ -2506,6 +2705,7 @@ def compile_spec(
         commands.extend(_build_ipsec_commands(spec).get(device.id, []))
         commands.extend(_build_ssh_commands(spec).get(device.id, []))
         commands.extend(_build_management_commands(spec).get(device.id, []))
+        commands.extend(_build_frame_relay_commands(spec, plan).get(device.id, []))
         # -- spec policy on this router (#16): numbered IOS ACL, bound `in`
         # on every interface this path addressed (live-probed shapes; an
         # empty rule set returns nothing, so routers without policies are
@@ -2663,6 +2863,14 @@ def compile_spec(
             ),
         )
         dag.add(op)
+
+    # -- Stage 3 proven capabilities -----------------------------------------
+    # Services and cloud mappings are per-device operations placed after the
+    # device's addressing; the RSA key follows the SSH configuration that names
+    # the domain.
+    _build_server_service_ops(spec, dag, device_ops)
+    _build_cloud_mapping_ops(spec, dag, device_ops)
+    _build_ssh_key_ops(spec, dag, device_ops)
 
     # -- verification ---------------------------------------------------------
     config_ops = [

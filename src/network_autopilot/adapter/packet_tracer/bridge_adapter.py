@@ -54,6 +54,7 @@ from ...evidence.store import EvidenceStore
 from ...pt.catalog.devices import category_of_model
 from ..base import AdapterError, AdapterInfo, PacketTracerAdapter
 from . import js_commands as js
+from . import stage3_commands as s3js
 from .pt_launcher import LaunchResult, ensure_packet_tracer, find_packet_tracer
 
 @dataclass(frozen=True)

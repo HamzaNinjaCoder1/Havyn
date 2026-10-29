@@ -1,0 +1,36 @@
+# cloud lab @ 2026-10-23T11:48:22+00:00
+
+## F2/F4 serial mapping
+{
+ "pairA": true,
+ "pairB": true,
+ "subLinkConnections": 2,
+ "list": []
+}
+## F2/F4 flows
+{
+ "customer_a": "reachable",
+ "customer_b": "reachable",
+ "a_to_b_isolation": "blocked"
+}
+## r1 frame-relay map
+show frame-relay map
+Serial2/0 (up): ip 10.10.0.2 dlci 100, static, 
+              broadcast, 
+              CISCO, status defined, active
+s3p-f2-r1>
+## F3 cloud mapping
+{
+ "dsl": true,
+ "connection": true,
+ "list": [
+  "Coaxial7:Ethernet6"
+ ]
+}
+## F3 config
+customer=success isp=success
+## F3 flows
+{
+ "home_to_internet": "reachable",
+ "internet_to_home": "reachable"
+}

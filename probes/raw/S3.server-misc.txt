@@ -1,0 +1,10 @@
+# Server misc services @ 2026-10-23T12:15:41+00:00
+
+## email
+"UNKNOWN:file channel produced no result within 25s"
+## ftp
+"UNKNOWN:no live channel: HTTP bridge sees no PT poll and the file mailbox heartbeat is stale (is PT open with the extension installed?)"
+## aaa (ACS server)
+"UNKNOWN:no live channel: HTTP bridge sees no PT poll and the file mailbox heartbeat is stale (is PT open with the extension installed?)"
+## iot server
+"UNKNOWN:no live channel: HTTP bridge sees no PT poll and the file mailbox heartbeat is stale (is PT open with the extension installed?)"

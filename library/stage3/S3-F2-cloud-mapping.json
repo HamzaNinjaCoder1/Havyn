@@ -1,0 +1,197 @@
+{
+ "name": "S3.F2 Two customers on one cloud",
+ "description": "Two independent Frame Relay circuits on one Cloud-PT; each pair reaches itself and cannot reach the other.",
+ "devices": [
+  {
+   "id": "r1",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "r2",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "r3",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "r4",
+   "role": "router",
+   "model_hint": "Router-PT"
+  },
+  {
+   "id": "cl1",
+   "role": "cloud",
+   "model_hint": "Cloud-PT"
+  }
+ ],
+ "links": [
+  {
+   "id": "l1",
+   "a": {
+    "device": "r1",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "cl1",
+    "interface_hint": "Serial0"
+   },
+   "media": "serial"
+  },
+  {
+   "id": "l2",
+   "a": {
+    "device": "r2",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "cl1",
+    "interface_hint": "Serial1"
+   },
+   "media": "serial"
+  },
+  {
+   "id": "l3",
+   "a": {
+    "device": "r3",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "cl1",
+    "interface_hint": "Serial2"
+   },
+   "media": "serial"
+  },
+  {
+   "id": "l4",
+   "a": {
+    "device": "r4",
+    "interface_hint": "Serial2/0"
+   },
+   "b": {
+    "device": "cl1",
+    "interface_hint": "Serial3"
+   },
+   "media": "serial"
+  }
+ ],
+ "subnets": [
+  {
+   "id": "cust-a",
+   "cidr": "10.10.0.0/30"
+  },
+  {
+   "id": "cust-b",
+   "cidr": "10.20.0.0/30"
+  }
+ ],
+ "ip_assignments": [
+  {
+   "device": "r1",
+   "subnet": "cust-a",
+   "ip": "10.10.0.1",
+   "interface_hint": "Serial2/0"
+  },
+  {
+   "device": "r2",
+   "subnet": "cust-a",
+   "ip": "10.10.0.2",
+   "interface_hint": "Serial2/0"
+  },
+  {
+   "device": "r3",
+   "subnet": "cust-b",
+   "ip": "10.20.0.1",
+   "interface_hint": "Serial2/0"
+  },
+  {
+   "device": "r4",
+   "subnet": "cust-b",
+   "ip": "10.20.0.2",
+   "interface_hint": "Serial2/0"
+  }
+ ],
+ "cloud_mappings": [
+  {
+   "cloud": "cl1",
+   "cloud_port": "Serial0",
+   "peer_cloud_port": "Serial1",
+   "connection_type": "serial",
+   "sub_link": "r1",
+   "peer_sub_link": "r2",
+   "dlci": 100,
+   "peer_dlci": 200
+  },
+  {
+   "cloud": "cl1",
+   "cloud_port": "Serial2",
+   "peer_cloud_port": "Serial3",
+   "connection_type": "serial",
+   "sub_link": "r3",
+   "peer_sub_link": "r4",
+   "dlci": 300,
+   "peer_dlci": 400
+  }
+ ],
+ "requirements": [
+  {
+   "id": "R-1",
+   "statement": "Customer A reaches itself"
+  },
+  {
+   "id": "R-2",
+   "statement": "Customer B reaches itself"
+  },
+  {
+   "id": "R-3",
+   "statement": "The two customers are isolated"
+  }
+ ],
+ "acceptance_criteria": [
+  {
+   "id": "A-1",
+   "requirement_ids": [
+    "R-1"
+   ],
+   "title": "r1 reaches r2",
+   "test": {
+    "kind": "flow",
+    "source": "r1",
+    "destination": "r2",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-2",
+   "requirement_ids": [
+    "R-2"
+   ],
+   "title": "r3 reaches r4",
+   "test": {
+    "kind": "flow",
+    "source": "r3",
+    "destination": "r4",
+    "expect": "reachable"
+   }
+  },
+  {
+   "id": "A-3",
+   "requirement_ids": [
+    "R-3"
+   ],
+   "title": "r1 cannot reach r4",
+   "test": {
+    "kind": "flow",
+    "source": "r1",
+    "destination": "r4",
+    "expect": "blocked"
+   }
+  }
+ ],
+ "routing": {
+  "mode": "connected"
+ }
+}

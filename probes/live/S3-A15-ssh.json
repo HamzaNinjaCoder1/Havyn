@@ -1,0 +1,23 @@
+{
+  "lab": "S3.A15 SSH login",
+  "spec": "library\\stage3\\S3-A15-ssh.json",
+  "tag": "q207926",
+  "started_at": "2026-10-23T16:20:25+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "r1",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q207926-pc1->10.66.0.1: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "q207926-r1": "deleted",
+    "q207926-pc1": "deleted"
+  },
+  "finished_at": "2026-10-23T16:21:44+00:00"
+}

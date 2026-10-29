@@ -1,0 +1,148 @@
+# SSH login lab @ 2026-10-23T11:09:26+00:00
+
+## router config
+success
+## key prompt
+"The name for the keys will be: s3p-ssh6-rtr.lab.local\nChoose the size of the key modulus in the range of 360 to 4096 for your\n  General Purpose Keys. Choosing a key modulus greater than 512 may take\n  a few minutes.\n\nHow many bits in the modulus [512]: "
+## key output
+Gigabit Ethernet interfaces
+DRAM configuration is 64 bits wide with parity disabled.
+255K bytes of non-volatile configuration memory.
+249856K bytes of ATA System CompactFlash 0 (Read/Write)
+
+
+         --- System Configuration Dialog ---
+
+Would you like to enter the initial configuration dialog? [yes/no]: 
+%LINK-5-CHANGED: Interface GigabitEthernet0/0, changed state to up
+
+%LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet0/0, changed state to up
+no
+
+
+Press RETURN to get started!
+
+
+
+s3p-ssh6-rtr>enable
+s3p-ssh6-rtr#configure terminal
+Enter configuration commands, one per line.  End with CNTL/Z.
+s3p-ssh6-rtr(config)#
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down
+
+%LINK-3-UPDOWN: Interface GigabitEthernet0/2, changed state to down
+crypto key generate rsa
+The name for the keys will be: s3p-ssh6-rtr.lab.local
+Choose the size of the key modulus in the range of 360 to 4096 for your
+  General Purpose Keys. Choosing a key modulus greater than 512 may take
+  a few minutes.
+
+How many bits in the modulus [512]: 1024
+% Generating 1024 bit RSA keys, keys will be non-exportable...[OK]
+
+s3p-ssh6-rtr(config)#
+## show ip ssh
+show ip ssh
+SSH Enabled - version 2.0
+Authentication timeout: 120 secs; Authentication retries: 3
+s3p-ssh6-rtr#
+## show crypto key mypubkey rsa
+show crypto key mypubkey rsa
+% Key pair was generated at: 0:0:20 UTC March 1 1993
+Key name: s3p-ssh6-rtr.lab.local
+ Storage Device: not specified
+ Usage: General Purpose Key
+ Key is not exportable.
+ Key Data:
+ 00005c1b  00000995  00005fa3  00000ff8  00003da9  000035f6  000050a5  00001ec5
+ 00001f06  00004ecf  00001c81  00001038  000002e0  000054ef  00006661  00004a1e
+ 000009dd  0000302b  0000594f  000063a9  00006577  000026eb  000051a8  7916
+% Key pair was generated at: 0:0:20 UTC March 1 1993
+Key name: s3p-ssh6-rtr.lab.local.server
+Temporary key
+ Usage: Encryption Key
+ Key is not exportable.
+ Key Data:
+ 00006d0a  00006ee8  00003ace  0000628c  0000092b  00003b33  0000751e  00005248
+ 0000693c  00006b7a  00005822  00001df7  0000373d  00004087  00002507  00003763
+ 00003de5  00003a09  00007d51  00001852  000034f2  00000197  000031cd  25ab
+s3p-ssh6-rtr#
+## pc ping
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ping 10.66.0.1
+
+Pinging 10.66.0.1 with 32 bytes of data:
+
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+
+Ping statistics for 10.66.0.1:
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 0ms, Maximum = 0ms, Average = 0ms
+
+C:\>
+## pc ssh
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ping 10.66.0.1
+
+Pinging 10.66.0.1 with 32 bytes of data:
+
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+
+Ping statistics for 10.66.0.1:
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 0ms, Maximum = 0ms, Average = 0ms
+
+C:\>ssh -l admin 10.66.0.1
+
+Password: 
+## pc password
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ping 10.66.0.1
+
+Pinging 10.66.0.1 with 32 bytes of data:
+
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+Reply from 10.66.0.1: bytes=32 time<1ms TTL=255
+
+Ping statistics for 10.66.0.1:
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 0ms, Maximum = 0ms, Average = 0ms
+
+C:\>ssh -l admin 10.66.0.1
+
+Password: 
+
+
+
+s3p-ssh6-rtr#
+## router show users
+show users
+    Line       User       Host(s)              Idle       Location
+*  0 con 0                idle                 00:01:12 
+ 390 vty 0     admin      idle                 00:00:12 
+
+  Interface    User               Mode         Idle     Peer Address
+s3p-ssh6-rtr#
+## router show ssh
+show ssh
+Connection      Version Mode Encryption		Hmac	State             Username
+0               1.99    IN   aes128-cbc      hmac-sha1     Session Started         admin
+0               1.99    OUT  aes128-cbc      hmac-sha1     Session Started         admin
+%No SSHv1 server connections running.
+s3p-ssh6-rtr#

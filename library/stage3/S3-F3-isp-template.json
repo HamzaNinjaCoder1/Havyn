@@ -1,0 +1,56 @@
+{
+ "name": "S3.F3 ISP template",
+ "description": "Customer router -> cable modem -> Cloud coax/Ethernet mapping -> ISP router -> internet server.",
+ "devices": [
+  {"id": "cust", "role": "router"},
+  {"id": "mod1", "role": "modem", "model_hint": "Cable-Modem-PT"},
+  {"id": "cl1", "role": "cloud", "model_hint": "Cloud-PT"},
+  {"id": "isp", "role": "router"},
+  {"id": "srv1", "role": "server"},
+  {"id": "pc1", "role": "pc"}
+ ],
+ "links": [
+  {"id": "l-cust-mod", "a": {"device": "cust", "interface_hint": "GigabitEthernet0/0"},
+   "b": {"device": "mod1", "interface_hint": "Port 1"}, "media": "straight"},
+  {"id": "l-mod-cloud", "a": {"device": "mod1", "interface_hint": "Port 0"},
+   "b": {"device": "cl1", "interface_hint": "Coaxial7"}, "media": "coaxial"},
+  {"id": "l-isp-cloud", "a": {"device": "isp", "interface_hint": "GigabitEthernet0/0"},
+   "b": {"device": "cl1", "interface_hint": "Ethernet6"}, "media": "straight"},
+  {"id": "l-isp-srv", "a": {"device": "isp", "interface_hint": "GigabitEthernet0/1"},
+   "b": {"device": "srv1"}, "media": "crossover"},
+  {"id": "l-cust-pc", "a": {"device": "cust", "interface_hint": "GigabitEthernet0/1"},
+   "b": {"device": "pc1"}, "media": "crossover"}
+ ],
+ "subnets": [
+  {"id": "home", "cidr": "192.168.100.0/24"},
+  {"id": "uplink", "cidr": "10.100.0.0/30"},
+  {"id": "internet", "cidr": "203.0.113.0/24"}
+ ],
+ "ip_assignments": [
+  {"device": "cust", "subnet": "home", "ip": "192.168.100.1", "interface_hint": "GigabitEthernet0/1"},
+  {"device": "pc1", "subnet": "home", "ip": "192.168.100.10"},
+  {"device": "cust", "subnet": "uplink", "ip": "10.100.0.2", "interface_hint": "GigabitEthernet0/0"},
+  {"device": "isp", "subnet": "uplink", "ip": "10.100.0.1", "interface_hint": "GigabitEthernet0/0"},
+  {"device": "isp", "subnet": "internet", "ip": "203.0.113.1", "interface_hint": "GigabitEthernet0/1"},
+  {"device": "srv1", "subnet": "internet", "ip": "203.0.113.10"}
+ ],
+ "cloud_mappings": [
+  {"cloud": "cl1", "modem": "mod1", "modem_port": "Port 0",
+   "cloud_port": "Coaxial7", "peer_cloud_port": "Ethernet6",
+   "connection_type": "cable"}
+ ],
+ "requirements": [
+  {"id": "R-1", "statement": "The home PC reaches the internet server"}
+ ],
+ "acceptance_criteria": [
+  {"id": "A-1", "requirement_ids": ["R-1"], "title": "pc1 reaches srv1",
+   "test": {"kind": "flow", "source": "pc1", "destination": "srv1", "expect": "reachable"}}
+ ],
+ "routing": {
+  "mode": "static",
+  "static_routes": [
+   {"device": "cust", "destination": "0.0.0.0/0", "next_hop": "10.100.0.1"},
+   {"device": "isp", "destination": "192.168.100.0/24", "next_hop": "10.100.0.2"}
+  ]
+ }
+}

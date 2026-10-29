@@ -1,0 +1,23 @@
+{
+  "lab": "S3.D1 DNS and HTTP app services",
+  "spec": "library\\stage3\\S3-D1-dns-http.json",
+  "tag": "qab1e1c",
+  "started_at": "2026-10-23T16:21:49+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "srv1",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qab1e1c-pc1->10.88.0.2: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "qab1e1c-srv1": "deleted",
+    "qab1e1c-pc1": "deleted"
+  },
+  "finished_at": "2026-10-23T16:22:17+00:00"
+}

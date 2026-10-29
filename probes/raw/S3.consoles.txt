@@ -1,0 +1,270 @@
+# Stage 3 console probe @ 2026-10-23T10:15:41+00:00
+
+## s3p-con-server (Server-PT)
+
+### ipconfig /all
+ipconfig /all
+
+FastEthernet0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0002.4A06.3D71
+   Link-local IPv6 Address.........: FE80::202:4AFF:FE06:3D71
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-9E-29-E8-E6-00-02-4A-06-3D-71
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+
+C:\>
+
+### show version
+show version
+Invalid Command.
+
+C:\>
+
+### show running-config
+show running-config
+Invalid Command.
+
+C:\>
+
+### help
+help         Display the list of available commands
+  ide          Starts IoX development environment
+  ioxclient    Command line tool to assist in app development for Cisco IOx
+               platforms
+  ipconfig     Display network configuration for each network adapter
+  ipv6config   Display network configuration for each network adapter
+  js           JavaScript Interactive Interpreter
+  mkdir        Creates a directory.
+  netsh        
+  netstat      Displays protocol statistics and current TCP/IP network
+               connections
+  nslookup     DNS Lookup
+  ping         Send echo messages
+  python       Python Interactive Interpreter
+  quit         Exit Telnet/SSH
+  rmdir        Removes a directory.
+  snmpget      SNMP GET
+  snmpgetbulk  SNMP GET BULK
+  snmpset      SNMP SET
+  ssh          ssh client
+  telnet       Telnet client
+  tracert      Trace route to destination
+C:\>
+C:\>
+
+## s3p-con-wlc (WLC-PT)
+
+### show version
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+### show running-config
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+### show wlan summary
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+### show ap summary
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+### help
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+## s3p-con-phone (7960)
+
+### show version
+
+
+### show running-config
+
+
+### show ephone
+
+
+### help
+
+
+## s3p-con-tablet (TabletPC-PT)
+
+### ipconfig /all
+ipconfig /all
+
+Wireless0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0001.4275.D512
+   Link-local IPv6 Address.........: FE80::201:42FF:FE75:D512
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 960990323
+   DHCPv6 Client DUID..............: 00-01-00-01-01-33-58-63-00-01-42-75-D5-12
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+3G/4G Cell1 Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0005.5E42.66CD
+   Link-local IPv6 Address.........: FE80::205:5EFF:FE42:66CD
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 2081684534
+   DHCPv6 Client DUID..............: 00-01-00-01-01-33-58-63-00-01-42-75-D5-12
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+Bluetooth Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0009.7C41.9C96
+   Link-local IPv6 Address.........: ::
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 2081684534
+   DHCPv6 Client DUID..............: 00-01-00-01-01-33-58-63-00-01-42-75-D5-12
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+
+C:\>
+C:\>
+
+## s3p-con-smartphone (SMARTPHONE-PT)
+
+### ipconfig /all
+ipconfig /all
+
+Wireless0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 00D0.BC01.C981
+   Link-local IPv6 Address.........: FE80::2D0:BCFF:FE01:C981
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 1800997114
+   DHCPv6 Client DUID..............: 00-01-00-01-77-7B-25-60-00-D0-BC-01-C9-81
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+3G/4G Cell1 Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 00D0.BAEC.BA75
+   Link-local IPv6 Address.........: FE80::2D0:BAFF:FEEC:BA75
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 522329600
+   DHCPv6 Client DUID..............: 00-01-00-01-77-7B-25-60-00-D0-BC-01-C9-81
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+Bluetooth Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0010.1169.E048
+   Link-local IPv6 Address.........: ::
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 522329600
+   DHCPv6 Client DUID..............: 00-01-00-01-77-7B-25-60-00-D0-BC-01-C9-81
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+
+C:\>
+C:\>
+
+## s3p-con-printer (Printer-PT)
+
+### ipconfig /all
+ipconfig /all
+
+FastEthernet0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0030.A38B.359A
+   Link-local IPv6 Address.........: FE80::230:A3FF:FE8B:359A
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-04-0B-CE-44-00-30-A3-8B-35-9A
+   DNS Servers.....................: ::
+                                     0.0.0.0
+
+
+C:\>
+
+## s3p-con-pc (PC-PT)
+
+### help
+help         Display the list of available commands
+  ide          Starts IoX development environment
+  ioxclient    Command line tool to assist in app development for Cisco IOx
+               platforms
+  ipconfig     Display network configuration for each network adapter
+  ipv6config   Display network configuration for each network adapter
+  js           JavaScript Interactive Interpreter
+  mkdir        Creates a directory.
+  netsh        
+  netstat      Displays protocol statistics and current TCP/IP network
+               connections
+  nslookup     DNS Lookup
+  ping         Send echo messages
+  python       Python Interactive Interpreter
+  quit         Exit Telnet/SSH
+  rmdir        Removes a directory.
+  snmpget      SNMP GET
+  snmpgetbulk  SNMP GET BULK
+  snmpset      SNMP SET
+  ssh          ssh client
+  telnet       Telnet client
+  tracert      Trace route to destination
+C:\>
+C:\>

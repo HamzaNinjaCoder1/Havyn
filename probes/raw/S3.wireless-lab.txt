@@ -1,0 +1,153 @@
+# wireless lab @ 2026-10-23T11:11:04+00:00
+
+## ap state
+{
+ "ssid": "HAVYN-WPA2",
+ "auth": "2",
+ "enc": "4",
+ "channel": "10",
+ "key": "HavynPass123"
+}
+## client states
+{
+ "s3p-wl-lap": {
+  "ssid": "HAVYN-WPA2",
+  "auth": "2",
+  "enc": "4",
+  "channel": "10",
+  "key": "HavynPass123"
+ },
+ "s3p-wl-tab": {
+  "ssid": "HAVYN-WPA2",
+  "auth": "2",
+  "enc": "4",
+  "channel": "10",
+  "key": "HavynPass123"
+ },
+ "s3p-wl-phone": {
+  "ssid": "HAVYN-WPA2",
+  "auth": "2",
+  "enc": "4",
+  "channel": "10",
+  "key": "HavynPass123"
+ }
+}
+## associations
+{
+ "s3p-wl-lap": null,
+ "s3p-wl-tab": null,
+ "s3p-wl-phone": null
+}
+## leases
+### s3p-wl-lap
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>
+ipconfig
+
+Bluetooth Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Link-local IPv6 Address.........: ::
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+Wireless0 Connection:
+
+   Connection-specific DNS Suffix..: 
+   Link-local IPv6 Address.........: FE80::20A:F3FF:FEDE:1E92
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+C:\>
+### s3p-wl-tab
+0:F2FF:FE9C:35D9
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+3G/4G Cell1 Connection:
+
+   Connection-specific DNS Suffix..: 
+   Link-local IPv6 Address.........: FE80::290:CFF:FE0C:83B3
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+Bluetooth Connection:
+ --More-- 
+   Connection-specific DNS Suffix..: 
+   Link-local IPv6 Address.........: ::
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+
+### s3p-wl-phone
+:BEFF:FEC9:E3A1
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+3G/4G Cell1 Connection:
+
+   Connection-specific DNS Suffix..: 
+   Link-local IPv6 Address.........: FE80::205:5EFF:FED5:DBA8
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+Bluetooth Connection:
+ --More-- 
+   Connection-specific DNS Suffix..: 
+   Link-local IPv6 Address.........: ::
+   IPv6 Address....................: ::
+   IPv4 Address....................: 0.0.0.0
+   Subnet Mask.....................: 0.0.0.0
+   Default Gateway.................: ::
+                                     0.0.0.0
+
+
+## flows
+{
+ "s3p-wl-lap": {
+  "client_to_wired": "blocked",
+  "wired_to_client": "blocked"
+ },
+ "s3p-wl-tab": {
+  "client_to_wired": "blocked",
+  "wired_to_client": "blocked"
+ },
+ "s3p-wl-phone": {
+  "client_to_wired": "blocked",
+  "wired_to_client": "blocked"
+ }
+}
+## e5 api
+{
+ "ssidCount": 1,
+ "ssid": "HAVYN-WPA2",
+ "vlanMethods": [],
+ "ssidMethods": [
+  "getSsid",
+  "isSsidBrdCastEnabled",
+  "setSsid",
+  "setSsidBrdCastEnabled"
+ ]
+}

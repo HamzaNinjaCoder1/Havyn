@@ -1,18 +1,34 @@
 # End devices and host DNS (S3.H1–H2)
 
-| Track | Feature | Status | Evidence / reason |
-| --- | --- | --- | --- |
-| S3.H1 | Printer, IP phone, tablet, smartphone as flow endpoints | **Unverified** | The roles and catalogued models (`Printer-PT`, `7960`, `TabletPC-PT`, `SMARTPHONE-PT`) are now accepted by the schema and resolve to real PT models. No live address/flow test for these four devices yet. |
-| S3.H2 | Host DNS setting | **Unverified** | The compiler now carries `host_dns` into the `configure_host` operation (and the bulk path already forwarded `dns`). The Script Engine exposes `configurePcIp(..., dns)`, but there is no verified read-back of the DNS field, so the value cannot yet be proven equal to the spec. |
+## H1 — printer, tablet, smartphone, IP phone
 
-## What is proven
+| Device | Result | Evidence |
+| --- | --- | --- |
+| `Printer-PT` | Takes a static address; ICMP both ways. | `raw/S3.h1-end-devices.txt` |
+| `TabletPC-PT` / `SMARTPHONE-PT` | Antenna association, DHCP .2/.3, flows both ways. | `raw/S3.e3-clients.txt` |
+| `7960` IP phone | **Not an addressable endpoint**: no usable CLI, `Vlan1` accepts an address through the port API but `isPortUp()` stays false with the wall port linked and powered; no ping. | `raw/S3.h1-end-devices.txt` |
 
-* The schema accepts the four roles and maps each to its catalogued PT model
-  (`tests/autopilot/test_stage3_features.py::test_new_end_device_roles_resolve_to_catalogued_models`).
-* The host config op carries `dns` (`test_host_dns_reaches_the_configure_host_operation`).
+H1 is therefore **Refused** as a row: three of the four models work, but the
+phone cannot be a flow source or destination. Alternative: use a PC/laptop
+as the voice endpoint, or put a downstream PC behind the phone (the 7960 has
+`Switch` and `PC` ports and can forward).
 
-## What would verify them
+## H2 — host DNS
 
-* H1: a live lab that addresses each device and runs an ICMP flow from it.
-* H2: a live read-back method for the host's DNS field (currently absent), or
-  an app-level DNS query that proves the resolver is used.
+The PC's `DnsClient` reads back the configured server, and `ipconfig /all`
+shows the same value:
+
+```
+DNS Servers.....................: ::
+                                 10.88.0.2
+```
+
+`raw/S3.dns-http.txt` is the evidence; H2 is **Verified**.
+
+## Reproduction
+
+```bash
+python probes/stage3_h1_lab.py
+python probes/stage3_e3_lab.py
+python probes/stage3_dns_http_lab.py
+```

@@ -1,0 +1,49 @@
+# Server DHCP lab @ 2026-10-23T12:10:05+00:00
+
+## pools before
+[
+ "serverPool"
+]
+## setup
+{
+ "enabled": true,
+ "pools": 1,
+ "name": "POOL1",
+ "start": "10.77.0.100",
+ "end": "10.77.0.119",
+ "gw": "10.77.0.2",
+ "dns": "10.77.0.2"
+}
+## client lease
+{
+ "ip": "10.77.0.100",
+ "mask": "255.255.255.0",
+ "dhcp": true
+}
+## ipconfig /all
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ipconfig /all
+
+FastEthernet0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0004.9A82.9509
+   Link-local IPv6 Address.........: FE80::204:9AFF:FE82:9509
+   IPv6 Address....................: ::
+   IPv4 Address....................: 10.77.0.100
+   Subnet Mask.....................: 255.255.255.0
+   Default Gateway.................: ::
+                                     10.77.0.2
+   DHCP Servers....................: 10.77.0.2
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-25-51-D7-D3-00-04-9A-82-95-09
+   DNS Servers.....................: ::
+                                     10.77.0.2
+
+Bluetooth Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0001.97CB.9EEA
+   Link-local IPv6 Address.........: ::
+ --More-- 

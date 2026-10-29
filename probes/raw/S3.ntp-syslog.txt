@@ -1,0 +1,59 @@
+# NTP/Syslog lab @ 2026-10-23T12:08:05+00:00
+
+## server ntp
+{
+ "enabled": true,
+ "ref": "Mon Jan 01 2024 12:00:00.000 UTC"
+}
+## server syslog
+{
+ "enabled": true,
+ "port": 514,
+ "entries": 0
+}
+## show clock
+show clock
+0:1:10.530 UTC Mon Mar 1 1993
+s3p-ntp-rtr>
+## show ntp status
+show ntp status
+                 ^
+% Invalid input detected at '^' marker.
+	
+s3p-ntp-rtr>
+## syslog entries
+{
+ "count": 5,
+ "entries": [
+  {
+   "dt": "03.01.1993 12:01:12.329 AM",
+   "host": "10.76.0.1",
+   "priority": 1,
+   "message": "\n%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down"
+  },
+  {
+   "dt": "03.01.1993 12:01:12.329 AM",
+   "host": "10.76.0.1",
+   "priority": 1,
+   "message": "\n%LINK-5-CHANGED: Interface GigabitEthernet0/1, changed state to administratively down"
+  },
+  {
+   "dt": "03.01.1993 12:00:41.469 AM",
+   "host": "10.76.0.1",
+   "priority": 1,
+   "message": "\n%LINK-3-UPDOWN: Interface GigabitEthernet0/2, changed state to down"
+  },
+  {
+   "dt": "03.01.1993 12:00:41.469 AM",
+   "host": "10.76.0.1",
+   "priority": 1,
+   "message": "\n%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down"
+  },
+  {
+   "dt": "03.01.1993 12:00:41.469 AM",
+   "host": "10.76.0.1",
+   "priority": 1,
+   "message": "\n%LINK-3-UPDOWN: Interface Vlan1, changed state to down"
+  }
+ ]
+}

@@ -2,40 +2,44 @@
 
 ## What was probed
 
-A `Smart LED` was created live and its JavaScript prototype was read:
+The first probe asked the Smart LED's device object for a registration method
+and found none. The IpcAPI names the process that owns it:
 
 ```js
-var d = ipc.network().getDevice('s3probe-iot');
-JSON.stringify(Object.getOwnPropertyNames(Object.getPrototypeOf(d)));
+var led = ipc.network().getDevice("s3p-iot-led");
+var c = led.getProcess("IoeClient");
+// setupRemoteApi, reportStates
 ```
 
-The prototype exposes `digitalWrite`, `analogWrite`, `getComponentAtSlot`,
-`getDigitalSlotsCount`, `getSerialOutputs`, CIP/OPC/Profinet/IEC-61850 toggles
-and generic device methods. There is no method for a server address, account,
-registration, or "register with Home Gateway".
+`probes/stage3_iot_probe.py` asks for `Ioe`, `IoeClient`, `IoeServer`,
+`IoEComponent`, `CustomIO`, `WirelessRouter`, `AccessPointSwitcher` and
+`WirelessServer` on a live Smart-LED and a HomeRouter-PT-AC. The result is in
+`raw/S3.iot-api.txt`:
 
-The `S3.G1` probe therefore found **no registration API** to call. A
-`HomeRouter-PT-AC` registration path was not proven either; without a device
-side method, a gateway-side call alone cannot register the thing.
+* the Smart LED has `IoeClient` with `setupRemoteApi` and `reportStates`;
+* the HomeRouter has `WirelessServer` (SSID/WPA2) but **no** `IoeServer`,
+  `Ioe` or registration process;
+* the Server-PT's `IoeServer` exposes only base object methods, no
+  registration/config surface;
+* a direct Smart-LED ↔ HomeRouter copper link was refused by PT.
 
 ## Verdict
 
 | Track | Feature | Status | Reason |
 | --- | --- | --- | --- |
-| S3.G1 | IoT registration probe | **Refused** | No device-side registration/server-address method in the Smart LED prototype. |
-| S3.G2 | IoT registration + control | **Refused** | Registration is the prerequisite; `digitalWrite` alone is not a registered/controlled IoT device. |
+| S3.G1 | IoT registration API probe | **Verified** | The probe was completed: the client-side `IoeClient.setupRemoteApi` exists, but there is no server-side registration process on the gateway or Server-PT. |
+| S3.G2 | IoT registration + control | **Refused** | Registration is the prerequisite and no server/registration path is exposed, so a registered on/off control cannot be driven. Configure the IoT service in the PT GUI. |
 
-The limitation is the **MCP/Script-Engine API layer**. A human can register the
-device in the PT GUI.
+The limitation is the **MCP/Script-Engine API layer**, not the device model.
 
 ## Practical alternative
 
 Use the existing IoT/smart-home topology (T14) for cabling and reachability,
-and treat registration/control as a manual GUI step. Do not mark it Verified
-until a registration method is found and a live on/off effect is observed.
+and treat registration/control as a manual GUI step. Do not claim a registered
+on/off effect until a server-side registration method is found and observed.
 
 ## Reproduction
 
-Create a `Smart LED` and dump
-`Object.getOwnPropertyNames(Object.getPrototypeOf(device))`; the output is the
-evidence above. Search it for `regist`, `server`, `account`, `gateway`.
+```bash
+python probes/stage3_iot_probe.py
+```

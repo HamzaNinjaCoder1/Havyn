@@ -1,0 +1,157 @@
+# ASA read-back @ 2026-10-23T10:38:56+00:00
+# device: s3p-asa-rb
+# push: success
+
+## show running-config
+# status: 0
+ASA Version 9.6(1)
+!
+hostname s3p-asa-rb
+names
+!
+interface GigabitEthernet1/1
+ nameif inside
+ security-level 100
+ ip address 10.99.0.1 255.255.255.0
+!
+interface GigabitEthernet1/2
+ nameif outside
+ security-level 0
+ ip address 10.99.1.1 255.255.255.0
+!
+interface GigabitEthernet1/3
+ nameif dmz
+ security-level 50
+ ip address 10.99.2.1 255.255.255.0
+!
+interface GigabitEthernet1/4
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/5
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/6
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/7
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/8
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface Management1/1
+ management-only
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+object network INSIDE-NET
+ subnet 10.99.0.0 255.255.255.0
+!
+!
+!
+!
+!
+!
+class-map inspection_default
+ match default-inspection-traffic
+!
+policy-map type inspect dns preset_dns_map
+ parameters
+  message-length maximum 512
+policy-map global_policy
+ class inspection_default
+  inspect dns preset_dns_map
+  inspect ftp 
+  inspect tftp 
+!
+service-policy global_policy global
+!
+telnet timeout 5
+ssh timeout 5
+!
+!
+!
+!
+
+
+
+## show interface ip brief
+# status: 0
+Interface              IP-Address      OK? Method Status                Protocol
+Virtual0               127.1.0.1       YES unset  up                    up
+GigabitEthernet1/1     10.99.0.1       YES manual down                  down
+GigabitEthernet1/2     10.99.1.1       YES manual down                  down
+GigabitEthernet1/3     10.99.2.1       YES manual down                  down
+GigabitEthernet1/4     unassigned      YES unset  administratively down down
+GigabitEthernet1/5     unassigned      YES unset  administratively down down
+GigabitEthernet1/6     unassigned      YES unset  administratively down down
+GigabitEthernet1/7     unassigned      YES unset  administratively down down
+GigabitEthernet1/8     unassigned      YES unset  administratively down down
+Management1/1          unassigned      YES unset  administratively down down
+Internal-Control1/1    127.0.1.1       YES unset  up                    up
+Internal-Data1/1       unassigned      YES unset  up                    up
+Internal-Data1/2       unassigned      YES unset  up                    up
+Internal-Data1/3       unassigned      YES unset  up                    up
+
+
+
+## show nameif
+# status: 2
+
+
+
+## show route
+# status: 0
+Codes: C - connected, S - static, I - IGRP, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2, E - EGP
+       i - IS-IS, L1 - IS-IS level-1, L2 - IS-IS level-2, ia - IS-IS inter area
+       * - candidate default, U - per-user static route, o - ODR
+       P - periodic downloaded static route
+
+Gateway of last resort is not set
+
+
+
+
+## show nat
+# status: 0
+Auto NAT Policies (Section 2)
+
+
+
+
+
+## show dhcpd
+# status: 3
+
+
+
+## show object-group
+# status: 2
+
+
+
+## show access-list
+# status: 0
+access-list cached ACL log flows: total 0, denied 0 (deny-flow-max 4096) alert-interval 300
+
+

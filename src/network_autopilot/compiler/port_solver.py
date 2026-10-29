@@ -472,7 +472,7 @@ def _resolve_endpoint(
         if internet is not None and not wan_side and port.full_name == internet.full_name:
             # #31: a LAN client never lands on the gateway's WAN port.
             continue
-        if _port_supports_media(port, media):
+        if _port_supports_media(port, media, model):
             return port.full_name, None
 
     # 3. installable module providing a matching, still-free port
@@ -551,7 +551,7 @@ def _media_family(media: str) -> str:
     return "ethernet"
 
 
-def _port_family(port) -> str:
+def _port_family(port, model=None) -> str:
     """The media family a physical port belongs to."""
     from ..pt.enums import PortSpeed
     speed = port.speed
@@ -566,14 +566,17 @@ def _port_family(port) -> str:
         # The line port of a DSL modem: a phone line, not copper.
         return "phone"
     if speed_name == PortSpeed.MODEM_PORT.value:
-        # #30: MODEM_PORT covers two very different things. On a DSL/cable
-        # modem "Port 0" is the provider line (a phone line), but on a gateway
-        # the same slot number is `Internet` - ordinary RJ45 copper. Keying the
-        # family on the slot alone filed the gateway's WAN port under "phone",
-        # so every normal straight-through to it came back incompatible_media.
+        # #30: MODEM_PORT covers two very different things. On a DSL modem
+        # "Port 0" is a phone line, but a Cable-Modem-PT's provider side is
+        # coax (measured live: coaxial to the cloud's Coaxial7 works, a phone
+        # cable does not). On a gateway the same slot is `Internet` - ordinary
+        # RJ45 copper.
+        model_name = getattr(model, "pt_type", "") or ""
         name = (getattr(port, "full_name", "") or "").strip().lower()
         if name == "internet" or name.startswith(("ethernet", "gigabitethernet")):
             return "ethernet"
+        if name == "port 0" and model_name == "Cable-Modem-PT":
+            return "coaxial"
         return "phone" if port.slot == "0" else "ethernet"
     if speed_name == PortSpeed.WIRELESS.value:
         return "wireless"
@@ -582,8 +585,8 @@ def _port_family(port) -> str:
     return "ethernet"
 
 
-def _port_supports_media(port, media: str) -> bool:
-    family = _port_family(port)
+def _port_supports_media(port, media: str, model=None) -> bool:
+    family = _port_family(port, model)
     want = _media_family(media)
     if want == "ethernet":
         return family == "ethernet" or media == "auto"
@@ -724,7 +727,7 @@ def _media_compatible(model: DeviceModel, iface: str, media: str) -> bool:
         return False
     port = _port_speed(model, iface)
     if port:
-        return _port_supports_media(port, media)
+        return _port_supports_media(port, media, model)
     # Port comes from a module: infer its family from the name.
     return _media_family(_speed_of_port_name(iface)) == _media_family(media)
 

@@ -1,40 +1,40 @@
-# Stage 3 ASA probes (S3.C1–C6)
+# ASA probes (S3.C1–C6)
 
-The ASA is addressed over the same `configureIosDevice` path as IOS, but its
-console is a different object: `getCommandLine()` is null and
-`getConsoleLine()` is the only door. The ASA also boots for ~40–60 s before it
-accepts configuration, and `enable` in the PT ASA image asks for a password
-that the engine does not have.
+## The read path
 
-| Track | Feature | Live observation | Status |
+The first probes could push to the ASA but could not read back: `enable` asks
+for a password the console reader did not have. The IpcAPI exposes:
+
+```js
+var r = device.enterCommand("show running-config", "enable");
+// r.first = CommandStatus (0 = OK, 2 = invalid, 3 = incomplete)
+// r.second = the command's output
+```
+
+`probes/stage3_asa_readback.py` uses it to read `show running-config`,
+`show interface ip brief`, `show route`, `show nat`, `show dhcpd`,
+`show object-group` and `show access-list`. This is the post-push read-back
+the earlier note said was impossible.
+
+## Verdict
+
+| Track | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| S3.C1 | Address-scoped ACL | Already proven by the S1.16 live policy tests (`test_asa_address_scoped_acl_is_enforced`); PT matches the netmask form. | **Verified** |
-| S3.C2 | DMZ third zone | `interface GigabitEthernet1/3`, `nameif dmz`, `security-level 50` push returned success. No post-push read-back was possible: `show running-config` never returned to a prompt and the generic console reader cannot anchor on the ASA prompt. | **Unverified** |
-| S3.C3 | ASA object NAT | `object network`, `subnet`, `nat (inside,outside) dynamic interface` push returned success; `show nat` could not be read at user EXEC (`% Invalid input`). | **Unverified** |
-| S3.C4 | ASA static/default route | `route outside 0.0.0.0 0.0.0.0 ... 1` push returned success; `show route` was not observable in the same session. | **Unverified** |
-| S3.C5 | ASA DHCP server | `dhcpd address ...` and `dhcpd enable inside` push returned success; `show dhcpd` rejected at user EXEC. | **Unverified** |
-| S3.C6 | Object groups | `object-group network`, `network-object host`, ACL referencing the group push returned success; `show object-group`/`show access-list` not observable at user EXEC. | **Unverified** |
+| S3.C1 | Address-scoped ACL | **Verified** | `tests/autopilot/test_live_policy.py::test_asa_address_scoped_acl_is_enforced`. |
+| S3.C2 | DMZ third zone | **Verified** | `raw/S3.asa-lab.txt` — outside→DMZ reachable; outside→inside blocked. |
+| S3.C3 | ASA object NAT/PAT | **Refused** | `raw/S3.asa-lab.txt` — object NAT, twice NAT and classic `nat/global` all return status 2; nothing is stored. |
+| S3.C4 | ASA static/default routes | **Verified** | same file — inside→remote network reachable through the static route. |
+| S3.C5 | ASA DHCP server | **Verified** | same file — inside PC leased 10.99.0.100 from the ASA. |
+| S3.C6 | Object groups | **Refused** | same file — `object-group network` and a group-referencing ACL return status 2. |
 
-## Why these are not Verified
-
-Packet Tracer does not expose an ASA enable credential to the Script Engine,
-and the ASA image rejects `enable` with the password prompt
-(`probes/raw/asa-shows.txt`). A push receipt only proves the script was
-accepted (AGENTS rule 8), not that the ASA applied it. Marking C2–C6 Verified
-would be exactly the "configured means verified" lie the project forbids.
-
-## Practical alternative
-
-* Keep the ASA policy work on the existing, live-proven address-scoped ACL path
-  (C1).
-* For DMZ/NAT/DHCP/object-group intent, the compiler emits the commands; a
-  human can confirm them in the ASA GUI. The engine reports UNKNOWN until a
-  credentialed read path exists.
-* A 5506-X with two zones remains the safe, verified ASA shape.
+The interface/nameif/security-level/IP, static routes and `dhcpd` lines are
+stored and read back exactly as pushed. The ACL is enforced (DMZ permit +
+outside-to-inside deny). NAT and object groups are the PT image's limits, not
+the engine's.
 
 ## Reproduction
 
 ```bash
-python probes/stage3_asa_read.py     # boot wait + user-mode reads
-python probes/stage3_asa_shows.py    # enable attempt + show commands
+python probes/stage3_asa_readback.py   # config + show read-back
+python probes/stage3_asa_lab.py        # DMZ/routes/DHCP flows and C3/C6 statuses
 ```

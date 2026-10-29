@@ -160,7 +160,7 @@ def test_switch_features_render_svi_etherchannel_stp_and_security():
     assert "ip default-gateway 10.9.0.1" in commands["sw6"]
 
 
-def test_asa_features_render_object_nat_dhcp_and_object_group():
+def test_asa_dhcp_renders_and_nat_is_refused_by_name():
     data = _base()
     data["devices"] = [
         {"id": "r1", "role": "router"},
@@ -169,22 +169,38 @@ def test_asa_features_render_object_nat_dhcp_and_object_group():
     ]
     data["links"] = [{"id": "l1", "a": {"device": "r1"}, "b": {"device": "r2"}, "media": "serial"}]
     data["firewall"] = {
-        "nat": [{"device": "fw1", "object_name": "INSIDE", "subnet": "10.0.0.0 255.255.255.0"}],
-        "dhcp": [{"device": "fw1", "nameif": "inside", "start": "10.0.0.100", "end": "10.0.0.150"}],
-        "object_groups": [{"device": "fw1", "name": "WEB", "members": ["10.0.0.10"]}],
+        "dhcp": [{"device": "fw1", "nameif": "inside",
+                  "start": "10.0.0.100", "end": "10.0.0.150"}],
     }
-    commands = _commands(data)
-    text = "\n".join(commands["fw1"])
-    assert "object network INSIDE" in text
-    assert "nat (inside,outside) dynamic interface" in text
+    text = "\n".join(_commands(data)["fw1"])
     assert "dhcpd address 10.0.0.100-10.0.0.150 inside" in text
-    assert "object-group network WEB" in text
+    assert "dhcpd enable inside" in text
 
-
-def test_server_services_are_refused_by_name():
-    data = _base(services=[{"device": "r1", "service": "dns"}])
-    with pytest.raises(CompileError, match="Server-PT services"):
+    data["firewall"]["nat"] = [{
+        "device": "fw1", "object_name": "INSIDE",
+        "subnet": "10.0.0.0 255.255.255.0",
+    }]
+    with pytest.raises(CompileError, match="ASA NAT"):
         _commands(data)
+
+
+def test_asa_object_groups_are_refused_by_name():
+    data = _base()
+    data["devices"].append({"id": "fw1", "role": "firewall"})
+    data["firewall"] = {
+        "object_groups": [{
+            "device": "fw1", "name": "WEB", "members": ["10.0.0.10"],
+        }],
+    }
+    with pytest.raises(CompileError, match="ASA object groups"):
+        _commands(data)
+
+
+def test_email_and_iot_services_are_refused_by_name():
+    for service in ("email", "iot"):
+        data = _base(services=[{"device": "r1", "service": service}])
+        with pytest.raises(CompileError, match="Server-PT services"):
+            _commands(data)
 
 
 def test_iot_registration_is_refused_by_name():
@@ -348,3 +364,135 @@ def test_host_gateway_override_reaches_the_host_operation():
         and node.operation.inputs["device"] == "pc1"
     )
     assert op.inputs["gateway"] == "10.10.0.254"
+
+
+def _service_lab(**overrides) -> dict:
+    data = _base()
+    data["devices"].extend([
+        {"id": "srv1", "role": "server"},
+        {"id": "pc1", "role": "pc"},
+    ])
+    data["links"] = [
+        {"id": "l1", "a": {"device": "r1"}, "b": {"device": "r2"},
+         "media": "serial"},
+        {"id": "l2", "a": {"device": "r1"}, "b": {"device": "srv1"}},
+        {"id": "l3", "a": {"device": "r1"}, "b": {"device": "pc1"}},
+    ]
+    data["subnets"].append({"id": "lan", "cidr": "10.10.0.0/24"})
+    data["ip_assignments"].extend([
+        {"device": "r1", "subnet": "lan", "ip": "10.10.0.1"},
+        {"device": "srv1", "subnet": "lan", "ip": "10.10.0.2"},
+        {"device": "pc1", "subnet": "lan", "ip": "10.10.0.10"},
+    ])
+    data.update(overrides)
+    return data
+
+
+def test_dns_and_http_services_compile_into_one_configure_server_op():
+    data = _service_lab(services=[
+        {"device": "srv1", "service": "dns",
+         "records": [{"host": "server.local", "address": "10.10.0.2"}]},
+        {"device": "srv1", "service": "http",
+         "pages": {"index.html": "<h1>OK</h1>"}},
+    ])
+    spec = NetworkSpec.model_validate(data)
+    result = compile_spec(spec, plan_addressing(spec))
+    op = next(
+        node.operation for node in result.dag.nodes.values()
+        if node.operation.operation_type == "configure_server"
+    )
+    assert op.inputs["device"] == "srv1"
+    assert {row["service"] for row in op.inputs["services"]} == {"dns", "http"}
+    assert any(
+        node.operation.operation_type == "configure_host"
+        and node.operation.operation_id in op.dependencies
+        for node in result.dag.nodes.values()
+    )
+
+
+def test_cloud_mapping_compiles_into_a_configure_cloud_op():
+    data = _base()
+    data["devices"].append({"id": "cl1", "role": "cloud",
+                            "model_hint": "Cloud-PT"})
+    data["links"].append({
+        "id": "l-cloud", "a": {"device": "cl1", "interface_hint": "Serial0"},
+        "b": {"device": "r1", "interface_hint": "Serial2/0"}, "media": "serial",
+    })
+    data["cloud_mappings"] = [{
+        "cloud": "cl1", "cloud_port": "Coaxial7",
+        "peer_cloud_port": "Ethernet6", "connection_type": "cable",
+    }]
+    spec = NetworkSpec.model_validate(data)
+    result = compile_spec(spec, plan_addressing(spec))
+    op = next(
+        node.operation for node in result.dag.nodes.values()
+        if node.operation.operation_type == "configure_cloud"
+    )
+    assert op.inputs["device"] == "cl1"
+    assert op.inputs["mappings"][0]["cloud_port"] == "Coaxial7"
+    assert op.inputs["mappings"][0]["peer_cloud_port"] == "Ethernet6"
+
+
+def test_ssh_spec_adds_the_rsa_key_operation_after_the_config():
+    data = _base(routing={
+        "ssh": [{"device": "r1", "secret": "LAB-ONLY-CHANGE-ME", "rsa_bits": 1024}],
+    })
+    spec = NetworkSpec.model_validate(data)
+    result = compile_spec(spec, plan_addressing(spec))
+    key_op = next(
+        node.operation for node in result.dag.nodes.values()
+        if node.operation.operation_type == "generate_rsa_key"
+    )
+    assert key_op.inputs == {"device": "r1", "bits": 1024}
+    assert any(
+        node.operation.operation_type == "configure_ios"
+        and node.operation.operation_id in key_op.dependencies
+        for node in result.dag.nodes.values()
+    )
+
+
+def test_custom_wireless_ssid_is_refused_by_name():
+    data = _base(wireless_config=[{
+        "device": "r1", "ssid": "HAVYN", "security": "wpa2",
+        "passphrase": "secret",
+    }])
+    with pytest.raises(CompileError, match="custom wireless SSID"):
+        _commands(data)
+
+
+def test_stage3_js_builders_escape_values_and_use_the_real_processes():
+    from src.network_autopilot.adapter.packet_tracer.stage3_commands import (
+        js_configure_cloud_mapping,
+        js_configure_server_services,
+        js_configure_wireless_ssid,
+    )
+
+    dns = js_configure_server_services("srv", [{
+        "service": "dns",
+        "records": [{"host": 'evil");alert(1);//', "address": "10.0.0.2"}],
+    }])
+    assert "DnsServer" in dns
+    assert "addIpAddress" in dns
+    assert 'evil");alert(1);//' not in dns  # JSON-escaped, not raw
+    assert 'alert(1)' in dns
+
+    cloud = js_configure_cloud_mapping("cl", [{
+        "cloud_port": "Coaxial7", "peer_cloud_port": "Ethernet6",
+        "connection_type": "cable",
+    }])
+    assert "addPortConnection" in cloud
+    assert "setDslConnection" in cloud
+
+    serial = js_configure_cloud_mapping("cl", [{
+        "cloud_port": "Serial0", "peer_cloud_port": "Serial1",
+        "connection_type": "serial", "dlci": 100, "peer_dlci": 200,
+    }])
+    assert "addSubLinkConnection" in serial
+
+    ssid = js_configure_wireless_ssid("ap", {
+        "ssid": "HAVYN", "security": "wpa2", "passphrase": "secret",
+        "channel": 11,
+    })
+    assert "WirelessServer" in ssid
+    assert "setAuthenType(4)" in ssid
+    assert "setStandardChannel(10)" in ssid

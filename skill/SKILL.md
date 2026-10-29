@@ -106,10 +106,11 @@ session, and the engine will not pretend otherwise.
   IPv6 is NOT settable via the PT API (`addIpv6Address` fails on HostPort) — SLAAC is the path.
 - **WiFi laptops:** `wireless_laptops=True` swaps each Laptop-PT NIC to `PT-LAPTOP-NM-1W` (slot `"0"`)
   → `Wireless0`, and adds **one `AccessPoint-PT` per LAN**, each wired to that LAN's own switch.
-  ⚠️ **Wireless addressing is NOT deterministic.** Laptops auto-associate on the default SSID and
-  PT exposes **no SSID API** (verified: neither the AP nor its port has `setSsid`), so with more
-  than one AP a laptop can associate to *any* of them and take a DHCP lease from **another LAN's
-  pool**. Measured on PT 9.0.1: LT10, sitting right next to its own LAN's AP, still associated to
+  ⚠️ **Wireless addressing is NOT deterministic.** Laptops auto-associate on the default SSID.
+  The AP's `WirelessServer` process does expose `setSsid`, but PT's client-profile API
+  (`addProfile`/`setCurrentProfile`) rejects a custom SSID in this build, so a client cannot be
+  pinned to an AP by SSID. With more than one AP a laptop can associate to *any* of them and take
+  a DHCP lease from **another LAN's pool**. Measured on PT 9.0.1: LT10, sitting right next to its own LAN's AP, still associated to
   the LAN-1 AP and got `192.168.0.13`; only with that AP powered off did it take `192.168.4.25`.
   The planner now emits a `WIRELESS_AMBIGUOUS_ASSOCIATION` **warning** when ≥2 APs coexist.
   Always confirm with `pt_inspect_ports`; for deterministic addressing use `wireless_laptops=False`.
@@ -362,9 +363,10 @@ with the default outline.
   canvas and as a down link in `net_verify`. Give it an address, even a throwaway `/30`.
 - **PT does not associate a wireless host with the nearest AP.** Measured: a laptop with its own LAN's
   AP right beside it did a *fresh* association and a *fresh* DHCP and still chose the AP of another LAN,
-  taking that LAN's address. Between APs sharing the default SSID the choice is arbitrary, and there is
-  no SSID API to force it (neither the AP nor its port has `setSsid`). If you need deterministic
-  addressing, use `wireless_laptops=False` and cable the laptops.
+  taking that LAN's address. Between APs sharing the default SSID the choice is arbitrary: the AP's
+  `WirelessServer` process has `setSsid`, but the client profile API rejects a custom SSID, so there
+  is no client-side way to force an AP. If you need deterministic addressing, use
+  `wireless_laptops=False` and cable the laptops.
 - **`PT_MCP_BRIDGE_TOKEN` is validated.** If the server refuses to start with `BridgeTokenError`, the
   variable is set to something shorter than 32 chars or outside `[A-Za-z0-9_-]`. Fix it or unset it so
   the on-disk token is used. It fails loudly on purpose: a bad value there would disable the only real

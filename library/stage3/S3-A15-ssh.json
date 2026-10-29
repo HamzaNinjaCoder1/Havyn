@@ -1,0 +1,32 @@
+{
+ "name": "S3.A15 SSH login",
+ "description": "Router SSH config plus the RSA key operation; the PC reaches the router.",
+ "devices": [
+  {"id": "r1", "role": "router"},
+  {"id": "pc1", "role": "pc"}
+ ],
+ "links": [
+  {"id": "l1", "a": {"device": "r1"}, "b": {"device": "pc1"}}
+ ],
+ "subnets": [
+  {"id": "lan", "cidr": "10.66.0.0/24"}
+ ],
+ "ip_assignments": [
+  {"device": "r1", "subnet": "lan", "ip": "10.66.0.1"},
+  {"device": "pc1", "subnet": "lan", "ip": "10.66.0.10"}
+ ],
+ "requirements": [
+  {"id": "R-1", "statement": "The PC reaches the router's SSH endpoint"}
+ ],
+ "acceptance_criteria": [
+  {"id": "A-1", "requirement_ids": ["R-1"], "title": "pc1 reaches r1",
+   "test": {"kind": "flow", "source": "pc1", "destination": "r1", "expect": "reachable"}}
+ ],
+ "routing": {
+  "mode": "connected",
+  "ssh": [
+   {"device": "r1", "domain_name": "lab.local", "username": "admin",
+    "secret": "LAB-ONLY-CHANGE-ME", "version": 2, "rsa_bits": 1024}
+  ]
+ }
+}

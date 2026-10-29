@@ -446,6 +446,21 @@ def render_markdown(data: dict) -> str:
         f"_generated {data['generated_at']}_ — statuses change only with the "
         "evidence named in each row.",
         "",
+        "## Status meanings",
+        "",
+        "- **Verified** — live Packet Tracer evidence in this repository "
+        "proves the capability (a live test or a verbatim probe capture). "
+        "Implemented code alone is not Verified.",
+        "- **Refused** — Packet Tracer lacks or blocks the required capability "
+        "and Havyn intentionally refuses it at compile-time/runtime instead of "
+        "emitting a config that would half-work or report a false PASS. A "
+        "manual GUI path may exist; that is not automation proof.",
+        "- **Unverified** — not proven; no claim is made.",
+        "",
+        "Offline tests prove internal consistency, not PT behaviour; only the "
+        "live evidence named in a row proves that. Refused is an "
+        "evidence-backed capability gap, not a failed test run.",
+        "",
     ]
     if data.get("runs"):
         lines.append("## Latest live runner evidence")

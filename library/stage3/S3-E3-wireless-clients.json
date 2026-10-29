@@ -1,0 +1,49 @@
+{
+ "name": "S3.E3 Smartphone and tablet clients",
+ "description": "A smartphone and a tablet associate to the AP's default SSID, lease DHCP addresses, and reach a wired PC.",
+ "devices": [
+  {"id": "r1", "role": "router"},
+  {"id": "sw1", "role": "switch"},
+  {"id": "ap1", "role": "access_point"},
+  {"id": "pc1", "role": "pc"},
+  {"id": "tab1", "role": "tablet"},
+  {"id": "phone1", "role": "smartphone"}
+ ],
+ "links": [
+  {"id": "l-r-sw", "a": {"device": "r1"}, "b": {"device": "sw1"}},
+  {"id": "l-sw-ap", "a": {"device": "sw1", "interface_hint": "FastEthernet0/2"},
+   "b": {"device": "ap1", "interface_hint": "Port 0"}},
+  {"id": "l-sw-pc", "a": {"device": "sw1", "interface_hint": "FastEthernet0/3"},
+   "b": {"device": "pc1"}},
+  {"id": "l-ap-tab", "a": {"device": "ap1"}, "b": {"device": "tab1"},
+   "media": "wireless"},
+  {"id": "l-ap-phone", "a": {"device": "ap1"}, "b": {"device": "phone1"},
+   "media": "wireless"}
+ ],
+ "subnets": [
+  {"id": "lan", "cidr": "192.168.78.0/24", "dhcp": true}
+ ],
+ "ip_assignments": [
+  {"device": "r1", "subnet": "lan", "ip": "192.168.78.1"},
+  {"device": "pc1", "subnet": "lan", "ip": "192.168.78.10"},
+  {"device": "tab1", "subnet": "lan"},
+  {"device": "phone1", "subnet": "lan"}
+ ],
+ "requirements": [
+  {"id": "R-1", "statement": "The tablet associates and reaches the wired PC"},
+  {"id": "R-2", "statement": "The smartphone associates and reaches the wired PC"}
+ ],
+ "acceptance_criteria": [
+  {"id": "A-1", "requirement_ids": ["R-1"], "title": "tab1 associated to ap1",
+   "test": {"kind": "wireless", "client": "tab1", "access_point": "ap1",
+            "interface": "Wireless0", "expect": "associated"}},
+  {"id": "A-2", "requirement_ids": ["R-1"], "title": "tab1 reaches pc1",
+   "test": {"kind": "flow", "source": "tab1", "destination": "pc1", "expect": "reachable"}},
+  {"id": "A-3", "requirement_ids": ["R-2"], "title": "phone1 associated to ap1",
+   "test": {"kind": "wireless", "client": "phone1", "access_point": "ap1",
+            "interface": "Wireless0", "expect": "associated"}},
+  {"id": "A-4", "requirement_ids": ["R-2"], "title": "phone1 reaches pc1",
+   "test": {"kind": "flow", "source": "phone1", "destination": "pc1", "expect": "reachable"}}
+ ],
+ "routing": {"mode": "connected"}
+}

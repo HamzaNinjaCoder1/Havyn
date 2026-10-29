@@ -1,0 +1,136 @@
+# ASA lab @ 2026-10-23T11:57:20+00:00
+
+## asa push
+success
+## dhcp lease
+{
+ "ip": "10.99.0.100",
+ "mask": "255.255.255.0",
+ "dhcp": true
+}
+## flows
+{
+ "dmz_from_outside": "reachable",
+ "outside_to_inside_blocked": "blocked",
+ "inside_to_remote_route": "reachable"
+}
+## C3 nat statuses
+{
+ "object-nat": {
+  "status": "2",
+  "out": "\n"
+ },
+ "twice-nat": {
+  "status": "2",
+  "out": "\n"
+ },
+ "classic-global": {
+  "status": "2",
+  "out": "\n"
+ }
+}
+## C6 object-group status
+{
+ "status": "2",
+ "out": "\n"
+}
+## show running-config
+# status 0
+ASA Version 9.6(1)
+!
+hostname s3p-asa-lab
+names
+!
+interface GigabitEthernet1/1
+ nameif inside
+ security-level 100
+ ip address 10.99.0.1 255.255.255.0
+!
+interface GigabitEthernet1/2
+ nameif outside
+ security-level 0
+ ip address 10.99.1.1 255.255.255.0
+!
+interface GigabitEthernet1/3
+ nameif dmz
+ security-level 50
+ ip address 10.99.2.1 255.255.255.0
+!
+interface GigabitEthernet1/4
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/5
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/6
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/7
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface GigabitEthernet1/8
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+interface Management1/1
+ management-only
+ no nameif
+ no security-level
+ no ip address
+ shutdown
+!
+!
+route outside 10.99.10.0 255.255.255.0 10.99.1.2 1
+route outside 0.0.0.0 0.0.0.0 10.99.1.2 1
+!
+access-list OUTSIDE-IN extended permit icmp any host 10.99.2.10
+access-list OUTSIDE-IN extended permit icmp host 10.99.10.10 host 10.99.0.10 echo-reply
+access-list OUTSIDE-IN extended deny ip any any
+!
+!
+access-group OUTSIDE-IN in interface outside
+!
+!
+class-map inspection_default
+ match default-inspection-traffic
+!
+policy-map type inspect dns preset_dns_map
+ parameters
+  message-length maximum 512
+policy-map global_policy
+ class inspection_default
+  inspect dns preset_dns_map
+  inspect ftp 
+  inspect tftp 
+!
+service-policy global_policy global
+!
+telnet timeout 5
+ssh timeout 5
+!
+dhcpd address 10.99.0.100-10.99.0.150 inside
+dhcpd enable inside
+!
+!
+!
+!
+
+
+## show dhcpd
+# status 3
+
+

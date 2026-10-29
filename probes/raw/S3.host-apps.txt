@@ -1,0 +1,98 @@
+# host application probe @ 2026-10-23T10:11:17+00:00
+# device: s3p-host-pc
+# configure: success
+
+## ipconfig /all
+ipconfig /all
+
+FastEthernet0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 00E0.F9AB.CC78
+   Link-local IPv6 Address.........: FE80::2E0:F9FF:FEAB:CC78
+   IPv6 Address....................: ::
+   IPv4 Address....................: 10.99.0.10
+   Subnet Mask.....................: 255.255.255.0
+   Default Gateway.................: ::
+                                     10.99.0.1
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-94-89-03-04-00-E0-F9-AB-CC-78
+   DNS Servers.....................: ::
+                                     10.99.0.53
+
+Bluetooth Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0030.A3CE.3727
+   Link-local IPv6 Address.........: ::
+ --More-- 
+
+## help
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ipconfig /all
+
+FastEthernet0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 00E0.F9AB.CC78
+   Link-local IPv6 Address.........: FE80::2E0:F9FF:FEAB:CC78
+   IPv6 Address....................: ::
+   IPv4 Address....................: 10.99.0.10
+   Subnet Mask.....................: 255.255.255.0
+   Default Gateway.................: ::
+                                     10.99.0.1
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-94-89-03-04-00-E0-F9-AB-CC-78
+   DNS Servers.....................: ::
+                                     10.99.0.53
+
+Bluetooth Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0030.A3CE.3727
+   Link-local IPv6 Address.........: ::
+
+C:\>elp
+Invalid Command.
+
+C:\>
+
+## ping s3p-server.local
+ping s3p-server.local
+
+
+## ssh -l admin 10.99.0.1
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ipconfig /all
+
+FastEthernet0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 00E0.F9AB.CC78
+   Link-local IPv6 Address.........: FE80::2E0:F9FF:FEAB:CC78
+   IPv6 Address....................: ::
+   IPv4 Address....................: 10.99.0.10
+   Subnet Mask.....................: 255.255.255.0
+   Default Gateway.................: ::
+                                     10.99.0.1
+   DHCP Servers....................: 0.0.0.0
+   DHCPv6 IAID.....................: 
+   DHCPv6 Client DUID..............: 00-01-00-01-94-89-03-04-00-E0-F9-AB-CC-78
+   DNS Servers.....................: ::
+                                     10.99.0.53
+
+Bluetooth Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0030.A3CE.3727
+   Link-local IPv6 Address.........: ::
+
+C:\>elp
+Invalid Command.
+
+C:\>ping s3p-server.local
+

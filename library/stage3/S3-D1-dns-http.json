@@ -1,0 +1,35 @@
+{
+ "name": "S3.D1 DNS and HTTP app services",
+ "description": "Server-PT with a DNS A record and an HTTP page; the PC resolves and fetches them.",
+ "devices": [
+  {"id": "srv1", "role": "server"},
+  {"id": "pc1", "role": "pc"}
+ ],
+ "links": [
+  {"id": "l1", "a": {"device": "srv1"}, "b": {"device": "pc1"}}
+ ],
+ "subnets": [
+  {"id": "lan", "cidr": "10.88.0.0/24"}
+ ],
+ "ip_assignments": [
+  {"device": "srv1", "subnet": "lan", "ip": "10.88.0.2"},
+  {"device": "pc1", "subnet": "lan", "ip": "10.88.0.10"}
+ ],
+ "host_dns": [
+  {"device": "pc1", "dns_server": "10.88.0.2"}
+ ],
+ "services": [
+  {"device": "srv1", "service": "dns",
+   "records": [{"host": "server.local", "address": "10.88.0.2"}]},
+  {"device": "srv1", "service": "http",
+   "pages": {"index.html": "<html><body>HAVYN-APP-PROOF</body></html>"}}
+ ],
+ "requirements": [
+  {"id": "R-1", "statement": "The PC reaches the server and its services"}
+ ],
+ "acceptance_criteria": [
+  {"id": "A-1", "requirement_ids": ["R-1"], "title": "pc1 reaches srv1",
+   "test": {"kind": "flow", "source": "pc1", "destination": "srv1", "expect": "reachable"}}
+ ],
+ "routing": {"mode": "connected"}
+}

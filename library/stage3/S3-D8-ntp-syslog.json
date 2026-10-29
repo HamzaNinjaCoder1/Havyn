@@ -1,0 +1,36 @@
+{
+ "name": "S3.D8 NTP and Syslog server",
+ "description": "Server-PT runs NTP and Syslog; the router points both at it.",
+ "devices": [
+  {"id": "srv1", "role": "server"},
+  {"id": "r1", "role": "router"}
+ ],
+ "links": [
+  {"id": "l1", "a": {"device": "srv1"}, "b": {"device": "r1"}}
+ ],
+ "subnets": [
+  {"id": "mgmt", "cidr": "10.76.0.0/24"}
+ ],
+ "ip_assignments": [
+  {"device": "srv1", "subnet": "mgmt", "ip": "10.76.0.2"},
+  {"device": "r1", "subnet": "mgmt", "ip": "10.76.0.1"}
+ ],
+ "services": [
+  {"device": "srv1", "service": "ntp",
+   "ref_clock_time": "Mon Jan 01 2024 12:00:00.000 UTC"},
+  {"device": "srv1", "service": "syslog"}
+ ],
+ "requirements": [
+  {"id": "R-1", "statement": "The router can reach its management server"}
+ ],
+ "acceptance_criteria": [
+  {"id": "A-1", "requirement_ids": ["R-1"], "title": "r1 reaches srv1",
+   "test": {"kind": "flow", "source": "r1", "destination": "srv1", "expect": "reachable"}}
+ ],
+ "routing": {
+  "mode": "connected",
+  "management": [
+   {"device": "r1", "ntp_servers": ["10.76.0.2"], "syslog_hosts": ["10.76.0.2"]}
+  ]
+ }
+}

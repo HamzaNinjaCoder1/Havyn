@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-23T01:22:02+00:00",
+ "generated_at": "2026-10-23T17:02:44+00:00",
  "features": [
   {
    "id": "router-acl-enforce",
@@ -557,10 +557,11 @@
    "id": "S3.A15-ssh",
    "name": "SSH and local AAA",
    "families": [
-    "router"
+    "router",
+    "pc"
    ],
-   "status": "Unverified",
-   "evidence": "probes/raw/S3.A15-router.txt (server config read back; PC SSH login not observable)",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.ssh-login.txt (PC reached Password:, logged in; show users vty 0 admin and show ssh Session Started)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -570,10 +571,11 @@
    "id": "S3.A16-ntp-syslog-snmp",
    "name": "NTP, Syslog, SNMP",
    "families": [
-    "router"
+    "router",
+    "server"
    ],
-   "status": "Unverified",
-   "evidence": "probes/raw/S3.A16-router.txt (router config read back; server effect unobservable)",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.ntp-syslog.txt (router syslog entries arrived at the server; PT does not synchronise the router clock, so NTP time is unobservable)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -704,8 +706,8 @@
    "families": [
     "firewall:5506-X"
    ],
-   "status": "Unverified",
-   "evidence": "probes/asa.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.asa-lab.txt (outside->DMZ reachable; outside->inside blocked)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -717,9 +719,9 @@
    "families": [
     "firewall:5506-X"
    ],
-   "status": "Unverified",
-   "evidence": "probes/asa.md",
-   "refusal_reason": "",
+   "status": "Refused",
+   "evidence": "probes/raw/S3.asa-lab.txt",
+   "refusal_reason": "PT's ASA 9.6 image rejects every NAT form tested (object NAT, twice NAT, classic nat/global) with CLI status 2, so no translation can be configured. Use a router for NAT (S3.A6) or terminate outside PT.",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -730,8 +732,8 @@
    "families": [
     "firewall:5506-X"
    ],
-   "status": "Unverified",
-   "evidence": "probes/asa.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.asa-lab.txt (inside->remote network reachable through the static route)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -743,8 +745,8 @@
    "families": [
     "firewall:5506-X"
    ],
-   "status": "Unverified",
-   "evidence": "probes/asa.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.asa-lab.txt (inside PC leased 10.99.0.100 from the ASA)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -756,9 +758,9 @@
    "families": [
     "firewall:5506-X"
    ],
-   "status": "Unverified",
-   "evidence": "probes/asa.md",
-   "refusal_reason": "",
+   "status": "Refused",
+   "evidence": "probes/raw/S3.asa-lab.txt",
+   "refusal_reason": "PT's ASA 9.6 image rejects `object-group network` and any ACL that references a group with CLI status 2. Use a plain address-scoped ACL (S3.C1).",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -769,9 +771,9 @@
    "families": [
     "server"
    ],
-   "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No service-configuration method is exposed: getProcess() rejects every service name and the prototype has no DNS/DHCP/HTTP/email/FTP method. The limitation is the MCP/Script-Engine API layer; configure services in the PT GUI.",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.processes.txt (DnsServer, HttpServer, DhcpServerMain, EmailServer, FtpServer, NtpServer, SyslogServer and AcsServer are exposed)",
+   "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -783,8 +785,8 @@
     "server",
     "pc"
    ],
-   "status": "Unverified",
-   "evidence": "probes/server-services.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.dns-http.txt (nslookup/ping server.local and an HTTP body returned)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -794,11 +796,12 @@
    "id": "S3.D2-dns",
    "name": "DNS service",
    "families": [
-    "server"
+    "server",
+    "pc"
    ],
-   "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No Script-Engine API to add DNS records.",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.dns-http.txt (PC resolved server.local through 10.88.0.2)",
+   "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -807,11 +810,12 @@
    "id": "S3.D3-http",
    "name": "HTTP/HTTPS service",
    "families": [
-    "server"
+    "server",
+    "pc"
    ],
-   "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No Script-Engine API to enable HTTP or set content.",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.dns-http.txt (PC fetched the configured index.html body over HTTP; the HTTPS path was not separately exercised)",
+   "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -820,11 +824,12 @@
    "id": "S3.D4-server-dhcp",
    "name": "DHCP server (Server-PT)",
    "families": [
-    "server"
+    "server",
+    "pc"
    ],
-   "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No Script-Engine API to add pools. Use an IOS router pool instead (supported, incl. S3.A7 relay).",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.server-dhcp.txt (POOL1 lease 10.77.0.100; DHCP server 10.77.0.2)",
+   "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -833,11 +838,12 @@
    "id": "S3.D5-email",
    "name": "Email service",
    "families": [
-    "server"
+    "server",
+    "pc"
    ],
    "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No Script-Engine API for email users/domain.",
+   "evidence": "probes/raw/S3.server-misc.txt",
+   "refusal_reason": "The EmailServer configuration call (`updateAllAccounts`) blocks the Script Engine and closes Packet Tracer, so no mail flow can be driven. Use an external mail server.",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -846,11 +852,12 @@
    "id": "S3.D6-ftp",
    "name": "FTP service",
    "families": [
-    "server"
+    "server",
+    "pc"
    ],
-   "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No Script-Engine API for FTP users/files.",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.ftp-login.txt (PC console `ftp 10.89.0.2` -> `230- Logged in`, `ftp>` prompt, `221- Service closing` on quit; the server's FTP process is read back enabled with the user account)",
+   "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -863,8 +870,8 @@
     "router"
    ],
    "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No API to configure the AAA server; router-side AAA can be rendered but cannot be proven without the server.",
+   "evidence": "probes/raw/S3.aaa-login.txt",
+   "refusal_reason": "The ACS server accepts the user and client records and the router accepts the radius-server and tacacs-server configuration, but an SSH login against either path times out; PT does not complete the AAA exchange. Use local AAA (S3.A15) or an external AAA server.",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -873,11 +880,12 @@
    "id": "S3.D8-ntp-syslog-server",
    "name": "NTP/Syslog server",
    "families": [
-    "server"
+    "server",
+    "router"
    ],
-   "status": "Refused",
-   "evidence": "probes/server-services.md",
-   "refusal_reason": "No API to enable the service; router-side NTP/Syslog is supported but the server effect is unobservable.",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.ntp-syslog.txt (NTP server configured and read back; five syslog entries from the router arrived)",
+   "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -900,11 +908,12 @@
    "id": "S3.E2-ssid-wpa2",
    "name": "Custom SSID / WPA2",
    "families": [
-    "access_point"
+    "access_point",
+    "laptop"
    ],
-   "status": "Unverified",
-   "evidence": "probes/wireless.md",
-   "refusal_reason": "",
+   "status": "Refused",
+   "evidence": "probes/raw/S3.e2-custom-ssid.txt",
+   "refusal_reason": "The AP accepts and reads back a custom SSID/WPA2, but every documented client profile call (addProfile, setCurrentProfile, setCurrentProfileStringIPs) is rejected by this PT build and no antenna link forms. Use the default SSID (S3.E1/S3.E3).",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -914,10 +923,11 @@
    "name": "Smartphone/tablet wireless clients",
    "families": [
     "smartphone",
-    "tablet"
+    "tablet",
+    "access_point"
    ],
-   "status": "Unverified",
-   "evidence": "probes/wireless.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.e3-clients.txt (both associated, DHCP .2/.3, flows both ways)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -930,9 +940,9 @@
     "wlc",
     "access_point"
    ],
-   "status": "Unverified",
-   "evidence": "probes/wireless.md",
-   "refusal_reason": "",
+   "status": "Refused",
+   "evidence": "probes/raw/S3.wireless.txt",
+   "refusal_reason": "PT has no placeable lightweight AP model (LAP-PT/3702i are rejected) and WLC-PT exposes only a base CapwapAC process, so a WLC join cannot be built. Use autonomous APs.",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -943,9 +953,9 @@
    "families": [
     "access_point"
    ],
-   "status": "Unverified",
-   "evidence": "probes/wireless.md",
-   "refusal_reason": "",
+   "status": "Refused",
+   "evidence": "probes/raw/S3.wireless-lab.txt",
+   "refusal_reason": "The AP's WirelessServer has one SSID and no SSID-to-VLAN mapping method; PT offers no multi-SSID/VLAN API. Use separate APs/VLANs or the default SSID.",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -970,10 +980,11 @@
    "name": "Explicit cloud mapping driver",
    "families": [
     "cloud",
-    "modem"
+    "modem",
+    "router"
    ],
-   "status": "Unverified",
-   "evidence": "probes/cloud.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.cloud-lab.txt (two Frame Relay circuits on one cloud; customer A/B isolation blocked)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -985,10 +996,11 @@
    "families": [
     "cloud",
     "modem",
-    "router"
+    "router",
+    "server"
    ],
-   "status": "Unverified",
-   "evidence": "probes/cloud.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.cloud-lab.txt (home->internet and internet->home reachable)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -998,10 +1010,11 @@
    "id": "S3.F4-cloud-serial",
    "name": "Cloud serial / Frame Relay",
    "families": [
-    "cloud"
+    "cloud",
+    "router"
    ],
-   "status": "Unverified",
-   "evidence": "probes/cloud.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.cloud-lab.txt (DLCI 100<->200 Frame Relay through the cloud; ping reachable)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
@@ -1013,9 +1026,9 @@
    "families": [
     "iot"
    ],
-   "status": "Refused",
-   "evidence": "probes/iot.md",
-   "refusal_reason": "The Smart LED prototype has no server-address/registration method; digitalWrite is not registration. Configure in the PT GUI.",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.iot-api.txt (Smart-LED IoeClient exposes setupRemoteApi/reportStates; no IoT server process on the HomeRouter)",
+   "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -1027,8 +1040,8 @@
     "iot"
    ],
    "status": "Refused",
-   "evidence": "probes/iot.md",
-   "refusal_reason": "Registration is the prerequisite and has no API, so a registered on/off control cannot be proven.",
+   "evidence": "probes/raw/S3.iot-api.txt",
+   "refusal_reason": "The Smart-LED exposes IoeClient, but the HomeRouter has no IoeServer and no registration/control path is exposed, so a registered on/off control cannot be driven. Configure the IoT service in the PT GUI.",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -1042,9 +1055,9 @@
     "tablet",
     "smartphone"
    ],
-   "status": "Unverified",
-   "evidence": "probes/end-devices.md",
-   "refusal_reason": "",
+   "status": "Refused",
+   "evidence": "probes/raw/S3.h1-end-devices.txt",
+   "refusal_reason": "Printer-PT, tablet and smartphone are proven endpoints, but the 7960's Vlan1 never comes up (no usable CLI, isPortUp false with the wall port linked and powered), so the IP phone cannot be a flow endpoint. Use a PC/laptop as the voice endpoint or a downstream PC behind the phone.",
    "topology": "",
    "derived_from_run": false,
    "latest_run": null
@@ -1057,8 +1070,8 @@
     "laptop",
     "server"
    ],
-   "status": "Unverified",
-   "evidence": "probes/end-devices.md",
+   "status": "Verified",
+   "evidence": "probes/raw/S3.dns-http.txt (DnsClient server 10.88.0.2 and ipconfig /all DNS 10.88.0.2)",
    "refusal_reason": "",
    "topology": "",
    "derived_from_run": false,

@@ -1,0 +1,56 @@
+{
+  "lab": "S3.E3 Smartphone and tablet clients",
+  "spec": "library\\stage3\\S3-E3-wireless-clients.json",
+  "tag": "qc86437",
+  "started_at": "2026-10-23T16:23:55+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "kind": "wireless",
+      "source": "tab1",
+      "destination": "ap1",
+      "expect": "associated",
+      "observed": "associated",
+      "pass": true,
+      "detail": "{'client': 'qc86437-tab1', 'access_point': 'qc86437-ap1', 'client_interface': 'Wireless0', 'ap_interface': 'Port 1', 'link_class': 'Antenna', 'port_up': True, 'associated': True, 'evidence': {'associated': True, 'client': 'qc86437-tab1', 'interface': 'Wireless0', 'port_up': True, 'is_wireless': True, 'link_class': 'Antenna', 'connection_type': '8109', 'receiver_count': 1, 'peer_device': 'qc86437-ap1', 'peer_interface': 'Port 1'}}"
+    },
+    {
+      "criterion": "A-2",
+      "source": "tab1",
+      "destination": "pc1",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qc86437-tab1->192.168.78.10: ok"
+    },
+    {
+      "criterion": "A-3",
+      "kind": "wireless",
+      "source": "phone1",
+      "destination": "ap1",
+      "expect": "associated",
+      "observed": "associated",
+      "pass": true,
+      "detail": "{'client': 'qc86437-phone1', 'access_point': 'qc86437-ap1', 'client_interface': 'Wireless0', 'ap_interface': 'Port 1', 'link_class': 'Antenna', 'port_up': True, 'associated': True, 'evidence': {'associated': True, 'client': 'qc86437-phone1', 'interface': 'Wireless0', 'port_up': True, 'is_wireless': True, 'link_class': 'Antenna', 'connection_type': '8109', 'receiver_count': 1, 'peer_device': 'qc86437-ap1', 'peer_interface': 'Port 1'}}"
+    },
+    {
+      "criterion": "A-4",
+      "source": "phone1",
+      "destination": "pc1",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping qc86437-phone1->192.168.78.10: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "qc86437-r1": "deleted",
+    "qc86437-sw1": "deleted",
+    "qc86437-ap1": "deleted",
+    "qc86437-pc1": "deleted",
+    "qc86437-tab1": "deleted",
+    "qc86437-phone1": "deleted"
+  },
+  "finished_at": "2026-10-23T16:24:58+00:00"
+}

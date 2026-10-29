@@ -266,7 +266,9 @@ class LinkSpec(SpecModel):
     a: EndpointSpec
     b: EndpointSpec
     media: Literal[
-        "auto", "straight", "crossover", "fiber", "serial", "wireless"
+        "auto", "straight", "crossover", "fiber", "serial",
+        "wireless", "coaxial", "phone", "cable", "cellular", "usb", "octal",
+        "custom_io",
     ] = "auto"
     trunk: bool = False
     # #37: the trunk's native VLAN and the list it is allowed to carry. Both
@@ -504,6 +506,7 @@ class SshSpec(SpecModel):
     secret: str
     vty_lines: str = "0 4"
     version: Literal[1, 2] = 2
+    rsa_bits: int = Field(default=1024, ge=768, le=4096)
 
 
 class ManagementSpec(SpecModel):
@@ -590,13 +593,27 @@ class AsaObjectGroupSpec(SpecModel):
 
 
 class ServerServiceSpec(SpecModel):
-    """A Server-PT service intent (S3.D2-D8)."""
+    """A Server-PT service intent (S3.D2-D8).
+
+    The compiler refuses ``email`` and ``iot`` by name (the email process
+    blocks the Script Engine and IoT has no server-side registration). The
+    other services compile into one ``configure_server`` operation.
+
+    ``records``  DNS name -> IPv4 address.
+    ``pages``    HTTP URL -> body.
+    ``pool``     DHCP keys: name, gateway, dns, start, mask, max_users, port.
+    """
 
     device: str
     service: Literal[
         "dns", "http", "https", "dhcp", "email", "ftp", "aaa", "ntp", "syslog", "iot"
     ]
     enabled: bool = True
+    records: list[dict[str, str]] = Field(default_factory=list)
+    pages: dict[str, str] = Field(default_factory=dict)
+    domain: str | None = None
+    pool: dict[str, str] | None = None
+    ref_clock_time: str | None = None
 
 
 class WirelessSsidSpec(SpecModel):
@@ -608,11 +625,25 @@ class WirelessSsidSpec(SpecModel):
 
 
 class CloudMappingSpec(SpecModel):
+    """One explicit cloud mapping.
+
+    ``cloud_port`` and ``peer_cloud_port`` are both on the cloud device
+    (e.g. ``Coaxial7``/``Ethernet6``, or ``Serial0``/``Serial1``). ``modem``
+    and ``modem_port`` document the physical handoff; they are not part of the
+    mapping call. Serial mappings use ``addSubLink`` + ``addSubLinkConnection``
+    with the DLCIs below.
+    """
+
     cloud: str
-    modem: str
+    modem: str = ""
+    modem_port: str = ""
     cloud_port: str
-    modem_port: str
+    peer_cloud_port: str = ""
     connection_type: Literal["dsl", "cable", "serial"] = "dsl"
+    sub_link: str = "s1"
+    peer_sub_link: str = "s2"
+    dlci: int | None = None
+    peer_dlci: int | None = None
 
 
 class IotRegistrationSpec(SpecModel):
@@ -863,8 +894,10 @@ class NetworkSpec(SpecModel):
             self.services, self.wireless_config, self.iot, self.host_dns,
         ):
             out.extend(item.device for item in group)
-        out.extend(item.cloud for item in self.cloud_mappings)
-        out.extend(item.modem for item in self.cloud_mappings)
+        out.extend(item.cloud for item in self.cloud_mappings if item.cloud)
+        # `modem` is documentation of the physical handoff and defaults to "";
+        # an empty one must not be validated as a device reference.
+        out.extend(item.modem for item in self.cloud_mappings if item.modem)
         return out
 
     def _flow_endpoints(self) -> list[str]:

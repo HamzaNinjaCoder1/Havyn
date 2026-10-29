@@ -1,0 +1,45 @@
+# H1 end devices @ 2026-10-23T12:11:19+00:00
+
+## printer ports
+{
+ "FastEthernet0": "192.168.79.20"
+}
+## printer flows
+{
+ "pc_to_printer": "reachable",
+ "printer_to_pc": "reachable"
+}
+## phone config
+{
+ "ip": "192.168.79.30",
+ "up": false,
+ "proto": false
+}
+## phone ports
+{
+ "Vlan1": {
+  "up": false,
+  "proto": false,
+  "power": true,
+  "link": "no"
+ },
+ "Switch": {
+  "up": false,
+  "proto": false,
+  "power": true,
+  "link": "yes"
+ },
+ "PC": {
+  "up": false,
+  "proto": false,
+  "power": true,
+  "link": "no"
+ }
+}
+## phone flows
+{
+ "pc_to_phone": "blocked",
+ "phone_to_pc": "unknown"
+}
+## tablet/smartphone
+proven in probes/raw/S3.e3-clients.txt (antenna association, DHCP .2/.3, flows both ways)

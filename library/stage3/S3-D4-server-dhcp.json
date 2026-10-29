@@ -1,0 +1,31 @@
+{
+ "name": "S3.D4 Server-PT DHCP",
+ "description": "Server-PT POOL1 leases an address to a directly connected PC.",
+ "devices": [
+  {"id": "srv1", "role": "server"},
+  {"id": "pc1", "role": "pc"}
+ ],
+ "links": [
+  {"id": "l1", "a": {"device": "srv1"}, "b": {"device": "pc1"}}
+ ],
+ "subnets": [
+  {"id": "lan", "cidr": "10.77.0.0/24", "dhcp": true}
+ ],
+ "ip_assignments": [
+  {"device": "srv1", "subnet": "lan", "ip": "10.77.0.2"},
+  {"device": "pc1", "subnet": "lan"}
+ ],
+ "services": [
+  {"device": "srv1", "service": "dhcp",
+   "pool": {"name": "POOL1", "gateway": "10.77.0.2", "dns": "10.77.0.2",
+            "start": "10.77.0.100", "mask": "255.255.255.0", "max_users": "20"}}
+ ],
+ "requirements": [
+  {"id": "R-1", "statement": "The PC leases an address from the server pool"}
+ ],
+ "acceptance_criteria": [
+  {"id": "A-1", "requirement_ids": ["R-1"], "title": "pc1 reaches srv1",
+   "test": {"kind": "flow", "source": "pc1", "destination": "srv1", "expect": "reachable"}}
+ ],
+ "routing": {"mode": "connected"}
+}

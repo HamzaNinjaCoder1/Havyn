@@ -27,6 +27,10 @@ from network_autopilot.adapter.packet_tracer.bridge_adapter import BridgeAdapter
 from network_autopilot.compiler import compile_spec
 from network_autopilot.core.network_spec import NetworkSpec
 from network_autopilot.ipam import plan_addressing
+from network_autopilot.wireless import (
+    WirelessAssociationError,
+    associate_wireless_client,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "probes" / "live"
@@ -92,6 +96,46 @@ def _execute(adapter: BridgeAdapter, result, tag: str) -> tuple[list[str], list[
         )
         if receipt.result.value != "success":
             problems.append(f"host {op.inputs['device']}: {receipt.error}")
+    for op in _ops(result, "install_wireless_radio"):
+        answer = adapter.ensure_wireless_radio(
+            f"{tag}-{op.inputs['device']}",
+            module=op.inputs.get("module", "PT-LAPTOP-NM-1W"),
+            slot=op.inputs.get("slot", "0"),
+            interface=op.inputs.get("interface", "Wireless0"),
+        )
+        if not answer.get("installed"):
+            problems.append(
+                f"wireless radio {op.inputs['device']}: {answer.get('error') or answer}"
+            )
+    for op in _ops(result, "associate_wireless"):
+        try:
+            associate_wireless_client(
+                adapter,
+                f"{tag}-{op.inputs['client']}",
+                f"{tag}-{op.inputs['access_point']}",
+                interface=op.inputs.get("client_interface", "Wireless0"),
+                channel=op.inputs.get("channel"),
+            )
+        except WirelessAssociationError as exc:
+            problems.append(f"wireless {op.inputs['client']}: {exc}")
+    for op in _ops(result, "configure_server"):
+        receipt = adapter.configure_server_services(
+            f"{tag}-{op.inputs['device']}", op.inputs.get("services", [])
+        )
+        if receipt.result.value != "success":
+            problems.append(f"server {op.inputs['device']}: {receipt.error}")
+    for op in _ops(result, "configure_cloud"):
+        receipt = adapter.configure_cloud_mapping(
+            f"{tag}-{op.inputs['device']}", op.inputs.get("mappings", [])
+        )
+        if receipt.result.value != "success":
+            problems.append(f"cloud {op.inputs['device']}: {receipt.error}")
+    for op in _ops(result, "generate_rsa_key"):
+        receipt = adapter.generate_rsa_key(
+            f"{tag}-{op.inputs['device']}", bits=int(op.inputs.get("bits", 1024))
+        )
+        if receipt.result.value != "success":
+            problems.append(f"ssh key {op.inputs['device']}: {receipt.error}")
     return created, problems
 
 
@@ -99,6 +143,26 @@ def _flows(adapter: BridgeAdapter, spec: NetworkSpec, planning, tag: str) -> lis
     results: list[dict] = []
     for criterion in spec.acceptance_criteria:
         test = criterion.test
+        if getattr(test, "kind", "") == "wireless":
+            client = f"{tag}-{test.client}"
+            assoc = adapter.wireless_association(
+                client, interface=test.interface
+            )
+            actual = "associated" if (
+                assoc is not None
+                and assoc.access_point == f"{tag}-{test.access_point}"
+            ) else "not-associated"
+            results.append({
+                "criterion": criterion.id,
+                "kind": "wireless",
+                "source": test.client,
+                "destination": test.access_point,
+                "expect": test.expect,
+                "observed": actual,
+                "pass": actual == test.expect,
+                "detail": str(assoc.to_dict()) if assoc else "no antenna link",
+            })
+            continue
         if getattr(test, "kind", "") != "flow":
             continue
         source = f"{tag}-{test.source}"

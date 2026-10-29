@@ -1,0 +1,27 @@
+{
+  "lab": "S3.F3 ISP template",
+  "spec": "library\\stage3\\S3-F3-isp-template.json",
+  "tag": "q9eb25b",
+  "started_at": "2026-10-23T16:27:05+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "pc1",
+      "destination": "srv1",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q9eb25b-pc1->203.0.113.10: ok"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "q9eb25b-cust": "deleted",
+    "q9eb25b-mod1": "deleted",
+    "q9eb25b-cl1": "deleted",
+    "q9eb25b-isp": "deleted",
+    "q9eb25b-srv1": "deleted",
+    "q9eb25b-pc1": "deleted"
+  },
+  "finished_at": "2026-10-23T16:29:04+00:00"
+}

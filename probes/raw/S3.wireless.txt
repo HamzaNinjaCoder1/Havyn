@@ -1,0 +1,48 @@
+# Stage 3 wireless probe @ 2026-10-23T10:23:05+00:00
+
+## WLC boot output
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+## WLC prompt before prime
+""
+
+### WLC: show version
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+### WLC: show running-config
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+### WLC: show wlan summary
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+### WLC: show ap summary
+
+%LINK-3-UPDOWN: Interface Vlan1, changed state to down
+
+
+## create LAP-PT
+result: rejected error: unknown device type: model='LAP-PT' role='access_point' - no catalog category or role maps to a Packet Tracer device type
+{}
+
+## create 3702i
+result: rejected error: unknown device type: model='3702i' role='access_point' - no catalog category or role maps to a Packet Tracer device type
+{}
+
+## create LAP-3702I
+result: rejected error: unknown device type: model='LAP-3702I' role='access_point' - no catalog category or role maps to a Packet Tracer device type
+{}
+
+## create AIR-LAP1142N-A-K9
+result: rejected error: unknown device type: model='AIR-LAP1142N-A-K9' role='access_point' - no catalog category or role maps to a Packet Tracer device type
+{}
+
+## SSID method surface
+{"s3p-wlc":{"Ssid":{"get":"undefined","set":"undefined"},"SsidName":{"get":"undefined","set":"undefined"},"Wlan":{"get":"undefined","set":"undefined"},"WlanConfig":{"get":"undefined","set":"undefined"},"Wireless":{"get":"undefined","set":"undefined"},"Security":{"get":"undefined","set":"undefined"},"Wpa":{"get":"undefined","set":"undefined"},"SetSsid":{"get":"undefined","set":"undefined"}}}

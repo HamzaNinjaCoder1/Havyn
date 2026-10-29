@@ -40,6 +40,46 @@
       "id": "S3-A12",
       "file": "S3-A12-bgp.json",
       "title": "Basic BGP"
+    },
+    {
+      "id": "S3-A15",
+      "file": "S3-A15-ssh.json",
+      "title": "SSH + RSA key"
+    },
+    {
+      "id": "S3-D1",
+      "file": "S3-D1-dns-http.json",
+      "title": "DNS and HTTP app services"
+    },
+    {
+      "id": "S3-D4",
+      "file": "S3-D4-server-dhcp.json",
+      "title": "Server-PT DHCP"
+    },
+    {
+      "id": "S3-D8",
+      "file": "S3-D8-ntp-syslog.json",
+      "title": "NTP and Syslog server"
+    },
+    {
+      "id": "S3-E3",
+      "file": "S3-E3-wireless-clients.json",
+      "title": "smartphone/tablet wireless clients"
+    },
+    {
+      "id": "S3-F2",
+      "file": "S3-F2-cloud-mapping.json",
+      "title": "two customers on one cloud"
+    },
+    {
+      "id": "S3-F3",
+      "file": "S3-F3-isp-template.json",
+      "title": "ISP template"
+    },
+    {
+      "id": "S3-F4",
+      "file": "S3-F4-cloud-frame-relay.json",
+      "title": "cloud serial Frame Relay"
     }
   ]
 }

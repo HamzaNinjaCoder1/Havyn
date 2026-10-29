@@ -1,0 +1,130 @@
+# E3 wireless clients @ 2026-10-23T11:22:44+00:00
+
+## associations
+{
+ "s3p-e3b-tab": {
+  "client": "s3p-e3b-tab",
+  "access_point": "s3p-e3b-ap",
+  "client_interface": "Wireless0",
+  "ap_interface": "Port 1",
+  "link_class": "Antenna",
+  "port_up": true,
+  "associated": true,
+  "evidence": {
+   "associated": true,
+   "client": "s3p-e3b-tab",
+   "interface": "Wireless0",
+   "port_up": true,
+   "is_wireless": true,
+   "link_class": "Antenna",
+   "connection_type": "8109",
+   "receiver_count": 1,
+   "peer_device": "s3p-e3b-ap",
+   "peer_interface": "Port 1"
+  }
+ },
+ "s3p-e3b-phone": {
+  "client": "s3p-e3b-phone",
+  "access_point": "s3p-e3b-ap",
+  "client_interface": "Wireless0",
+  "ap_interface": "Port 1",
+  "link_class": "Antenna",
+  "port_up": true,
+  "associated": true,
+  "evidence": {
+   "associated": true,
+   "client": "s3p-e3b-phone",
+   "interface": "Wireless0",
+   "port_up": true,
+   "is_wireless": true,
+   "link_class": "Antenna",
+   "connection_type": "8109",
+   "receiver_count": 1,
+   "peer_device": "s3p-e3b-ap",
+   "peer_interface": "Port 1"
+  }
+ }
+}
+## radio state
+{
+ "s3p-e3b-tab": {
+  "ip": "192.168.78.2",
+  "mask": "255.255.255.0",
+  "dhcp": true,
+  "up": true,
+  "link": "yes"
+ },
+ "s3p-e3b-phone": {
+  "ip": "192.168.78.3",
+  "mask": "255.255.255.0",
+  "dhcp": true,
+  "up": true,
+  "link": "yes"
+ }
+}
+## ipconfig
+### s3p-e3b-tab
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ipconfig /all
+
+Wireless0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 00D0.D365.6C1E
+   Link-local IPv6 Address.........: FE80::2D0:D3FF:FE65:6C1E
+   IPv6 Address....................: ::
+   IPv4 Address....................: 192.168.78.2
+   Subnet Mask.....................: 255.255.255.0
+   Default Gateway.................: ::
+                                     192.168.78.1
+   DHCP Servers....................: 192.168.78.1
+   DHCPv6 IAID.....................: 454423167
+   DHCPv6 Client DUID..............: 00-01-00-01-BE-3C-C7-8E-00-D0-D3-65-6C-1E
+   DNS Servers.....................: ::
+                                     192.168.78.1
+
+3G/4G Cell1 Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0009.7C14.5EBC
+   Link-local IPv6 Address.........: FE80::209:7CFF:FE14:5EBC
+ --More-- 
+### s3p-e3b-phone
+
+Cisco Packet Tracer PC Command Line 1.0
+C:\>ipconfig /all
+
+Wireless0 Connection:(default port)
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 000A.F39E.BE37
+   Link-local IPv6 Address.........: FE80::20A:F3FF:FE9E:BE37
+   IPv6 Address....................: ::
+   IPv4 Address....................: 192.168.78.3
+   Subnet Mask.....................: 255.255.255.0
+   Default Gateway.................: ::
+                                     192.168.78.1
+   DHCP Servers....................: 192.168.78.1
+   DHCPv6 IAID.....................: 753677597
+   DHCPv6 Client DUID..............: 00-01-00-01-D7-65-B2-95-00-0A-F3-9E-BE-37
+   DNS Servers.....................: ::
+                                     192.168.78.1
+
+3G/4G Cell1 Connection:
+
+   Connection-specific DNS Suffix..: 
+   Physical Address................: 0004.9ABE.3D2A
+   Link-local IPv6 Address.........: FE80::204:9AFF:FEBE:3D2A
+ --More-- 
+## flows
+{
+ "s3p-e3b-tab": {
+  "client_to_wired": "reachable",
+  "wired_to_client": "reachable"
+ },
+ "s3p-e3b-phone": {
+  "client_to_wired": "reachable",
+  "wired_to_client": "reachable"
+ }
+}

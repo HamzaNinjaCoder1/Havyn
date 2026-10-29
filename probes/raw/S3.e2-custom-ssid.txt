@@ -1,0 +1,25 @@
+# E2 custom SSID/WPA2 probe @ 2026-10-23T12:14:41+00:00
+
+## AP state (custom SSID/WPA2 accepted)
+{
+ "ssid": "HAVYN-WPA2",
+ "auth": "4",
+ "enc": "4",
+ "channel": "10",
+ "key": "HavynPass123"
+}
+## client profile attempts
+{
+ "addProfile": "E:IPC Call ERROR: WirelessClientProcess - Invalid arguments for IPC call \"addProfile\"",
+ "setCurrentProfile": "E:invalid vector subscript",
+ "setCurrentProfileStringIPs": "E:invalid vector subscript"
+}
+## client setters
+{
+ "ssid": "HAVYN-WPA2",
+ "auth": "4",
+ "enc": "4",
+ "profileSsid": "Default"
+}
+## association after 20s
+null

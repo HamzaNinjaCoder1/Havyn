@@ -1,36 +1,37 @@
 # Wireless probes (S3.E1–E5)
 
-## What is already proven
+## The API that the first probe missed
 
-`wireless-association` is a Verified capability in the existing map: a laptop's
-radio associates to an AccessPoint-PT (PT shows the Antenna link) and traffic
-crosses the AP (`tests/autopilot/test_live_connectivity.py`).
+The AP/station expose a real wireless process; the earlier probe asked for
+`setSsid` on the device itself and for `getProcess("Wireless")`:
 
-## What was probed for Stage 3
-
-An `AccessPoint-PT` was created live and its JavaScript prototype was dumped.
-It exposes only generic device/module methods (`getPorts`, `getModel`,
-`addModule`, `getCommandLine`, …). It does **not** expose `setSsid`, `setWpa`,
-`setSecurity`, `setChannel` or a `getProcess(<wireless service>)` object. A
-`WLC-PT` is catalogued, but no WLC configuration API was found in the same
-surface.
+* `AccessPoint-PT.getProcess("WirelessServer")` —
+  `setSsid`, `getSsid`, `setAuthenType`, `setEncryptType`,
+  `getWpaProcess().setKey`, `setStandardChannel`, `setPort`,
+  `setSsidBrdCastEnabled`, `resetAllAssociations`.
+* `Laptop/Tablet/Smartphone.getProcess("WirelessClient")` — the same settings
+  plus `addProfile`, `setCurrentProfile`, `setCurrentProfileStringIPs`,
+  `getCurrentProfile`, `getCurrentApMac`.
 
 ## Verdict
 
-| Track | Feature | Status | Reason |
+| Track | Feature | Status | Evidence |
 | --- | --- | --- | --- |
-| S3.E1 | AccessPoint-PT association | **Verified** | Existing live association + traffic test. |
-| S3.E2 | Custom SSID / WPA2 | **Unverified** | No Script-Engine method for SSID/security was found; the AP can associate at its defaults, but a custom SSID/WPA2 was not proven. |
-| S3.E3 | Smartphone/tablet clients | **Unverified** | The roles and catalogued models are now accepted by the schema; no live association/flow test for these clients yet. |
-| S3.E4 | WLC + lightweight APs | **Unverified** | WLC-PT is catalogued but no join/config API was proven. |
-| S3.E5 | Multiple SSIDs → VLANs | **Unverified** | Depends on E2; no SSID-to-VLAN API was found. |
+| S3.E1 | AccessPoint-PT association | **Verified** | `tests/autopilot/test_live_connectivity.py` (laptop antenna link + traffic). |
+| S3.E2 | Custom SSID / WPA2 | **Refused** | `raw/S3.e2-custom-ssid.txt` — the AP accepts and reads back SSID/WPA2; every client profile call is rejected (`Invalid arguments` / `invalid vector subscript`) and no antenna link forms. |
+| S3.E3 | Smartphone/tablet clients | **Verified** | `raw/S3.e3-clients.txt` — both associate, DHCP .2/.3, flows both ways. |
+| S3.E4 | WLC + lightweight APs | **Refused** | `raw/S3.wireless.txt` — no placeable LAP-PT/3702i; WLC-PT exposes only a base CapwapAC process. |
+| S3.E5 | Multiple SSIDs → VLANs | **Refused** | `raw/S3.wireless-lab.txt` — one SSID, no SSID-to-VLAN method. |
 
-These are reported as **Unverified**, not Refused, because the failure is a
-missing probe/API path rather than a demonstrated PT refusal. A human can set
-SSID/WPA2 in the AP GUI; the engine cannot yet read it back.
+Measured detail: the client profile API is the blocker for E2, not the AP. The
+simple setters (`setSsid`/`setAuthenType`/`setEncryptType`) update the process
+state but leave the profile at `Default`, so PT does not associate to the
+custom SSID. The default SSID path (E1/E3) is the one that works.
 
-## Practical alternative
+## Reproduction
 
-Use the default AP association for automated builds (Verified), and set custom
-SSID/security manually in PT. Do not claim a custom SSID was applied until a
-read-back method exists.
+```bash
+python probes/stage3_e3_lab.py
+python probes/stage3_e2_probe.py
+python probes/stage3_wireless_probe.py   # WLC / LAP availability
+```

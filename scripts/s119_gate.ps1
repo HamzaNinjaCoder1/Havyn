@@ -51,6 +51,14 @@
     that can make a bulk create return true while placing nothing; a fresh
     session is what the nightly gets every night.
 
+.PARAMETER CleanAll
+    Opt-in for a controlled gate/Nightly workspace: before every run, delete
+    the build-created Power Distribution Devices too, not just the spec
+    devices. Keeping them across ten runs measurably slows PT (262 s -> ~300 s
+    by run 3). This does not relax the criteria: each run still needs 128/128
+    criteria and under 300 s wall clock. Never use it on a workspace with the
+    user's own physical-environment devices.
+
 .PARAMETER PtExe
     Packet Tracer executable for -RestartPT. Discovered from the process,
     PATH, or Program Files when omitted.
@@ -66,7 +74,8 @@ param(
     [string] $Python       = "python",
     [string] $PtExe        = "",
     [switch] $NoRestart,
-    [switch] $RestartPT
+    [switch] $RestartPT,
+    [switch] $CleanAll
 )
 
 $ErrorActionPreference = "Stop"
@@ -215,6 +224,7 @@ function Invoke-Sweep {
                 id          = $id
                 spec        = $Spec
                 safety_mode = "autonomous"
+                clean_all   = [bool]$CleanAll
             })
         } | ConvertTo-Json -Depth 6
         # -Encoding UTF8 on Windows PowerShell 5.1 writes a BOM. The runner
@@ -317,6 +327,7 @@ $summary = [ordered]@{
     mode           = "live"
     attempts       = $attempt
     no_restart     = [bool]$NoRestart
+    clean_all      = [bool]$CleanAll
     records        = $final.records
     note           = ("A run counts only when runner exit is 0, every criterion passes " +
                       "(0 fail, 0 unknown), and the runner's own wall clock is under the " +

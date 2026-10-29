@@ -932,6 +932,11 @@ class IntentExpander:
     # expresses protection requirements.
     _KIND_MAP = {"security": "isolation"}
 
+    # Generic topology/flow checks are the engine's own, not evidence for a
+    # user requirement. Attaching them to a user "isolation" or "internet"
+    # requirement would report reachability as if it proved that requirement.
+    ENGINE_REQUIREMENT_ID = "R-ENG-001"
+
     def _requirement_specs(self) -> list[RequirementSpec]:
         out: list[RequirementSpec] = []
         used: set[str] = set()
@@ -950,27 +955,30 @@ class IntentExpander:
                     kind=kind,  # type: ignore[arg-type]
                 )
             )
-        if not out:
-            self.requirement_map["__default__"] = "R-001"
-            out.append(
-                RequirementSpec(
-                    id="R-001",
-                    statement="The intent's topology builds and its host "
-                    "groups reach each other as designed",
-                    kind="connectivity",
-                )
+        out.append(
+            RequirementSpec(
+                id=self.ENGINE_REQUIREMENT_ID,
+                statement="Engine-derived topology, reachability, association "
+                "and link checks",
+                kind="connectivity",
             )
+        )
         return out
 
     def _rid(self, *kinds: str) -> str:
-        """Deterministic requirement attachment for a generated criterion."""
+        """Deterministic requirement attachment for a generated criterion.
+
+        ``"engine"`` marks a generic check the expander generated for itself.
+        It must never be attached to a user requirement: a reachable flow is
+        not proof of an isolation, internet or configuration requirement.
+        """
+        if "engine" in kinds:
+            return self.ENGINE_REQUIREMENT_ID
         for kind in kinds:
             for requirement in self.intent.requirements:
                 if requirement.type.value == kind:
                     return self.requirement_map[requirement.id]
-        if "__default__" in self.requirement_map:
-            return self.requirement_map["__default__"]
-        return next(iter(self.requirement_map.values()))
+        return self.ENGINE_REQUIREMENT_ID
 
     def _criterion(self, title: str, test, *rid_kinds: str) -> None:
         self._criterion_seq += 1
@@ -999,7 +1007,7 @@ class IntentExpander:
                     destination=self._host_device_id(base_group, 1),
                     expect="reachable",
                 ),
-                "connectivity",
+                "engine",
             )
 
         made = 0
@@ -1019,7 +1027,7 @@ class IntentExpander:
                         destination=self._host_device_id(base_group, 0),
                         expect="reachable",
                     ),
-                    "connectivity",
+                    "engine",
                 )
                 made += 1
 
@@ -1032,8 +1040,8 @@ class IntentExpander:
                         destination=server.id,
                         expect="reachable",
                     ),
-                    "connectivity",
                     "service",
+                    "connectivity",
                 )
 
         if (
@@ -1049,7 +1057,7 @@ class IntentExpander:
                     destination="srv-int",
                     expect="reachable",
                 ),
-                "connectivity",
+                "engine",
             )
             if self.intent.firewall is not None and self.intent.firewall.enabled:
                 self._criterion(
@@ -1073,7 +1081,7 @@ class IntentExpander:
                                 client=self._host_device_id(group, 0),
                                 access_point=f"{cell.id}-ap",
                             ),
-                            "connectivity",
+                            "engine",
                         )
                         break
 
@@ -1081,8 +1089,7 @@ class IntentExpander:
             self._criterion(
                 f"link {lid} exists",
                 StructuralTestSpec(check="link_exists", target=lid),
-                "operational",
-                "connectivity",
+                "engine",
             )
 
     # -- assembly --------------------------------------------------------------------------

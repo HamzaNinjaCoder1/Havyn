@@ -1,0 +1,44 @@
+{
+  "lab": "S3.F2 Two customers on one cloud",
+  "spec": "library\\stage3\\S3-F2-cloud-mapping.json",
+  "tag": "q3219e9",
+  "started_at": "2026-10-23T16:25:03+00:00",
+  "criteria": [
+    {
+      "criterion": "A-1",
+      "source": "r1",
+      "destination": "r2",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q3219e9-r1->10.10.0.2: ok"
+    },
+    {
+      "criterion": "A-2",
+      "source": "r3",
+      "destination": "r4",
+      "expect": "reachable",
+      "observed": "reachable",
+      "pass": true,
+      "detail": "ping q3219e9-r3->10.20.0.2: ok"
+    },
+    {
+      "criterion": "A-3",
+      "source": "r1",
+      "destination": "r4",
+      "expect": "blocked",
+      "observed": "blocked",
+      "pass": true,
+      "detail": "ping q3219e9-r1->10.20.0.2: none"
+    }
+  ],
+  "problems": [],
+  "cleanup": {
+    "q3219e9-r1": "deleted",
+    "q3219e9-r2": "deleted",
+    "q3219e9-r3": "deleted",
+    "q3219e9-r4": "deleted",
+    "q3219e9-cl1": "deleted"
+  },
+  "finished_at": "2026-10-23T16:27:01+00:00"
+}

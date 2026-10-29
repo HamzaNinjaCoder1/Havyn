@@ -1,205 +1,73 @@
 {
- "generated_at": "2026-10-22T07:03:49.5675070+05:00",
- "gate": "S1.19",
- "gate_passed": true,
- "runs_required": 10,
- "runs_passed": 10,
- "limit_s": 300,
- "spec": "my-network.spec.json",
- "mode": "live",
- "attempts": 1,
- "no_restart": false,
- "records": [
-  {
-   "case_id": "run01",
-   "attempt": 1,
-   "wall_clock_s": 263.2,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:19:49.9478478+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run01.out"
-  },
-  {
-   "case_id": "run02",
-   "attempt": 1,
-   "wall_clock_s": 263.1,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:24:13.3918178+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run02.out"
-  },
-  {
-   "case_id": "run03",
-   "attempt": 1,
-   "wall_clock_s": 263.1,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:28:36.4732559+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run03.out"
-  },
-  {
-   "case_id": "run04",
-   "attempt": 1,
-   "wall_clock_s": 263.1,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:32:59.6121949+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run04.out"
-  },
-  {
-   "case_id": "run05",
-   "attempt": 1,
-   "wall_clock_s": 265.1,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:37:22.7062426+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run05.out"
-  },
-  {
-   "case_id": "run06",
-   "attempt": 1,
-   "wall_clock_s": 263.1,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:41:47.8670139+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run06.out"
-  },
-  {
-   "case_id": "run07",
-   "attempt": 1,
-   "wall_clock_s": 263.5,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:46:11.0283000+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run07.out"
-  },
-  {
-   "case_id": "run08",
-   "attempt": 1,
-   "wall_clock_s": 263.8,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:50:34.5968693+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run08.out"
-  },
-  {
-   "case_id": "run09",
-   "attempt": 1,
-   "wall_clock_s": 265,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:54:58.3870243+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run09.out"
-  },
-  {
-   "case_id": "run10",
-   "attempt": 1,
-   "wall_clock_s": 266,
-   "limit_s": 300,
-   "under_limit": true,
-   "exit_code": 0,
-   "status": "pass",
-   "criteria": {
-    "pass": 128,
-    "fail": 0,
-    "unknown": 0,
-    "total": 128
-   },
-   "complete": true,
-   "passed": true,
-   "started_at": "2026-10-22T06:59:23.4541822+05:00",
-   "log": "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run10.out"
-  }
- ],
- "note": "A run counts only when runner exit is 0, every criterion passes (0 fail, 0 unknown), and the runner's own wall clock is under the limit. Internal phase_timing is deliberately NOT the measured value: it excludes the PT probe and the workspace clean, so it understates real elapsed time."
+    "generated_at":  "2026-10-24T00:21:04.5356940+05:00",
+    "gate":  "S1.19",
+    "gate_passed":  false,
+    "runs_required":  10,
+    "runs_passed":  2,
+    "limit_s":  300,
+    "spec":  "my-network.spec.json",
+    "mode":  "live",
+    "attempts":  1,
+    "no_restart":  false,
+    "clean_all":  true,
+    "records":  [
+                    {
+                        "case_id":  "run01",
+                        "attempt":  1,
+                        "wall_clock_s":  286.1,
+                        "limit_s":  300,
+                        "under_limit":  true,
+                        "exit_code":  0,
+                        "status":  "pass",
+                        "criteria":  {
+                                         "pass":  128,
+                                         "fail":  0,
+                                         "unknown":  0,
+                                         "total":  128
+                                     },
+                        "complete":  true,
+                        "passed":  true,
+                        "started_at":  "2026-10-24T00:06:12.1220097+05:00",
+                        "log":  "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run01.out"
+                    },
+                    {
+                        "case_id":  "run02",
+                        "attempt":  1,
+                        "wall_clock_s":  298.2,
+                        "limit_s":  300,
+                        "under_limit":  true,
+                        "exit_code":  0,
+                        "status":  "pass",
+                        "criteria":  {
+                                         "pass":  128,
+                                         "fail":  0,
+                                         "unknown":  0,
+                                         "total":  128
+                                     },
+                        "complete":  true,
+                        "passed":  true,
+                        "started_at":  "2026-10-24T00:10:59.0922623+05:00",
+                        "log":  "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run02.out"
+                    },
+                    {
+                        "case_id":  "run03",
+                        "attempt":  1,
+                        "wall_clock_s":  306.1,
+                        "limit_s":  300,
+                        "under_limit":  false,
+                        "exit_code":  0,
+                        "status":  "pass",
+                        "criteria":  {
+                                         "pass":  128,
+                                         "fail":  0,
+                                         "unknown":  0,
+                                         "total":  128
+                                     },
+                        "complete":  true,
+                        "passed":  false,
+                        "started_at":  "2026-10-24T00:15:57.3780302+05:00",
+                        "log":  "D:\\Agent\\MCP-Packet-Tracer\\runner_s119\\gate-logs\\attempt1-run03.out"
+                    }
+                ],
+    "note":  "A run counts only when runner exit is 0, every criterion passes (0 fail, 0 unknown), and the runner\u0027s own wall clock is under the limit. Internal phase_timing is deliberately NOT the measured value: it excludes the PT probe and the workspace clean, so it understates real elapsed time."
 }

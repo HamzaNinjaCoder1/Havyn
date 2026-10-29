@@ -1,0 +1,20 @@
+# Stage 3 cloud probe @ 2026-10-23T10:26:15+00:00
+# device: s3p-cloud
+
+## signatures
+undefined
+
+## before
+{"Serial0":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial1":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial2":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial3":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem4":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem5":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Ethernet6":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Coaxial7":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\""}
+
+## try addPortConnection('Serial0','Serial1')
+answer: ok
+after: {"Serial0":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial1":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial2":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial3":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem4":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem5":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Ethernet6":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Coaxial7":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\""}
+
+## try addPortConnection('Serial0','Serial0')
+answer: ok
+after: {"Serial0":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial1":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial2":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial3":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem4":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem5":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Ethernet6":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Coaxial7":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\""}
+
+## try setDslConnection('Modem4','Modem5')
+answer: E:IPC Call ERROR: Cloud - Invalid arguments for IPC call "setDslConnection"
+after: {"Serial0":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial1":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial2":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Serial3":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem4":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Modem5":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Ethernet6":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\"","Coaxial7":"E:IPC Call ERROR: Cloud - Invalid arguments for IPC call \"getPortStrConnections\""}

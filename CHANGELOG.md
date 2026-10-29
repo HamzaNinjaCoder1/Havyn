@@ -1,37 +1,60 @@
 # Changelog
 
-## Unreleased — Stage 3 device and feature coverage (53 tracks)
+## Unreleased — Stage 3 closure (53 tracks: 42 Verified / 11 Refused / 0 Unverified)
 
 ### Added
 
 - Typed Stage 3 intents: multi-area OSPF, EIGRP, RIP v2, per-device BGP,
   default-information originate, HSRP, DHCP relay/pools, GRE tunnels, IPv6 /
   OSPFv3, SSH, NTP/Syslog/SNMP, switch SVIs/EtherChannel/STP/port-security/
-  VTP/voice VLAN/management IP, ASA object NAT/DHCP/object groups, host DNS,
-  end-device roles (printer, IP phone, tablet, smartphone, WLC).
-- Compiler render paths and by-name refusals for every one of those blocks.
-- A Stage 3 diagnosis rule that re-pushes the compiler's own feature block when
-  a flow fails on a feature-bearing device, plus failing-first tests.
-- `library/stage3/` live-lab specs and `probes/` evidence: router/switch/ASA
-  capability probes, eight live labs, IPv6/OSPFv3 and GRE probes, and the 53-row
-  Stage 3 capability scorecard.
-- `scripts/stage3_registry.py` and `scripts/stage3_scorecard.py`; the reports
-  workflow now publishes the Stage 3 scorecard alongside the map.
+  VTP/voice VLAN/management IP, ASA DHCP, host DNS, and the end-device roles.
+- `configure_server`: Server-PT DNS, HTTP, DHCP, NTP, Syslog, FTP and AAA
+  through the documented process names, with per-service read-back.
+- `configure_cloud`: explicit Cloud-PT DSL/cable port mappings and serial
+  Frame Relay sub-links; routers get the matching `encapsulation frame-relay`
+  and DLCI maps.
+- `generate_rsa_key`: the interactive `crypto key generate rsa` prompt is
+  driven and `show ip ssh` is the receipt's postcondition.
+- Compile-time by-name refusals for ASA NAT, ASA object groups, custom
+  wireless SSID/WPA2 and the unsupported services, so nothing is half-built.
+- Eight new live-runner specs under `library/stage3/` (SSH, DNS/HTTP,
+  server DHCP, NTP/Syslog, wireless clients, cloud isolation, ISP template,
+  cloud Frame Relay), the Stage 3 probes/evidence, and the regenerated
+  53-row scorecard and capability map.
 
 ### Verified live
 
-- OSPF single-area, EIGRP, RIP v2, default-route redistribution, NAT/PAT,
-  DHCP relay, HSRP failover, serial WAN, GRE, BGP, IPv6 and OSPFv3.
-- Switch trunk/SVI/EtherChannel/STP/port-security/VTP/voice VLAN/management IP
-  (configuration + live `show` read-back).
+- Routers: OSPF single-area, EIGRP, RIP v2, default-route redistribution,
+  NAT/PAT, DHCP relay, HSRP failover, serial WAN, GRE, BGP, IPv6, OSPFv3,
+  SSH login, and router syslog delivery to the server.
+- Switches: trunk/SVI/EtherChannel/STP/port-security/VTP/voice VLAN/management IP.
+- ASA: address-scoped ACL, DMZ third zone, static/default routes and DHCP.
+- Server-PT: service API probe, DNS resolution, HTTP body, DHCP lease, FTP
+  login, NTP/Syslog server, and host DNS read-back.
+- Wireless: AP association and smartphone/tablet association, DHCP and flows.
+- Cloud/WAN: two isolated Frame Relay customers, the ISP template, and serial
+  Frame Relay through the cloud.
 
 ### Refused with evidence
 
-- IPsec site-to-site (PT stores none of the crypto lines).
-- OSPF multi-area cross-area prefixes (PT ABR does not inject area 0 into
-  area 1).
-- Server-PT service configuration and IoT registration (no Script Engine API);
-  use IOS DHCP/NTP/Syslog or configure the GUI manually.
+These are Packet Tracer limitations; Havyn refuses them at compile-time or
+runtime instead of emitting a configuration that would half-work or falsely
+PASS. Evidence and alternatives live in `probes/`.
+- OSPF multi-area (A2): PT ABR does not inject area-0 prefixes into area 1.
+- IPsec (A11): PT stores none of the crypto/ISAKMP/transform-set/map lines.
+- ASA NAT (C3): every NAT form is rejected by the ASA 9.6 image (status 2).
+- ASA object groups (C6): object-group lines are rejected (status 2).
+- Email (D5): `EmailServer.updateAllAccounts` blocks the Script Engine and
+  closes PT.
+- AAA login (D7): RADIUS and TACACS+ SSH logins both time out; PT does not
+  complete the AAA exchange.
+- Custom SSID/WPA2 (E2): the AP accepts it, but the client profile API rejects
+  it and no antenna link forms.
+- WLC/lightweight APs (E4): no placeable LAP model; WLC-PT has only CapwapAC.
+- Multiple SSIDs to VLANs (E5): one SSID, no SSID-to-VLAN API.
+- IoT control (G2): client API exists, no server-side registration process.
+- IP phone endpoint (H1): the 7960's Vlan1 never comes up; printer, tablet and
+  smartphone endpoints are proven.
 
 ## 0.1.0 — Havyn: the project becomes the closed-loop network autopilot
 
