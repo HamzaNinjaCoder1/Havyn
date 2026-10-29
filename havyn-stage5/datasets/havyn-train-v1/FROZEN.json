@@ -1,12 +1,12 @@
 {
   "stage": "S5.16",
   "dataset": "havyn-train-v1",
-  "frozen_at": "2026-10-29T14:23:18+00:00",
+  "frozen_at": "2026-10-29T22:59:00+00:00",
   "sha256": {
-    "train.jsonl": "74d529e25fd464ed0e0ad758b8c74bc18736fbca64b155e0fcdf15a5c933577d",
-    "validation.jsonl": "13d54a1c51185a86f1bdd3c29bb09d45a486270831af67b28d724ea88212c91e",
-    "heldout.jsonl": "20593260745a17b7f7cdde364b6c0475d550d9a1f241ee04422f6b496c66b4d8",
-    "audit-report.json": "20263088499cbc50b13ba457519b259d8a13dc401b1e1d70c580de5e7ffe6b2c",
-    "dataset-card.json": "2c7a8df169c85f94d9b7c4aa8d46f8028113b48b42287d504a0832219992b517"
+    "train.jsonl": "b1fb09ea29839e660857a6841feb4253662d8994011d8d4211dbf074ab46c499",
+    "validation.jsonl": "a200cc01c5ac847f1edf3fb95a67bf1468de6dcd550aec7bf9c3d68fe6d738d0",
+    "heldout.jsonl": "d065405aa46a6b3a23918a7c9ddbcf78c29a5c195c7d4ebbfa5f83724c4d4176",
+    "audit-report.json": "9642b3d9e6fa00e37f89480863d5bdbe34d6890ddc0d31ccaf0422868aede5d9",
+    "dataset-card.json": "fd2dfb0300a9dfd097eff2bb5b6b9dfd7cb8ec058b2f65937b8c4eac9b3ed2c8"
   }
 }
