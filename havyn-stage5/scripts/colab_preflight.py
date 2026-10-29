@@ -32,8 +32,8 @@ from hf_auth import status as hf_status  # noqa: E402
 
 PY_MIN = (3, 11)
 REQUIRED_PACKAGES = ["torch", "transformers", "trl", "peft", "datasets",
-                     "accelerate", "huggingface_hub", "yaml"]
-OPTIONAL_PACKAGES = ["unsloth", "bitsandbytes", "sentencepiece", "safetensors"]
+                     "accelerate", "bitsandbytes", "huggingface_hub", "yaml"]
+OPTIONAL_PACKAGES = ["unsloth", "sentencepiece", "safetensors", "llama_cpp"]
 
 
 @dataclass
@@ -131,6 +131,28 @@ def run(require_gpu: bool, require_hf: bool, check_hf_network: bool,
     except Exception as exc:  # noqa: BLE001
         checks.append(Check("model_registry", False, f"cannot load registry: {exc}"))
 
+    # Sequence length must not exceed the model's context window.
+    try:
+        registry = _load_yaml(REPO / "havyn-stage5" / "configs" / "models.yaml")
+        context = {
+            c["model_id"]: c.get("context_length")
+            for group in ("standard_candidates", "lite_candidates")
+            for c in registry.get(group, [])
+        }
+        problems = []
+        for role in ("standard", "lite"):
+            cfg = _load_yaml(REPO / "havyn-stage5" / "configs" / f"train-{role}.yaml")
+            model_id = cfg.get("base_model")
+            seq = int(cfg.get("max_seq_length", 0))
+            window = context.get(model_id)
+            if window and seq > int(window):
+                problems.append(f"{role}: max_seq_length {seq} > {model_id} context {window}")
+        checks.append(Check(
+            "sequence_length", not problems,
+            "configs fit their context windows" if not problems else "; ".join(problems)))
+    except Exception as exc:  # noqa: BLE001
+        checks.append(Check("sequence_length", False, f"cannot check: {exc}"))
+
     # Packages
     missing_pkgs = [p for p in REQUIRED_PACKAGES if not _pkg(p)]
     checks.append(Check(
@@ -141,6 +163,22 @@ def run(require_gpu: bool, require_hf: bool, check_hf_network: bool,
     checks.append(Check("optional_packages", True,
                         ", ".join(f"{k}={v}" for k, v in optional.items()),
                         required=False))
+
+    # GGUF export uses Unsloth first and llama.cpp as the fallback.
+    gguf_tools = []
+    if shutil.which("llama-quantize"):
+        gguf_tools.append("llama-quantize")
+    if (REPO / "llama.cpp" / "convert_hf_to_gguf.py").exists():
+        gguf_tools.append("llama.cpp/convert_hf_to_gguf.py")
+    if _pkg("llama_cpp"):
+        gguf_tools.append("llama_cpp module")
+    if _pkg("unsloth"):
+        gguf_tools.append("unsloth")
+    checks.append(Check(
+        "gguf_tooling", bool(gguf_tools),
+        ", ".join(gguf_tools) if gguf_tools else
+        "none: install Unsloth or clone llama.cpp before GGUF export",
+        required=False))
 
     # GPU / CUDA
     gpu_ok = False

@@ -20,6 +20,16 @@ drafter (different model family or a provider whose base model is not
 MiMo-V2.6). A different prompt, temperature, or context on the same base model
 does **not** qualify.
 
+## Configured families
+
+| Role | Model | Family | Env var |
+| --- | --- | --- | --- |
+| Teacher / drafter | `Qwen/Qwen3-32B` | Qwen3 | `TEACHER_MODEL_ID` |
+| Independent reviewer | `mistralai/Mistral-Small-24B-Instruct-2501` | Mistral | `REVIEW_MODEL_ID` |
+
+The reviewer must differ from the teacher **and** from the fine-tune base.
+Changing either id requires recording it with the review output.
+
 ## Input package (exact)
 
 | Item | Value |
@@ -27,7 +37,7 @@ does **not** qualify.
 | File | `../review/cross-family-input.jsonl` |
 | Manifest | `../review/cross-family-input.manifest.json` |
 | Records | 56 |
-| SHA-256 | `c0baaa4482c0792f4cf03475a2dd2f1b3fc1157fc1f96799d5c439013662d0dd` |
+| SHA-256 | `f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492` |
 | Fields per record | `id`, `prompt_hash`, `prompt`, `expect_refusal`, `expected_intent`, `expected_behaviour` |
 | Deliberately excluded | `why_valuable`, `research_inspiration`, `scenario`, `category`, `difficulty`, `language`, `coverage_cell`, `length_category` |
 

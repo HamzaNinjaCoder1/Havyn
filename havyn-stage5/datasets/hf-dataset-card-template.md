@@ -108,6 +108,10 @@ separate dataset with explicit consent and a contributor ledger.
 - The dataset is not a benchmark of Packet Tracer correctness; that is the live
   gate's job.
 
+## SHA-256 manifest
+
+{{FILE_SHA_TABLE}}
+
 ## Files
 
 - `data/train.jsonl`, `data/validation.jsonl`, `data/heldout.jsonl`

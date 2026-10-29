@@ -7,7 +7,7 @@ is used until the relevant step says so.
 Recommended first pass: set `DRY_RUN=true` and run 01 → 03 → 09 → 10 → 11. Every
 expensive notebook then validates its stage without a GPU or model download.
 
-## A. Open Colab
+## A. Open Colab — **USER ACTION REQUIRED**
 
 Open <https://colab.research.google.com> and create a new notebook.
 
@@ -156,11 +156,23 @@ python havyn-stage5/scripts/evaluate_model.py --model <merged-or-adapter> \
 The run reports exact X/Y and how many prompts succeeded; no PASS is recorded
 without real build + traffic verification.
 
+## O1. Merge the adapter (notebook 10)
+
+Training saves an adapter, not a standalone model. Merge before evaluation and
+export:
+
+```bash
+python havyn-stage5/scripts/merge_lora.py   --base-model Qwen/Qwen3-8B   --adapter "$HAVYN_DRIVE/checkpoints/standard/adapter"   --out "$HAVYN_DRIVE/merged/standard"
+```
+
+Expected: merged weights plus `merge-manifest.json` with SHA-256 per file.
+Use the merged path in steps M and O.
+
 ## O. GGUF export (notebook 10)
 
 ```bash
 python havyn-stage5/scripts/export_gguf.py \
-  --model "$HAVYN_DRIVE/checkpoints/standard" --quant q4_k_m \
+  --model "$HAVYN_DRIVE/merged/standard" --quant q4_k_m \
   --out "$HAVYN_DRIVE/artifacts" \
   --gate-report "$HAVYN_DRIVE/evaluation/gate-report.json"
 ```

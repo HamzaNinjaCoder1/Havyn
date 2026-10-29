@@ -156,22 +156,28 @@ def build(source: Path, out_root: Path, version: str | None, dry_run: bool) -> d
     for name, path in files.items():
         shutil.copyfile(path, out / "data" / f"{name}.jsonl")
 
+    file_hashes = {
+        name: sha256_file(out / "data" / f"{name}.jsonl") for name in files
+    }
+    manifest["file_sha256"] = file_hashes
+    sha_table = "\n".join(
+        ["| File | SHA-256 |", "| --- | --- |"]
+        + [f"| data/{name}.jsonl | {digest} |" for name, digest in file_hashes.items()]
+    )
+
     card = TEMPLATE.read_text(encoding="utf-8")
     card = card.replace("{{VERSION}}", version)
     card = card.replace("{{TRAIN_ROWS}}", str(manifest["row_counts"]["train"]))
     card = card.replace("{{VALIDATION_ROWS}}", str(manifest["row_counts"]["validation"]))
     card = card.replace("{{HELDOUT_ROWS}}", str(manifest["row_counts"]["heldout"]))
     card = card.replace("{{TASK_TABLE}}", _task_table(audit))
+    card = card.replace("{{FILE_SHA_TABLE}}", sha_table)
     (out / "README.md").write_text(card, encoding="utf-8")
 
     shutil.copyfile(LICENSE, out / "LICENSE")
     (out / "gold-exclusion.json").write_text(
         json.dumps(_gold_exclusion(), indent=2), encoding="utf-8")
 
-    manifest["file_sha256"] = {
-        name: sha256_file(out / "data" / f"{name}.jsonl")
-        for name in files
-    }
     (out / "manifest.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest

@@ -12,6 +12,7 @@ storage:
     - datasets/havyn-train-v1
     - checkpoints
     - reports/training-*
+    - logs
     - evaluation
     - artifacts
     - manifests

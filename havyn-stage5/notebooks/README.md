@@ -16,7 +16,7 @@ maps onto it as follows; notebooks were not renamed.
 | 07 standard training | `09-training.ipynb` standard cell | Qwen3-8B, Drive checkpoints, resumable |
 | 08 lite training | `09-training.ipynb` lite cell | Qwen3-4B |
 | 09 evaluation | `10-evaluation-export.ipynb` evaluation cell | gates: JSON 100%, lint ≥95%, Gold ≥90%, diagnosis ≥85% |
-| 10 live gate and export | `10-evaluation-export.ipynb` export cell + `evaluate_model.py --live` | live gate needs Packet Tracer and owner Gold |
+| 10 live gate and export | `10-evaluation-export.ipynb` merge → evaluate → export cells + `evaluate_model.py --live` | merge adapter first; live gate needs Packet Tracer and owner Gold |
 | 11 improvement loop | `11-improvement-loop.ipynb` | classify → delta → reassemble → retrain |
 
 ## DRY_RUN

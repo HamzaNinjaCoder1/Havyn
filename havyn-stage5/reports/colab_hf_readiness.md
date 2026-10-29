@@ -95,20 +95,20 @@ Every candidate is `candidate_not_measured`; the bake-off decides, and
 
 ## 7. Files created or modified in this pass
 
-Created: `configs/models.yaml`, `configs/colab.yaml`,
+Created: `scripts/merge_lora.py`, `configs/models.yaml`, `configs/colab.yaml`,
 `requirements-colab.txt`, `scripts/hf_auth.py`, `scripts/hf_smoke_test.py`,
 `scripts/prepare_hf_dataset.py`, `scripts/hf_publish.py`,
 `scripts/colab_preflight.py`, `scripts/colab_dashboard.py`,
-`scripts/colab_ux.py`, `scripts/dry_run_check.py`,
+`scripts/colab_ux.py`, `scripts/dry_run_check.py`, `scripts/merge_lora.py`,
 `datasets/hf-dataset-card-template.md`, `notebooks/README.md`,
 `reports/COLAB_RUNBOOK.md`, this report.
 
-Modified: `train_lora.py`, `benchmark_harness.py`, `format_examples.py`,
+Modified: `train_lora.py`, `benchmark_harness.py` (engine verification, hallucination rate, per-language and repeatability metrics), `format_examples.py`,
 `generate_prompts.py`, `roundtrip_verify.py`, all 11 notebooks,
 `configs/train-standard.yaml`, `configs/train-lite.yaml`, `.gitignore`.
 
-Generated locally (gitignored): `datasets/hf-export/havyn-sft-20261029-7517cc30/`
-(7 files, 8.9 MB), with SHA-256 manifest and Gold exclusion.
+Generated locally (gitignored): `datasets/hf-export/havyn-sft-20261029-b29fa9f8/`
+(7 files, 8.9 MB), with a SHA-256 table in the card, manifest and Gold exclusion.
 
 ## 8. Exact remaining user actions
 
@@ -145,7 +145,7 @@ Generated locally (gitignored): `datasets/hf-export/havyn-sft-20261029-7517cc30/
 
 | Check | Result |
 | --- | --- |
-| Offline test suite | 1,186 passed / 32 skipped (before this pass; re-run after changes) |
+| Offline test suite | 1,197 passed / 32 skipped (before this pass; re-run after changes) |
 | `dry_run_check.py` all stages | PASS (imports, engine, bake-off inputs, dataset, format, preflight, train, evaluate, export, improve, cross-family package) |
 | `colab_preflight.py` | structural checks pass; packages missing on this CPU machine (expected), GPU absent (expected) |
 | `hf_smoke_test.py --dry-run` | PASS |
@@ -169,3 +169,25 @@ The first real Colab run starts with:
 ```
 
 Then open `notebooks/01-environment-setup.ipynb` and follow the runbook.
+
+
+## 11. Final parallel-setup report (the 15 required items)
+
+1. **Colab readiness:** 90% prepared, **0% executed** (not opened in Colab).
+2. **Hugging Face readiness:** 80% (public connectivity/tokenizer verified; token path and any upload untested).
+3. **Standard candidates:** Qwen3-8B, Llama-3.1-8B-Instruct, Mistral-7B-Instruct-v0.3, Gemma-2-9B-it.
+4. **Lite candidates:** Qwen3-4B, Phi-3.5-mini-instruct, Llama-3.2-3B-Instruct, Gemma-2-2b-it (2.6B quality floor).
+5. **Teacher:** `Qwen/Qwen3-32B`, `TEACHER_MODEL_ID`, `configured_not_run`.
+6. **Independent reviewer:** `Mistral-Small-24B-Instruct-2501`, `REVIEW_MODEL_ID`, different family, `configured_not_run`.
+7. **Files/notebooks:** 15 new files, 11 notebooks updated, 2 training configs, 2 test files, `.gitignore`; full list in section 7.
+8. **User actions:** add `HF_TOKEN` (+ optional `HF_USERNAME`); select a GPU runtime; accept Llama/Gemma licences; run 01→11; run the live gate on Windows; publish only on explicit decision.
+9. **GPU:** ≥12 GB Standard, ≥6 GB Lite, ≥24 GB teacher/review. None consumed.
+10. **Storage:** dataset 0.01 GB, downloads ~7.5 GB, checkpoints ~6 GB, artifacts ~4 GB; ~17.5 GB minimum, ~49.5 GB with teacher/review; recommend ≥60 GB.
+11. **Secrets:** `HF_TOKEN` required for gated models/uploads; `HF_USERNAME` and `GITHUB_TOKEN` optional; never printed or committed.
+12. **Paid service:** none required; Colab Pro optional; private HF repos free.
+13. **Model downloaded:** no weights; only the ~1 MB smoke-test tokenizer.
+14. **GPU consumed:** none.
+15. **First real commands:** the clone/install/preflight block in section 10, then notebook 01 and `reports/COLAB_RUNBOOK.md`.
+
+Claims deliberately not made: training ready, model selected, Hugging Face
+configured with a token, or Colab verified. None of those is true yet.

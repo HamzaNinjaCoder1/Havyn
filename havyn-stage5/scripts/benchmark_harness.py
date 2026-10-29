@@ -32,8 +32,12 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from src.network_autopilot.ai.expander import IntentExpander  # noqa: E402
 from src.network_autopilot.ai.intent import HavynIntent  # noqa: E402
 from src.network_autopilot.ai.lint import lint_intent  # noqa: E402
+from src.network_autopilot.compiler.compiler import compile_spec  # noqa: E402
+from src.network_autopilot.compiler.spec_lint import lint_spec  # noqa: E402
+from src.network_autopilot.ipam import plan_addressing  # noqa: E402
 
 
 # --- prompt rendering (the deterministic 30% of S5.9) ------------------------
@@ -132,6 +136,8 @@ class GenerationScore:
     is_valid_json: bool
     is_schema_valid: bool
     lint_pass: bool
+    engine_verified: bool = False
+    language: str | None = None
     field_accuracy: float | None = None
     requirement_recall: float | None = None
     requirement_precision: float | None = None
@@ -203,6 +209,7 @@ def score_generation(
     expect_refusal: bool = False,
     latency_s: float | None = None,
     vram_mb: float | None = None,
+    language: str | None = None,
 ) -> GenerationScore:
     """Score one raw model response.
 
@@ -213,6 +220,7 @@ def score_generation(
     is_valid_json = raw is not None
     schema_valid = False
     lint_pass = False
+    engine_verified = False
     fields: dict[str, object] = {}
 
     if is_valid_json:
@@ -224,6 +232,15 @@ def score_generation(
         if intent is not None:
             result = lint_intent(intent)
             lint_pass = not result.blocking
+            if lint_pass:
+                # Full engine acceptance: expand -> spec lint -> IPAM -> compile.
+                try:
+                    expansion = IntentExpander(intent).expand()
+                    if not lint_spec(expansion.spec):
+                        compile_spec(expansion.spec, plan_addressing(expansion.spec))
+                        engine_verified = True
+                except Exception:  # noqa: BLE001
+                    engine_verified = False
             if expected_intent is not None:
                 try:
                     expected = HavynIntent.model_validate(expected_intent)
@@ -252,6 +269,8 @@ def score_generation(
         is_valid_json=is_valid_json,
         is_schema_valid=schema_valid,
         lint_pass=lint_pass,
+        engine_verified=engine_verified,
+        language=language,
         field_accuracy=fields.get("field_accuracy"),
         requirement_recall=fields.get("requirement_recall"),
         requirement_precision=fields.get("requirement_precision"),
@@ -278,15 +297,46 @@ def summarise(scores: list[GenerationScore]) -> dict[str, object]:
     ]
     latencies = [s.latency_s for s in scores if s.latency_s is not None]
     refusals = [s.correct_refusal for s in scores if s.correct_refusal is not None]
+    precisions = [
+        s.requirement_precision for s in scores if s.requirement_precision is not None
+    ]
+    mean_precision = (
+        round(sum(precisions) / len(precisions), 3) if precisions else None
+    )
+
+    by_language: dict[str, dict[str, object]] = {}
+    for language in sorted({s.language for s in scores if s.language}):
+        subset = [s for s in scores if s.language == language]
+        subset_fields = [
+            s.field_accuracy for s in subset if s.field_accuracy is not None
+        ]
+        by_language[language] = {
+            "examples": len(subset),
+            "valid_json_pct": pct([s.is_valid_json for s in subset]),
+            "schema_valid_pct": pct([s.is_schema_valid for s in subset]),
+            "engine_verified_pct": pct([s.engine_verified for s in subset]),
+            "mean_field_accuracy": (
+                round(sum(subset_fields) / len(subset_fields), 3)
+                if subset_fields else None
+            ),
+        }
+
     return {
         "examples": n,
         "valid_json_pct": pct([s.is_valid_json for s in scores]),
         "schema_valid_pct": pct([s.is_schema_valid for s in scores]),
         "lint_pass_pct": pct([s.lint_pass for s in scores]),
+        "engine_verified_pct": pct([s.engine_verified for s in scores]),
         "mean_field_accuracy": round(sum(field_accs) / len(field_accs), 3) if field_accs else None,
         "mean_requirement_recall": round(sum(recalls) / len(recalls), 3) if recalls else None,
+        "mean_requirement_precision": mean_precision,
+        # Extra requirements the model invented; lower precision => more invention.
+        "hallucinated_requirement_rate": (
+            round(1.0 - mean_precision, 3) if mean_precision is not None else None
+        ),
         "refusal_correct_pct": pct(refusals) if refusals else None,
         "mean_latency_s": round(sum(latencies) / len(latencies), 2) if latencies else None,
+        "by_language": by_language,
     }
 
 
@@ -297,9 +347,12 @@ def run_bakeoff(
     prompts: str | Path,
     out_dir: str | Path,
     max_prompts: int | None = None,
+    repeat_prompts: int = 0,
 ) -> Path:
     """Generate + score for every candidate model in the bake-off config.
 
+    ``repeat_prompts`` re-generates the first N prompts and records the exact
+    match rate, so determinism is measured instead of asserted.
     Requires torch/transformers and a GPU; raise, never degrade silently.
     """
     import torch
@@ -342,32 +395,39 @@ def run_bakeoff(
             quantization_config=quant_config,
         )
         model.eval()
+
+        def generate_once(record: dict) -> tuple[str, float]:
+            messages = [
+                {"role": "system", "content": config["system_prompt"]},
+                {"role": "user", "content": record["prompt"]},
+            ]
+            text = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True,
+            )
+            inputs = tokenizer([text], return_tensors="pt").to(model.device)
+            start = time.time()
+            with torch.no_grad():
+                output = model.generate(
+                    **inputs,
+                    max_new_tokens=candidate.get("max_new_tokens", 2048),
+                    temperature=candidate.get("temperature", 0.0),
+                    do_sample=candidate.get("temperature", 0.0) > 0,
+                )
+            latency = time.time() - start
+            response = tokenizer.decode(
+                output[0][inputs["input_ids"].shape[1]:],
+                skip_special_tokens=True,
+            )
+            return response, latency
+
         scores: list[GenerationScore] = []
+        raw_responses: list[str] = []
         results_path = out / f"{name.replace('/', '_')}-generations.jsonl"
 
         with results_path.open("w", encoding="utf-8") as results:
             for record in records:
-                messages = [
-                    {"role": "system", "content": config["system_prompt"]},
-                    {"role": "user", "content": record["prompt"]},
-                ]
-                text = tokenizer.apply_chat_template(
-                    messages, tokenize=False, add_generation_prompt=True,
-                )
-                inputs = tokenizer([text], return_tensors="pt").to(model.device)
-                start = time.time()
-                with torch.no_grad():
-                    output = model.generate(
-                        **inputs,
-                        max_new_tokens=candidate.get("max_new_tokens", 2048),
-                        temperature=candidate.get("temperature", 0.0),
-                        do_sample=candidate.get("temperature", 0.0) > 0,
-                    )
-                latency = time.time() - start
-                response = tokenizer.decode(
-                    output[0][inputs["input_ids"].shape[1]:],
-                    skip_special_tokens=True,
-                )
+                response, latency = generate_once(record)
+                raw_responses.append(response)
                 vram = torch.cuda.max_memory_allocated() / 1e6 \
                     if torch.cuda.is_available() else None
                 score = score_generation(
@@ -378,6 +438,7 @@ def run_bakeoff(
                     expect_refusal=record.get("expect_refusal", False),
                     latency_s=latency,
                     vram_mb=vram,
+                    language=record.get("language"),
                 )
                 scores.append(score)
                 results.write(json.dumps({
@@ -387,9 +448,24 @@ def run_bakeoff(
                     "score": score.__dict__,
                 }) + "\n")
 
+        repeat_pct = None
+        if repeat_prompts:
+            checked = min(repeat_prompts, len(records))
+            same = 0
+            for index in range(checked):
+                again, _ = generate_once(records[index])
+                if again == raw_responses[index]:
+                    same += 1
+            repeat_pct = round(100.0 * same / checked, 2)
+
         summary = summarise(scores)
         summary["model"] = name
         summary["model_id"] = candidate["model_id"]
+        summary["temperature"] = candidate.get("temperature", 0.0)
+        summary["deterministic_repeat_pct"] = repeat_pct
+        summary["repeat_prompts_checked"] = (
+            min(repeat_prompts, len(records)) if repeat_prompts else 0
+        )
         summary["peak_vram_mb"] = (
             round(torch.cuda.max_memory_allocated() / 1e6, 1)
             if torch.cuda.is_available() else None
@@ -420,8 +496,10 @@ def _write_comparison_table(out: Path, path: Path) -> None:
         return
     columns = [
         "model", "valid_json_pct", "schema_valid_pct", "lint_pass_pct",
-        "mean_field_accuracy", "mean_requirement_recall", "refusal_correct_pct",
-        "mean_latency_s", "peak_vram_mb",
+        "engine_verified_pct", "mean_field_accuracy", "mean_requirement_recall",
+        "mean_requirement_precision", "hallucinated_requirement_rate",
+        "refusal_correct_pct", "deterministic_repeat_pct", "mean_latency_s",
+        "peak_vram_mb",
     ]
     lines = ["| " + " | ".join(columns) + " |",
              "|" + "|".join(["---"] * len(columns)) + "|"]
@@ -437,8 +515,10 @@ def main() -> None:
     parser.add_argument("--prompts", required=True)
     parser.add_argument("--out", default="havyn-stage5/artifacts/bakeoff")
     parser.add_argument("--max-prompts", type=int, default=None)
+    parser.add_argument("--repeat-prompts", type=int, default=0,
+                        help="re-generate the first N prompts to measure determinism")
     args = parser.parse_args()
-    run_bakeoff(args.config, args.prompts, args.out, args.max_prompts)
+    run_bakeoff(args.config, args.prompts, args.out, args.max_prompts, args.repeat_prompts)
 
 
 if __name__ == "__main__":

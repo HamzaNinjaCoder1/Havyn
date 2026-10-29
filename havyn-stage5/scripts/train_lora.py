@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
@@ -147,6 +148,7 @@ def train(config_path: str, resume: bool, output_dir: str | None,
             f"refusing to train on an unfrozen or byte-changed dataset ({root}): "
             + "; ".join(breaks)
         )
+    freeze = _freeze_info(root)
     examples, val, stats = load_training_data(root, seed)
 
     checkpoint_dir = Path(output_dir) if output_dir else Path(cfg["output"]["checkpoint_dir"])
@@ -161,9 +163,14 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         "base_model": cfg.get("base_model"),
         "config": str(config_path),
         "config_sha256": _sha256_file(Path(config_path)),
+        "config_values": cfg,
         "code_commit": _git_pin(),
         "dataset": str(root),
-        "dataset_freeze": _freeze_info(root),
+        "dataset_version": (
+            f"{root.name}@{freeze['manifest_sha256'][:12]}"
+            if freeze.get("manifest_sha256") else root.name
+        ),
+        "dataset_freeze": freeze,
         "dataset_stats": stats,
         "missing_tasks": missing,
         "seed": seed,
@@ -183,6 +190,17 @@ def train(config_path: str, resume: bool, output_dir: str | None,
             json.dumps(report, indent=2), encoding="utf-8")
         print(json.dumps(report["reason"]))
         return report
+
+    missing = [
+        name for name in ("transformers", "trl", "peft", "datasets", "accelerate")
+        if importlib.util.find_spec(name) is None
+    ]
+    if missing:
+        raise SystemExit(
+            "missing training packages: " + ", ".join(missing) +
+            ". Install them first: pip install -r "
+            "havyn-stage5/requirements-colab.txt"
+        )
 
     try:
         from unsloth import FastLanguageModel

@@ -207,6 +207,20 @@ def stage_evaluate() -> list[str]:
     ]
 
 
+def stage_merge() -> list[str]:
+    import merge_lora
+
+    with tempfile.TemporaryDirectory() as tmp:
+        adapter = Path(tmp) / "adapter"
+        adapter.mkdir()
+        (adapter / "adapter_config.json").write_text("{}", encoding="utf-8")
+        plan = merge_lora.merge(
+            "dry-run-base", adapter, Path(tmp) / "merged", dry_run=True)
+    if not plan.get("dry_run"):
+        raise Fail("merge dry-run did not report itself")
+    return ["LoRA merge wiring valid; no weights loaded"]
+
+
 def stage_live_export() -> list[str]:
     import evaluate_model
     import export_gguf
@@ -283,6 +297,7 @@ STAGES = {
     "preflight": stage_preflight,
     "train": stage_train,
     "evaluate": stage_evaluate,
+    "merge": stage_merge,
     "live_export": stage_live_export,
     "improve": stage_improve,
     "cross_family": stage_cross_family,

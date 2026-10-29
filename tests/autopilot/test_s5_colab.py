@@ -112,3 +112,23 @@ def test_dashboard_hides_the_token(monkeypatch) -> None:
     data = build_dashboard("test")
     assert data["hf_auth"]["token"] in (None, "hidden")
     assert "storage" in data and "minimum_free_gb" in data["storage"]
+
+
+def test_merge_lora_dry_run_touches_nothing(tmp_path) -> None:
+    from merge_lora import merge
+
+    adapter = tmp_path / "adapter"
+    adapter.mkdir()
+    (adapter / "adapter_config.json").write_text("{}", encoding="utf-8")
+    plan = merge("dry-run-base", adapter, tmp_path / "merged", dry_run=True)
+    assert plan["dry_run"] is True
+    assert not (tmp_path / "merged").exists()
+
+
+def test_preflight_checks_sequence_and_gguf_tooling() -> None:
+    import colab_preflight
+
+    checks = {c.name: c for c in colab_preflight.run(False, False, False, "standard", True)}
+    assert checks["sequence_length"].ok, checks["sequence_length"].detail
+    assert "gguf_tooling" in checks
+    assert checks["dataset_freeze"].ok

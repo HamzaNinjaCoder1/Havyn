@@ -5,11 +5,11 @@
   "verification_method": "dry_run_reconstruction_equals_source",
   "examples": 216,
   "queues": {
-    "ACCEPT": 166,
-    "REVIEW": 50,
+    "ACCEPT": 139,
+    "REVIEW": 77,
     "REJECT": 0
   },
-  "near_duplicates_flagged": 50,
-  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
-  "generated": "2026-10-29T10:56:01+00:00"
+  "near_duplicates_flagged": 77,
+  "engine_commit": "57ddfb8efe748d22e7399f72bc82d17c550c8c2d+dirty-src",
+  "generated": "2026-10-29T12:22:12+00:00"
 }

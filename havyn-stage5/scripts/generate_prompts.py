@@ -100,8 +100,8 @@ def template_prompts(intent: HavynIntent, rng: random.Random) -> list[dict]:
     return out
 
 
-def teacher_prompts(intents: list[HavynIntent], model_id: str, out_dir: Path,
-                    rng: random.Random) -> list[dict]:
+def teacher_prompts(items: list[tuple[dict, HavynIntent]], model_id: str,
+                    out_dir: Path, rng: random.Random) -> list[dict]:
     """GPU path: batch the teacher over intents, write raw outputs for
     review. Import torch only here so the offline share never needs it."""
     import torch
@@ -112,7 +112,7 @@ def teacher_prompts(intents: list[HavynIntent], model_id: str, out_dir: Path,
         model_id, torch_dtype="auto", device_map="auto")
     model.eval()
     results = []
-    for index, intent in enumerate(intents):
+    for index, (record, intent) in enumerate(items):
         message = [
             {"role": "system", "content": TEACHER_SYSTEM},
             {"role": "user", "content": json.dumps(intent.model_dump())},
@@ -128,14 +128,21 @@ def teacher_prompts(intents: list[HavynIntent], model_id: str, out_dir: Path,
             output[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
         results.append({
             "prompt": prompt_text.strip(),
-            "language": "en",
+            "language": record.get("language") or "en",
             "style": "teacher",
             "teacher_generated": True,
             "teacher_model": model_id,
             "intent_index": index,
+            # Traceable back to the source intent; without these the teacher
+            # output could never be round-tripped or joined to training data.
+            "intent_hash": intent_key(record),
+            "coverage_cell": record.get("coverage_cell"),
+            "verification_method": "teacher_roundtrip",
+            "origin": "synthetic_ai",
+            "human_contributor": False,
         })
         if index % 100 == 0:
-            print(f"[teacher] {index}/{len(intents)}")
+            print(f"[teacher] {index}/{len(items)}")
     del model
     torch.cuda.empty_cache()
     return results
@@ -177,7 +184,7 @@ def main() -> None:
 
     prompts = []
     hashes = set()
-    teacher_records = []
+    teacher_items: list[tuple[dict, HavynIntent]] = []
     for record in records:
         intent = HavynIntent.model_validate(record["intent"])
         for item in template_prompts(intent, rng):
@@ -196,10 +203,16 @@ def main() -> None:
                 **item,
             })
         if args.teacher and rng.random() >= args.share:
-            teacher_records.append(intent)
+            teacher_items.append((record, intent))
 
     if args.teacher:
-        prompts.extend(teacher_prompts(teacher_records, args.teacher, out, rng))
+        prompts.extend(teacher_prompts(teacher_items, args.teacher, out, rng))
+
+    # Every prompt needs a stable id and an honest provenance label.
+    for index, item in enumerate(prompts):
+        item["id"] = f"pr-{index:06d}"
+        item.setdefault("origin", "synthetic_ai")
+        item.setdefault("human_contributor", False)
 
     with (out / "prompts.jsonl").open("w", encoding="utf-8") as f:
         for item in prompts:
@@ -212,6 +225,11 @@ def main() -> None:
         "template": sum(1 for p in prompts if not p["teacher_generated"]),
         "teacher": sum(1 for p in prompts if p["teacher_generated"]),
         "teacher_model": args.teacher,
+        "provenance": {
+            "origin": "synthetic_ai",
+            "human_contributor": False,
+            "consent": "not_applicable",
+        },
         "engine_commit": _engine_pin(),
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }, indent=2), encoding="utf-8")

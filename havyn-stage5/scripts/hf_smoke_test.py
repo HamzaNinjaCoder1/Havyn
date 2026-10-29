@@ -157,14 +157,29 @@ def run(dry_run: bool, registry_model: str | None,
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="no network calls")
-    parser.add_argument("--registry-model", default=None,
-                        help="check metadata/disk size for this model id, no weights")
+    parser.add_argument("--registry-model", default="__registry__",
+                        help="check metadata/disk size (default: first standard registry candidate)")
+    parser.add_argument("--no-registry-model", action="store_true",
+                        help="skip the registry model metadata/disk check")
     parser.add_argument("--require-model-access", action="store_true",
                         help="fail if the registry model is not resolvable")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    report = run(args.dry_run, args.registry_model, args.require_model_access)
+    registry_model = args.registry_model
+    if registry_model == "__registry__" and not args.no_registry_model:
+        try:
+            import yaml
+            registry = yaml.safe_load(
+                (REPO / "havyn-stage5" / "configs" / "models.yaml")
+                .read_text(encoding="utf-8"))
+            registry_model = registry["standard_candidates"][0]["model_id"]
+        except Exception:
+            registry_model = None
+    elif args.no_registry_model:
+        registry_model = None
+
+    report = run(args.dry_run, registry_model, args.require_model_access)
     if args.json:
         print(json.dumps({
             "passed": report.passed,

@@ -1,6 +1,6 @@
 {
   "name": "havyn-train-v1",
-  "created": "2026-10-29T10:56:36+00:00",
+  "created": "2026-10-29T12:22:37+00:00",
   "engine_commits": [
     "06c57ced050c",
     "06c57ced050cda532915c15b1ce772b0a0eaf607"
@@ -20,7 +20,7 @@
     "heldout": 0.051
   },
   "leaks": 0,
-  "verification_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
+  "verification_commit": "57ddfb8efe748d22e7399f72bc82d17c550c8c2d+dirty-src",
   "provenance": {
     "origin": "synthetic_ai",
     "human_contributor": false,
