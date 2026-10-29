@@ -1,28 +1,31 @@
 # Stage-5 execution handoff
 
-Snapshot taken 2026-10-29. Checkpoint: `e8503cdfb32a83817a2fbc84ad4245057acf75a2`.
-This handoff describes what is done, what is locally runnable, and what is
-blocked. It does **not** claim the Stage-5 pipeline has been executed end to
-end.
+Snapshot taken 2026-10-29 after commit `64f15ff` (certificates repinned in
+`80efff3`). This handoff describes what is done, what is locally runnable, and
+what is blocked. It does **not** claim the Stage-5 pipeline has been executed
+end to end.
 
 ## Snapshot
 
 | Item | State |
 | --- | --- |
-| Prompt-authoring pool | 56 candidates: 34 buildable + 22 refusal |
-| Candidate engine check | **56/56** in the working tree, 0 failures (clean `e8503cd` = 48/56; see below) |
-| Post-fix semantic status | **ACCEPT 48 / REVIEW 8 / REJECT 0** (same-base re-check, not cross-family) |
+| Prompt-authoring pool | 56 candidates: 34 buildable + 22 refusal; **56/56** engine-verified in the working tree (clean checkout needs the Stage 3/4 engine work for 8; see Phase 7 note) |
+| Post-fix semantic status | **ACCEPT 48 / owner-decision 8 / REJECT 0** (same-base re-check, not cross-family) |
+| Owner-Gold drafts | **56** in `accepted-candidates/`: 48 ACCEPT + 8 with technical recommendations; **0 owner-approved** |
+| Coverage-driven slots | **44** in `coverage-candidates/`: 41 buildable + 3 capability-gap refusals; 35 distinct cells + 9 language variants |
 | Duplicate control | 0 exact / 0 normalized / 0 intent-level / 0 MinHash ≥0.90 |
-| VLAN-pin audit | 21 multi-VLAN sites, 50 host groups, 10 servers, **0 unpinned** |
+| VLAN-pin audit | 21 multi-VLAN sites, 50 host groups, 11 servers, **0 unpinned** |
 | Coverage | exact 1 / label-only 14 / feature-match 4 / extension-cell 15 / refusal 22 |
-| Owner Gold | **0 / 100** records exist (only a template) |
-| External Gold | **0 / 200** records exist |
-| Cross-family review | **not done** |
-| Synthetic training data | 2,263 rows: train 1,776 / validation 250 / heldout 237 |
-| Dataset freeze | **not frozen** (`FROZEN.json` absent) |
-| Certificates | 108/108 cells, 61/61 fault injectors, 5/5 mutations at `06c57ce`; `--check` says **STALE** vs `e8503cd` |
+| Owner Gold adopted | **0 / 100** records exist (only a template) |
+| External human Gold | **0 / 200** records exist |
+| External synthetic corpus | **200** rows (160 buildable / 20 refusal / 20 ambiguous), all engine-checked, `origin: synthetic_ai` |
+| Cross-family review | **NOT RUN**; package regenerated, SHA-256 `f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492` |
+| Synthetic training data | **2,332** rows: train 1,989 / validation 223 / heldout 120 (0.853/0.096/0.051) |
+| Prompt task | 216 examples across 36 families: train 185 / validation 21 / heldout 10 |
+| Dataset freeze | **frozen** (`FROZEN.json` present; `--check` valid) |
+| Certificates | 108/108 cells, 58/58 fault injectors, 5/5 mutations at `64f15ff+dirty-src`; `--check` **valid** |
 | Gold template validation | 1/1 engine-verified; leak check clean against the training set |
-| Offline test suite | Run 1: **1,176 passed / 32 skipped / 0 failed** (202.66 s). Post-commit rerun: **1,175 passed / 1 failed / 32 skipped** (293.91 s). The single failure is a pre-existing timing-sensitive bridge test, not Stage 5; see "Known test flake". |
+| Offline test suite | **1,186 passed / 32 skipped / 0 failed** (179 s) |
 | Live Packet Tracer | **not run** |
 
 ---
@@ -60,9 +63,10 @@ end.
 8. **Reproducibility dependency is documented.** `reproducibility_dependency.md`
    names the exact `ai/` consumers, why `ai/` is Stage-5-only, and the 8-candidate
    Stage-3 dependency that blocks a clean-clone 56/56.
-9. **Synthetic data exists.** intents 1,944 valid / 0 failed; prompts 147;
-   roundtrip 147 (ACCEPT 77 / REVIEW 70 / REJECT 0, dry-run); diagnosis 72;
-   enhancement 60; clarification 40; train split 2,263 rows with 0 leaks.
+9. **Synthetic data exists and is frozen.** intents 1,944 valid / 0 failed;
+   prompts 216 across 36 cells; roundtrip 216 (dry-run, not a gate); diagnosis
+   72; enhancement 60; clarification 40; train split 2,332 rows with 0 leaks,
+   0 family overlaps and a valid `FROZEN.json`.
 
 ## B. Locally executable, but resource- or data-dependent
 
@@ -82,19 +86,24 @@ by hardware.
 | Hash/manifest half of GGUF | `python havyn-stage5/scripts/export_gguf.py --help` / offline helpers | SHA-256, manifest, model card | the quantised file itself |
 | Environment report | `python havyn-stage5/scripts/env_report.py` | what the runtime actually has | GPU training success |
 
-Known local data issues to fix before freeze:
+Fixed 2026-10-29 (commit `64f15ff`):
 
-- **The `prompt` task has 0 training rows.** The audit splits 147 prompt
-  examples into 2 families: validation 59, heldout 88, train 0. Training with
-  `prompt` in `task_tags` would contribute nothing. Fix by generating more
-  prompt families (at least one family must stay in train) or by removing
-  `prompt` from the training tags until that exists.
-- **Certificates are stale by commit.** `certify.py --check` reports
-  `06c57ce → e8503cd` for all three families. Re-run after the engine commit is
-  final; do not reuse the old certificates.
-- **The prompt/roundtrip manifests do not record an engine commit.** The intent,
-  diagnosis, enhancement and clarification manifests do. Add the engine commit
-  when regenerating.
+- **The `prompt` task had 0 training rows and all prompts shared one intent.**
+  Root cause: `valid.jsonl` rows are keyed by `id`, but `generate_prompts.py`,
+  `roundtrip_verify.py` and `assemble_dataset.py` read a `hash` field that does
+  not exist, so every prompt got `intent_hash: null` and collapsed onto the
+  last intent. All three now use `hash or id`. Prompts were regenerated across
+  36 coverage cells (216 examples; 185/21/10 train/val/heldout) and the split
+  keeps one family in train.
+- **The dry-run round-trip was being used as a gate.** A dry-run reconstructs
+  the source intent, so it proves nothing. Template prompts are now gated by
+  construction (`prompt_gate: template_construction`); teacher prompts require
+  an ACCEPT from an independent model (`--model`). Dataset card records
+  `independent_model_verified: false`.
+- **Certificates are current.** Regenerated at `64f15ff+dirty-src` (the engine
+  source is still the uncommitted Stage 3/4 work); `certify.py --check` passes.
+- **Prompt/round-trip manifests now carry an engine pin**, including a
+  `+dirty-src` marker while the engine tree is uncommitted.
 
 ## C. Requires Hamza / human contributors
 
@@ -107,7 +116,6 @@ Known local data issues to fix before freeze:
 | Cross-family review | Needs a different model family/provider | Run `cross-family-review-protocol.md` on the 56-record package; commit the raw review |
 | Commit the Stage 3/4 engine work | This work is forbidden to touch it | Decide where that commit lands; then re-certify and re-run the clean-clone check |
 | Approve provenance extension | Dataset policy | Approve `provenance` fields / `ai_assisted` rule in `datasets/gold-v1/README.md` |
-| Fix the 0-train prompt task | Dataset design decision | Add prompt families or drop `prompt` from training tags before freeze |
 
 ## D. Requires GPU / live Packet Tracer
 
@@ -138,19 +146,25 @@ the purge assertion) rather than inside a Stage-5 commit.
 
 ## E. Final release blockers
 
-1. **0/100 owner Gold** records; 8 REVIEW decisions open.
-2. **0/200 external Gold**; no contributor has been recruited.
-3. **No cross-family review**; same-base Model B does not satisfy this gate.
+1. **0/100 owner Gold** records adopted; the 8 technical recommendations still
+   need owner confirmation (`owner_decisions.json`).
+2. **0/200 external human Gold**; no contributor has been recruited. The
+   synthetic 200-example corpus is separate and is not a substitute.
+3. **No cross-family review**; the package and protocol are ready, but the
+   local different-family models (TinyLlama-1.1B, flan-t5-small) cannot review
+   56 records on CPU. This is NOT RUN, not passed.
 4. **Clean-clone verification is 48/56**, not 56/56, until the Stage 3/4
-   server-service support is committed.
-5. **Certificates are stale** vs `e8503cd`; do not train on them.
-6. **Dataset is not frozen**, and the `prompt` task has 0 train rows.
-7. **No bake-off result**, no trained checkpoint, no evaluation gate report.
-8. **No live Packet Tracer gate** (50 Gold prompts, ≥90%).
-9. **No merged model, no GGUF**, no model card/manifest, no release GO.
-10. **No leak check against real Gold** is possible until Gold exists.
-11. **One known offline test flake** (`test_unclaimed_results_are_purged`);
-    fix it separately before claiming a fully deterministic CI.
+   server-service support is committed. The 8 affected candidates are
+   `oc-012, 013, 023, 025, 041, 053, 055, 056`.
+5. **No bake-off result**, no trained checkpoint, no evaluation gate report.
+6. **No live Packet Tracer gate** (50 Gold prompts, ≥90%); there is no owner
+   Gold set to draw 50 prompts from.
+7. **No merged model, no GGUF**, no model card/manifest, no release GO.
+8. **No leak check against real Gold** is possible until Gold exists; the
+   template-only check proves the pipeline, not the final set.
+9. **Engine provenance is dirty**: all pins read `64f15ff+dirty-src` because the
+   Stage 3/4 work is uncommitted. Re-run certification and validation after
+   that commit lands.
 
 ---
 
