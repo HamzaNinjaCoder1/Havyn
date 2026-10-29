@@ -16,6 +16,8 @@ Open <https://colab.research.google.com> and create a new notebook.
 Runtime → Change runtime type → Hardware accelerator → GPU.
 
 - Standard training / bake-off: ≥12 GB (L4 or better).
+- Cross-family review with Mistral-Small-24B: ≥24 GB at 4-bit (or a 4-bit
+  7B Mistral on ≥8 GB).
 - Lite training: ≥6 GB.
 - Teacher or independent review: ≥24 GB (A100 recommended).
 
@@ -88,6 +90,23 @@ Then run the notebook cell. Expected outputs in Drive:
 `<run>/<model>-generations.jsonl`, `<model>-summary.json`, `comparison.md`.
 No winner is selected by the tooling; record the measured table before
 changing `configs/bakeoff.yaml`.
+
+## H2. Cross-family review — **USER ACTION REQUIRED (GPU + model)**
+
+This gate runs before any training. It uses a different model family from the
+teacher (Qwen3) and the fine-tune base.
+
+```bash
+export REVIEW_MODEL_ID=mistralai/Mistral-Small-24B-Instruct-2501
+python havyn-stage5/scripts/cross_family_review.py --precheck-only
+python havyn-stage5/scripts/cross_family_review.py   --model "$REVIEW_MODEL_ID" --load-in-4bit
+```
+
+Expected: 56/56 records with a verdict, the model id/family/revision, input
+SHA-256 and the disagreement list written under
+`prompt-authoring/review/cross-family-reviews/`. A REJECT blocks the gate; a
+REVIEW needs an owner decision. No training may start before this passes.
+`REVIEW_MODEL_ID` is a Colab secret, never a literal.
 
 ## I. Verify/freeze the dataset
 

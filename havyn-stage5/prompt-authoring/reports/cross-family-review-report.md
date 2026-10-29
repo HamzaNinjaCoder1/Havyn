@@ -76,6 +76,23 @@ Models considered:
 | `google/flan-t5-small` | T5 | INVALID PER INSTRUCTION | explicitly excluded; cached copy is a 9 KB placeholder |
 | `hf-internal-testing/tiny-random-LlamaForCausalLM` | test-only | INVALID | random weights; meaningless output |
 
+
+## Executor prepared (still not run)
+
+The review is now one command on a GPU runtime:
+
+- Script: `havyn-stage5/scripts/cross_family_review.py`
+- Notebook: `havyn-stage5/notebooks/12-cross-family-review.ipynb`
+- Offline precheck: **56/56 engine-verified, 0 issues**, 56 baseline entries
+  (55 ACCEPT / 1 REVIEW / 0 REJECT after the resolved decisions). See
+  `review/cross-family-precheck.json`.
+- Command:
+  `REVIEW_MODEL_ID=mistralai/Mistral-Small-24B-Instruct-2501 python havyn-stage5/scripts/cross_family_review.py --model "$REVIEW_MODEL_ID" --load-in-4bit`
+
+The executor records model id/family/revision, environment, input SHA,
+timestamp and raw output; it refuses a Qwen-family reviewer and marks any
+unparseable output as UNPARSED rather than inventing a verdict.
+
 ## What would unblock it
 
 1. Run the prepared protocol on a **Colab GPU** runtime with

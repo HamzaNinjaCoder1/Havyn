@@ -1,0 +1,28 @@
+{
+  "input_package": {
+    "file": "havyn-stage5\\prompt-authoring\\review\\cross-family-input.jsonl",
+    "sha256": "f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492",
+    "records": 56
+  },
+  "candidate_languages": {
+    "en": 30,
+    "roman-urdu": 18,
+    "mixed": 8
+  },
+  "baseline_verdicts": {
+    "entries": 56,
+    "by_verdict": {
+      "ACCEPT": 55,
+      "REJECT": 0,
+      "REVIEW": 1
+    }
+  },
+  "engine": {
+    "checked": 56,
+    "verified": 56,
+    "failures": []
+  },
+  "issues": [],
+  "passed": true,
+  "generated": "2026-10-29T18:43:31+00:00"
+}

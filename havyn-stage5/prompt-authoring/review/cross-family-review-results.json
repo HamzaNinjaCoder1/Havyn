@@ -74,5 +74,22 @@
     "Or provide a hosted Mistral-family endpoint/API key and let the same 56-record package run there.",
     "Record the model id, revision, temperature, input SHA and raw per-record output as the protocol requires."
   ],
-  "note": "No verdict was produced. Same-base Model B and the post-fix re-check are not cross-family evidence."
+  "note": "No verdict was produced. Same-base Model B and the post-fix re-check are not cross-family evidence.",
+  "executor": {
+    "script": "havyn-stage5/scripts/cross_family_review.py",
+    "notebook": "havyn-stage5/notebooks/12-cross-family-review.ipynb",
+    "precheck": {
+      "passed": true,
+      "records": 56,
+      "engine_verified": 0,
+      "issues": 0,
+      "baseline_by_verdict": {
+        "ACCEPT": 55,
+        "REJECT": 0,
+        "REVIEW": 1
+      },
+      "file": "havyn-stage5/prompt-authoring/review/cross-family-precheck.json"
+    },
+    "command": "REVIEW_MODEL_ID=mistralai/Mistral-Small-24B-Instruct-2501 python havyn-stage5/scripts/cross_family_review.py --model \"$REVIEW_MODEL_ID\" --load-in-4bit"
+  }
 }

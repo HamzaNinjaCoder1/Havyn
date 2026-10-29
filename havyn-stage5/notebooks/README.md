@@ -12,6 +12,7 @@ maps onto it as follows; notebooks were not renamed.
 | 04 dataset validation | `05-dataset-verification.ipynb` | independent-family round-trip; GPU + `REVIEW_MODEL_ID` |
 | 05 format dataset | `08-question-data.ipynb` (last cell) | `assemble_dataset.py` → `validate_training_split.py` → `freeze_dataset.py` |
 | 05 diagnosis/enhancement data | `06-diagnosis-data.ipynb`, `07-enhancement-data.ipynb` | CPU |
+| cross-family review | `12-cross-family-review.ipynb` | gate before training; GPU + `REVIEW_MODEL_ID` (Mistral family) |
 | 06 training preflight | `09-training.ipynb` first training cell (`gate("train")`) or `scripts/colab_preflight.py` | fails before GPU if anything is missing |
 | 07 standard training | `09-training.ipynb` standard cell | Qwen3-8B, Drive checkpoints, resumable |
 | 08 lite training | `09-training.ipynb` lite cell | Qwen3-4B |

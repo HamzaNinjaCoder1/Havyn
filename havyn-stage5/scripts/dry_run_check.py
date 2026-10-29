@@ -282,9 +282,16 @@ def stage_cross_family() -> list[str]:
     reviewer = registry["review"]["family"]
     if teacher == reviewer:
         raise Fail("teacher and review are the same family")
+    import cross_family_review
+
+    report = cross_family_review.precheck(run_engine=False, write=False)
+    if not report["passed"]:
+        raise Fail(f"offline precheck failed: {report['issues'][:2]}")
     return [
         f"{len(rows)} records, SHA {digest[:12]}",
-        f"teacher={teacher}, review={reviewer} (different families), status=NOT RUN",
+        f"teacher={teacher}, review={reviewer} (different families)",
+        f"offline precheck passed with {len(report['issues'])} issues; "
+        "status=BLOCKED locally until a GPU Mistral runtime runs it",
     ]
 
 
