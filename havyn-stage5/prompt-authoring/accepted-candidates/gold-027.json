@@ -1,0 +1,25 @@
+{
+  "id": "gold-027",
+  "candidate_id": "oc-027",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "enterprise",
+  "coverage_cell": "small-s1-a3-multi-dhcp-cable-none-iot",
+  "length_category": "medium",
+  "original_ai_prompt": "Design the network for a new retail branch. We have two POS terminals that must be isolated for compliance, a back-office PC, IP security cameras, and free guest WiFi for customers. POS and back office stay wired; guests are wireless. Cable internet on site.",
+  "cleaned_prompt": "Design the network for a new retail branch. We have two POS terminals that must be isolated for compliance, a back-office PC, IP security cameras, and free guest WiFi for customers. POS and back office stay wired; guests are wireless. Cable internet on site.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: real IP security cameras cannot be expressed — the schema's only IoT kind is smart_led ('kind: Literal[\"smart_led\"]'), and relabelling cameras as smart LEDs is exactly the mislabel the engine must not do. The correct output names the camera limitation and offers either the expressible smart-LED IoT device or an explicit statement that IP cameras are out of model scope. The POS/back-office/guest segmentation itself is buildable.",
+  "capability_limitations": "REFUSE-BY-NAME: real IP security cameras cannot be expressed — the schema's only IoT kind is smart_led ('kind: Literal[\"smart_led\"]'), and relabelling cameras as smart LEDs is exactly the mislabel the engine must not do. The correct output names the camera limitation and offers either the expressible smart-LED IoT device or an explicit statement that IP cameras are out of model scope. The POS/back-office/guest segmentation itself is buildable.",
+  "why_suitable": "Retail/POS realism (PCI-style isolation) plus an honest capability-gap probe: cameras aren't a verified IoT kind. Prevents the model from pretending it can place real IP cameras.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-027",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

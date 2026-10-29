@@ -1,0 +1,125 @@
+{
+  "id": "gold-008",
+  "candidate_id": "oc-008",
+  "language": "mixed",
+  "difficulty": "L2",
+  "category": "wireless",
+  "coverage_cell": "small-s1-a1-multi-dhcp-cable-none",
+  "length_category": "short",
+  "original_ai_prompt": "Choti si shop hai jahan staff ke laptops aur customers, dono ko WiFi chahiye. Staff ke laptops apne internal network par rahen, and customers ke liye ek alag free WiFi ho, so that dono mix na hon. Cable internet available hai.",
+  "cleaned_prompt": "Choti si shop hai jahan staff ke laptops aur customers, dono ko WiFi chahiye. Staff ke laptops apne internal network par rahen, and customers ke liye ek alag free WiFi ho, so that dono mix na hon. Cable internet available hai.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "shop-wifi",
+    "sites": [
+      {
+        "id": "shop",
+        "areas": [
+          {
+            "id": "floor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "stafflaptops",
+                "area": "floor",
+                "count": 3,
+                "device": "laptop",
+                "vlan": "staffnet"
+              },
+              {
+                "id": "customerdevices",
+                "area": "floor",
+                "count": 3,
+                "device": "smartphone",
+                "vlan": "customernet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "shop",
+        "required_hosts": 10
+      },
+      {
+        "id": "customernet",
+        "name": "Customer",
+        "dhcp": true,
+        "site": "shop",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "staffwifi",
+        "site": "shop",
+        "area": "floor",
+        "ssid": "ShopStaff",
+        "security": "wpa2",
+        "passphrase": "shopstaff2026",
+        "client_group_ids": [
+          "stafflaptops"
+        ]
+      },
+      {
+        "id": "guestwifi",
+        "site": "shop",
+        "area": "floor",
+        "ssid": "ShopGuest",
+        "security": "open",
+        "client_group_ids": [
+          "customerdevices"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Staff laptops get WiFi on the internal network",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Customers get a separate free WiFi network",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Both reach the internet",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Two subnets (staff/customer) with two separate WiFi cells (staff WPA2, customer open), cable internet. The two networks are stated as separate but guests are NOT promised to be blocked from internal hosts, so no guest_isolation is involved and this builds — the contrast with oc-007, which demands the isolation guarantee.",
+  "capability_limitations": "Two subnets (staff/customer) with two separate WiFi cells (staff WPA2, customer open), cable internet. The two networks are stated as separate but guests are NOT promised to be blocked from internal hosts, so no guest_isolation is involved and this builds — the contrast with oc-007, which demands the isolation guarantee.",
+  "why_suitable": "Tests the boundary: a shop with staff laptops and customer WiFi like oc-007 but WITHOUT the isolation guarantee, so the model must not over-refuse. Paired contrast case.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-008",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

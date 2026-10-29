@@ -1,0 +1,74 @@
+{
+  "id": "gold-032",
+  "candidate_id": "oc-032",
+  "language": "roman-urdu",
+  "difficulty": "L1",
+  "category": "basic",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "original_ai_prompt": "Do computers aur ek printer hai, teeno ko ek network par lagana hai taake printer dono se chale. Bas.",
+  "cleaned_prompt": "Do computers aur ek printer hai, teeno ko ek network par lagana hai taake printer dono se chale. Bas.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "pc-printer",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "room",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "computers",
+                "area": "room",
+                "count": 2,
+                "device": "pc"
+              },
+              {
+                "id": "printer1",
+                "area": "room",
+                "count": 1,
+                "device": "printer"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "lan",
+        "name": "LAN",
+        "dhcp": false,
+        "site": "office",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Both computers can print to the shared printer",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "One LAN with 2 PCs and 1 printer. Exercises the printer device type.",
+  "capability_limitations": "One LAN with 2 PCs and 1 printer. Exercises the printer device type.",
+  "why_suitable": "Introduces a printer in natural mixed phrasing — a device type templates rarely lead with.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-032",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

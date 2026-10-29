@@ -1,0 +1,99 @@
+{
+  "id": "gold-009",
+  "candidate_id": "oc-009",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "firewall-security",
+  "coverage_cell": "small-s1-a1-single-dhcp-wan-asa-dmz",
+  "length_category": "document",
+  "original_ai_prompt": "We're a small law firm with a single office and about twenty staff PCs. We host our own client-intake website and outside visitors have to be able to reach it, but that website must never sit on the same network as our internal file workstations. I want a perimeter firewall between us and the ISP — we're getting a WAN handoff. The staff PCs go on one trusted inside network and should get their addresses automatically. The website goes in its own DMZ segment that's reachable from the internet, and nothing from the internet should be able to start a connection into the inside. Keep the inside to that single LAN.",
+  "cleaned_prompt": "We're a small law firm with a single office and about twenty staff PCs. We host our own client-intake website and outside visitors have to be able to reach it, but that website must never sit on the same network as our internal file workstations. I want a perimeter firewall between us and the ISP — we're getting a WAN handoff. The staff PCs go on one trusted inside network and should get their addresses automatically. The website goes in its own DMZ segment that's reachable from the internet, and nothing from the internet should be able to start a connection into the inside. Keep the inside to that single LAN.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "lawfirm-dmz",
+    "sites": [
+      {
+        "id": "firm",
+        "areas": [
+          {
+            "id": "office",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "office",
+                "count": 18,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "inside",
+        "name": "Inside users",
+        "dhcp": true,
+        "site": "firm",
+        "required_hosts": 24
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506",
+      "dmz": true
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Outside visitors reach the public intake website",
+        "type": "connectivity",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The website is in a DMZ separate from internal workstations",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The internet cannot initiate connections into the inside network",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Inside hosts are automatically addressed",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Single-VLAN inside + ASA5506 DMZ + WAN internet. The DMZ is engine-created (srv-dmz on 192.168.100.0/24, no services declared), so 'outside visitors reach the website' verifies UNKNOWN — the engine has no per-server service evidence for the auto-created DMZ host; the DMZ isolation and single-inside-VLAN shape match the verified T07/T08 DMZ shape.",
+  "capability_limitations": "Single-VLAN inside + ASA5506 DMZ + WAN internet. The DMZ is engine-created (srv-dmz on 192.168.100.0/24, no services declared), so 'outside visitors reach the website' verifies UNKNOWN — the engine has no per-server service evidence for the auto-created DMZ host; the DMZ isolation and single-inside-VLAN shape match the verified T07/T08 DMZ shape.",
+  "why_suitable": "Long-form, business-context DMZ request in the engine's verified shape. Forces requirement extraction from prose, not keyword spotting.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-009",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

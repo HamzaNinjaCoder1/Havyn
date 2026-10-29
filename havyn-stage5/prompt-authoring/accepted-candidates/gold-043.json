@@ -1,0 +1,25 @@
+{
+  "id": "gold-043",
+  "candidate_id": "oc-043",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "ambiguous",
+  "coverage_cell": "ambiguous-host-count",
+  "length_category": "short",
+  "original_ai_prompt": "I need a network for my office with a staff section and a guest section. Not sure how big it needs to be yet.",
+  "cleaned_prompt": "I need a network for my office with a staff section and a guest section. Not sure how big it needs to be yet.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "ASK: roughly how many devices in the staff section (and guest section)? The VLAN sizing (required_hosts) depends on it and the model must not invent a count.",
+  "capability_limitations": "ASK: roughly how many devices in the staff section (and guest section)? The VLAN sizing (required_hosts) depends on it and the model must not invent a count.",
+  "why_suitable": "Missing host count — a second, distinct ambiguity axis from oc-014 (sites) and oc-015 (addressing).",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-043",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

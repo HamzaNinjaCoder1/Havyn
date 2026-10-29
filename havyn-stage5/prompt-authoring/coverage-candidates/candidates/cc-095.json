@@ -1,0 +1,197 @@
+{
+  "id": "cc-095",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Skyline Realty — large-s1-a4-single-dhcp-wan-asa",
+  "coverage_cell": "large-s1-a4-single-dhcp-wan-asa",
+  "length_category": "long",
+  "prompt": "Main Skyline Realty ka network dekhta hoon, a real-estate office, Islamabad mein. Hum ek building jismein 4 areas hain dobara set up kar rahe hain aur mujhe ek saaf design chahiye. Har site ke liye ek hi shared network rakhein. PCs ko DHCP se address milna chahiye. Routing simple aur static rakhein. WAN internet ASA 5506 firewall ke peeche laayein.\n\nAur: Edge par ASA 5506 firewall use karein, public web server bahar rakhein. Har site ke pehle area mein laptops ke liye staff WiFi dein. Pehli site par DNS aur HTTP server include karein. Public server bahar se reachable ho, lekin bahar se koi inside network mein initiate na kar sake.\n\nSab practical aur standard rakhein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-large-s1-a4-single-dhcp-wan-asa-v38",
+    "description": null,
+    "language": "roman-urdu",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 39,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site1-wifi",
+                "area": "area1",
+                "count": 3,
+                "device": "laptop",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 42,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area3",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g2",
+                "area": "area3",
+                "count": 41,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area4",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g3",
+                "area": "area4",
+                "count": 41,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 170,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [
+      {
+        "id": "srv1",
+        "site": "site1",
+        "vlan": "site1-users",
+        "services": [
+          "dns",
+          "http"
+        ],
+        "records": [],
+        "pages": {},
+        "requirement_refs": []
+      }
+    ],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": true
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506"
+    },
+    "wireless": [
+      {
+        "id": "cell1",
+        "site": "site1",
+        "area": null,
+        "ssid": "Net1",
+        "security": "wpa2",
+        "passphrase": "pass0038key",
+        "client_group_ids": [
+          "site1-wifi"
+        ],
+        "requirement_refs": []
+      }
+    ],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The perimeter blocks outside-initiated access",
+        "source": null,
+        "type": "security",
+        "priority": "critical",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 4 area(s) per site. single VLANs, dhcp addressing, static routing. wan internet behind an ASA 5506. ASA perimeter with a public server. Wireless cell(s) for laptops. DNS+HTTP server on the first site. Outside-initiated blocking is the one blocked criterion the engine verifies on this perimeter shape.",
+  "why_valuable": "Fills the certified cell large-s1-a4-single-dhcp-wan-asa at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "3a23ad226f2a94d046c84bd4250dc465f1bdcf6512c5f943248637fc4e5fe58a",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:42+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

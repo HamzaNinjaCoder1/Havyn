@@ -1,0 +1,152 @@
+{
+  "id": "cc-076",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Harbor Seafood — small-s1-a1-single-dhcp-wan-asa",
+  "coverage_cell": "small-s1-a1-single-dhcp-wan-asa",
+  "length_category": "medium",
+  "prompt": "Harbor Seafood is a seafood processor in Karachi. Our network spans one building with 1 area(s); I am the plant IT lead and need this rebuilt. Keep a single network for the whole site. Let the PCs pick up DHCP addresses. Keep the routing static and simple. Provide WAN internet through an ASA 5506 at the edge. The edge firewall should be an ASA 5506 with a public web server outside it. Add a staff WiFi network for laptops in the first area of each site. Add a DNS and HTTP server on the first site. Outside clients should reach the public server only; they must not be able to start connections into the inside network. Keep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s1-a1-single-dhcp-wan-asa-v19",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 3,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site1-wifi",
+                "area": "area1",
+                "count": 5,
+                "device": "laptop",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 14,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [
+      {
+        "id": "srv1",
+        "site": "site1",
+        "vlan": "site1-users",
+        "services": [
+          "dns",
+          "http"
+        ],
+        "records": [],
+        "pages": {},
+        "requirement_refs": []
+      }
+    ],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": true
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506"
+    },
+    "wireless": [
+      {
+        "id": "cell1",
+        "site": "site1",
+        "area": null,
+        "ssid": "Net1",
+        "security": "wpa2",
+        "passphrase": "pass0019key",
+        "client_group_ids": [
+          "site1-wifi"
+        ],
+        "requirement_refs": []
+      }
+    ],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The perimeter blocks outside-initiated access",
+        "source": null,
+        "type": "security",
+        "priority": "critical",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 1 area(s) per site. single VLANs, dhcp addressing, static routing. wan internet behind an ASA 5506. ASA perimeter with a public server. Wireless cell(s) for laptops. DNS+HTTP server on the first site. Outside-initiated blocking is the one blocked criterion the engine verifies on this perimeter shape.",
+  "why_valuable": "Fills the certified cell small-s1-a1-single-dhcp-wan-asa at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "a3b4841d46e7aeb63b8e0e4741df8d83da66382d64f8069ca0fb553a7c692322",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:31+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

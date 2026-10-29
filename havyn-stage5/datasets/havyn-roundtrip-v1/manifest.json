@@ -2,12 +2,14 @@
   "dataset": "havyn-roundtrip-v1",
   "generator_version": "0.1.0",
   "model": "(dry-run: reconstruction == source)",
-  "examples": 147,
+  "verification_method": "dry_run_reconstruction_equals_source",
+  "examples": 216,
   "queues": {
-    "ACCEPT": 77,
-    "REVIEW": 70,
+    "ACCEPT": 166,
+    "REVIEW": 50,
     "REJECT": 0
   },
-  "near_duplicates_flagged": 70,
-  "generated": "2026-10-27T21:43:13+00:00"
+  "near_duplicates_flagged": 50,
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
+  "generated": "2026-10-29T10:56:01+00:00"
 }

@@ -1,0 +1,68 @@
+{
+  "id": "gold-001",
+  "candidate_id": "oc-001",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "basic",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "original_ai_prompt": "Set up a simple network for a small back-office. Four desktop PCs, all on one network, they just need to reach each other. No internet needed for now.",
+  "cleaned_prompt": "Set up a simple network for a small back-office. Four desktop PCs, all on one network, they just need to reach each other. No internet needed for now.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "small-backoffice",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "main",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pcs",
+                "area": "main",
+                "count": 4,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "officeusers",
+        "name": "Office users",
+        "dhcp": false,
+        "site": "office",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "All four PCs reach each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Build the single-VLAN LAN; confirm connectivity intent.",
+  "capability_limitations": "Build the single-VLAN LAN; confirm connectivity intent.",
+  "why_suitable": "Baseline L1: proves the model handles a plain, complete request without inventing internet or extra VLANs.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-001",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

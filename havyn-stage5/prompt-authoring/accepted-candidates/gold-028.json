@@ -1,0 +1,175 @@
+{
+  "id": "gold-028",
+  "candidate_id": "oc-028",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "enterprise",
+  "coverage_cell": "medium-s1-a2-multi-dhcp-cable-none",
+  "length_category": "long",
+  "original_ai_prompt": "We run a distribution warehouse and need the network split by device role. Our wireless handheld terminals (about six) must stay on their own segment, away from office traffic, and they need to reach the warehouse system.\n\n- Operations: those six wireless handhelds.\n- Office: 8 wired PCs plus 3 wireless laptops for supervisors; the warehouse system runs on a server in the office.\n- Contractors: third-party drivers occasionally need internet access only.\nEverything gets automatic addresses. Cable internet is available. Keep the operations wireless separate from the office and the contractors.",
+  "cleaned_prompt": "We run a distribution warehouse and need the network split by device role. Our wireless handheld terminals (about six) must stay on their own segment, away from office traffic, and they need to reach the warehouse system.\n\n- Operations: those six wireless handhelds.\n- Office: 8 wired PCs plus 3 wireless laptops for supervisors; the warehouse system runs on a server in the office.\n- Contractors: third-party drivers occasionally need internet access only.\nEverything gets automatic addresses. Cable internet is available. Keep the operations wireless separate from the office and the contractors.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "warehouse",
+    "sites": [
+      {
+        "id": "warehouse",
+        "areas": [
+          {
+            "id": "floor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "opsdevices",
+                "area": "floor",
+                "count": 6,
+                "device": "tablet",
+                "vlan": "opsnet"
+              }
+            ]
+          },
+          {
+            "id": "office",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "officepcs",
+                "area": "office",
+                "count": 8,
+                "device": "pc",
+                "vlan": "officenet"
+              },
+              {
+                "id": "supervisorlaptops",
+                "area": "office",
+                "count": 3,
+                "device": "laptop",
+                "vlan": "officenet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "opsnet",
+        "name": "Operations",
+        "dhcp": true,
+        "site": "warehouse",
+        "required_hosts": 12
+      },
+      {
+        "id": "officenet",
+        "name": "Office",
+        "dhcp": true,
+        "site": "warehouse",
+        "required_hosts": 16
+      },
+      {
+        "id": "contractornet",
+        "name": "Contractor",
+        "dhcp": true,
+        "site": "warehouse",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "wms",
+        "site": "warehouse",
+        "vlan": "officenet",
+        "services": [
+          "http"
+        ]
+      }
+    ],
+    "wireless": [
+      {
+        "id": "opswifi",
+        "site": "warehouse",
+        "area": "floor",
+        "ssid": "WMS-OPS",
+        "security": "wpa2",
+        "passphrase": "opsfloor2026",
+        "client_group_ids": [
+          "opsdevices"
+        ]
+      },
+      {
+        "id": "officewifi",
+        "site": "warehouse",
+        "area": "office",
+        "ssid": "WarehouseOffice",
+        "security": "wpa2",
+        "passphrase": "office2026",
+        "client_group_ids": [
+          "supervisorlaptops"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Operations wireless devices are on their own segment",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Office is separate from operations",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Contractors get internet only",
+        "type": "security",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "All hosts use DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "Operations handhelds reach the warehouse system",
+        "type": "service",
+        "priority": "high",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Three VLANs (operations/office/contractor) and two wireless cells. The operations and office client groups pin different VLANs, so they are delivered as separate subnets. The warehouse system is modelled as an HTTP server on the office VLAN; the operations handhelds reach it through connected routing, and that server-reachability criterion is attached to REQ-005. The contractor 'internet only' clause is read as scope (what they need), not as an enforced block, so it does not trip the guest-isolation refusal. Two clauses verify UNKNOWN: inter-VLAN blocking between operations/office/contractors (CG-1), and the 'internet only' guarantee itself. The contractor VLAN is a planned segment with no hosts in this build; the internet is one line at the first site (CG-3). Forced mapping: the six wireless handheld terminals are modelled as tablets because HostDevice has no scanner/terminal value; this is recorded here, not hidden.",
+  "capability_limitations": "Three VLANs (operations/office/contractor) and two wireless cells. The operations and office client groups pin different VLANs, so they are delivered as separate subnets. The warehouse system is modelled as an HTTP server on the office VLAN; the operations handhelds reach it through connected routing, and that server-reachability criterion is attached to REQ-005. The contractor 'internet only' clause is read as scope (what they need), not as an enforced block, so it does not trip the guest-isolation refusal. Two clauses verify UNKNOWN: inter-VLAN blocking between operations/office/contractors (CG-1), and the 'internet only' guarantee itself. The contractor VLAN is a planned segment with no hosts in this build; the internet is one line at the first site (CG-3). Forced mapping: the six wireless handheld terminals are modelled as tablets because HostDevice has no scanner/terminal value; this is recorded here, not hidden. Engine cannot verify: Scanner/forklift device types (schema has no such device); contractor hosts/egress; inter-VLAN blocking; internet-only enforcement.",
+  "why_suitable": "Warehouse/logistics realism with TWO wireless cells (a rarer, harder shape) and a third encounter with the isolation boundary in yet another register.",
+  "decision": {
+    "technical_recommendation": "BUILD_AFTER_REWRITE",
+    "decision_basis": "Segmentation, two wireless cells, DHCP and cable internet are buildable; the WMS is now modelled as an HTTP server. Handheld terminals map to tablets because the schema has no scanner/terminal device. Contractor internet-only remains scope, not an enforced block.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-028",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "id": "cc-089",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Bluebird School — small-s3-a1-multi-dhcp-wan-none",
+  "coverage_cell": "small-s3-a1-multi-dhcp-wan-none",
+  "length_category": "medium",
+  "prompt": "Main Bluebird School ka network dekhta hoon, a school, Multan mein. Hum 3 sites, har ek mein 1 areas dobara set up kar rahe hain aur mujhe ek saaf design chahiye. Har area ko apni alag VLAN par rakhein. PCs ko DHCP se address milna chahiye. Sites ke darmiyan static routes use karein. WAN internet provide karein.\n\nAur: \n\nSab practical aur standard rakhein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s3-a1-multi-dhcp-wan-none-v32",
+    "description": null,
+    "language": "roman-urdu",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 4,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site2",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g0",
+                "area": "area1",
+                "count": 6,
+                "device": "pc",
+                "vlan": "site2-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site3",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site3-g0",
+                "area": "area1",
+                "count": 6,
+                "device": "pc",
+                "vlan": "site3-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-v1",
+        "name": "site2 vlan 1",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site3-v1",
+        "name": "site3 vlan 1",
+        "site": "site3",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "3 site(s), 1 area(s) per site. multi VLANs, dhcp addressing, static routing. wan internet. Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell small-s3-a1-multi-dhcp-wan-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "ef7994aeca0eff6a72f114f09f825bb365a82dc3f0dce35a1733f9bb972a7e21",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:35+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

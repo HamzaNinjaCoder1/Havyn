@@ -1,0 +1,222 @@
+{
+  "id": "cc-092",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Pearl Diagnostics — large-s1-a4-multi-dhcp-cable-none-iot",
+  "coverage_cell": "large-s1-a4-multi-dhcp-cable-none-iot",
+  "length_category": "long",
+  "prompt": "Pearl Diagnostics is a diagnostics lab in Lahore. Our network spans one building with 4 area(s); I am the lab IT lead and need this rebuilt. Put every area in its own VLAN. Let the PCs pick up DHCP addresses. Keep the routing static and simple. Give the site cable internet access.\n\nAlso: Add a staff WiFi network for laptops in the first area of each site. Put smart LED lighting on the network in the first area of each site.\n\nKeep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-large-s1-a4-multi-dhcp-cable-none-iot-v35",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 38,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site1-wifi",
+                "area": "area1",
+                "count": 5,
+                "device": "laptop",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 38,
+                "device": "pc",
+                "vlan": "site1-v2",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area3",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g2",
+                "area": "area3",
+                "count": 38,
+                "device": "pc",
+                "vlan": "site1-v3",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area4",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g3",
+                "area": "area4",
+                "count": 38,
+                "device": "pc",
+                "vlan": "site1-v4",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 50,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v2",
+        "name": "site1 vlan 2",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 50,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v3",
+        "name": "site1 vlan 3",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 50,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v4",
+        "name": "site1 vlan 4",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 50,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "cell1",
+        "site": "site1",
+        "area": null,
+        "ssid": "Net1",
+        "security": "wpa2",
+        "passphrase": "pass0035key",
+        "client_group_ids": [
+          "site1-wifi"
+        ],
+        "requirement_refs": []
+      }
+    ],
+    "iot": [
+      {
+        "id": "led1",
+        "site": "site1",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 1,
+        "requirement_refs": []
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-004",
+        "statement": "IoT devices are cabled into the network",
+        "source": null,
+        "type": "operational",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 4 area(s) per site. multi VLANs, dhcp addressing, static routing. cable internet. Wireless cell(s) for laptops. IoT smart LEDs (cabled only; no IP/VLAN placement — separation UNKNOWN, CG-2). Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell large-s1-a4-multi-dhcp-cable-none-iot at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "92baa7ad04667badd019bb671b0c15280a61152a7d5f44f69d6593469cb1fffe",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:36+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

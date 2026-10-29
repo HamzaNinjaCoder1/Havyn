@@ -328,6 +328,12 @@ CANDIDATES: list[dict] = [
                     "refuses today. Trains 'I cannot safely build this yet' instead of a fake build. Flagged as a capability gap.",
     "research_inspiration": ["https://help.ui.com/hc/en-us/articles/23948850278295-Best-Practices-Guest-WiFi",
                              "https://spaces.cisco.com/six-best-practices-for-guest-wi-fi-security"],
+    "decision": {
+        "technical_recommendation": "REFUSAL",
+        "decision_basis": "The engine refuses guest_isolation by name; there is no buildable form of the requested guarantee. Keeping the refusal is the only faithful answer.",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 {
     "id": "oc-008",
@@ -568,6 +574,12 @@ CANDIDATES: list[dict] = [
                     "priority ordering. Forces full-document extraction; the 'no internet / no firewall' exclusions trap "
                     "a model that only reads the first line.",
     "research_inspiration": ["https://www.purple.ai/en-us/guides/wifi-network-segmentation-vlans-ssids-and-guest-traffic"],
+    "decision": {
+        "technical_recommendation": "BUILD",
+        "decision_basis": "Four VLANs, static finance, DHCP elsewhere and two servers compile. Finance isolation has no ACL and is recorded UNKNOWN; generic reachability is no longer attached to the isolation requirement.",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 {
     "id": "oc-013",
@@ -618,10 +630,18 @@ CANDIDATES: list[dict] = [
     },
     "expect_refusal": False,
     "expected_behaviour": "Two sites, OSPF, three VLANs, static production, WAN internet at Karachi, one DNS server. "
-                          "Exclusions (no wireless/firewall) must be honoured.",
+                          "Exclusions (no wireless/firewall) must be honoured. Accounts isolation has no blocked "
+                          "criterion, so it verifies UNKNOWN (CG-1); the factory reaches the internet through the "
+                          "head-office WAN, but that path is not separately asserted by an acceptance criterion.",
     "why_valuable": "Highest-value mixed-language L5: real Pakistani manufacturing company, OSPF, mixed addressing, "
                     "cross-site internet, explicit exclusions. Genuine multi-constraint difficulty, not padding.",
     "research_inspiration": ["https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"],
+    "decision": {
+        "technical_recommendation": "BUILD",
+        "decision_basis": "Two sites, three VLANs, OSPF, DNS and WAN compile; the accounts-isolation guarantee is not enforceable by the engine and stays UNKNOWN.",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 
 # ---------------------------------------------------------------------------
@@ -1044,16 +1064,17 @@ CANDIDATES: list[dict] = [
 {
     "id": "oc-028",
     "language": "en", "difficulty": "L4", "category": "enterprise",
-    "scenario": "Warehouse: scanner/ops wireless, staff, contractor segments.",
+    "scenario": "Warehouse: handheld ops wireless, staff, contractor segments.",
     "coverage_cell": "medium-s1-a2-multi-dhcp-cable-none",
     "length_category": "long",
-    "prompt": "We run a distribution warehouse. I need the network split by device "
-              "role, because our wireless barcode scanners and forklift terminals must "
-              "stay on their own segment away from office traffic.\n\n"
-              "- Operations: wireless handhelds and terminals (about 6 devices) that talk "
-              "to the warehouse system.\n"
-              "- Office: 8 wired PCs plus 3 laptops for supervisors (wireless).\n"
-              "- Contractors: third-party drivers occasionally need internet only.\n"
+    "prompt": "We run a distribution warehouse and need the network split by device "
+              "role. Our wireless handheld terminals (about six) must stay on their own "
+              "segment, away from office traffic, and they need to reach the warehouse "
+              "system.\n\n"
+              "- Operations: those six wireless handhelds.\n"
+              "- Office: 8 wired PCs plus 3 wireless laptops for supervisors; the "
+              "warehouse system runs on a server in the office.\n"
+              "- Contractors: third-party drivers occasionally need internet access only.\n"
               "Everything gets automatic addresses. Cable internet is available. Keep the "
               "operations wireless separate from the office and the contractors.",
     "expected_intent": {
@@ -1074,6 +1095,8 @@ CANDIDATES: list[dict] = [
         ],
         "routing": {"mode": "connected"},
         "internet": {"access": "cable", "nat": True, "public_server": False},
+        "servers": [{"id": "wms", "site": "warehouse", "vlan": "officenet",
+                     "services": ["http"]}],
         "wireless": [
             {"id": "opswifi", "site": "warehouse", "area": "floor",
              "ssid": "WMS-OPS", "security": "wpa2", "passphrase": "opsfloor2026",
@@ -1087,24 +1110,30 @@ CANDIDATES: list[dict] = [
             _req("REQ-002", "Office is separate from operations", "isolation", "high"),
             _req("REQ-003", "Contractors get internet only", "security", "normal"),
             _req("REQ-004", "All hosts use DHCP", "addressing"),
+            _req("REQ-005", "Operations handhelds reach the warehouse system", "service", "high"),
         ],
     },
     "expect_refusal": False,
     "expected_behaviour": "Three VLANs (operations/office/contractor) and two wireless cells. The operations and office "
-                          "client groups pin different VLANs, so they are delivered as separate subnets. The contractor "
-                          "'internet only' clause is read as scope (what they need), not as an enforced block, so it does "
-                          "not trip the guest-isolation refusal. Two clauses verify UNKNOWN: inter-VLAN blocking between "
-                          "operations/office/contractors (CG-1 — the expander emits no inter-VLAN ACL), and the 'internet "
-                          "only' guarantee itself. The contractor VLAN is a planned segment with no hosts in this build; "
-                          "the internet is one line at the first site (CG-3). Two forced mappings are recorded, not "
-                          "hidden: (a) barcode handhelds and forklift terminals have no HostDevice equivalent (enum is "
-                          "pc/laptop/printer/ip_phone/smartphone/tablet), so they are modelled as 6 wireless tablets; "
-                          "(b) the 'warehouse system' the ops devices talk to is the WMS backend, which the prompt does "
-                          "not ask to build, so no server models it — this candidate covers only the segmented ops "
-                          "wireless segment and makes no claim about the WMS.",
+                          "client groups pin different VLANs, so they are delivered as separate subnets. The warehouse "
+                          "system is modelled as an HTTP server on the office VLAN; the operations handhelds reach it "
+                          "through connected routing, and that server-reachability criterion is attached to REQ-005. "
+                          "The contractor 'internet only' clause is read as scope (what they need), not as an enforced "
+                          "block, so it does not trip the guest-isolation refusal. Two clauses verify UNKNOWN: inter-VLAN "
+                          "blocking between operations/office/contractors (CG-1), and the 'internet only' guarantee "
+                          "itself. The contractor VLAN is a planned segment with no hosts in this build; the internet is "
+                          "one line at the first site (CG-3). Forced mapping: the six wireless handheld terminals are "
+                          "modelled as tablets because HostDevice has no scanner/terminal value; this is recorded here, "
+                          "not hidden.",
     "why_valuable": "Warehouse/logistics realism with TWO wireless cells (a rarer, harder shape) and a third encounter with "
                     "the isolation boundary in yet another register.",
     "research_inspiration": ["https://www.2mtechnology.net/unifi-warehouse-wifi-design"],
+    "decision": {
+        "technical_recommendation": "BUILD_AFTER_REWRITE",
+        "decision_basis": "Segmentation, two wireless cells, DHCP and cable internet are buildable; the WMS is now modelled as an HTTP server. Handheld terminals map to tablets because the schema has no scanner/terminal device. Contractor internet-only remains scope, not an enforced block.",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 
 # ---------------------------------------------------------------------------
@@ -1344,6 +1373,12 @@ CANDIDATES: list[dict] = [
     "why_valuable": "English hub-and-spoke with an explicit anti-protocol constraint; complements the Urdu/mixed 3-site "
                     "cases (oc-030) so the same topology appears across languages.",
     "research_inspiration": ["https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"],
+    "decision": {
+        "technical_recommendation": "BUILD",
+        "decision_basis": "The three-site static WAN and DHCP shape compiles. It shares a topology with oc-030 but uses different counts and language; this is a dataset-level note, not a fidelity defect.",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 {
     "id": "oc-036",
@@ -1543,6 +1578,12 @@ CANDIDATES: list[dict] = [
     "why_valuable": "Second IoT case with a different domain (retail tills) and a different internet shape (DSL) "
                     "from oc-011, so it carries distinct discriminating power rather than restating the office case.",
     "research_inspiration": ["https://www.techgeeks.org/iot-isolation-homelab-vlans-firewall-mdns"],
+    "decision": {
+        "technical_recommendation": "BUILD",
+        "decision_basis": "Till VLAN, IoT VLAN declaration, six cabled smart_led and DSL compile. IoT placement is not modelled, so lighting separation stays UNKNOWN. It shares an IoT shape with oc-011; that is a dataset note, not a fidelity defect.",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 {
     "id": "oc-041",
@@ -1885,6 +1926,12 @@ CANDIDATES: list[dict] = [
     "why_valuable": "Another true long-document with auditor-isolation, mixed addressing, and explicit priorities. "
                     "Forces full-document extraction; the auditor-isolation-vs-server-access split is the hard part.",
     "research_inspiration": ["https://www.censinet.com/perspectives/network-segmentation-strategies-healthcare-it"],
+    "decision": {
+        "technical_recommendation": "BUILD",
+        "decision_basis": "Three VLANs, two servers and the WAN shape compile. Auditor isolation has no ACL criterion and the accounting-only WAN scope is not asserted, so both stay UNKNOWN.",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 {
     "id": "oc-054",
@@ -1960,6 +2007,12 @@ CANDIDATES: list[dict] = [
     "why_valuable": "The most enterprise-flavoured long document: multi-site retail with compliance-driven POS isolation. "
                     "Held at the honest capability boundary (cameras + guest isolation) instead of faking support.",
     "research_inspiration": ["https://ictally.com/resources/blog/restaurant-guest-wifi-vs-pos-network-setup"],
+    "decision": {
+        "technical_recommendation": "REFUSAL",
+        "decision_basis": "The combined request is not buildable: guest isolation is refused by name, cameras cannot be expressed (smart_led only), and the engine builds one internet block at sites[0].",
+        "provenance_status": "ai_assisted_candidate",
+        "owner_confirmation_required": True,
+    },
 },
 
 # --- diagnosis / enhancement flavour ----------------------------------------

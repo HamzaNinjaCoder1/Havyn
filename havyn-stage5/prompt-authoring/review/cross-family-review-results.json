@@ -1,0 +1,23 @@
+{
+  "status": "NOT_RUN",
+  "input_package": {
+    "file": "havyn-stage5/prompt-authoring/review/cross-family-input.jsonl",
+    "sha256": "f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492",
+    "records": 56
+  },
+  "attempted_model": {
+    "model_id": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "family": "Llama-2-derived (different from the same-base Model B)",
+    "runtime": "CPU only (torch 2.10.0+cpu, transformers 5.3.0); CUDA unavailable",
+    "local_cache": true,
+    "outcome": "Model weights loaded; a single-record smoke generation did not complete within a 10-minute budget. The process was terminated. No verdicts were produced."
+  },
+  "independent_reviews": [],
+  "blocker": "A genuinely different family is present locally but is not practical for 56 records on CPU. No review result exists, so this does not satisfy the cross-family freeze gate.",
+  "what_would_satisfy_the_gate": [
+    "Run the same 56-record package on a GPU runtime or a different hosted family using havyn-stage5/prompt-authoring/reports/cross-family-review-protocol.md.",
+    "Record the exact model id/version, input SHA-256, temperature, and raw per-record output.",
+    "Do not reuse same-base Model B verdicts as cross-family evidence."
+  ],
+  "note": "The previous Model-B review (batch-1..5) and the post-fix re-check are same-base-model work. They are not cross-family validation."
+}

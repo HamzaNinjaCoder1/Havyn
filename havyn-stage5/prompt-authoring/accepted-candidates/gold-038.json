@@ -1,0 +1,106 @@
+{
+  "id": "gold-038",
+  "candidate_id": "oc-038",
+  "language": "en",
+  "difficulty": "L2",
+  "category": "wireless",
+  "coverage_cell": "small-s1-a1-multi-dhcp-cable-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Our office has four wired PCs and three laptops that should connect over WiFi. Put the laptops on the internal network — no separate guest network needed, they're all staff. Cable internet is fine.",
+  "cleaned_prompt": "Our office has four wired PCs and three laptops that should connect over WiFi. Put the laptops on the internal network — no separate guest network needed, they're all staff. Cable internet is fine.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "office-laptops",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "wiredpcs",
+                "area": "workspace",
+                "count": 4,
+                "device": "pc"
+              },
+              {
+                "id": "laptops",
+                "area": "workspace",
+                "count": 3,
+                "device": "laptop"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "officenet",
+        "name": "Office",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 16
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "officewifi",
+        "site": "office",
+        "area": "workspace",
+        "ssid": "OfficeWiFi",
+        "security": "wpa2",
+        "passphrase": "office2026",
+        "client_group_ids": [
+          "laptops"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Laptops connect over WiFi to the internal network",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "All hosts are on the internal network",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Cable internet is available",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Single office VLAN, one WPA2 cell serving 3 laptops, cable internet. No guest isolation claim.",
+  "capability_limitations": "Single office VLAN, one WPA2 cell serving 3 laptops, cable internet. No guest isolation claim.",
+  "why_suitable": "The buildable wireless baseline (no guest isolation) — the control against which oc-007/oc-026's refusals are measured.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-038",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

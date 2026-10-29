@@ -1,0 +1,25 @@
+{
+  "id": "gold-020",
+  "candidate_id": "oc-020",
+  "language": "mixed",
+  "difficulty": "L3",
+  "category": "impossible-refusal",
+  "coverage_cell": "refusal-server-dhcp",
+  "length_category": "short",
+  "original_ai_prompt": "Ek Windows server pe DHCP service run karni hai, so that saare office computers us se IP lein. Server ko server VLAN mein rakhna hai.",
+  "cleaned_prompt": "Ek Windows server pe DHCP service run karni hai, so that saare office computers us se IP lein. Server ko server VLAN mein rakhna hai.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: server-side DHCP is 'server-dhcp-service' (unsupported). The verified path is per-VLAN DHCP pools on the gateway, not a Server-PT DHCP service. Explain and offer the supported alternative.",
+  "capability_limitations": "REFUSE-BY-NAME: server-side DHCP is 'server-dhcp-service' (unsupported). The verified path is per-VLAN DHCP pools on the gateway, not a Server-PT DHCP service. Explain and offer the supported alternative.",
+  "why_suitable": "A very common real ask that the engine cannot express. Trains refusing by name + offering the verified gateway-pool alternative instead of faking a server DHCP config.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-020",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

@@ -66,9 +66,14 @@ CERT_DIR = REPO / "havyn-stage5" / "certificates"
 
 
 def engine_commit() -> str:
-    return subprocess.run(
+    head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True
     ).stdout.strip()[:12]
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "--", "src"],
+        cwd=REPO, capture_output=True, text=True,
+    ).stdout.strip()
+    return f"{head}+dirty-src" if dirty else head
 
 
 @dataclass

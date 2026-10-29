@@ -1,0 +1,205 @@
+{
+  "id": "cc-085",
+  "language": "mixed",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Lakeside Resort — small-s2-a1-multi-dhcp-cable-none-iot",
+  "coverage_cell": "small-s2-a1-multi-dhcp-cable-none-iot",
+  "length_category": "medium",
+  "prompt": "Main Lakeside Resort ka network handle karta hoon, a resort in Naran. Network rebuild karna hai for 2 sites, har site pe 1 areas, so I need a clean design. Har area apni alag VLAN pe rakhni hai, so that broadcast domains separate rahein. PCs ko DHCP se addresses milne chahiye, and keep it simple. Sites ke beech static routes use karein, but keep them documented. cable internet provide karein, and NAT bhi enable ho. Staff WiFi chahiye for laptops in the first area of each site. Smart LED lighting add karein on the network in the first area of each site. Keep it practical and standard, please.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s2-a1-multi-dhcp-cable-none-iot-v28",
+    "description": null,
+    "language": "mixed",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 8,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site1-wifi",
+                "area": "area1",
+                "count": 5,
+                "device": "laptop",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site2",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g0",
+                "area": "area1",
+                "count": 7,
+                "device": "pc",
+                "vlan": "site2-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site2-wifi",
+                "area": "area1",
+                "count": 5,
+                "device": "laptop",
+                "vlan": "site2-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 18,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-v1",
+        "name": "site2 vlan 1",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 18,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "cell1",
+        "site": "site1",
+        "area": null,
+        "ssid": "Net1",
+        "security": "wpa2",
+        "passphrase": "pass0028key",
+        "client_group_ids": [
+          "site1-wifi"
+        ],
+        "requirement_refs": []
+      },
+      {
+        "id": "cell2",
+        "site": "site2",
+        "area": null,
+        "ssid": "Net2",
+        "security": "wpa2",
+        "passphrase": "pass0028key",
+        "client_group_ids": [
+          "site2-wifi"
+        ],
+        "requirement_refs": []
+      }
+    ],
+    "iot": [
+      {
+        "id": "led1",
+        "site": "site1",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 4,
+        "requirement_refs": []
+      },
+      {
+        "id": "led2",
+        "site": "site2",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 1,
+        "requirement_refs": []
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-004",
+        "statement": "IoT devices are cabled into the network",
+        "source": null,
+        "type": "operational",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "2 site(s), 1 area(s) per site. multi VLANs, dhcp addressing, static routing. cable internet. Wireless cell(s) for laptops. IoT smart LEDs (cabled only; no IP/VLAN placement — separation UNKNOWN, CG-2). Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell small-s2-a1-multi-dhcp-cable-none-iot at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "7cbf8ef06f9b3c6e0a5c90c620add4f795a168b2c658230c69d5855d9d677af9",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:34+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

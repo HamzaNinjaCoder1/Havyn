@@ -1,0 +1,140 @@
+{
+  "id": "gold-035",
+  "candidate_id": "oc-035",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "wan-multi-site",
+  "coverage_cell": "small-s3-a1-multi-static-wan-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Connect our head office to two branches. The head office has about ten PCs and each branch about five, and all of them should get their addresses automatically. Only the head office has the internet line; both branches should reach the head office and get internet through it. Use static routing — we don't run a routing protocol on a network this size.",
+  "cleaned_prompt": "Connect our head office to two branches. The head office has about ten PCs and each branch about five, and all of them should get their addresses automatically. Only the head office has the internet line; both branches should reach the head office and get internet through it. Use static routing — we don't run a routing protocol on a network this size.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "hq-two-branches",
+    "sites": [
+      {
+        "id": "hq",
+        "areas": [
+          {
+            "id": "main",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "hqpcs",
+                "area": "main",
+                "count": 10,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branchnorth",
+        "areas": [
+          {
+            "id": "north",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "northpcs",
+                "area": "north",
+                "count": 5,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branchsouth",
+        "areas": [
+          {
+            "id": "south",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "southpcs",
+                "area": "south",
+                "count": 5,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "hqnet",
+        "name": "HQ",
+        "dhcp": true,
+        "site": "hq",
+        "required_hosts": 20
+      },
+      {
+        "id": "northnet",
+        "name": "North",
+        "dhcp": true,
+        "site": "branchnorth",
+        "required_hosts": 10
+      },
+      {
+        "id": "southnet",
+        "name": "South",
+        "dhcp": true,
+        "site": "branchsouth",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Both branches reach the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Both branches get internet through the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Use static routing, not a dynamic protocol",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Three sites, static routes, WAN internet + NAT at HQ only, DHCP each.",
+  "capability_limitations": "Three sites, static routes, WAN internet + NAT at HQ only, DHCP each. Engine cannot verify: Internet via HQ; static-routing configuration; DHCP configuration.",
+  "why_suitable": "English hub-and-spoke with an explicit anti-protocol constraint; complements the Urdu/mixed 3-site cases (oc-030) so the same topology appears across languages.",
+  "decision": {
+    "technical_recommendation": "BUILD",
+    "decision_basis": "The three-site static WAN and DHCP shape compiles. It shares a topology with oc-030 but uses different counts and language; this is a dataset-level note, not a fidelity defect.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-035",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

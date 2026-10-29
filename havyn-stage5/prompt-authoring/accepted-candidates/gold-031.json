@@ -1,0 +1,68 @@
+{
+  "id": "gold-031",
+  "candidate_id": "oc-031",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "basic",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "original_ai_prompt": "Just three PCs wired together so they can share files. Nothing fancy, no internet, no VLANs — keep it minimal.",
+  "cleaned_prompt": "Just three PCs wired together so they can share files. Nothing fancy, no internet, no VLANs — keep it minimal.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "three-pc",
+    "sites": [
+      {
+        "id": "room",
+        "areas": [
+          {
+            "id": "bench",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pcs",
+                "area": "bench",
+                "count": 3,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "lan",
+        "name": "LAN",
+        "dhcp": false,
+        "site": "room",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "The three PCs can share files with each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Single flat LAN of 3 PCs. Deliberately tests that the model does NOT invent VLANs/internet the user explicitly ruled out.",
+  "capability_limitations": "Single flat LAN of 3 PCs. Deliberately tests that the model does NOT invent VLANs/internet the user explicitly ruled out.",
+  "why_suitable": "Anti-over-engineering check: a real minimal request that a benchmark-trained model often inflates.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-031",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

@@ -47,16 +47,29 @@ from src.network_autopilot.compiler.compiler import compile_spec  # noqa: E402
 from src.network_autopilot.compiler.spec_lint import lint_spec  # noqa: E402
 from src.network_autopilot.ipam import plan_addressing  # noqa: E402
 
-ENGINE_COMMIT = None
-try:
-    import subprocess
+def _engine_commit() -> str | None:
+    """HEAD, plus a dirty marker when src/ differs from it.
 
-    ENGINE_COMMIT = subprocess.run(
-        ["git", "-C", str(REPO), "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
-except Exception:
-    pass
+    A bare HEAD would claim the result is reproducible from that commit; while
+    the Stage 3/4 work is uncommitted it is not, so the marker is provenance.
+    """
+    try:
+        import subprocess
+
+        head = subprocess.run(
+            ["git", "-C", str(REPO), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(REPO), "status", "--porcelain", "--", "src"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        return f"{head}+dirty-src" if dirty else head
+    except Exception:
+        return None
+
+
+ENGINE_COMMIT = _engine_commit()
 
 
 def verify_record(record: dict) -> dict:

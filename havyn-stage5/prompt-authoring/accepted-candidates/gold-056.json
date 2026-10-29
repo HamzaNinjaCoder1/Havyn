@@ -1,0 +1,125 @@
+{
+  "id": "gold-056",
+  "candidate_id": "oc-056",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "enhancement",
+  "coverage_cell": "small-s1-a2-multi-dhcp-none-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Mere paas ek chhota office network hai (sab ek hi network par) — taqreeban 8 general computers hain aur 4 accounts ke. Ab mujhe naya ek file server chahiye aur accounts ko alag network par lena hai kyunki naya audit aa raha hai. Accounts wale bhi DHCP se IP lein aur file server static par ho; baaki sab waise hi DHCP rahe.",
+  "cleaned_prompt": "Mere paas ek chhota office network hai (sab ek hi network par) — taqreeban 8 general computers hain aur 4 accounts ke. Ab mujhe naya ek file server chahiye aur accounts ko alag network par lena hai kyunki naya audit aa raha hai. Accounts wale bhi DHCP se IP lein aur file server static par ho; baaki sab waise hi DHCP rahe.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "office-enhance",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "generalpcs",
+                "area": "workspace",
+                "count": 8,
+                "device": "pc",
+                "vlan": "generalnet"
+              }
+            ]
+          },
+          {
+            "id": "accounts",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountspcs",
+                "area": "accounts",
+                "count": 4,
+                "device": "pc",
+                "vlan": "accountsnet"
+              }
+            ]
+          },
+          {
+            "id": "serverroom",
+            "kind": "area",
+            "host_groups": []
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "generalnet",
+        "name": "General",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 16
+      },
+      {
+        "id": "accountsnet",
+        "name": "Accounts",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 10
+      },
+      {
+        "id": "servernet",
+        "name": "Servers",
+        "dhcp": false,
+        "site": "office",
+        "required_hosts": 6
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "servers": [
+      {
+        "id": "filesrv",
+        "site": "office",
+        "vlan": "servernet",
+        "services": [
+          "ftp"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "A new file server exists",
+        "type": "service",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Accounts are on a separate network for the audit",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "General machines keep using DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "General + accounts + server VLANs; general and accounts both DHCP; the file server (the engine's FTP service) is static on its own server VLAN and is reached from both VLANs by connected routing. The prompt supplies the device counts and addressing the build needs, so no clarification is required.",
+  "capability_limitations": "General + accounts + server VLANs; general and accounts both DHCP; the file server (the engine's FTP service) is static on its own server VLAN and is reached from both VLANs by connected routing. The prompt supplies the device counts and addressing the build needs, so no clarification is required.",
+  "why_suitable": "Enhancement register (modify an existing network) rather than greenfield — a distinct request type the templates under-cover, in Roman Urdu.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-056",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

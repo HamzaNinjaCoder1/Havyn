@@ -230,7 +230,7 @@
       "id": "oc-028",
       "declared_cell": "medium-s1-a2-multi-dhcp-cable-none",
       "classification": "extension-cell",
-      "features": "connected+cable+none+wireless+dhcp+security",
+      "features": "connected+cable+none+wireless+dhcp+servers1+security",
       "detail": "no certified cell carries these features"
     },
     {

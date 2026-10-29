@@ -1,0 +1,35 @@
+{
+  "rows": {
+    "train": 1989,
+    "validation": 223,
+    "heldout": 120
+  },
+  "per_task": {
+    "train": {
+      "prompt": 185,
+      "intent": 1692,
+      "enhancement": 38,
+      "diagnosis": 59,
+      "clarification": 15
+    },
+    "validation": {
+      "enhancement": 19,
+      "diagnosis": 4,
+      "intent": 168,
+      "clarification": 11,
+      "prompt": 21
+    },
+    "heldout": {
+      "intent": 84,
+      "clarification": 14,
+      "diagnosis": 9,
+      "prompt": 10,
+      "enhancement": 3
+    }
+  },
+  "errors": [],
+  "family_overlaps": [],
+  "cross_split_prompt_duplicates": [],
+  "gold_prompt_hashes": 1,
+  "passed": true
+}

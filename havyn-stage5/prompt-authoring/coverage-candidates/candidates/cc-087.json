@@ -1,0 +1,120 @@
+{
+  "id": "cc-087",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "coverage-driven",
+  "scenario": "Falcon Textiles — small-s2-a1-single-static-none-none",
+  "coverage_cell": "small-s2-a1-single-static-none-none",
+  "length_category": "medium",
+  "prompt": "I look after the network for Falcon Textiles, a textile exporter in Faisalabad. We are redoing 2 sites, each with 1 area(s) and I need a clean design.\n\nWhat I need:\n- Use one shared network per site.\n- Use static addresses on the PCs.\n- Use static routes between the sites.\n- No internet is required.\n\nKeep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s2-a1-single-static-none-none-v30",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 8,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site2",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g0",
+                "area": "area1",
+                "count": 10,
+                "device": "pc",
+                "vlan": "site2-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 18,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-users",
+        "name": "site2 users",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 18,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "2 site(s), 1 area(s) per site. single VLANs, static addressing, static routing. No internet.",
+  "why_valuable": "Fills the certified cell small-s2-a1-single-static-none-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "00103758739ad74704bd0bc98b2b5ee6c785be2c66da33c6dcd934ada95c594d",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:34+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

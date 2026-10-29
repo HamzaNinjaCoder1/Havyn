@@ -1,0 +1,30 @@
+{
+  "id": "gold-054",
+  "candidate_id": "oc-054",
+  "language": "mixed",
+  "difficulty": "L5",
+  "category": "long-document",
+  "coverage_cell": "small-s2-a2-multi-static-wan-none-iot",
+  "length_category": "document",
+  "original_ai_prompt": "'Al-Noor Mart' — ek head office (Karachi) aur ek retail store (Lahore) hain.\n\nKarachi mein 6 office PCs hain (accounts aur admin) aur ek server jis par hamara inventory system (HTTP) chalta hai. Lahore wale store mein 2 POS terminals hain jo compliance ki wajah se bilkul isolated hone chahiye, ek back-office PC, aur 3 IP cameras jo store ke andar wired hain. Customers ke liye guest WiFi bhi chahiye.\n\nPOS terminals apne alag network par hon so that koi doosra device unhe na dekh sake, aur POS ke addresses static hon — DHCP nahi. Cameras ka apna network ho, aur guest WiFi sirf internet tak rahe. Head office aur store static routing se aapas mein connected hon so that inventory system dono jagah se open ho. Internet dono jagah chahiye (store ki alag line).",
+  "cleaned_prompt": "'Al-Noor Mart' — ek head office (Karachi) aur ek retail store (Lahore) hain.\n\nKarachi mein 6 office PCs hain (accounts aur admin) aur ek server jis par hamara inventory system (HTTP) chalta hai. Lahore wale store mein 2 POS terminals hain jo compliance ki wajah se bilkul isolated hone chahiye, ek back-office PC, aur 3 IP cameras jo store ke andar wired hain. Customers ke liye guest WiFi bhi chahiye.\n\nPOS terminals apne alag network par hon so that koi doosra device unhe na dekh sake, aur POS ke addresses static hon — DHCP nahi. Cameras ka apna network ho, aur guest WiFi sirf internet tak rahe. Head office aur store static routing se aapas mein connected hon so that inventory system dono jagah se open ho. Internet dono jagah chahiye (store ki alag line).",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME with three engine-scoped reasons surfaced, consistently: (a) 'guest WiFi sirf internet tak' is a guest-isolation guarantee, which the engine refuses by name ('guest-isolation-unsupported', src/network_autopilot/ai/expander.py:299, raised when a firewall's guest_isolation is requested); (b) real IP cameras are not expressible — the schema's only IoT kind is smart_led (src/network_autopilot/ai/intent.py:299), so the cameras cannot be built as asked; (c) 'internet dono jagah ... store ki alag line' over-claims — the engine builds one internet block at sites[0] (CG-3), so the store's second line is a reported limitation, not a silent build. The POS-static and two-site static-routing parts are otherwise buildable. Consistency note: the POS 'koi doosra device unhe na dekh sake' clause and the guest clause are the SAME shape — both are separation guarantees, and neither is machine-verified (CG-1: the expander emits no inter-VLAN ACL, so both verify UNKNOWN). The guest clause additionally trips a named refusal because it asks for the explicit guest_isolation capability; the POS clause does not. The correct output names the three refusals and does not over-claim the POS separation.",
+  "capability_limitations": "REFUSE-BY-NAME with three engine-scoped reasons surfaced, consistently: (a) 'guest WiFi sirf internet tak' is a guest-isolation guarantee, which the engine refuses by name ('guest-isolation-unsupported', src/network_autopilot/ai/expander.py:299, raised when a firewall's guest_isolation is requested); (b) real IP cameras are not expressible — the schema's only IoT kind is smart_led (src/network_autopilot/ai/intent.py:299), so the cameras cannot be built as asked; (c) 'internet dono jagah ... store ki alag line' over-claims — the engine builds one internet block at sites[0] (CG-3), so the store's second line is a reported limitation, not a silent build. The POS-static and two-site static-routing parts are otherwise buildable. Consistency note: the POS 'koi doosra device unhe na dekh sake' clause and the guest clause are the SAME shape — both are separation guarantees, and neither is machine-verified (CG-1: the expander emits no inter-VLAN ACL, so both verify UNKNOWN). The guest clause additionally trips a named refusal because it asks for the explicit guest_isolation capability; the POS clause does not. The correct output names the three refusals and does not over-claim the POS separation. Engine cannot verify: Guest isolation; camera kinds; the store's second internet line; the POS/guest separation guarantee.",
+  "why_suitable": "The most enterprise-flavoured long document: multi-site retail with compliance-driven POS isolation. Held at the honest capability boundary (cameras + guest isolation) instead of faking support.",
+  "decision": {
+    "technical_recommendation": "REFUSAL",
+    "decision_basis": "The combined request is not buildable: guest isolation is refused by name, cameras cannot be expressed (smart_led only), and the engine builds one internet block at sites[0].",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-054",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "gold-021",
+  "candidate_id": "oc-021",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "impossible-refusal",
+  "coverage_cell": "refusal-firewall-multivlan",
+  "length_category": "medium",
+  "original_ai_prompt": "Put an ASA firewall in front of our office. Behind it we'll have three VLANs — staff, guests and cameras — all inside the firewall's inside interface, with the ASA doing the routing between them and the internet.",
+  "cleaned_prompt": "Put an ASA firewall in front of our office. Behind it we'll have three VLANs — staff, guests and cameras — all inside the firewall's inside interface, with the ASA doing the routing between them and the internet.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: expander 'firewall-needs-single-vlan' — the verified T07 ASA perimeter is the inside gateway for exactly ONE inside VLAN. A multi-VLAN inside behind one ASA is not a verified shape. Explain and offer the supported single-inside-VLAN perimeter or a router-inter-VLAN design without the ASA perimeter claim.",
+  "capability_limitations": "REFUSE-BY-NAME: expander 'firewall-needs-single-vlan' — the verified T07 ASA perimeter is the inside gateway for exactly ONE inside VLAN. A multi-VLAN inside behind one ASA is not a verified shape. Explain and offer the supported single-inside-VLAN perimeter or a router-inter-VLAN design without the ASA perimeter claim.",
+  "why_suitable": "Realistic but currently unbuildable; forces an honest refusal grounded in the actual single-VLAN perimeter constraint.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-021",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

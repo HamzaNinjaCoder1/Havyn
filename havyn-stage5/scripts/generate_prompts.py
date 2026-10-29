@@ -36,6 +36,7 @@ for p in (str(REPO), str(REPO / "havyn-stage5" / "scripts")):
 
 from benchmark_harness import render_prompt  # noqa: E402
 from generate_intents import GENERATOR_VERSION  # noqa: E402
+from generate_open_slots import _engine_pin  # noqa: E402
 from src.network_autopilot.ai.intent import HavynIntent  # noqa: E402
 
 PERSONAS = [
@@ -61,6 +62,16 @@ STRICT RULES:
    out details a deterministic planner can safely assume (the engine will).
 4. Reply with ONLY the prompt text - no quotes, no commentary.
 """
+
+
+def intent_key(record: dict) -> str | None:
+    """Stable key for an intent dataset row.
+
+    ``valid.jsonl`` rows carry ``id``; ``hash`` was never a field. Reading
+    only ``hash`` silently returned None for every row and collapsed every
+    prompt onto one intent downstream.
+    """
+    return record.get("hash") or record.get("id")
 
 
 def template_prompts(intent: HavynIntent, rng: random.Random) -> list[dict]:
@@ -138,6 +149,8 @@ def main() -> None:
     parser.add_argument("--teacher", default=None,
                         help="teacher model id (GPU required)")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--per-cell", type=int, default=None,
+                        help="cap source intents per coverage cell (spreads families)")
     parser.add_argument("--seed", type=int, default=20261028)
     args = parser.parse_args()
 
@@ -149,6 +162,15 @@ def main() -> None:
         for line in Path(args.valid).read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+    if args.per_cell:
+        per_cell: dict[str, int] = {}
+        capped = []
+        for record in records:
+            cell = record.get("coverage_cell") or "unknown"
+            if per_cell.get(cell, 0) < args.per_cell:
+                capped.append(record)
+                per_cell[cell] = per_cell.get(cell, 0) + 1
+        records = capped
     if args.limit:
         records = records[:args.limit]
 
@@ -164,8 +186,12 @@ def main() -> None:
             hashes.add(digest)
             prompts.append({
                 "id": f"pr-{len(prompts):06d}",
-                "intent_hash": record.get("hash"),
+                "intent_hash": intent_key(record),
                 "coverage_cell": record.get("coverage_cell"),
+                "verification_method": (
+                    "teacher_roundtrip" if item.get("teacher_generated")
+                    else "template_construction"
+                ),
                 **item,
             })
         if args.teacher and rng.random() >= args.share:
@@ -185,6 +211,7 @@ def main() -> None:
         "template": sum(1 for p in prompts if not p["teacher_generated"]),
         "teacher": sum(1 for p in prompts if p["teacher_generated"]),
         "teacher_model": args.teacher,
+        "engine_commit": _engine_pin(),
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }, indent=2), encoding="utf-8")
     print(f"wrote {len(prompts)} prompts to {out}")

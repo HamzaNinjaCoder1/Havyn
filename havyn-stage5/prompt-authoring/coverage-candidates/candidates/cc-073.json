@@ -1,0 +1,144 @@
+{
+  "id": "cc-073",
+  "language": "mixed",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Cedar Legal — small-s1-a1-multi-dhcp-cable-none-iot",
+  "coverage_cell": "small-s1-a1-multi-dhcp-cable-none-iot",
+  "length_category": "medium",
+  "prompt": "Main Cedar Legal ka network handle karta hoon, a law firm in Lahore. Network rebuild karna hai for one building with 1 areas, so I need a clean design. Har area apni alag VLAN pe rakhni hai, so that broadcast domains separate rahein. PCs ko DHCP se addresses milne chahiye, and keep it simple. Routing simple rakhein and static, no dynamic protocol. cable internet provide karein, and NAT bhi enable ho. Staff WiFi chahiye for laptops in the first area of each site. Smart LED lighting add karein on the network in the first area of each site. Keep it practical and standard, please.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s1-a1-multi-dhcp-cable-none-iot-v16",
+    "description": null,
+    "language": "mixed",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 4,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site1-wifi",
+                "area": "area1",
+                "count": 3,
+                "device": "laptop",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 14,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "cell1",
+        "site": "site1",
+        "area": null,
+        "ssid": "Net1",
+        "security": "wpa2",
+        "passphrase": "pass0016key",
+        "client_group_ids": [
+          "site1-wifi"
+        ],
+        "requirement_refs": []
+      }
+    ],
+    "iot": [
+      {
+        "id": "led1",
+        "site": "site1",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 4,
+        "requirement_refs": []
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-004",
+        "statement": "IoT devices are cabled into the network",
+        "source": null,
+        "type": "operational",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 1 area(s) per site. multi VLANs, dhcp addressing, static routing. cable internet. Wireless cell(s) for laptops. IoT smart LEDs (cabled only; no IP/VLAN placement — separation UNKNOWN, CG-2). Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell small-s1-a1-multi-dhcp-cable-none-iot at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "84131b34a1de3ff54066366af888db3b95b3c7afd1a3eb39a6e4c4713c256ebc",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:30+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

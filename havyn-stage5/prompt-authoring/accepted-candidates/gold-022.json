@@ -1,0 +1,76 @@
+{
+  "id": "gold-022",
+  "candidate_id": "oc-022",
+  "language": "en",
+  "difficulty": "L2",
+  "category": "dhcp-static",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Build a small lab network where nothing uses DHCP. Every PC should have a fixed address I set, because this is a test bench and the addresses must never change. Six PCs, all on one network, all static.",
+  "cleaned_prompt": "Build a small lab network where nothing uses DHCP. Every PC should have a fixed address I set, because this is a test bench and the addresses must never change. Six PCs, all on one network, all static.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "static-lab",
+    "sites": [
+      {
+        "id": "lab",
+        "areas": [
+          {
+            "id": "bench",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "labpcs",
+                "area": "bench",
+                "count": 6,
+                "device": "pc",
+                "addressing": "static"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "labbench",
+        "name": "Lab bench",
+        "dhcp": false,
+        "site": "lab",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "All six PCs reach each other",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Every host is statically addressed, no DHCP",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Single VLAN, dhcp=False, all groups addressing='static'. No internet.",
+  "capability_limitations": "Single VLAN, dhcp=False, all groups addressing='static'. No internet.",
+  "why_suitable": "Clean static-addressing case; tests dhcp=False + per-group static, the opposite of the DHCP-heavy norm.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-022",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

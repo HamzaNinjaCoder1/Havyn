@@ -1,0 +1,28 @@
+{
+  "id": "cc-090",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Orchard Foods — small-s3-a1-single-dhcp-wan-asa",
+  "coverage_cell": "small-s3-a1-single-dhcp-wan-asa",
+  "length_category": "medium",
+  "prompt": "Orchard Foods is a food processing plant in Sialkot. Our network spans 3 sites, each with 1 area(s); I am the plant manager and need this rebuilt.\n\nWhat I need:\n- Keep a single network for the whole site.\n- Let the PCs pick up DHCP addresses.\n- Route between sites with static routes.\n- Provide WAN internet through an ASA 5506 at the edge.\n- The edge firewall should be an ASA 5506 with a public web server outside it.\n- Add a staff WiFi network for laptops in the first area of each site.\n- Add a DNS and HTTP server on the first site.\n- Outside clients should reach the public server only; they must not be able to start connections into the inside network.\n\nKeep it practical and standard.",
+  "expected_intent": null,
+  "expect_refusal": true,
+  "expected_behaviour": "REFUSE-BY-NAME: a multi-site WAN star with an ASA at the first site is not a supported shape. The firewall replaces site1-r1, so the serial WAN has no first-site router and the expander refuses with 'wan-device-missing'. Offer a single-site ASA perimeter, or a multi-site WAN without the ASA.",
+  "why_valuable": "Records a real matrix/engine mismatch: the certified cell small-s3-a1-single-dhcp-wan-asa names a multi-site ASA shape the expander cannot place.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "refusal_kind": "capability-gap",
+  "prompt_hash": "b1cf2522077f8208a14cfd2dd746592751d84c6bf5387228dd1b431681a2471a",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:35+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
+  "refusal_evidence": "refusal: wan-device-missing: the serial WAN needs 'site1-r1', which was never created"
+}

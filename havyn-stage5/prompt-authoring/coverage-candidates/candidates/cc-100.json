@@ -1,0 +1,155 @@
+{
+  "id": "cc-100",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Horizon Telecom — medium-s1-a3-multi-static-ospf-wan-none",
+  "coverage_cell": "medium-s1-a3-multi-static-ospf-wan-none",
+  "length_category": "long",
+  "prompt": "Horizon Telecom Peshawar mein a telecom field office hai. Hamara network ek building jismein 3 areas hain tak hai; main field engineer hoon aur yeh rebuild karna hai. Har area ki apni alag VLAN honi chahiye. PCs ke addresses static rakhein. Sites ke beech OSPF routing use karein. Site ko WAN internet dein. Sab practical aur standard rakhein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-medium-s1-a3-multi-static-ospf-wan-none-v43",
+    "description": null,
+    "language": "roman-urdu",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 17,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 13,
+                "device": "pc",
+                "vlan": "site1-v2",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area3",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g2",
+                "area": "area3",
+                "count": 17,
+                "device": "pc",
+                "vlan": "site1-v3",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 25,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v2",
+        "name": "site1 vlan 2",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 25,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v3",
+        "name": "site1 vlan 3",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 25,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "ospf",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 3 area(s) per site. multi VLANs, static addressing, ospf routing. wan internet. Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell medium-s1-a3-multi-static-ospf-wan-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "3bd460c770c820f889e37f090528241a6dd36570c04d0bc2ba0b6a25547001ce",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:46+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

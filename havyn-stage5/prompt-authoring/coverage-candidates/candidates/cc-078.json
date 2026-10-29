@@ -1,0 +1,88 @@
+{
+  "id": "cc-078",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "coverage-driven",
+  "scenario": "Zenith Audit — small-s1-a1-single-static-none-none",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "medium",
+  "prompt": "Zenith Audit is an audit firm in Islamabad. Our network spans one building with 1 area(s); I am the audit partner and need this rebuilt.\n\nWhat I need:\n- Keep a single network for the whole site.\n- Set the PCs to static addressing.\n- Keep the routing static and simple.\n- Internet is not needed for this one.\n\nKeep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s1-a1-single-static-none-none-v21",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 2,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 14,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 1 area(s) per site. single VLANs, static addressing, static routing. No internet.",
+  "why_valuable": "Fills the certified cell small-s1-a1-single-static-none-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "7439695f835d3147b4e895d3949a22740facfec9adc4bffcc8596407260f8040",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:32+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

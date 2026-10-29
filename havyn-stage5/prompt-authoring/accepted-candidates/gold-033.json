@@ -1,0 +1,122 @@
+{
+  "id": "gold-033",
+  "candidate_id": "oc-033",
+  "language": "en",
+  "difficulty": "L2",
+  "category": "vlan-dhcp",
+  "coverage_cell": "small-s1-a3-multi-dhcp-dsl-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Split our office into three networks: staff computers, the printers, and a visitor network. Staff and printers need to reach each other so people can print; visitors should be kept on their own network. DHCP for everyone. DSL internet.",
+  "cleaned_prompt": "Split our office into three networks: staff computers, the printers, and a visitor network. Staff and printers need to reach each other so people can print; visitors should be kept on their own network. DHCP for everyone. DSL internet.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "three-vlan-office",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "workspace",
+                "count": 10,
+                "device": "pc",
+                "vlan": "staffnet"
+              },
+              {
+                "id": "printers",
+                "area": "workspace",
+                "count": 2,
+                "device": "printer",
+                "vlan": "printernet"
+              }
+            ]
+          },
+          {
+            "id": "lobby",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "visitorpcs",
+                "area": "lobby",
+                "count": 3,
+                "device": "pc",
+                "vlan": "visitornet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 20
+      },
+      {
+        "id": "printernet",
+        "name": "Printers",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 6
+      },
+      {
+        "id": "visitornet",
+        "name": "Visitors",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "dsl",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Staff and printers are on separate networks but can reach each other",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Visitors are on their own network",
+        "type": "isolation",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "All hosts use DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Three VLANs; staff<->printer reachability is stated as reachable (not an isolation guarantee), visitor segment is separate but WITHOUT an 'internet-only' isolation claim, so it builds.",
+  "capability_limitations": "Three VLANs; staff<->printer reachability is stated as reachable (not an isolation guarantee), visitor segment is separate but WITHOUT an 'internet-only' isolation claim, so it builds.",
+  "why_suitable": "Carefully worded to stay on the buildable side of the guest-isolation boundary — contrasts with the refusal cases. Tests precision about what 'kept on their own network' does and doesn't promise.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-033",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

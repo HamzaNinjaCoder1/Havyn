@@ -1,6 +1,6 @@
 {
   "name": "havyn-train-v1",
-  "created": "2026-10-27T21:45:52+00:00",
+  "created": "2026-10-29T10:56:36+00:00",
   "engine_commits": [
     "06c57ced050c",
     "06c57ced050cda532915c15b1ce772b0a0eaf607"
@@ -8,21 +8,34 @@
   "generator_version": "0.1.0",
   "seed": 20261028,
   "tasks": {
-    "prompt": 147,
+    "prompt": 216,
     "intent": 1944,
     "diagnosis": 72,
     "enhancement": 60,
     "clarification": 40
   },
   "splits": {
-    "train": 0.785,
-    "validation": 0.11,
-    "heldout": 0.105
+    "train": 0.853,
+    "validation": 0.096,
+    "heldout": 0.051
   },
   "leaks": 0,
+  "verification_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
+  "provenance": {
+    "origin": "synthetic_ai",
+    "human_contributor": false,
+    "owner_authored": false,
+    "gold_records_included": 0
+  },
+  "roundtrip_verification": {
+    "methods": [
+      "dry_run_reconstruction_equals_source"
+    ],
+    "independent_model_verified": false
+  },
   "notes": [
     "Split by family, never by row: siblings of one archetype never straddle splits.",
-    "Held-out contains complete families - whole archetypes the model never saw in training.",
-    "Round-trip gating: the prompt task uses only intents whose prompts passed S5.10 verification (ACCEPT queue)."
+    "Held-out contains complete families - whole archetypes the model never saw in training. A task with fewer than three families cannot hold one out and keep one in train; the audit reports 0 heldout for it rather than hiding it.",
+    "Prompt gating: template prompts are rendered from the intent (fidelity by construction, prompt_gate=template_construction). Teacher prompts require an ACCEPT from an independent-model round-trip; the offline dry-run (reconstruction == source) is never accepted as that evidence."
   ]
 }

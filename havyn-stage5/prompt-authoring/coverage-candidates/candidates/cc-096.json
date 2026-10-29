@@ -1,0 +1,176 @@
+{
+  "id": "cc-096",
+  "language": "roman-urdu",
+  "difficulty": "L5",
+  "category": "coverage-driven",
+  "scenario": "Coastal Shipping — large-s1-a4-single-dhcp-wan-asa-dmz",
+  "coverage_cell": "large-s1-a4-single-dhcp-wan-asa-dmz",
+  "length_category": "long",
+  "prompt": "Coastal Shipping Gwadar mein a shipping agent hai. Hamara network ek building jismein 4 areas hain tak hai; main port IT lead hoon aur yeh rebuild karna hai.\n\nMujhe yeh chahiye:\n- Poori site ke liye ek hi network use karein.\n- PCs ke liye DHCP chalu rakhein.\n- Routing static rakhna, koi dynamic protocol nahi.\n- Edge par ASA 5506 ke through WAN internet dein.\n- ASA 5506 ke DMZ mein public web server rakhein.\n- Pehli site par ek DNS aur HTTP server rakhna hai.\n- Bahar se sirf public server tak pahunchein, inside network mein connection start na kar sakein.\n\nSab practical aur standard rakhein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-large-s1-a4-single-dhcp-wan-asa-dmz-v39",
+    "description": null,
+    "language": "roman-urdu",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 40,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 40,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area3",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g2",
+                "area": "area3",
+                "count": 40,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area4",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g3",
+                "area": "area4",
+                "count": 40,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 170,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [
+      {
+        "id": "srv1",
+        "site": "site1",
+        "vlan": "site1-users",
+        "services": [
+          "dns",
+          "http"
+        ],
+        "records": [],
+        "pages": {},
+        "requirement_refs": []
+      }
+    ],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": true
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506",
+      "dmz": true
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The perimeter blocks outside-initiated access",
+        "source": null,
+        "type": "security",
+        "priority": "critical",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 4 area(s) per site. single VLANs, dhcp addressing, static routing. wan internet behind an ASA 5506. ASA DMZ with a public server. DNS+HTTP server on the first site. Outside-initiated blocking is the one blocked criterion the engine verifies on this perimeter shape.",
+  "why_valuable": "Fills the certified cell large-s1-a4-single-dhcp-wan-asa-dmz at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "9d491a8c9b91991f008a6d384d6c66f25b7d55807f44522259a3ca5e80125f8f",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:43+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

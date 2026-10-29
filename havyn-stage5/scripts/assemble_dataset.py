@@ -40,6 +40,7 @@ for p in (str(REPO), str(REPO / "havyn-stage5" / "scripts")):
 
 from roundtrip_verify import find_near_duplicates  # noqa: E402
 from generate_intents import GENERATOR_VERSION  # noqa: E402
+from generate_open_slots import _engine_pin  # noqa: E402
 
 ENGINE_COMMIT_PLACEHOLDER = "engine-commit-from-manifests"
 
@@ -77,15 +78,46 @@ def family_of(task: str, record: dict) -> str:
     return "unknown"
 
 
+def prompt_gate(prompt: dict, roundtrip: dict, model_verified: bool) -> str | None:
+    """Which evidence lets this prompt into the prompt->intent task.
+
+    Template prompts are rendered from the intent, so fidelity is
+    constructive. Teacher prompts are model-written and need a real ACCEPT
+    from an independent-model round-trip; a dry-run ACCEPT is not evidence.
+    """
+    if prompt.get("teacher_generated"):
+        if not (model_verified and roundtrip.get("queue") == "ACCEPT"):
+            return None
+        return "independent_model_roundtrip_accept"
+    return "template_construction"
+
+
 def split_families(families: list[str], rng: random.Random,
                    heldout_share: float = 0.05, val_share: float = 0.10):
     """Shuffle families; reserve whole families for held-out and validation.
-    Held-out prefers distinct families so complete archetypes stay unseen."""
+
+    Family granularity wins over exact ratios, but a task with at least two
+    families must keep one family in train. The old arithmetic gave a
+    two-family task zero train rows (one held-out + one validation), which is
+    a silent training hole, not a valid split.
+    """
     shuffled = sorted(families)
     rng.shuffle(shuffled)
     n = len(shuffled)
-    n_heldout = max(1, round(n * heldout_share))
+    if n == 0:
+        return set(), set(), set()
+    if n == 1:
+        return set(shuffled), set(), set()
+
+    n_heldout = max(1, round(n * heldout_share)) if n >= 3 else 0
     n_val = max(1, round(n * val_share))
+    while n - n_heldout - n_val < 1:
+        if n_heldout > 0:
+            n_heldout -= 1
+        elif n_val > 1:
+            n_val -= 1
+        else:
+            break
     heldout = set(shuffled[:n_heldout])
     val = set(shuffled[n_heldout:n_heldout + n_val])
     train = set(shuffled[n_heldout + n_val:])
@@ -111,22 +143,39 @@ def main() -> None:
     enhancement = read_jsonl(root / "havyn-enhancement-v1" / "enhancement.jsonl")
     clarification = read_jsonl(root / "havyn-clarification-v1" / "clarification.jsonl")
 
-    accepted_prompt_hashes = {
-        r.get("intent_hash") for r in roundtrip if r.get("queue") == "ACCEPT"
+    # valid.jsonl rows are keyed by their stable `id`; `hash` does not exist.
+    intents_by_hash = {r.get("hash") or r.get("id"): r for r in intents}
+    roundtrip_by_prompt = {r.get("prompt_id"): r for r in roundtrip}
+    roundtrip_method = {
+        r.get("verification_method") for r in roundtrip
     }
-    intents_by_hash = {r.get("hash"): r for r in intents}
-    # Round-trip gating: only prompts that passed verification feed the
-    # prompt->intent task, paired with their source intent.
-    prompt_pairs = [
-        {"prompt": p["prompt"], "language": p.get("language"),
-         "style": p.get("style"),
-         "intent": intents_by_hash[p["intent_hash"]]["intent"],
-         "coverage_cell": p.get("coverage_cell")}
-        for p in prompts
-        if p.get("intent_hash") in accepted_prompt_hashes
-        and p.get("intent_hash") in intents_by_hash
-    ]
-    prompt_intents = [r for r in intents if r.get("hash") in accepted_prompt_hashes]
+    model_verified = "independent_model_reconstruction" in roundtrip_method
+
+    # Prompt gating:
+    #   - a teacher prompt needs a real (independent-model) ACCEPT: it is
+    #     model-written and only the round-trip proves it carries the intent;
+    #   - a template prompt is rendered from the intent itself, so fidelity is
+    #     constructive. A dry-run ACCEPT is not evidence of anything and is
+    #     never used to gate; the record says which gate applied.
+    prompt_pairs = []
+    for p in prompts:
+        source = intents_by_hash.get(p.get("intent_hash"))
+        if source is None:
+            continue
+        trip = roundtrip_by_prompt.get(p.get("id"), {})
+        gate = prompt_gate(p, trip, model_verified)
+        if gate is None:
+            continue
+        prompt_pairs.append({
+            "prompt": p["prompt"],
+            "language": p.get("language"),
+            "style": p.get("style"),
+            "intent": source["intent"],
+            "coverage_cell": p.get("coverage_cell"),
+            "prompt_gate": gate,
+            "roundtrip_queue": trip.get("queue"),
+            "roundtrip_method": trip.get("verification_method"),
+        })
 
     commits = set()
     manifests = {
@@ -180,6 +229,12 @@ def main() -> None:
             "counts": counts,
             "ratios": {k: round(v / total, 3) for k, v in counts.items()},
         }
+        if task == "prompt":
+            gates: dict[str, int] = {}
+            for record in records:
+                gate = record.get("prompt_gate", "unknown")
+                gates[gate] = gates.get(gate, 0) + 1
+            audit["per_task"][task]["prompt_gates"] = gates
 
     # Leakage check: within one task, an identical payload must never appear
     # in two buckets. (Across tasks an intent and its prompt pair share
@@ -221,6 +276,13 @@ def main() -> None:
         for bucket, rows in splits.items()
     }
     audit["generated"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    audit["verification_commit"] = _engine_pin()
+    audit["provenance"] = {
+        "origin": "synthetic_ai",
+        "human_contributor": False,
+        "owner_authored": False,
+        "gold_records_included": 0,
+    }
     audit["generator_version"] = GENERATOR_VERSION
     audit["seed"] = args.seed
 
@@ -233,13 +295,24 @@ def main() -> None:
         "tasks": {t: a["examples"] for t, a in audit["per_task"].items()},
         "splits": audit["ratios"],
         "leaks": len(leaks),
+        "verification_commit": audit["verification_commit"],
+        "provenance": audit["provenance"],
+        "roundtrip_verification": {
+            "methods": sorted(m for m in roundtrip_method if m),
+            "independent_model_verified": model_verified,
+        },
         "notes": [
             "Split by family, never by row: siblings of one archetype never "
             "straddle splits.",
             "Held-out contains complete families - whole archetypes the "
-            "model never saw in training.",
-            "Round-trip gating: the prompt task uses only intents whose "
-            "prompts passed S5.10 verification (ACCEPT queue).",
+            "model never saw in training. A task with fewer than three "
+            "families cannot hold one out and keep one in train; the audit "
+            "reports 0 heldout for it rather than hiding it.",
+            "Prompt gating: template prompts are rendered from the intent "
+            "(fidelity by construction, prompt_gate=template_construction). "
+            "Teacher prompts require an ACCEPT from an independent-model "
+            "round-trip; the offline dry-run (reconstruction == source) is "
+            "never accepted as that evidence.",
         ],
     }
     (out / "audit-report.json").write_text(

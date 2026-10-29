@@ -1,0 +1,178 @@
+{
+  "id": "gold-013",
+  "candidate_id": "oc-013",
+  "language": "mixed",
+  "difficulty": "L5",
+  "category": "enterprise",
+  "coverage_cell": "small-s2-a2-multi-static-ospf-wan-none",
+  "length_category": "document",
+  "original_ai_prompt": "Rehman Textiles ke do sites hain — Karachi head office aur Faisalabad factory. Karachi mein sales aur accounts ka staff hai (taqreeban 12 PCs — sales ke 6 aur accounts ke 6), and Faisalabad mein production floor ke terminals (taqreeban 10). Mujhe Karachi aur Faisalabad ko aapas mein connect karna hai with OSPF, kyunki sites barh rahi hain, so manual routes maintain na karni parein. Accounts ka data sensitive hai, so uska alag network hona chahiye aur sales usay na dekh sake. Faisalabad ka production network bhi alag rahe. Internet head office par hai aur factory ko wohi se mile. Accounts aur sales dono DHCP use karein, production ke terminals static. Karachi mein ek DNS server ho jis se dono sites names resolve karein. Wireless ki zaroorat nahi, sab wired, aur firewall mat lagana — hum ISP ke edge par trust karte hain.",
+  "cleaned_prompt": "Rehman Textiles ke do sites hain — Karachi head office aur Faisalabad factory. Karachi mein sales aur accounts ka staff hai (taqreeban 12 PCs — sales ke 6 aur accounts ke 6), and Faisalabad mein production floor ke terminals (taqreeban 10). Mujhe Karachi aur Faisalabad ko aapas mein connect karna hai with OSPF, kyunki sites barh rahi hain, so manual routes maintain na karni parein. Accounts ka data sensitive hai, so uska alag network hona chahiye aur sales usay na dekh sake. Faisalabad ka production network bhi alag rahe. Internet head office par hai aur factory ko wohi se mile. Accounts aur sales dono DHCP use karein, production ke terminals static. Karachi mein ek DNS server ho jis se dono sites names resolve karein. Wireless ki zaroorat nahi, sab wired, aur firewall mat lagana — hum ISP ke edge par trust karte hain.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "rehman-textiles",
+    "sites": [
+      {
+        "id": "karachi",
+        "areas": [
+          {
+            "id": "salesarea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "salespcs",
+                "area": "salesarea",
+                "count": 6,
+                "device": "pc",
+                "vlan": "salesnet"
+              }
+            ]
+          },
+          {
+            "id": "accountsarea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountspcs",
+                "area": "accountsarea",
+                "count": 6,
+                "device": "pc",
+                "vlan": "accountsnet"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "faisalabad",
+        "areas": [
+          {
+            "id": "production",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "terminals",
+                "area": "production",
+                "count": 10,
+                "device": "pc",
+                "vlan": "productionnet",
+                "addressing": "static"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "salesnet",
+        "name": "Sales",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 12
+      },
+      {
+        "id": "accountsnet",
+        "name": "Accounts",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 12
+      },
+      {
+        "id": "productionnet",
+        "name": "Production",
+        "dhcp": false,
+        "site": "faisalabad",
+        "required_hosts": 16
+      }
+    ],
+    "routing": {
+      "mode": "ospf",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "dnssrv",
+        "site": "karachi",
+        "vlan": "salesnet",
+        "services": [
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Karachi and Faisalabad are connected with OSPF",
+        "type": "operational",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Accounts network is separate and not reachable by sales",
+        "type": "isolation",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Factory production network is separate",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "Factory gets internet through the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "Accounts and sales use DHCP; production is static",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-006",
+        "statement": "A DNS server at head office serves both sites",
+        "type": "service",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-007",
+        "statement": "No wireless and no firewall appliance",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Two sites, OSPF, three VLANs, static production, WAN internet at Karachi, one DNS server. Exclusions (no wireless/firewall) must be honoured. Accounts isolation has no blocked criterion, so it verifies UNKNOWN (CG-1); the factory reaches the internet through the head-office WAN, but that path is not separately asserted by an acceptance criterion.",
+  "capability_limitations": "Two sites, OSPF, three VLANs, static production, WAN internet at Karachi, one DNS server. Exclusions (no wireless/firewall) must be honoured. Accounts isolation has no blocked criterion, so it verifies UNKNOWN (CG-1); the factory reaches the internet through the head-office WAN, but that path is not separately asserted by an acceptance criterion. Engine cannot verify: Accounts isolation; production separation; OSPF configuration; factory internet via HO; DHCP/static; DNS serving both sites; exclusions.",
+  "why_suitable": "Highest-value mixed-language L5: real Pakistani manufacturing company, OSPF, mixed addressing, cross-site internet, explicit exclusions. Genuine multi-constraint difficulty, not padding.",
+  "decision": {
+    "technical_recommendation": "BUILD",
+    "decision_basis": "Two sites, three VLANs, OSPF, DNS and WAN compile; the accounts-isolation guarantee is not enforceable by the engine and stays UNKNOWN.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-013",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

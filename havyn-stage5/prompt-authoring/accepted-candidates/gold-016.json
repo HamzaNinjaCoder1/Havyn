@@ -1,0 +1,25 @@
+{
+  "id": "gold-016",
+  "candidate_id": "oc-016",
+  "language": "mixed",
+  "difficulty": "L4",
+  "category": "ambiguous",
+  "coverage_cell": "ambiguous-internet-type",
+  "length_category": "medium",
+  "original_ai_prompt": "Humara naya office setup hai, ek server bhi rakhna hai and internet chahiye. Lekin ISP ki line abhi lag hi rahi hai, so humein abhi confirm nahi ke connection kaise aayega.",
+  "cleaned_prompt": "Humara naya office setup hai, ek server bhi rakhna hai and internet chahiye. Lekin ISP ki line abhi lag hi rahi hai, so humein abhi confirm nahi ke connection kaise aayega.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "ASK what the ISP handoff will be (WAN handoff, DSL, or cable), because InternetIntent.access only supports those three verified shapes and the model must not guess which. Also reasonable to confirm the server's role.",
+  "capability_limitations": "ASK what the ISP handoff will be (WAN handoff, DSL, or cable), because InternetIntent.access only supports those three verified shapes and the model must not guess which. Also reasonable to confirm the server's role.",
+  "why_suitable": "Tests that the model knows internet access has three concrete verified shapes and asks which, instead of silently picking one.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-016",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

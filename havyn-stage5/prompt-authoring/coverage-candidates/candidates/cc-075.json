@@ -1,0 +1,103 @@
+{
+  "id": "cc-075",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Nova Energy — small-s1-a1-multi-static-ospf-wan-none",
+  "coverage_cell": "small-s1-a1-multi-static-ospf-wan-none",
+  "length_category": "medium",
+  "prompt": "I look after the network for Nova Energy, an energy company in Sukkur. We are redoing one building with 1 area(s) and I need a clean design.\n\nWhat I need:\n- Keep each area on its own VLAN.\n- Use static addresses on the PCs.\n- Run OSPF between the sites.\n- Provide WAN internet.\n\nKeep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s1-a1-multi-static-ospf-wan-none-v18",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 3,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 14,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "ospf",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 1 area(s) per site. multi VLANs, static addressing, ospf routing. wan internet. Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell small-s1-a1-multi-static-ospf-wan-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "bbefad9c60338994dd9eeeb44487e394231b8e679b57b1eab58f0ccb6c41a215",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:30+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

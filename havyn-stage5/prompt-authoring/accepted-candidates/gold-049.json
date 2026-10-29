@@ -1,0 +1,25 @@
+{
+  "id": "gold-049",
+  "candidate_id": "oc-049",
+  "language": "roman-urdu",
+  "difficulty": "L5",
+  "category": "contradictory",
+  "coverage_cell": "contradiction-guest-triple",
+  "length_category": "medium",
+  "original_ai_prompt": "Guest network bilkul internet-only honi chahiye, koi internal access nahi. Lekin guest ko company ki website bhi dekhni hai jo andar ke server par hai. Alag firewall appliance ka budget bhi nahi hai, to us ke bagair hi yeh sab sort karna hai.",
+  "cleaned_prompt": "Guest network bilkul internet-only honi chahiye, koi internal access nahi. Lekin guest ko company ki website bhi dekhni hai jo andar ke server par hai. Alag firewall appliance ka budget bhi nahi hai, to us ke bagair hi yeh sab sort karna hai.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "TRIPLE conflict to surface, all engine-scoped: (a) 'guest internet-only, koi internal access nahi' versus (b) 'guest ko company ki website dekhni hai jo andar hai' — an internal server the guest must reach; and (c) the engine expresses guest isolation only through firewall.guest_isolation, which needs an enabled firewall appliance (it refuses by name 'guest-isolation-unsupported' at src/network_autopilot/ai/expander.py:299), yet the user has no appliance budget. Definite response: state that (a) and (b) cannot both hold, refuse guest isolation by name because the enforcement appliance was excluded, offer the one fallback of a plain guest subnet that makes no isolation promise, and ask which requirement to drop (the internal website for guests, or the internet-only guarantee). Must not deploy an appliance it was told not to deploy, and must not silently drop the guest isolation promise.",
+  "capability_limitations": "TRIPLE conflict to surface, all engine-scoped: (a) 'guest internet-only, koi internal access nahi' versus (b) 'guest ko company ki website dekhni hai jo andar hai' — an internal server the guest must reach; and (c) the engine expresses guest isolation only through firewall.guest_isolation, which needs an enabled firewall appliance (it refuses by name 'guest-isolation-unsupported' at src/network_autopilot/ai/expander.py:299), yet the user has no appliance budget. Definite response: state that (a) and (b) cannot both hold, refuse guest isolation by name because the enforcement appliance was excluded, offer the one fallback of a plain guest subnet that makes no isolation promise, and ask which requirement to drop (the internal website for guests, or the internet-only guarantee). Must not deploy an appliance it was told not to deploy, and must not silently drop the guest isolation promise.",
+  "why_suitable": "Hardest contradiction: three interlocking constraints in Roman Urdu, including 'don't use the very tool that would enforce the policy'.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-049",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

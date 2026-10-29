@@ -1,0 +1,25 @@
+{
+  "id": "gold-019",
+  "candidate_id": "oc-019",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "impossible-refusal",
+  "coverage_cell": "refusal-asa5505-multisite-dmz",
+  "length_category": "medium",
+  "original_ai_prompt": "We have offices in two cities and want an ASA 5505 at each, both connected, and each with a DMZ hosting a public server. Link the two offices so they can share the DMZ services.",
+  "cleaned_prompt": "We have offices in two cities and want an ASA 5505 at each, both connected, and each with a DMZ hosting a public server. Link the two offices so they can share the DMZ services.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: the ASA 5505 is verified only as a single-site inside/outside perimeter (lint 'asa5505-multi-site'), and it has no DMZ support (expander 'asa5505-no-dmz'); multi-site DMZ is 'dmz-multi-site-unsupported'. The engine must refuse by name and explain the 5505's limits, offering the 5506-X single-site DMZ instead.",
+  "capability_limitations": "REFUSE-BY-NAME: the ASA 5505 is verified only as a single-site inside/outside perimeter (lint 'asa5505-multi-site'), and it has no DMZ support (expander 'asa5505-no-dmz'); multi-site DMZ is 'dmz-multi-site-unsupported'. The engine must refuse by name and explain the 5505's limits, offering the 5506-X single-site DMZ instead.",
+  "why_suitable": "Packs three REAL named refusals into one plausible request. Trains precise, honest refusal with an alternative, not a hallucinated multi-site DMZ.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-019",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

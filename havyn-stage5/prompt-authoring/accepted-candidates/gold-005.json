@@ -1,0 +1,124 @@
+{
+  "id": "gold-005",
+  "candidate_id": "oc-005",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "routing",
+  "coverage_cell": "medium-s1-a3-multi-static-ospf-wan-none",
+  "length_category": "long",
+  "original_ai_prompt": "We occupy three floors of one building. Treat each floor as its own network — ground floor for the walk-in customers' kiosks (about six), first floor for the ten staff, second floor for the four management desks. All floors must talk to each other and I'd like to run OSPF rather than hand-written routes, because this network will grow. Everyone should get their addresses automatically. Staff and management should not share a broadcast domain. No internet yet.",
+  "cleaned_prompt": "We occupy three floors of one building. Treat each floor as its own network — ground floor for the walk-in customers' kiosks (about six), first floor for the ten staff, second floor for the four management desks. All floors must talk to each other and I'd like to run OSPF rather than hand-written routes, because this network will grow. Everyone should get their addresses automatically. Staff and management should not share a broadcast domain. No internet yet.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "three-floor",
+    "sites": [
+      {
+        "id": "building",
+        "areas": [
+          {
+            "id": "ground",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "kiosks",
+                "area": "ground",
+                "count": 6,
+                "device": "pc",
+                "vlan": "guestkiosk"
+              }
+            ]
+          },
+          {
+            "id": "first",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "first",
+                "count": 10,
+                "device": "pc",
+                "vlan": "staffnet"
+              }
+            ]
+          },
+          {
+            "id": "second",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "mgmtpcs",
+                "area": "second",
+                "count": 4,
+                "device": "pc",
+                "vlan": "mgmtnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "guestkiosk",
+        "name": "Guest kiosks",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 12
+      },
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 20
+      },
+      {
+        "id": "mgmtnet",
+        "name": "Management",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "ospf",
+      "ospf_area": "0"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every floor reaches every other floor",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Staff and management are on separate networks",
+        "type": "isolation",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Use OSPF, not static routes",
+        "type": "operational",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Three VLANs, OSPF area 0 (the prompt names OSPF explicitly), DHCP everywhere, staff/management separated by subnet.",
+  "capability_limitations": "Three VLANs, OSPF area 0 (the prompt names OSPF explicitly), DHCP everywhere, staff/management separated by subnet.",
+  "why_suitable": "Genuinely asks for OSPF through a growth rationale, not a bare keyword; realistic motivation.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-005",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

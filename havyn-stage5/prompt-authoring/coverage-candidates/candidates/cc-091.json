@@ -1,0 +1,152 @@
+{
+  "id": "cc-091",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "coverage-driven",
+  "scenario": "Summit Logistics — small-s3-a1-single-static-none-none",
+  "coverage_cell": "small-s3-a1-single-static-none-none",
+  "length_category": "medium",
+  "prompt": "I look after the network for Summit Logistics, a logistics firm in Quetta. We are redoing 3 sites, each with 1 area(s) and I need a clean design. Use one shared network per site. Use static addresses on the PCs. Use static routes between the sites. No internet is required. Keep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s3-a1-single-static-none-none-v34",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 8,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site2",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g0",
+                "area": "area1",
+                "count": 6,
+                "device": "pc",
+                "vlan": "site2-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site3",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site3-g0",
+                "area": "area1",
+                "count": 8,
+                "device": "pc",
+                "vlan": "site3-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-users",
+        "name": "site2 users",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site3-users",
+        "name": "site3 users",
+        "site": "site3",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "3 site(s), 1 area(s) per site. single VLANs, static addressing, static routing. No internet.",
+  "why_valuable": "Fills the certified cell small-s3-a1-single-static-none-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "dcaa8db8b3ad445a1e4e2e898033c924ddacb50ebe442265cd006172e38a7275",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:35+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

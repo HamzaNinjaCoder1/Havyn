@@ -1,0 +1,25 @@
+{
+  "id": "gold-014",
+  "candidate_id": "oc-014",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "ambiguous",
+  "coverage_cell": "ambiguous-missing-sites",
+  "length_category": "short",
+  "original_ai_prompt": "We need to connect our branches and set up routing between them. Make it work.",
+  "cleaned_prompt": "We need to connect our branches and set up routing between them. Make it work.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "ASK: how many branches and where is the main site? Also unclear whether each branch needs its own internet or internet only at the main site. The model must NOT invent a site count. Correct behaviour is a targeted clarification, not a guess and not a full refusal.",
+  "capability_limitations": "ASK: how many branches and where is the main site? Also unclear whether each branch needs its own internet or internet only at the main site. The model must NOT invent a site count. Correct behaviour is a targeted clarification, not a guess and not a full refusal.",
+  "why_suitable": "Deliberately missing the site count — the number one thing the expander cannot invent. Tests clarify-don't-invent.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-014",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "gold-045",
+  "candidate_id": "oc-045",
+  "language": "roman-urdu",
+  "difficulty": "L5",
+  "category": "ambiguous",
+  "coverage_cell": "ambiguous-server-internet",
+  "length_category": "medium",
+  "original_ai_prompt": "Humara startup hai, abhi 4 log hain. Ek server rakhna chahiye shayad, aur internet chahiye. Kya kya banwana hai aap hi suggest karein — mujhe networking ka idea nahi hai lekin budget tight hai.",
+  "cleaned_prompt": "Humara startup hai, abhi 4 log hain. Ek server rakhna chahiye shayad, aur internet chahiye. Kya kya banwana hai aap hi suggest karein — mujhe networking ka idea nahi hai lekin budget tight hai.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "Highly open: no site layout, unclear whether a server is even needed, no internet type, no host counts, and the user asks for suggestions on a tight budget. Correct behaviour is a short clarifying dialogue (or a modest proposed design + questions), NOT a confident full build. This is the hardest ambiguity because it invites invention at every layer.",
+  "capability_limitations": "Highly open: no site layout, unclear whether a server is even needed, no internet type, no host counts, and the user asks for suggestions on a tight budget. Correct behaviour is a short clarifying dialogue (or a modest proposed design + questions), NOT a confident full build. This is the hardest ambiguity because it invites invention at every layer.",
+  "why_suitable": "L5 ambiguity: a novice, budget-constrained, open-ended business request. The temptation to over-build is maximal — exactly what we want to test.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-045",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

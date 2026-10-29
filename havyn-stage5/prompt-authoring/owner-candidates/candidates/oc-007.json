@@ -111,9 +111,15 @@
     "https://help.ui.com/hc/en-us/articles/23948850278295-Best-Practices-Guest-WiFi",
     "https://spaces.cisco.com/six-best-practices-for-guest-wi-fi-security"
   ],
+  "decision": {
+    "technical_recommendation": "REFUSAL",
+    "decision_basis": "The engine refuses guest_isolation by name; there is no buildable form of the requested guarantee. Keeping the refusal is the only faithful answer.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
   "prompt_hash": "15aaf16c6833307e8bfd0fe3b99b21e13a5c85723101903417887cda7d94513a",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T22:01:26+00:00",
-  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
+  "verified_at": "2026-10-29T10:24:57+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
 }

@@ -1,0 +1,266 @@
+{
+  "id": "cc-088",
+  "language": "mixed",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Crescent Pharma — small-s3-a1-multi-dhcp-cable-none-iot",
+  "coverage_cell": "small-s3-a1-multi-dhcp-cable-none-iot",
+  "length_category": "medium",
+  "prompt": "Crescent Pharma is a pharmaceutical distributor in Karachi, aur main IT manager hoon. Hum 3 sites, har site pe 1 areas dobara kar rahe hain, so give me a practical design. Each area should sit on its own VLAN, taake traffic alag rahe. DHCP chalu ho for the PCs, so they get addresses automatically. Static routing between the sites is fine, so no dynamic protocol needed. Internet cable se aayega, so plan the edge accordingly. Har site ke first area mein laptops ke liye staff WiFi dein, and secure it. Har site ke first area mein smart LEDs network pe lagane hain. Keep it practical and standard, please.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s3-a1-multi-dhcp-cable-none-iot-v31",
+    "description": null,
+    "language": "mixed",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 6,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site1-wifi",
+                "area": "area1",
+                "count": 3,
+                "device": "laptop",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site2",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g0",
+                "area": "area1",
+                "count": 5,
+                "device": "pc",
+                "vlan": "site2-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site2-wifi",
+                "area": "area1",
+                "count": 4,
+                "device": "laptop",
+                "vlan": "site2-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site3",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site3-g0",
+                "area": "area1",
+                "count": 8,
+                "device": "pc",
+                "vlan": "site3-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site3-wifi",
+                "area": "area1",
+                "count": 6,
+                "device": "laptop",
+                "vlan": "site3-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-v1",
+        "name": "site2 vlan 1",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site3-v1",
+        "name": "site3 vlan 1",
+        "site": "site3",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 16,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "cell1",
+        "site": "site1",
+        "area": null,
+        "ssid": "Net1",
+        "security": "wpa2",
+        "passphrase": "pass0031key",
+        "client_group_ids": [
+          "site1-wifi"
+        ],
+        "requirement_refs": []
+      },
+      {
+        "id": "cell2",
+        "site": "site2",
+        "area": null,
+        "ssid": "Net2",
+        "security": "wpa2",
+        "passphrase": "pass0031key",
+        "client_group_ids": [
+          "site2-wifi"
+        ],
+        "requirement_refs": []
+      },
+      {
+        "id": "cell3",
+        "site": "site3",
+        "area": null,
+        "ssid": "Net3",
+        "security": "wpa2",
+        "passphrase": "pass0031key",
+        "client_group_ids": [
+          "site3-wifi"
+        ],
+        "requirement_refs": []
+      }
+    ],
+    "iot": [
+      {
+        "id": "led1",
+        "site": "site1",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 4,
+        "requirement_refs": []
+      },
+      {
+        "id": "led2",
+        "site": "site2",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 2,
+        "requirement_refs": []
+      },
+      {
+        "id": "led3",
+        "site": "site3",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 2,
+        "requirement_refs": []
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-004",
+        "statement": "IoT devices are cabled into the network",
+        "source": null,
+        "type": "operational",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "3 site(s), 1 area(s) per site. multi VLANs, dhcp addressing, static routing. cable internet. Wireless cell(s) for laptops. IoT smart LEDs (cabled only; no IP/VLAN placement — separation UNKNOWN, CG-2). Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell small-s3-a1-multi-dhcp-cable-none-iot at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "15bb5ea4f7de56f8807a423972708547791e87c1622df1085854b35d67fdae14",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:35+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

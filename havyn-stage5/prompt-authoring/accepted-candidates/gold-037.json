@@ -1,0 +1,147 @@
+{
+  "id": "gold-037",
+  "candidate_id": "oc-037",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "wan-multi-site",
+  "coverage_cell": "small-s2-a2-multi-static-wan-none",
+  "length_category": "long",
+  "original_ai_prompt": "Hamara setup thoda bara hai. Karachi head office hai jisme do floors hain — neeche sales aur upar accounts. Phir Hyderabad ka branch hai jis mein ek hi office floor hai.\n\nChahiye:\n- Karachi ke dono floors ke networks alag hon (sales aur accounts).\n- Hyderabad branch Karachi se connected ho.\n- Internet sirf Karachi par hai; Hyderabad ko internet Karachi se mile.\n- Sales aur accounts dono DHCP use karein, branch ke computers bhi DHCP.\nStatic routing theek hai, OSPF mat lagana.",
+  "cleaned_prompt": "Hamara setup thoda bara hai. Karachi head office hai jisme do floors hain — neeche sales aur upar accounts. Phir Hyderabad ka branch hai jis mein ek hi office floor hai.\n\nChahiye:\n- Karachi ke dono floors ke networks alag hon (sales aur accounts).\n- Hyderabad branch Karachi se connected ho.\n- Internet sirf Karachi par hai; Hyderabad ko internet Karachi se mile.\n- Sales aur accounts dono DHCP use karein, branch ke computers bhi DHCP.\nStatic routing theek hai, OSPF mat lagana.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "karachi-hyderabad",
+    "sites": [
+      {
+        "id": "karachi",
+        "areas": [
+          {
+            "id": "salesfloor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "salespcs",
+                "area": "salesfloor",
+                "count": 8,
+                "device": "pc",
+                "vlan": "salesnet"
+              }
+            ]
+          },
+          {
+            "id": "accountsfloor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountspcs",
+                "area": "accountsfloor",
+                "count": 6,
+                "device": "pc",
+                "vlan": "accountsnet"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "hyderabad",
+        "areas": [
+          {
+            "id": "office",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "branchpcs",
+                "area": "office",
+                "count": 5,
+                "device": "pc",
+                "vlan": "hydnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "salesnet",
+        "name": "Sales",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 16
+      },
+      {
+        "id": "accountsnet",
+        "name": "Accounts",
+        "dhcp": true,
+        "site": "karachi",
+        "required_hosts": 12
+      },
+      {
+        "id": "hydnet",
+        "name": "Hyderabad",
+        "dhcp": true,
+        "site": "hyderabad",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Sales and accounts are separate networks",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Hyderabad connects to Karachi",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Hyderabad gets internet through Karachi",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "All sites use DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "Use static routing, not OSPF",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Multi-floor + multi-site in one: three VLANs across two sites, static routes, WAN internet + NAT at Karachi, DHCP everywhere.",
+  "capability_limitations": "Multi-floor + multi-site in one: three VLANs across two sites, static routes, WAN internet + NAT at Karachi, DHCP everywhere.",
+  "why_suitable": "Combines multi-floor and multi-site — the L4 'several interacting features' case in Roman Urdu, with real Pakistani city names.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-037",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

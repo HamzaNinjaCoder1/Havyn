@@ -46,12 +46,17 @@ candidate's exact wire-input.
   (`src/network_autopilot/ai/expander.py:765-786`, inside-initiated ICMP plus
   echo-reply on PT's stateless ASA). Multi-VLAN sites are router-on-a-stick with
   **no inter-VLAN ACL**. Isolation requirements map to `RequirementSpec(kind=
-  "isolation")` (`expander.py:933, 947-952`), but a blocking criterion is emitted
+  "isolation")` (`expander.py:940-961`), but a blocking criterion is emitted
   only for the firewall + public-server edge (`expander.py:1055-1067`). A
   requirement with no criterion is `NOT_RUN`, never satisfied
   (`acceptance/evaluator.py:328-330`).
+- **Reachability is not a substitute**: generic flow/link/association checks
+  are attached to the engine's own `R-ENG-001` requirement
+  (`expander.py:938, 940-981`), not to a user isolation or internet requirement.
+  A reachable flow can therefore never be reported as proof of isolation.
 - **Engine-executed probe**: `cg1-no-inter-vlan-acl` on a two-VLAN site →
-  `acl_policy_count = 0`, `blocked_criteria = 0`.
+  `acl_policy_count = 0`, `blocked_criteria = 0`; expanding the isolation
+  fixtures shows zero criteria attached to the isolation requirement.
 - **Effect**: "X must not reach Y" in a multi-VLAN prompt is *delivered* only as
   separate subnets; active blocking is neither configured nor verified.
 - **Disposition**: prompt and requirement stay faithful; `expected_behaviour`

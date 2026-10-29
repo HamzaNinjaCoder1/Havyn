@@ -1,0 +1,25 @@
+{
+  "id": "gold-051",
+  "candidate_id": "oc-051",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "impossible-refusal",
+  "coverage_cell": "refusal-asa5505-dmz",
+  "length_category": "short",
+  "original_ai_prompt": "Humein ASA 5505 firewall chahiye aur uske saath ek DMZ bhi jahan public server rakhein.",
+  "cleaned_prompt": "Humein ASA 5505 firewall chahiye aur uske saath ek DMZ bhi jahan public server rakhein.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: 'asa5505-no-dmz' — the ASA 5505 has no DMZ support in the verified shapes. Offer the ASA 5506-X DMZ perimeter instead.",
+  "capability_limitations": "REFUSE-BY-NAME: 'asa5505-no-dmz' — the ASA 5505 has no DMZ support in the verified shapes. Offer the ASA 5506-X DMZ perimeter instead.",
+  "why_suitable": "Single, clean named refusal; complements the multi-refusal oc-019 by isolating one limit.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-051",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

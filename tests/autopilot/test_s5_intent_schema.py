@@ -151,10 +151,68 @@ def test_requirement_ledger_maps_into_the_spec() -> None:
     by_id = {r.id: r for r in spec.requirements}
     assert by_id["R-002"].statement.startswith("Wireless laptops")
     assert by_id["R-003"].kind == "isolation"  # intent "security" -> spec "isolation"
-    # every criterion traces to a mapped requirement
-    mapped = set(expansion.requirement_map.values())
+    # every criterion traces to a mapped requirement or the engine's own
+    # generic-check requirement
+    mapped = set(expansion.requirement_map.values()) | {"R-ENG-001"}
     for criterion in spec.acceptance_criteria:
         assert set(criterion.requirement_ids) <= mapped
+
+
+def test_generic_checks_never_prove_a_user_isolation_requirement() -> None:
+    """A reachable flow is not proof of isolation (rule 7)."""
+    intent = HavynIntent.model_validate(
+        {
+            "intent_version": "1",
+            "name": "isolation-probe",
+            "sites": [
+                {
+                    "id": "s1",
+                    "areas": [
+                        {
+                            "id": "a1",
+                            "kind": "area",
+                            "host_groups": [
+                                {
+                                    "id": "pcs",
+                                    "area": "a1",
+                                    "count": 4,
+                                    "device": "pc",
+                                    "vlan": "v1",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+            "vlans": [
+                {
+                    "id": "v1",
+                    "name": "Users",
+                    "site": "s1",
+                    "required_hosts": 10,
+                    "dhcp": True,
+                }
+            ],
+            "requirements": [
+                {
+                    "id": "REQ-001",
+                    "statement": "Users are isolated from everyone else",
+                    "type": "isolation",
+                    "priority": "critical",
+                    "source": "prompt",
+                }
+            ],
+        }
+    )
+    spec = expand_intent(intent).spec
+    isolation = next(r for r in spec.requirements if r.id == "R-001")
+    assert isolation.kind == "isolation"
+    assert not any(
+        isolation.id in c.requirement_ids for c in spec.acceptance_criteria
+    )
+    assert any(
+        c.requirement_ids == ["R-ENG-001"] for c in spec.acceptance_criteria
+    )
 
 
 def test_engine_choices_are_recorded_as_design_decisions() -> None:

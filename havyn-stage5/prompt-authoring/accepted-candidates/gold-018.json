@@ -1,0 +1,25 @@
+{
+  "id": "gold-018",
+  "candidate_id": "oc-018",
+  "language": "roman-urdu",
+  "difficulty": "L5",
+  "category": "contradictory",
+  "coverage_cell": "contradiction-isolation-vs-service",
+  "length_category": "medium",
+  "original_ai_prompt": "Finance ka network bilkul isolated hona chahiye, koi bahar se access na kare. Aur haan, sales wale ko finance ki printer use karni hai, woh bhi  zaroori requirement hai.",
+  "cleaned_prompt": "Finance ka network bilkul isolated hona chahiye, koi bahar se access na kare. Aur haan, sales wale ko finance ki printer use karni hai, woh bhi zaroori requirement hai.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "SURFACE CONTRADICTION: 'finance completely isolated, no outside access' vs 'sales must use the finance printer'. Ask which requirement wins or whether a single narrow printer exception is intended. Do not build a flat network that satisfies both by deleting the isolation.",
+  "capability_limitations": "SURFACE CONTRADICTION: 'finance completely isolated, no outside access' vs 'sales must use the finance printer'. Ask which requirement wins or whether a single narrow printer exception is intended. Do not build a flat network that satisfies both by deleting the isolation.",
+  "why_suitable": "Roman-Urdu contradiction that mirrors a very common real request (segmentation vs a shared printer).",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-018",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

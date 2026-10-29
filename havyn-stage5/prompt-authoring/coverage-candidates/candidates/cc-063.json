@@ -1,0 +1,196 @@
+{
+  "id": "cc-063",
+  "language": "mixed",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Horizon Bank — medium-s1-a3-multi-dhcp-cable-none-iot",
+  "coverage_cell": "medium-s1-a3-multi-dhcp-cable-none-iot",
+  "length_category": "long",
+  "prompt": "Main Horizon Bank ka network handle karta hoon, a bank branch in Peshawar. Network rebuild karna hai for one building with 3 areas, so I need a clean design.\n\nWhat I need:\n- Har area apni alag VLAN pe rakhni hai, so that broadcast domains separate rahein.\n- PCs ko DHCP se addresses milne chahiye, and keep it simple.\n- Routing simple rakhein and static, no dynamic protocol.\n- cable internet provide karein, and NAT bhi enable ho.\n- Staff WiFi chahiye for laptops in the first area of each site.\n- Smart LED lighting add karein on the network in the first area of each site.\n\nKeep it practical and standard, please.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-medium-s1-a3-multi-dhcp-cable-none-iot-v6",
+    "description": null,
+    "language": "mixed",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 15,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              },
+              {
+                "id": "site1-wifi",
+                "area": "area1",
+                "count": 3,
+                "device": "laptop",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 13,
+                "device": "pc",
+                "vlan": "site1-v2",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area3",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g2",
+                "area": "area3",
+                "count": 17,
+                "device": "pc",
+                "vlan": "site1-v3",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 25,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v2",
+        "name": "site1 vlan 2",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 25,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v3",
+        "name": "site1 vlan 3",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 25,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [
+      {
+        "id": "cell1",
+        "site": "site1",
+        "area": null,
+        "ssid": "Net1",
+        "security": "open",
+        "passphrase": null,
+        "client_group_ids": [
+          "site1-wifi"
+        ],
+        "requirement_refs": []
+      }
+    ],
+    "iot": [
+      {
+        "id": "led1",
+        "site": "site1",
+        "area": "area1",
+        "kind": "smart_led",
+        "count": 4,
+        "requirement_refs": []
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-004",
+        "statement": "IoT devices are cabled into the network",
+        "source": null,
+        "type": "operational",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 3 area(s) per site. multi VLANs, dhcp addressing, static routing. cable internet. Wireless cell(s) for laptops. IoT smart LEDs (cabled only; no IP/VLAN placement — separation UNKNOWN, CG-2). Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell medium-s1-a3-multi-dhcp-cable-none-iot at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "058204bca2550e117899be3a8e20f5a467bb44e99a8602d58543397c6a2d8a94",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:21+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

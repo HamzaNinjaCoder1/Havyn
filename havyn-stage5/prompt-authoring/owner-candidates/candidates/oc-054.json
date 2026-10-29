@@ -180,10 +180,16 @@
   "research_inspiration": [
     "https://ictally.com/resources/blog/restaurant-guest-wifi-vs-pos-network-setup"
   ],
+  "decision": {
+    "technical_recommendation": "REFUSAL",
+    "decision_basis": "The combined request is not buildable: guest isolation is refused by name, cameras cannot be expressed (smart_led only), and the engine builds one internet block at sites[0].",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
   "refusal_kind": "capability-gap",
   "prompt_hash": "1f90027c62063a9f62204e16f9a2eb2c50e0922d55c1465e2302287039d39340",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T22:01:26+00:00",
-  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
+  "verified_at": "2026-10-29T10:24:57+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
 }

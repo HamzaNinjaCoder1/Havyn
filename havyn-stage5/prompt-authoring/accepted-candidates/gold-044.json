@@ -1,0 +1,25 @@
+{
+  "id": "gold-044",
+  "candidate_id": "oc-044",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "ambiguous",
+  "coverage_cell": "ambiguous-routing",
+  "length_category": "medium",
+  "original_ai_prompt": "Do offices hain aur unhe connect karna hai. Routing kaise karni hai yeh aap hi batayein, mujhe difference nahi pata. Internet dono ko chahiye.",
+  "cleaned_prompt": "Do offices hain aur unhe connect karna hai. Routing kaise karni hai yeh aap hi batayein, mujhe difference nahi pata. Internet dono ko chahiye.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "The user delegates the routing choice ('aap hi batayein') and supplies neither host counts, addressing, nor where the internet line sits. One definite response: do not bounce the routing decision back at a user who said they don't know — recommend a concrete mode with a one-line reason (static routing is the right fit for a two-site link), and ask only for the build data the engine actually needs: roughly how many devices sit at each site, whether addressing is DHCP or static, and where the internet line comes in. Must not silently pick and present it as the user's own choice, and must not invent site sizes. Recorded as ambiguous because that build data is not recoverable from the text.",
+  "capability_limitations": "The user delegates the routing choice ('aap hi batayein') and supplies neither host counts, addressing, nor where the internet line sits. One definite response: do not bounce the routing decision back at a user who said they don't know — recommend a concrete mode with a one-line reason (static routing is the right fit for a two-site link), and ask only for the build data the engine actually needs: roughly how many devices sit at each site, whether addressing is DHCP or static, and where the internet line comes in. Must not silently pick and present it as the user's own choice, and must not invent site sizes. Recorded as ambiguous because that build data is not recoverable from the text.",
+  "why_suitable": "Realistic 'I don't know, you tell me' delegation. Tests whether the model surfaces the decision instead of burying an assumption.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-044",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

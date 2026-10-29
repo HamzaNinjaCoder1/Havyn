@@ -1,0 +1,25 @@
+{
+  "id": "gold-050",
+  "candidate_id": "oc-050",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "impossible-refusal",
+  "coverage_cell": "refusal-wireless-too-large",
+  "length_category": "short",
+  "original_ai_prompt": "We need WiFi for 20 laptops in one open room, all off a single access point.",
+  "cleaned_prompt": "We need WiFi for 20 laptops in one open room, all off a single access point.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: 'wireless-group-too-large' — PT radio cells are verified up to 8 clients; 20 in one cell exceeds that. Explain and offer to split into multiple smaller cells. This is a REAL verified limit, not invented.",
+  "capability_limitations": "REFUSE-BY-NAME: 'wireless-group-too-large' — PT radio cells are verified up to 8 clients; 20 in one cell exceeds that. Explain and offer to split into multiple smaller cells. This is a REAL verified limit, not invented.",
+  "why_suitable": "A concrete numeric refusal grounded in the 8-client verified ceiling — tests honest limits over fake scalability.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-050",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

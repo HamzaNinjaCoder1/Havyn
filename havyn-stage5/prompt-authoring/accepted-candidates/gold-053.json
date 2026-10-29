@@ -1,0 +1,164 @@
+{
+  "id": "gold-053",
+  "candidate_id": "oc-053",
+  "language": "en",
+  "difficulty": "L5",
+  "category": "long-document",
+  "coverage_cell": "medium-s1-a2-multi-static-wan-none",
+  "length_category": "document",
+  "original_ai_prompt": "We're a 20-person accounting firm redoing the network across our two floors. Downstairs we have 8 accountant PCs and 2 shared reception PCs; upstairs there are 6 auditor PCs and a small server room with 2 servers.\n\nThe auditors are external, so they must be isolated from our own staff — they get their own network and must not be able to reach the accounting machines or the servers. The two servers run our ledger application (HTTP) and internal DNS; the accountants need those, the auditors don't. Accountant and reception PCs should get their addresses automatically, and the two servers must be static.\n\nTwo exclusions: no wireless anywhere, and no guest/public internet kiosks. We do have a WAN internet handoff, but for the accounting side only. If you have to sequence it: auditor isolation first, then server access, then internet.",
+  "cleaned_prompt": "We're a 20-person accounting firm redoing the network across our two floors. Downstairs we have 8 accountant PCs and 2 shared reception PCs; upstairs there are 6 auditor PCs and a small server room with 2 servers.\n\nThe auditors are external, so they must be isolated from our own staff — they get their own network and must not be able to reach the accounting machines or the servers. The two servers run our ledger application (HTTP) and internal DNS; the accountants need those, the auditors don't. Accountant and reception PCs should get their addresses automatically, and the two servers must be static.\n\nTwo exclusions: no wireless anywhere, and no guest/public internet kiosks. We do have a WAN internet handoff, but for the accounting side only. If you have to sequence it: auditor isolation first, then server access, then internet.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "accounting-firm",
+    "sites": [
+      {
+        "id": "building",
+        "areas": [
+          {
+            "id": "serverroom",
+            "kind": "area",
+            "host_groups": []
+          },
+          {
+            "id": "ground",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountantpcs",
+                "area": "ground",
+                "count": 8,
+                "device": "pc",
+                "vlan": "accountingnet"
+              },
+              {
+                "id": "receptionpcs",
+                "area": "ground",
+                "count": 2,
+                "device": "pc",
+                "vlan": "accountingnet"
+              }
+            ]
+          },
+          {
+            "id": "first",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "auditorpcs",
+                "area": "first",
+                "count": 6,
+                "device": "pc",
+                "vlan": "auditornet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "accountingnet",
+        "name": "Accounting",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 20
+      },
+      {
+        "id": "auditornet",
+        "name": "Auditors",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 12
+      },
+      {
+        "id": "servernet",
+        "name": "Servers",
+        "dhcp": false,
+        "site": "building",
+        "required_hosts": 6
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "servers": [
+      {
+        "id": "ledgersrv",
+        "site": "building",
+        "vlan": "servernet",
+        "services": [
+          "http"
+        ]
+      },
+      {
+        "id": "dnssrv",
+        "site": "building",
+        "vlan": "servernet",
+        "services": [
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Auditors are isolated and cannot reach accounting machines or servers",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The ledger HTTP server and DNS server exist for accountants",
+        "type": "service",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Accountant and reception PCs use DHCP; servers are static",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "No wireless and no public kiosks",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "WAN internet for the accounting side",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Three VLANs (accounting DHCP, auditors DHCP, servers static), two servers (http, dns) on the server VLAN, WAN internet. Auditor addressing is DHCP because the prompt names only the two servers as static (the intent does not invent a static auditor network). Auditor isolation is an internal-subnet separation the engine models via separate subnets — no guest_isolation flag, so it builds — but the 'auditors cannot reach accounting or the servers' blocking clause has no ACL criterion in expander v1 and verifies UNKNOWN (CG-1), as does the 'WAN for the accounting side only' egress scope. It is recorded here as an inference (not a claim) that the reception PCs share the accounting VLAN.",
+  "capability_limitations": "Three VLANs (accounting DHCP, auditors DHCP, servers static), two servers (http, dns) on the server VLAN, WAN internet. Auditor addressing is DHCP because the prompt names only the two servers as static (the intent does not invent a static auditor network). Auditor isolation is an internal-subnet separation the engine models via separate subnets — no guest_isolation flag, so it builds — but the 'auditors cannot reach accounting or the servers' blocking clause has no ACL criterion in expander v1 and verifies UNKNOWN (CG-1), as does the 'WAN for the accounting side only' egress scope. It is recorded here as an inference (not a claim) that the reception PCs share the accounting VLAN. Engine cannot verify: Auditor isolation; accounting-only WAN scope; DHCP/static; exclusions.",
+  "why_suitable": "Another true long-document with auditor-isolation, mixed addressing, and explicit priorities. Forces full-document extraction; the auditor-isolation-vs-server-access split is the hard part.",
+  "decision": {
+    "technical_recommendation": "BUILD",
+    "decision_basis": "Three VLANs, two servers and the WAN shape compile. Auditor isolation has no ACL criterion and the accounting-only WAN scope is not asserted, so both stay UNKNOWN.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-053",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

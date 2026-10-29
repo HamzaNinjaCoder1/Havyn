@@ -1,0 +1,135 @@
+{
+  "id": "gold-030",
+  "candidate_id": "oc-030",
+  "language": "mixed",
+  "difficulty": "L3",
+  "category": "routing",
+  "coverage_cell": "small-s3-a1-multi-static-wan-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Teen sites hain: head office, aur do branches. Head office par taqreeban 8 computers hain, aur har branch par 4, aur sab ko IP automatically milna chahiye (DHCP). Head office par internet line hai, and dono branches ko head office ke through routing chahiye — internet bhi wahi se mile. Static routing use karein, so OSPF ki abhi zaroorat nahi.",
+  "cleaned_prompt": "Teen sites hain: head office, aur do branches. Head office par taqreeban 8 computers hain, aur har branch par 4, aur sab ko IP automatically milna chahiye (DHCP). Head office par internet line hai, and dono branches ko head office ke through routing chahiye — internet bhi wahi se mile. Static routing use karein, so OSPF ki abhi zaroorat nahi.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "three-sites",
+    "sites": [
+      {
+        "id": "headoffice",
+        "areas": [
+          {
+            "id": "hq",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "hopcs",
+                "area": "hq",
+                "count": 8,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branch1",
+        "areas": [
+          {
+            "id": "b1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "b1pcs",
+                "area": "b1",
+                "count": 4,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "branch2",
+        "areas": [
+          {
+            "id": "b2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "b2pcs",
+                "area": "b2",
+                "count": 4,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "honet",
+        "name": "Head office",
+        "dhcp": true,
+        "site": "headoffice",
+        "required_hosts": 16
+      },
+      {
+        "id": "b1net",
+        "name": "Branch 1",
+        "dhcp": true,
+        "site": "branch1",
+        "required_hosts": 10
+      },
+      {
+        "id": "b2net",
+        "name": "Branch 2",
+        "dhcp": true,
+        "site": "branch2",
+        "required_hosts": 10
+      }
+    ],
+    "routing": {
+      "mode": "static"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Both branches reach the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Both branches get internet through the head office",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Use static routing, not OSPF",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Three sites, static routes branches<->HO, WAN internet + NAT at HO, DHCP each.",
+  "capability_limitations": "Three sites, static routes branches<->HO, WAN internet + NAT at HO, DHCP each.",
+  "why_suitable": "Three-site static routing (a topology the coverage matrix exercises) in natural mixed language.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-030",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

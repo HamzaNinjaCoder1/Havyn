@@ -1,0 +1,25 @@
+{
+  "id": "gold-017",
+  "candidate_id": "oc-017",
+  "language": "en",
+  "difficulty": "L5",
+  "category": "contradictory",
+  "coverage_cell": "contradiction-guest-isolation-vs-reach",
+  "length_category": "medium",
+  "original_ai_prompt": "Set up a guest WiFi that is completely isolated — visitors must never touch anything internal. Oh, and they also need to open our booking page, which lives on a server inside the office network.",
+  "cleaned_prompt": "Set up a guest WiFi that is completely isolated — visitors must never touch anything internal. Oh, and they also need to open our booking page, which lives on a server inside the office network.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "SURFACE CONTRADICTION: 'completely isolated, never touch anything internal' conflicts with 'guest reaches an internal booking server'. The model must flag the conflict and ask which wins (or propose a narrow exception), not silently build one and drop the other. Note this also overlaps the real guest-isolation capability gap.",
+  "capability_limitations": "SURFACE CONTRADICTION: 'completely isolated, never touch anything internal' conflicts with 'guest reaches an internal booking server'. The model must flag the conflict and ask which wins (or propose a narrow exception), not silently build one and drop the other. Note this also overlaps the real guest-isolation capability gap.",
+  "why_suitable": "Textbook real-world contradiction (isolation vs an exception), stated as if both are firm. Tests conflict detection rather than happy-path generation.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-017",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

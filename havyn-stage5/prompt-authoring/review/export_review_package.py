@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,6 +35,15 @@ ALLOWED = (
     "expected_intent",
     "expected_behaviour",
 )
+
+
+def _engine_pin() -> str:
+    repo = HERE.parents[2]
+    head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                          capture_output=True, text=True, check=True).stdout.strip()
+    dirty = subprocess.run(["git", "-C", str(repo), "status", "--porcelain", "--", "src"],
+                           capture_output=True, text=True, check=True).stdout.strip()
+    return f"{head}+dirty-src" if dirty else head
 
 
 def main() -> None:
@@ -53,7 +63,7 @@ def main() -> None:
         lines.append(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 
     body = "\n".join(lines) + "\n"
-    OUT.write_text(body, encoding="utf-8")
+    OUT.write_bytes(body.encode("utf-8"))
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
 
     manifest = {
@@ -73,7 +83,7 @@ def main() -> None:
         "file": OUT.name,
         "sha256": digest,
         "candidate_revision": "working tree after the Stage-5 fix pass",
-        "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2",
+        "engine_commit": _engine_pin(),
         "status": "INPUT ONLY — no cross-family review has been run",
     }
     MANIFEST.write_text(

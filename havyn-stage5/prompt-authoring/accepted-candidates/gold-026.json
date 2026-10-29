@@ -1,0 +1,25 @@
+{
+  "id": "gold-026",
+  "candidate_id": "oc-026",
+  "language": "mixed",
+  "difficulty": "L4",
+  "category": "enterprise",
+  "coverage_cell": "medium-s1-a3-multi-dhcp-cable-none",
+  "length_category": "long",
+  "original_ai_prompt": "School hai — computer lab, classrooms aur staff room. Students ke liye alag network chahiye, aur staff ke liye bhi alag, while a guest network for visitors jo sirf internet tak mehdood ho.\n\n- Computer lab: 20 student PCs.\n- Classrooms: 12 wired PCs.\n- Staff room: 6 staff PCs aur 4 laptops (wireless).\n- Guest network sirf internet, so koi internal access nahi.\nCable internet available hai, and students aur staff ke beech koi sharing nahi honi chahiye.",
+  "cleaned_prompt": "School hai — computer lab, classrooms aur staff room. Students ke liye alag network chahiye, aur staff ke liye bhi alag, while a guest network for visitors jo sirf internet tak mehdood ho.\n\n- Computer lab: 20 student PCs.\n- Classrooms: 12 wired PCs.\n- Staff room: 6 staff PCs aur 4 laptops (wireless).\n- Guest network sirf internet, so koi internal access nahi.\nCable internet available hai, and students aur staff ke beech koi sharing nahi honi chahiye.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: the guest clause ('sirf internet, koi internal access nahi') is a guest-isolation guarantee, and expander v1 refuses it by name ('guest-isolation-unsupported') — no live-verified shape puts a guest VLAN behind a verified ACL enforcement point. The correct output is the named refusal plus an offer to build the student/staff segmentation with the guest network as a plain separate subnet, making no 'cannot reach internal' promise.",
+  "capability_limitations": "REFUSE-BY-NAME: the guest clause ('sirf internet, koi internal access nahi') is a guest-isolation guarantee, and expander v1 refuses it by name ('guest-isolation-unsupported') — no live-verified shape puts a guest VLAN behind a verified ACL enforcement point. The correct output is the named refusal plus an offer to build the student/staff segmentation with the guest network as a plain separate subnet, making no 'cannot reach internal' promise.",
+  "why_suitable": "Campus realism + a second encounter with the guest-isolation capability gap in a different domain and language. Reinforces honest refusal over fabrication.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-026",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

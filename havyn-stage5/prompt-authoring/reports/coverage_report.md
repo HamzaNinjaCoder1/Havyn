@@ -49,7 +49,7 @@ reported as such, and shapes the matrix does not contain are marked
 | oc-025 | small-s1-a3-multi-dhcp-wan-none | extension-cell | connected+wan+none+dhcp+servers1+security | no certified cell carries these features |
 | oc-026 | medium-s1-a3-multi-dhcp-cable-none | refusal | - | no intent (expected refusal) - cell coverage n/a |
 | oc-027 | small-s1-a3-multi-dhcp-cable-none-iot | refusal | - | no intent (expected refusal) - cell coverage n/a |
-| oc-028 | medium-s1-a2-multi-dhcp-cable-none | extension-cell | connected+cable+none+wireless+dhcp+security | no certified cell carries these features |
+| oc-028 | medium-s1-a2-multi-dhcp-cable-none | extension-cell | connected+cable+none+wireless+dhcp+servers1+security | no certified cell carries these features |
 | oc-029 | small-s1-a2-multi-dhcp-dsl-none | label-only | connected+dsl+none+dhcp | cell features 'static+dsl+none+dhcp' vs candidate 'connected+dsl+none+dhcp' |
 | oc-030 | small-s3-a1-multi-static-wan-none | feature-match | static+wan+none+dhcp | certified cells with these features: medium-s2-a2-multi-dhcp-wan-none, small-s2-a1-multi-dhcp-wan-none, small-s3-a1-multi-dhcp-wan-none |
 | oc-031 | small-s1-a1-single-static-none-none | label-only | connected+none+none+dhcp | cell features 'static+none+none+static' vs candidate 'connected+none+none+dhcp' |

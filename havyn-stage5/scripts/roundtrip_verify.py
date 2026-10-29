@@ -33,6 +33,7 @@ for p in (str(REPO), str(REPO / "havyn-stage5" / "scripts")):
 
 from benchmark_harness import compare_intents, extract_json  # noqa: E402
 from generate_intents import GENERATOR_VERSION  # noqa: E402
+from generate_open_slots import _engine_pin  # noqa: E402
 from src.network_autopilot.ai.intent import HavynIntent  # noqa: E402
 
 # Requirement-bearing field paths that MUST round-trip exactly.
@@ -141,7 +142,7 @@ def main() -> None:
         for line in Path(args.intents).read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    by_hash = {r.get("hash"): r for r in intents}
+    by_hash = {r.get("hash") or r.get("id"): r for r in intents}
     prompts = [
         json.loads(line)
         for line in Path(args.prompts).read_text(encoding="utf-8").splitlines()
@@ -179,6 +180,10 @@ def main() -> None:
             "language": item.get("language"),
             "coverage_cell": item.get("coverage_cell"),
             "intent_hash": item.get("intent_hash"),
+            "verification_method": (
+                "independent_model_reconstruction" if model is not None
+                else "dry_run_reconstruction_equals_source"
+            ),
         })
 
     prompt_text_by_id = {item["id"]: item["prompt"] for item in prompts}
@@ -201,9 +206,14 @@ def main() -> None:
         "dataset": "havyn-roundtrip-v1",
         "generator_version": GENERATOR_VERSION,
         "model": args.model or "(dry-run: reconstruction == source)",
+        "verification_method": (
+            "independent_model_reconstruction" if args.model
+            else "dry_run_reconstruction_equals_source"
+        ),
         "examples": len(results),
         "queues": queues,
         "near_duplicates_flagged": len(duplicates),
+        "engine_commit": _engine_pin(),
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }, indent=2), encoding="utf-8")
     print(f"round-trip: {queues} (near-duplicates flagged: {len(duplicates)})")

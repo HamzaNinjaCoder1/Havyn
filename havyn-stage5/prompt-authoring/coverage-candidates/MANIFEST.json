@@ -1,0 +1,278 @@
+{
+  "status": "AI-GENERATED CANDIDATES — NOT OWNER-AUTHORED GOLD",
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending"
+  },
+  "slots": 44,
+  "verified": 44,
+  "failed": 0,
+  "failures": [],
+  "results": [
+    {
+      "slot": "gold-057",
+      "candidate": "cc-057",
+      "cell": "large-s1-a4-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-058",
+      "candidate": "cc-058",
+      "cell": "large-s1-a4-multi-dhcp-dsl-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-059",
+      "candidate": "cc-059",
+      "cell": "large-s1-a4-multi-static-ospf-wan-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-060",
+      "candidate": "cc-060",
+      "cell": "large-s1-a4-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-061",
+      "candidate": "cc-061",
+      "cell": "large-s1-a4-single-dhcp-wan-asa-dmz",
+      "verified": true
+    },
+    {
+      "slot": "gold-062",
+      "candidate": "cc-062",
+      "cell": "large-s1-a4-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-063",
+      "candidate": "cc-063",
+      "cell": "medium-s1-a3-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-064",
+      "candidate": "cc-064",
+      "cell": "medium-s1-a3-multi-dhcp-dsl-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-065",
+      "candidate": "cc-065",
+      "cell": "medium-s1-a3-multi-static-ospf-wan-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-066",
+      "candidate": "cc-066",
+      "cell": "medium-s1-a3-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-067",
+      "candidate": "cc-067",
+      "cell": "medium-s1-a3-single-dhcp-wan-asa-dmz",
+      "verified": true
+    },
+    {
+      "slot": "gold-068",
+      "candidate": "cc-068",
+      "cell": "medium-s1-a3-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-069",
+      "candidate": "cc-069",
+      "cell": "medium-s2-a2-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-070",
+      "candidate": "cc-070",
+      "cell": "medium-s2-a2-multi-dhcp-wan-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-071",
+      "candidate": "cc-071",
+      "cell": "medium-s2-a2-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-072",
+      "candidate": "cc-072",
+      "cell": "medium-s2-a2-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-073",
+      "candidate": "cc-073",
+      "cell": "small-s1-a1-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-074",
+      "candidate": "cc-074",
+      "cell": "small-s1-a1-multi-dhcp-dsl-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-075",
+      "candidate": "cc-075",
+      "cell": "small-s1-a1-multi-static-ospf-wan-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-076",
+      "candidate": "cc-076",
+      "cell": "small-s1-a1-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-077",
+      "candidate": "cc-077",
+      "cell": "small-s1-a1-single-dhcp-wan-asa-dmz",
+      "verified": true
+    },
+    {
+      "slot": "gold-078",
+      "candidate": "cc-078",
+      "cell": "small-s1-a1-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-079",
+      "candidate": "cc-079",
+      "cell": "small-s1-a2-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-080",
+      "candidate": "cc-080",
+      "cell": "small-s1-a2-multi-dhcp-dsl-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-081",
+      "candidate": "cc-081",
+      "cell": "small-s1-a2-multi-static-ospf-wan-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-082",
+      "candidate": "cc-082",
+      "cell": "small-s1-a2-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-083",
+      "candidate": "cc-083",
+      "cell": "small-s1-a2-single-dhcp-wan-asa-dmz",
+      "verified": true
+    },
+    {
+      "slot": "gold-084",
+      "candidate": "cc-084",
+      "cell": "small-s1-a2-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-085",
+      "candidate": "cc-085",
+      "cell": "small-s2-a1-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-086",
+      "candidate": "cc-086",
+      "cell": "small-s2-a1-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-087",
+      "candidate": "cc-087",
+      "cell": "small-s2-a1-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-088",
+      "candidate": "cc-088",
+      "cell": "small-s3-a1-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-089",
+      "candidate": "cc-089",
+      "cell": "small-s3-a1-multi-dhcp-wan-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-090",
+      "candidate": "cc-090",
+      "cell": "small-s3-a1-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-091",
+      "candidate": "cc-091",
+      "cell": "small-s3-a1-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-092",
+      "candidate": "cc-092",
+      "cell": "large-s1-a4-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-093",
+      "candidate": "cc-093",
+      "cell": "large-s1-a4-multi-dhcp-dsl-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-094",
+      "candidate": "cc-094",
+      "cell": "large-s1-a4-multi-static-ospf-wan-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-095",
+      "candidate": "cc-095",
+      "cell": "large-s1-a4-single-dhcp-wan-asa",
+      "verified": true
+    },
+    {
+      "slot": "gold-096",
+      "candidate": "cc-096",
+      "cell": "large-s1-a4-single-dhcp-wan-asa-dmz",
+      "verified": true
+    },
+    {
+      "slot": "gold-097",
+      "candidate": "cc-097",
+      "cell": "large-s1-a4-single-static-none-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-098",
+      "candidate": "cc-098",
+      "cell": "medium-s1-a3-multi-dhcp-cable-none-iot",
+      "verified": true
+    },
+    {
+      "slot": "gold-099",
+      "candidate": "cc-099",
+      "cell": "medium-s1-a3-multi-dhcp-dsl-none",
+      "verified": true
+    },
+    {
+      "slot": "gold-100",
+      "candidate": "cc-100",
+      "cell": "medium-s1-a3-multi-static-ospf-wan-none",
+      "verified": true
+    }
+  ]
+}

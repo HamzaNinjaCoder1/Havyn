@@ -25,15 +25,16 @@ refusal. Do not relabel a candidate to pretend a cell is covered.
   `reproducibility_dependency.md`: a clean `e8503cd` checkout verifies 48/56
   until the Stage 3/4 server-service support is committed.
 - Post-fix semantic re-check: **ACCEPT 48 / REVIEW 8 / REJECT 0**.
-  - Of the 16 candidates that were REVIEW at the checkpoint, **8 moved to
-    ACCEPT** after their flagged defects were fixed and re-checked
-    (`oc-004, oc-005, oc-006, oc-030, oc-044, oc-048, oc-049, oc-056`).
-  - **8 remain REVIEW** because the residual is an owner decision, not a text
-    defect (`oc-007, oc-012, oc-013, oc-028, oc-035, oc-040, oc-053, oc-054`).
-  - The re-check was performed by the **same base model** as the drafter and as
-    Model B. It is **not** independent and **not** cross-family validation.
-    Historical Model-B verdicts are preserved in `review/model-b-reviews/`;
-    the shipped-text statuses are in `review/post-fix-recheck.json`.
+- Technical decision pass: **ACCEPT 56 / REVIEW 0 / REJECT 0**. The 8 former
+  REVIEWs now have recorded technical recommendations
+  (`owner_decisions.json` / `owner_decisions.md`): 6 BUILD (oc-028 after a
+  rewrite) and 2 REFUSAL (oc-007, oc-054). These are **not owner approvals**.
+  Every candidate still has `owner_confirmation_required: true` and remains
+  `ai_assisted_candidate`; none is owner-authored Gold.
+- The re-check was performed by the **same base model** as the drafter and as
+  Model B. It is **not** independent and **not** cross-family validation.
+  Historical Model-B verdicts are preserved in `review/model-b-reviews/`;
+  the shipped-text statuses are in `review/post-fix-recheck.json`.
 - Language: **en 30 / roman-urdu 18 / mixed 8**.
 - Difficulty: **L1 4 / L2 8 / L3 19 / L4 16 / L5 9**.
 - Candidate-vs-certified coverage: exact 1 / label-only 14 / feature-match 4 /
@@ -60,8 +61,8 @@ change in the slot row.
 
 Three passes, in order:
 
-1. **Resolve the 8 REVIEW residuals** (table below). Answer the owner question
-   first; then rewrite the prompt and adopt, or drop the candidate.
+1. **Confirm the 8 technical decisions** (table below). They are recommendations,
+   not approvals; accept or override each, then rewrite/adopt or drop.
 2. **Rewrite and adopt the 48 ACCEPT candidates.** Do not skip the rewrite: the
    value of the owner half is that the words are yours, not the model's.
 3. **Author the 44 open slots** (`gold-057..100`) from scratch, targeting the
@@ -89,13 +90,13 @@ Action codes used below:
 | gold-004 | oc-004 | mixed | L2 | `small-s2-a1-multi-dhcp-wan-none` | exact | full | ACCEPT | A |
 | gold-005 | oc-005 | en | L3 | `medium-s1-a3-multi-static-ospf-wan-none` | label-only | full | ACCEPT | A |
 | gold-006 | oc-006 | roman-urdu | L3 | `small-s2-a1-multi-static-wan-none` | feature-match | full | ACCEPT | A |
-| gold-007 | oc-007 | en | L3 | `small-s1-a2-multi-dhcp-cable-none` | refusal | full | **REVIEW** | R |
+| gold-007 | oc-007 | en | L3 | `small-s1-a2-multi-dhcp-cable-none` | refusal | full | **ACCEPT** | A |
 | gold-008 | oc-008 | mixed | L2 | `small-s1-a1-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
 | gold-009 | oc-009 | en | L4 | `small-s1-a1-single-dhcp-wan-asa-dmz` | label-only | full | ACCEPT | A |
 | gold-010 | oc-010 | roman-urdu | L4 | `small-s1-a1-single-dhcp-wan-asa` | label-only | full | ACCEPT | A |
 | gold-011 | oc-011 | en | L3 | `small-s1-a2-multi-dhcp-cable-none-iot` | label-only | full | ACCEPT | A |
-| gold-012 | oc-012 | en | L5 | `medium-s1-a3-multi-static-wan-none` | extension-cell | full | **REVIEW** | R |
-| gold-013 | oc-013 | mixed | L5 | `small-s2-a2-multi-static-ospf-wan-none` | extension-cell | full | **REVIEW** | R |
+| gold-012 | oc-012 | en | L5 | `medium-s1-a3-multi-static-wan-none` | extension-cell | full | **ACCEPT** | A |
+| gold-013 | oc-013 | mixed | L5 | `small-s2-a2-multi-static-ospf-wan-none` | extension-cell | full | **ACCEPT** | A |
 | gold-014 | oc-014 | en | L4 | `ambiguous-missing-sites` | refusal | full | ACCEPT | A |
 | gold-015 | oc-015 | roman-urdu | L3 | `ambiguous-addressing` | refusal | full | ACCEPT | A |
 | gold-016 | oc-016 | mixed | L4 | `ambiguous-internet-type` | refusal | full | ACCEPT | A |
@@ -110,19 +111,19 @@ Action codes used below:
 | gold-025 | oc-025 | en | L4 | `small-s1-a3-multi-dhcp-wan-none` | extension-cell | full | ACCEPT | A |
 | gold-026 | oc-026 | mixed | L4 | `medium-s1-a3-multi-dhcp-cable-none` | refusal | full | ACCEPT | A |
 | gold-027 | oc-027 | en | L3 | `small-s1-a3-multi-dhcp-cable-none-iot` | refusal | full | ACCEPT | A |
-| gold-028 | oc-028 | en | L4 | `medium-s1-a2-multi-dhcp-cable-none` | extension-cell | full | **REVIEW** | R |
+| gold-028 | oc-028 | en | L4 | `medium-s1-a2-multi-dhcp-cable-none` | extension-cell | full | **ACCEPT** | A |
 | gold-029 | oc-029 | roman-urdu | L2 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | ACCEPT | A |
 | gold-030 | oc-030 | mixed | L3 | `small-s3-a1-multi-static-wan-none` | feature-match | full | ACCEPT | A |
 | gold-031 | oc-031 | en | L1 | `small-s1-a1-single-static-none-none` | label-only | full | ACCEPT | A |
 | gold-032 | oc-032 | roman-urdu | L1 | `small-s1-a1-single-static-none-none` | label-only | full | ACCEPT | A |
 | gold-033 | oc-033 | en | L2 | `small-s1-a3-multi-dhcp-dsl-none` | extension-cell | full | ACCEPT | A |
 | gold-034 | oc-034 | roman-urdu | L2 | `small-s1-a2-multi-dhcp-none-none` | extension-cell | full | ACCEPT | A |
-| gold-035 | oc-035 | en | L3 | `small-s3-a1-multi-static-wan-none` | feature-match | full | **REVIEW** | R |
+| gold-035 | oc-035 | en | L3 | `small-s3-a1-multi-static-wan-none` | feature-match | full | **ACCEPT** | A |
 | gold-036 | oc-036 | en | L3 | `small-s2-a1-multi-static-ospf-wan-none` | extension-cell | full | ACCEPT | A |
 | gold-037 | oc-037 | roman-urdu | L4 | `small-s2-a2-multi-static-wan-none` | feature-match | full | ACCEPT | A |
 | gold-038 | oc-038 | en | L2 | `small-s1-a1-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
 | gold-039 | oc-039 | roman-urdu | L3 | `small-s1-a2-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
-| gold-040 | oc-040 | en | L3 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | **REVIEW** | R |
+| gold-040 | oc-040 | en | L3 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | **ACCEPT** | A |
 | gold-041 | oc-041 | roman-urdu | L4 | `small-s1-a3-multi-dhcp-wan-none` | extension-cell | full | ACCEPT | A |
 | gold-042 | oc-042 | en | L3 | `medium-s1-a2-multi-dhcp-cable-none` | extension-cell | full | ACCEPT | A |
 | gold-043 | oc-043 | en | L3 | `ambiguous-host-count` | refusal | full | ACCEPT | A |
@@ -135,26 +136,26 @@ Action codes used below:
 | gold-050 | oc-050 | en | L3 | `refusal-wireless-too-large` | refusal | full | ACCEPT | A |
 | gold-051 | oc-051 | roman-urdu | L3 | `refusal-asa5505-dmz` | refusal | full | ACCEPT | A |
 | gold-052 | oc-052 | en | L4 | `refusal-dhcp-and-cidr` | refusal | full | ACCEPT | A |
-| gold-053 | oc-053 | en | L5 | `medium-s1-a2-multi-static-wan-none` | extension-cell | full | **REVIEW** | R |
-| gold-054 | oc-054 | mixed | L5 | `small-s2-a2-multi-static-wan-none-iot` | refusal | full | **REVIEW** | R |
+| gold-053 | oc-053 | en | L5 | `medium-s1-a2-multi-static-wan-none` | extension-cell | full | **ACCEPT** | A |
+| gold-054 | oc-054 | mixed | L5 | `small-s2-a2-multi-static-wan-none-iot` | refusal | full | **ACCEPT** | A |
 | gold-055 | oc-055 | en | L3 | `small-s1-a2-multi-dhcp-dsl-none` | label-only | full | ACCEPT | A |
 | gold-056 | oc-056 | roman-urdu | L3 | `small-s1-a2-multi-dhcp-none-none` | extension-cell | full | ACCEPT | A |
 
-## The 8 REVIEW residuals — exact owner questions
+## The 8 technical decisions — owner confirmation still required
 
-Answer these before rewriting. If the answer is "no", drop the candidate or
-change the scenario; do not quietly weaken the verification.
+These are technical recommendations, not owner approvals. Full basis and
+engine-can/cannot text is in `owner_decisions.md` and `owner_decisions.json`.
 
-| slot | candidate | question |
-| --- | --- | --- |
-| gold-007 | oc-007 | Adopt a named refusal for guest-WiFi isolation — a mainstream request — knowing the refusal is source-traced and engine-probed offline, but not live-PT-executed? |
-| gold-012 | oc-012 | Accept a buildable brief whose critical "finance is unreachable from anyone else" clause is recorded UNKNOWN (no inter-VLAN ACL capability)? |
-| gold-013 | oc-013 | Accept a buildable brief whose critical "accounts not reachable by sales" clause is recorded UNKNOWN (CG-1)? |
-| gold-028 | oc-028 | Accept the disclosed compromises: tablets as handhelds/forklift terminals, WMS out of scope, empty contractor segment, "internet only" read as scope? |
-| gold-035 | oc-035 | Keep oc-030 and oc-035 as two slots for one topology (English + Roman-Urdu language pair)? |
-| gold-040 | oc-040 | Keep both smart-LED IoT candidates (oc-011 office, oc-040 retail) even though the engine can only express `smart_led` and the shape is similar? |
-| gold-053 | oc-053 | Accept UNKNOWN auditor isolation and accounting-only WAN scope? |
-| gold-054 | oc-054 | Is refusal (not build + UNKNOWN) the single correct answer for the guest-isolation clause? Confirm the POS separation is not over-claimed. |
+| slot | candidate | recommendation | owner confirmation still needed |
+| --- | --- | --- | --- |
+| gold-007 | oc-007 | **REFUSAL** — guest-isolation is refused by name; no buildable form of the guarantee | Confirm you want a mainstream guest-WiFi request represented as a refusal |
+| gold-012 | oc-012 | **BUILD** — four VLANs compile; finance isolation stays UNKNOWN | Confirm a critical isolation clause may be carried as UNKNOWN |
+| gold-013 | oc-013 | **BUILD** — two sites/OSPF/DNS/WAN compile; accounts isolation stays UNKNOWN | Confirm UNKNOWN accounts isolation is acceptable |
+| gold-028 | oc-028 | **BUILD_AFTER_REWRITE** — WMS now modelled; handhelds map to tablets; contractors are scope | Confirm the device mapping and contractor-scope reading |
+| gold-035 | oc-035 | **BUILD** — no fidelity defect; duplicate topology with oc-030 is a dataset note | Confirm the duplicate topology earns a slot |
+| gold-040 | oc-040 | **BUILD** — till/IoT/DSL compile; IoT separation stays UNKNOWN; similar to oc-011 | Confirm the second smart-LED scenario earns a slot |
+| gold-053 | oc-053 | **BUILD** — three VLANs/servers/WAN compile; auditor isolation and WAN scope stay UNKNOWN | Confirm both UNKNOWN clauses are acceptable |
+| gold-054 | oc-054 | **REFUSAL** — guest isolation, camera kind and one internet block are three real gaps | Confirm a multi-gap refusal is the single correct answer |
 
 ## Table 2 — coverage-driven open slots (`gold-057..100`)
 
@@ -262,7 +263,8 @@ Rules:
 - **56 candidates are engine-verified in the working tree**, but a clean
   `e8503cd` checkout verifies 48/56 until the Stage 3/4 server-service support
   is committed. See `reproducibility_dependency.md`.
-- **8 candidates are REVIEW** and need an owner answer before adoption.
+- **The 8 technical decisions still need your confirmation** before adoption;
+  they are not owner approvals. See `owner_decisions.md`.
 - **Truly independent review is not done.** The previous Model-B rounds used
   the same base model with context isolation; the post-fix re-check is also the
   same base model. Cross-family review is still required before freeze; the

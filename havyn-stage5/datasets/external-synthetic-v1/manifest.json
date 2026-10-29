@@ -1,0 +1,30 @@
+{
+  "dataset": "external-synthetic-v1",
+  "status": "SYNTHETIC AI CORPUS — NOT HUMAN GOLD",
+  "records": 200,
+  "provenance": {
+    "origin": "synthetic_ai",
+    "human_contributor": false,
+    "consent": "not_applicable",
+    "external_human_status": "not_collected"
+  },
+  "category_counts": {
+    "buildable": 160,
+    "refusal": 20,
+    "ambiguous": 20
+  },
+  "language_counts": {
+    "en": 152,
+    "roman-urdu": 32,
+    "mixed": 16
+  },
+  "evidence_class_counts": {
+    "engine_executed": 160,
+    "engine_probe": 20,
+    "expected_refusal_no_engine_code": 20
+  },
+  "verification_failures": [],
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
+  "generated_at": "2026-10-29T10:27:12+00:00",
+  "separation": "This directory is separate from datasets/gold-v1 and from any future external-human-v1."
+}

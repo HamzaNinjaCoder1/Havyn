@@ -1,0 +1,146 @@
+{
+  "id": "cc-083",
+  "language": "en",
+  "difficulty": "L5",
+  "category": "coverage-driven",
+  "scenario": "Golden Bakery — small-s1-a2-single-dhcp-wan-asa-dmz",
+  "coverage_cell": "small-s1-a2-single-dhcp-wan-asa-dmz",
+  "length_category": "medium",
+  "prompt": "I look after the network for Golden Bakery, a bakery in Karachi. We are redoing one building with 2 area(s) and I need a clean design. Use one shared network per site. Give the PCs DHCP addresses. Keep routing simple and static. Bring in WAN internet behind an ASA 5506 firewall.\n\nAlso: Put the public web server in a DMZ on the ASA 5506. Include a DNS and HTTP server on the first site. The public server must be reachable from outside, but outside traffic must not initiate into the inside network.\n\nKeep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-small-s1-a2-single-dhcp-wan-asa-dmz-v26",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 12,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 12,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 30,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [
+      {
+        "id": "srv1",
+        "site": "site1",
+        "vlan": "site1-users",
+        "services": [
+          "dns",
+          "http"
+        ],
+        "records": [],
+        "pages": {},
+        "requirement_refs": []
+      }
+    ],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": true
+    },
+    "firewall": {
+      "enabled": true,
+      "model": "asa5506",
+      "dmz": true
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-003",
+        "statement": "The perimeter blocks outside-initiated access",
+        "source": null,
+        "type": "security",
+        "priority": "critical",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 2 area(s) per site. single VLANs, dhcp addressing, static routing. wan internet behind an ASA 5506. ASA DMZ with a public server. DNS+HTTP server on the first site. Outside-initiated blocking is the one blocked criterion the engine verifies on this perimeter shape.",
+  "why_valuable": "Fills the certified cell small-s1-a2-single-dhcp-wan-asa-dmz at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "f490e0b6e5fd7b365695b8a5a3912a7362505292a07b6e66c277b1fd8666d87d",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:33+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

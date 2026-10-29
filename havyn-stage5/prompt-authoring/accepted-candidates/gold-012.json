@@ -1,0 +1,195 @@
+{
+  "id": "gold-012",
+  "candidate_id": "oc-012",
+  "language": "en",
+  "difficulty": "L5",
+  "category": "long-document",
+  "coverage_cell": "medium-s1-a3-multi-static-wan-none",
+  "length_category": "document",
+  "original_ai_prompt": "Hi — this is the brief for the Northwind Trading fit-out. We're a 45-person wholesale company moving into a single-floor unit that is currently empty; the only thing coming in from outside is one fibre handoff from the ISP, and we wire the rest ourselves.\n\nThe unit splits into four groups. Sales is 22 wired desks. Warehouse is about 12 people on wired terminals. Finance is about 8 people on wired PCs that hold our accounting system. Then there's a reception/meeting area with about 7 shared PCs and 3 guest-facing kiosks.\n\nWhat I need:\n- Sales, warehouse and finance each on their own network. Finance above all must not be reachable by anyone outside finance.\n- The reception PCs and the kiosks are shared and untrusted, so keep them apart from the working groups — no guest-isolation magic, just their own segment.\n- One internal server hosting our intranet (HTTP) that sales and warehouse can open, and a company DNS server.\n- Everyone gets addresses automatically, except finance — the finance machines are static.\n- No wireless for now, wired only; and don't add a firewall appliance, our ISP handles the edge.\n\nGet the four segments signed off first; internet comes second, we'll add it after.",
+  "cleaned_prompt": "Hi — this is the brief for the Northwind Trading fit-out. We're a 45-person wholesale company moving into a single-floor unit that is currently empty; the only thing coming in from outside is one fibre handoff from the ISP, and we wire the rest ourselves.\n\nThe unit splits into four groups. Sales is 22 wired desks. Warehouse is about 12 people on wired terminals. Finance is about 8 people on wired PCs that hold our accounting system. Then there's a reception/meeting area with about 7 shared PCs and 3 guest-facing kiosks.\n\nWhat I need:\n- Sales, warehouse and finance each on their own network. Finance above all must not be reachable by anyone outside finance.\n- The reception PCs and the kiosks are shared and untrusted, so keep them apart from the working groups — no guest-isolation magic, just their own segment.\n- One internal server hosting our intranet (HTTP) that sales and warehouse can open, and a company DNS server.\n- Everyone gets addresses automatically, except finance — the finance machines are static.\n- No wireless for now, wired only; and don't add a firewall appliance, our ISP handles the edge.\n\nGet the four segments signed off first; internet comes second, we'll add it after.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "northwind",
+    "sites": [
+      {
+        "id": "unit",
+        "areas": [
+          {
+            "id": "salesarea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "salespcs",
+                "area": "salesarea",
+                "count": 22,
+                "device": "pc",
+                "vlan": "salesnet"
+              }
+            ]
+          },
+          {
+            "id": "warehousearea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "whsterminals",
+                "area": "warehousearea",
+                "count": 12,
+                "device": "pc",
+                "vlan": "whsnet"
+              }
+            ]
+          },
+          {
+            "id": "financearea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "financepcs",
+                "area": "financearea",
+                "count": 8,
+                "device": "pc",
+                "vlan": "financenet",
+                "addressing": "static"
+              }
+            ]
+          },
+          {
+            "id": "receptionarea",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "sharedpcs",
+                "area": "receptionarea",
+                "count": 7,
+                "device": "pc",
+                "vlan": "receptionnet"
+              },
+              {
+                "id": "kiosks",
+                "area": "receptionarea",
+                "count": 3,
+                "device": "pc",
+                "vlan": "receptionnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "salesnet",
+        "name": "Sales",
+        "dhcp": true,
+        "site": "unit",
+        "required_hosts": 26
+      },
+      {
+        "id": "whsnet",
+        "name": "Warehouse",
+        "dhcp": true,
+        "site": "unit",
+        "required_hosts": 20
+      },
+      {
+        "id": "financenet",
+        "name": "Finance",
+        "dhcp": false,
+        "site": "unit",
+        "required_hosts": 14
+      },
+      {
+        "id": "receptionnet",
+        "name": "Reception",
+        "dhcp": true,
+        "site": "unit",
+        "required_hosts": 14
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "servers": [
+      {
+        "id": "intranet",
+        "site": "unit",
+        "vlan": "salesnet",
+        "services": [
+          "http"
+        ]
+      },
+      {
+        "id": "dnssrv",
+        "site": "unit",
+        "vlan": "salesnet",
+        "services": [
+          "dns"
+        ]
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Sales, warehouse, finance and reception are four separate networks",
+        "type": "isolation",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Finance is unreachable from any other group",
+        "type": "security",
+        "priority": "critical",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "An internal HTTP intranet server is reachable by sales and warehouse",
+        "type": "service",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-004",
+        "statement": "A company DNS server exists",
+        "type": "service",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-005",
+        "statement": "Finance hosts are statically addressed; everyone else uses DHCP",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-006",
+        "statement": "No wireless and no firewall appliance",
+        "type": "constraint",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Four VLANs (sales/warehouse/finance/reception), servers on the sales VLAN, finance machines static while everyone else is DHCP, connected routing, no internet and no firewall (both explicitly excluded). The kiosks share the reception subnet. The audience clause ('sales and warehouse can open the intranet') is served by connected routing; the inter-VLAN blocking clauses (finance unreachable from other groups, kiosks kept apart) have no ACL criterion in expander v1, so they verify UNKNOWN (CG-1) — the prompt keeps the request faithful and the build does not over-claim it.",
+  "capability_limitations": "Four VLANs (sales/warehouse/finance/reception), servers on the sales VLAN, finance machines static while everyone else is DHCP, connected routing, no internet and no firewall (both explicitly excluded). The kiosks share the reception subnet. The audience clause ('sales and warehouse can open the intranet') is served by connected routing; the inter-VLAN blocking clauses (finance unreachable from other groups, kiosks kept apart) have no ACL criterion in expander v1, so they verify UNKNOWN (CG-1) — the prompt keeps the request faithful and the build does not over-claim it. Engine cannot verify: Finance-to-other-group blocking; warehouse-to-intranet audience; DNS existence; static/DHCP configuration; exclusions.",
+  "why_suitable": "True L5 long-document: multi-paragraph, four groups, mixed addressing, explicit exclusions, and a priority ordering. Forces full-document extraction; the 'no internet / no firewall' exclusions trap a model that only reads the first line.",
+  "decision": {
+    "technical_recommendation": "BUILD",
+    "decision_basis": "Four VLANs, static finance, DHCP elsewhere and two servers compile. Finance isolation has no ACL and is recorded UNKNOWN; generic reachability is no longer attached to the isolation requirement.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-012",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

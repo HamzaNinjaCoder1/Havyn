@@ -1,0 +1,25 @@
+{
+  "id": "gold-046",
+  "candidate_id": "oc-046",
+  "language": "en",
+  "difficulty": "L4",
+  "category": "contradictory",
+  "coverage_cell": "contradiction-total-isolation-vs-full-mesh",
+  "length_category": "medium",
+  "original_ai_prompt": "I want four networks — one per department. Nothing should be able to reach anything outside its own department. But also, every department needs to print to the shared printer in HR and open the file server.",
+  "cleaned_prompt": "I want four networks — one per department. Nothing should be able to reach anything outside its own department. But also, every department needs to print to the shared printer in HR and open the file server.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "SURFACE CONTRADICTION: 'absolutely nothing reaches outside its own department' cannot coexist with 'every department reaches the HR printer and the file server'. The model must flag the conflict and ask which wins (or propose per-port exceptions), not silently resolve it.",
+  "capability_limitations": "SURFACE CONTRADICTION: 'absolutely nothing reaches outside its own department' cannot coexist with 'every department reaches the HR printer and the file server'. The model must flag the conflict and ask which wins (or propose per-port exceptions), not silently resolve it.",
+  "why_suitable": "A sharper form of the isolation-vs-service contradiction in oc-018, stated with 'non-negotiable' on both sides — the model must refuse to silently pick one.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-046",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

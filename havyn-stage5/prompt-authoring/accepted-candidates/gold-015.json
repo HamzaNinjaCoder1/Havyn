@@ -1,0 +1,25 @@
+{
+  "id": "gold-015",
+  "candidate_id": "oc-015",
+  "language": "roman-urdu",
+  "difficulty": "L3",
+  "category": "ambiguous",
+  "coverage_cell": "ambiguous-addressing",
+  "length_category": "short",
+  "original_ai_prompt": "Mujhe office ka network banana hai, do alag departments hain. Sahi numbers aur addressing abhi nahi bata sakta.",
+  "cleaned_prompt": "Mujhe office ka network banana hai, do alag departments hain. Sahi numbers aur addressing abhi nahi bata sakta.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "ASK: approximately how many devices per department, and should they get IPs automatically (DHCP) or fixed (static)? Do not pick a host count or an addressing mode on the user's behalf.",
+  "capability_limitations": "ASK: approximately how many devices per department, and should they get IPs automatically (DHCP) or fixed (static)? Do not pick a host count or an addressing mode on the user's behalf.",
+  "why_suitable": "Two missing facts at once (scale + addressing). Real novice phrasing; tests whether the model asks for both rather than assuming DHCP.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-015",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

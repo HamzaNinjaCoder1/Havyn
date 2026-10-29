@@ -80,6 +80,19 @@ def train(config_path: str, resume: bool, output_dir: str | None,
     train_cfg = cfg["train"]
     seed = int(train_cfg.get("seed", 20261028))
     root = Path(dataset_dir or train_cfg["dataset_dir"])
+    # S5.16: training consumes the frozen bytes or it does not start.
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from freeze_dataset import check as check_frozen
+
+        breaks = check_frozen(root)
+    except Exception as exc:  # noqa: BLE001
+        breaks = [f"freeze check unavailable: {exc}"]
+    if breaks:
+        raise SystemExit(
+            f"refusing to train on an unfrozen or byte-changed dataset ({root}): "
+            + "; ".join(breaks)
+        )
     examples, val, stats = load_training_data(root, seed)
 
     checkpoint_dir = Path(output_dir) if output_dir else Path(cfg["output"]["checkpoint_dir"])

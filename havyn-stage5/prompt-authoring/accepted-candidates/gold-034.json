@@ -1,0 +1,104 @@
+{
+  "id": "gold-034",
+  "candidate_id": "oc-034",
+  "language": "roman-urdu",
+  "difficulty": "L2",
+  "category": "dhcp-static",
+  "coverage_cell": "small-s1-a2-multi-dhcp-none-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Office mein users ke computers DHCP se IP lein, lekin do servers ko fixed (static) IP deni hain kyunki inke addresses logs mein jane hain. Servers ka apna network ho.",
+  "cleaned_prompt": "Office mein users ke computers DHCP se IP lein, lekin do servers ko fixed (static) IP deni hain kyunki inke addresses logs mein jane hain. Servers ka apna network ho.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "mixed-addr",
+    "sites": [
+      {
+        "id": "office",
+        "areas": [
+          {
+            "id": "workspace",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "userpcs",
+                "area": "workspace",
+                "count": 10,
+                "device": "pc",
+                "vlan": "usernet"
+              }
+            ]
+          },
+          {
+            "id": "serverroom",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "servers",
+                "area": "serverroom",
+                "count": 2,
+                "device": "pc",
+                "vlan": "servernet",
+                "addressing": "static"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "usernet",
+        "name": "Users",
+        "dhcp": true,
+        "site": "office",
+        "required_hosts": 20
+      },
+      {
+        "id": "servernet",
+        "name": "Servers",
+        "dhcp": false,
+        "site": "office",
+        "required_hosts": 6
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "User computers use DHCP",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Servers use static addresses",
+        "type": "addressing",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Servers are on their own network",
+        "type": "isolation",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Users VLAN dhcp=True; server VLAN dhcp=False with per-group static addressing.",
+  "capability_limitations": "Users VLAN dhcp=True; server VLAN dhcp=False with per-group static addressing.",
+  "why_suitable": "Mixed static/DHCP in Roman Urdu — a very common real ask, and it exercises the addressing dimension the templates under-represent.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-034",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

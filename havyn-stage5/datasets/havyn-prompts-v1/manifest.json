@@ -2,9 +2,10 @@
   "dataset": "havyn-prompts-v1",
   "generator_version": "0.1.0",
   "seed": 20261028,
-  "prompts": 147,
-  "template": 147,
+  "prompts": 216,
+  "template": 216,
   "teacher": 0,
   "teacher_model": null,
-  "generated": "2026-10-27T21:43:01+00:00"
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
+  "generated": "2026-10-29T10:55:58+00:00"
 }

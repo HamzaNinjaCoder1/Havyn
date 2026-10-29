@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-28T22:02:18+00:00",
+  "generated_at": "2026-10-29T10:54:10+00:00",
   "records": 56,
   "fields": [
     "id",
@@ -20,8 +20,8 @@
     "length_category"
   ],
   "file": "cross-family-input.jsonl",
-  "sha256": "c0baaa4482c0792f4cf03475a2dd2f1b3fc1157fc1f96799d5c439013662d0dd",
+  "sha256": "f7a0a1f4edb1a3a16b990878e2333cc00a5b6a0aa141a6891d8ab418c02bc492",
   "candidate_revision": "working tree after the Stage-5 fix pass",
-  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src",
   "status": "INPUT ONLY — no cross-family review has been run"
 }

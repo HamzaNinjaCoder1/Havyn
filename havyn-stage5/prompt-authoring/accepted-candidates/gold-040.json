@@ -1,0 +1,107 @@
+{
+  "id": "gold-040",
+  "candidate_id": "oc-040",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "iot",
+  "coverage_cell": "small-s1-a2-multi-dhcp-dsl-none",
+  "length_category": "medium",
+  "original_ai_prompt": "We're fitting a small retail shop. There'll be four till PCs and about six network-controlled LED light units. Keep the shop lighting on its own network, away from the till PCs, and wire the lights in. Ordinary DSL internet is fine.",
+  "cleaned_prompt": "We're fitting a small retail shop. There'll be four till PCs and about six network-controlled LED light units. Keep the shop lighting on its own network, away from the till PCs, and wire the lights in. Ordinary DSL internet is fine.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "smart-shop",
+    "sites": [
+      {
+        "id": "shop",
+        "areas": [
+          {
+            "id": "tillfloor",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pospcs",
+                "area": "tillfloor",
+                "count": 4,
+                "device": "pc",
+                "vlan": "posnet"
+              }
+            ]
+          },
+          {
+            "id": "ceiling",
+            "kind": "area",
+            "host_groups": []
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "posnet",
+        "name": "Tills",
+        "dhcp": true,
+        "site": "shop",
+        "required_hosts": 12
+      },
+      {
+        "id": "iotnet",
+        "name": "Lighting",
+        "dhcp": true,
+        "site": "shop",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "dsl",
+      "nat": true,
+      "public_server": false
+    },
+    "iot": [
+      {
+        "id": "lighting",
+        "site": "shop",
+        "area": "ceiling",
+        "kind": "smart_led",
+        "count": 6
+      }
+    ],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Shop lighting is on its own network, separate from the till PCs",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The light units are wired in",
+        "type": "operational",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Till VLAN + IoT VLAN declaration, 6 cabled smart_led things, DSL internet. The 'shop lighting on its own network, separate from the till PCs' clause verifies UNKNOWN — IoT things are created and cabled with no IP/VLAN placement (expander _place_iot, CG-2), so they do not land on a separately verified segment.",
+  "capability_limitations": "Till VLAN + IoT VLAN declaration, 6 cabled smart_led things, DSL internet. The 'shop lighting on its own network, separate from the till PCs' clause verifies UNKNOWN — IoT things are created and cabled with no IP/VLAN placement (expander _place_iot, CG-2), so they do not land on a separately verified segment. Engine cannot verify: IoT IP/VLAN placement; lighting separation from tills; DSL/internet.",
+  "why_suitable": "Second IoT case with a different domain (retail tills) and a different internet shape (DSL) from oc-011, so it carries distinct discriminating power rather than restating the office case.",
+  "decision": {
+    "technical_recommendation": "BUILD",
+    "decision_basis": "Till VLAN, IoT VLAN declaration, six cabled smart_led and DSL compile. IoT placement is not modelled, so lighting separation stays UNKNOWN. It shares an IoT shape with oc-011; that is a dataset note, not a fidelity defect.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-040",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

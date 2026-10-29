@@ -1,0 +1,150 @@
+{
+  "id": "cc-072",
+  "language": "en",
+  "difficulty": "L1",
+  "category": "coverage-driven",
+  "scenario": "Silverline Media — medium-s2-a2-single-static-none-none",
+  "coverage_cell": "medium-s2-a2-single-static-none-none",
+  "length_category": "medium",
+  "prompt": "Silverline Media is a post-production studio in Karachi. Our network spans 2 sites, each with 2 area(s); I am the post-production lead and need this rebuilt.\n\nWhat I need:\n- Keep a single network for the whole site.\n- Set the PCs to static addressing.\n- Route between sites with static routes.\n- Internet is not needed for this one.\n\nKeep it practical and standard.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-medium-s2-a2-single-static-none-none-v15",
+    "description": null,
+    "language": "en",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 11,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 10,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site2",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g0",
+                "area": "area1",
+                "count": 13,
+                "device": "pc",
+                "vlan": "site2-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g1",
+                "area": "area2",
+                "count": 11,
+                "device": "pc",
+                "vlan": "site2-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 34,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-users",
+        "name": "site2 users",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 34,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "2 site(s), 2 area(s) per site. single VLANs, static addressing, static routing. No internet.",
+  "why_valuable": "Fills the certified cell medium-s2-a2-single-static-none-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "34e1a7ec9cda46e96d251efaeafc1dd01f269875722e7049d749d08afbf4f8b6",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:30+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

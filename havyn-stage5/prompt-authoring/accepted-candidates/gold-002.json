@@ -1,0 +1,68 @@
+{
+  "id": "gold-002",
+  "candidate_id": "oc-002",
+  "language": "roman-urdu",
+  "difficulty": "L1",
+  "category": "basic",
+  "coverage_cell": "small-s1-a1-single-static-none-none",
+  "length_category": "short",
+  "original_ai_prompt": "Mujhe apne chhote office ka network banana hai. Do desktop PCs hain, dono ko aapas mein chalna hai, bas itna hi kaam hai. Internet ki abhi zaroorat nahi.",
+  "cleaned_prompt": "Mujhe apne chhote office ka network banana hai. Do desktop PCs hain, dono ko aapas mein chalna hai, bas itna hi kaam hai. Internet ki abhi zaroorat nahi.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "chota-office",
+    "sites": [
+      {
+        "id": "dokan",
+        "areas": [
+          {
+            "id": "main",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "pc1",
+                "area": "main",
+                "count": 2,
+                "device": "pc"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "users",
+        "name": "Users",
+        "dhcp": false,
+        "site": "dokan",
+        "required_hosts": 8
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Dono PCs aapas mein reach karein",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Build the two-PC LAN. Language stays Roman Urdu; tech terms (PC, network) remain English.",
+  "capability_limitations": "Build the two-PC LAN. Language stays Roman Urdu; tech terms (PC, network) remain English.",
+  "why_suitable": "Natural Roman-Urdu L1. Real users mix scripts; proves the model is not English-only.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-002",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

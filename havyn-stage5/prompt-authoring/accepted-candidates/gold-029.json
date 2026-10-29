@@ -1,0 +1,108 @@
+{
+  "id": "gold-029",
+  "candidate_id": "oc-029",
+  "language": "roman-urdu",
+  "difficulty": "L2",
+  "category": "vlan-dhcp",
+  "coverage_cell": "small-s1-a2-multi-dhcp-dsl-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Mere office ke do floors hain. Neeche reception aur upar accounts ka office hai. Dono floors ke computers alag network par hon aur sab ko IP automatically mile. Internet DSL line se chahiye.",
+  "cleaned_prompt": "Mere office ke do floors hain. Neeche reception aur upar accounts ka office hai. Dono floors ke computers alag network par hon aur sab ko IP automatically mile. Internet DSL line se chahiye.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "do-floor",
+    "sites": [
+      {
+        "id": "building",
+        "areas": [
+          {
+            "id": "ground",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "receptionpcs",
+                "area": "ground",
+                "count": 5,
+                "device": "pc",
+                "vlan": "receptionnet"
+              }
+            ]
+          },
+          {
+            "id": "upper",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "accountspcs",
+                "area": "upper",
+                "count": 6,
+                "device": "pc",
+                "vlan": "accountsnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "receptionnet",
+        "name": "Reception",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 12
+      },
+      {
+        "id": "accountsnet",
+        "name": "Accounts",
+        "dhcp": true,
+        "site": "building",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "dsl",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Har floor ka network alag ho",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Sab computers DHCP se IP lein",
+        "type": "addressing",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "DSL internet available ho",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Two area/VLANs, both DHCP, DSL internet + NAT.",
+  "capability_limitations": "Two area/VLANs, both DHCP, DSL internet + NAT.",
+  "why_suitable": "Straight Roman-Urdu L2 that still names floors and DSL; keeps the language distribution honest.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-029",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

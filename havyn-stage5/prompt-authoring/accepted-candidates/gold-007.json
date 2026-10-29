@@ -1,0 +1,30 @@
+{
+  "id": "gold-007",
+  "candidate_id": "oc-007",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "wireless",
+  "coverage_cell": "small-s1-a2-multi-dhcp-cable-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Our office needs WiFi for staff laptops and a separate guest WiFi for visitors. Guests should only get internet — they must not be able to reach any of our internal machines. Staff laptops stay on the internal network. Cable internet is fine.",
+  "cleaned_prompt": "Our office needs WiFi for staff laptops and a separate guest WiFi for visitors. Guests should only get internet — they must not be able to reach any of our internal machines. Staff laptops stay on the internal network. Cable internet is fine.",
+  "expect_refusal": true,
+  "expected_intent": null,
+  "expected_behaviour": "REFUSE-BY-NAME: guest_isolation is unsupported by expander v1 (no live-verified ACL enforcement point). The correct output is the named refusal 'guest-isolation-unsupported' (raised at src/network_autopilot/ai/expander.py:299 when firewall.guest_isolation is set) plus an offer to build guest on a separate subnet without a guaranteed isolation ACL. This is a REAL current limitation, not an invented one. Capability-gap guard: this refusal is pinned to the engine commit recorded in the emitted JSON; if guest_isolation support ever lands, re-derive this candidate rather than trusting the old verdict.",
+  "capability_limitations": "REFUSE-BY-NAME: guest_isolation is unsupported by expander v1 (no live-verified ACL enforcement point). The correct output is the named refusal 'guest-isolation-unsupported' (raised at src/network_autopilot/ai/expander.py:299 when firewall.guest_isolation is set) plus an offer to build guest on a separate subnet without a guaranteed isolation ACL. This is a REAL current limitation, not an invented one. Capability-gap guard: this refusal is pinned to the engine commit recorded in the emitted JSON; if guest_isolation support ever lands, re-derive this candidate rather than trusting the old verdict. Engine cannot verify: Guest-to-internal blocking; any enforced isolation guarantee.",
+  "why_suitable": "The single most-requested real-world feature (guest WiFi isolation) is exactly what the engine refuses today. Trains 'I cannot safely build this yet' instead of a fake build. Flagged as a capability gap.",
+  "decision": {
+    "technical_recommendation": "REFUSAL",
+    "decision_basis": "The engine refuses guest_isolation by name; there is no buildable form of the requested guarantee. Keeping the refusal is the only faithful answer.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-007",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

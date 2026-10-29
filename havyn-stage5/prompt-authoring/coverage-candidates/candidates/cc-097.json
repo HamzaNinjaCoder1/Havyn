@@ -1,0 +1,133 @@
+{
+  "id": "cc-097",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Silver Spoon Restaurant — large-s1-a4-single-static-none-none",
+  "coverage_cell": "large-s1-a4-single-static-none-none",
+  "length_category": "long",
+  "prompt": "Main Silver Spoon Restaurant ka network dekhta hoon, a restaurant, Lahore mein. Hum ek building jismein 4 areas hain dobara set up kar rahe hain aur mujhe ek saaf design chahiye. Har site ke liye ek hi shared network rakhein. PCs par static address set karein. Routing simple aur static rakhein. Internet ki zaroorat nahi hai. Sab practical aur standard rakhein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-large-s1-a4-single-static-none-none-v40",
+    "description": null,
+    "language": "roman-urdu",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 38,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 38,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area3",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g2",
+                "area": "area3",
+                "count": 40,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area4",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g3",
+                "area": "area4",
+                "count": 41,
+                "device": "pc",
+                "vlan": "site1-users",
+                "addressing": "static",
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-users",
+        "name": "site1 users",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 170,
+        "dhcp": false,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "1 site(s), 4 area(s) per site. single VLANs, static addressing, static routing. No internet.",
+  "why_valuable": "Fills the certified cell large-s1-a4-single-static-none-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "ba40bd610c885428f460564812be198f917e3f8c61455fc8c6a02be220eceb4a",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:45+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}

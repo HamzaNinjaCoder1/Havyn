@@ -1,0 +1,121 @@
+{
+  "id": "gold-042",
+  "candidate_id": "oc-042",
+  "language": "en",
+  "difficulty": "L3",
+  "category": "campus",
+  "coverage_cell": "medium-s1-a2-multi-dhcp-cable-none",
+  "length_category": "medium",
+  "original_ai_prompt": "Design the wired network for one college building: a computer lab with 16 student PCs, four classrooms with 3 PCs each, and a staff room with 5 PCs. Students and staff must be on separate networks; the classrooms count as student machines. Cable internet. Leave guest WiFi out of scope for now.",
+  "cleaned_prompt": "Design the wired network for one college building: a computer lab with 16 student PCs, four classrooms with 3 PCs each, and a staff room with 5 PCs. Students and staff must be on separate networks; the classrooms count as student machines. Cable internet. Leave guest WiFi out of scope for now.",
+  "expect_refusal": false,
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "college-building",
+    "sites": [
+      {
+        "id": "college",
+        "areas": [
+          {
+            "id": "lab",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "labpcs",
+                "area": "lab",
+                "count": 16,
+                "device": "pc",
+                "vlan": "studentnet"
+              }
+            ]
+          },
+          {
+            "id": "classrooms",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "classpcs",
+                "area": "classrooms",
+                "count": 12,
+                "device": "pc",
+                "vlan": "studentnet"
+              }
+            ]
+          },
+          {
+            "id": "staffroom",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "staffpcs",
+                "area": "staffroom",
+                "count": 5,
+                "device": "pc",
+                "vlan": "staffnet"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "studentnet",
+        "name": "Students",
+        "dhcp": true,
+        "site": "college",
+        "required_hosts": 32
+      },
+      {
+        "id": "staffnet",
+        "name": "Staff",
+        "dhcp": true,
+        "site": "college",
+        "required_hosts": 12
+      }
+    ],
+    "routing": {
+      "mode": "connected"
+    },
+    "internet": {
+      "access": "cable",
+      "nat": true,
+      "public_server": false
+    },
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Students and staff are on separate networks",
+        "type": "isolation",
+        "priority": "high",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-002",
+        "statement": "Lab and classroom PCs are both student machines",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      },
+      {
+        "id": "REQ-003",
+        "statement": "Cable internet is available",
+        "type": "connectivity",
+        "priority": "normal",
+        "source": "prompt"
+      }
+    ]
+  },
+  "expected_behaviour": "Two VLANs (students combining lab+classrooms, staff), cable internet. Guest explicitly out of scope, so no isolation gap.",
+  "capability_limitations": "Two VLANs (students combining lab+classrooms, staff), cable internet. Guest explicitly out of scope, so no isolation gap.",
+  "why_suitable": "Campus realism WITHOUT triggering the guest-isolation refusal — shows scope-cutting as a legitimate design move, and keeps an English campus case in the pool.",
+  "decision": null,
+  "provenance": {
+    "origin": "ai_assisted_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "adopted_from": "oc-042",
+    "rewritten": false,
+    "owner_confirmation_required": true
+  }
+}

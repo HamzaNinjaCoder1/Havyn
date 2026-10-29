@@ -124,9 +124,15 @@
   "research_inspiration": [
     "https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cvd/G2basicsmbrnt/G2basicsmbrnt_book/FeatServ.html"
   ],
+  "decision": {
+    "technical_recommendation": "BUILD",
+    "decision_basis": "The three-site static WAN and DHCP shape compiles. It shares a topology with oc-030 but uses different counts and language; this is a dataset-level note, not a fidelity defect.",
+    "provenance_status": "ai_assisted_candidate",
+    "owner_confirmation_required": true
+  },
   "prompt_hash": "4ffbdf296a774b247f7cb7eb98f4bf2ea62278feda3a3626a31049cf74d5d290",
   "engine_verified": true,
   "failure_stage": null,
-  "verified_at": "2026-10-28T22:01:26+00:00",
-  "engine_commit": "e8503cdfb32a83817a2fbc84ad4245057acf75a2"
+  "verified_at": "2026-10-29T10:24:57+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
 }

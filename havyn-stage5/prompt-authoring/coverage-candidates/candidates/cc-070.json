@@ -1,0 +1,187 @@
+{
+  "id": "cc-070",
+  "language": "roman-urdu",
+  "difficulty": "L4",
+  "category": "coverage-driven",
+  "scenario": "Delta Pharma — medium-s2-a2-multi-dhcp-wan-none",
+  "coverage_cell": "medium-s2-a2-multi-dhcp-wan-none",
+  "length_category": "medium",
+  "prompt": "Delta Pharma Islamabad mein a pharma plant hai. Hamara network 2 sites, har ek mein 2 areas tak hai; main quality systems lead hoon aur yeh rebuild karna hai. Har area ki apni alag VLAN honi chahiye. PCs ke liye DHCP chalu rakhein. Sites ke beech static routing rakhein. Site ko WAN internet dein. Sab practical aur standard rakhein.",
+  "expected_intent": {
+    "intent_version": "1",
+    "name": "gen-medium-s2-a2-multi-dhcp-wan-none-v13",
+    "description": null,
+    "language": "roman-urdu",
+    "source_excerpt": null,
+    "sites": [
+      {
+        "id": "site1",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g0",
+                "area": "area1",
+                "count": 14,
+                "device": "pc",
+                "vlan": "site1-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site1-g1",
+                "area": "area2",
+                "count": 10,
+                "device": "pc",
+                "vlan": "site1-v2",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site2",
+        "name": null,
+        "areas": [
+          {
+            "id": "area1",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g0",
+                "area": "area1",
+                "count": 13,
+                "device": "pc",
+                "vlan": "site2-v1",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          },
+          {
+            "id": "area2",
+            "kind": "area",
+            "host_groups": [
+              {
+                "id": "site2-g1",
+                "area": "area2",
+                "count": 13,
+                "device": "pc",
+                "vlan": "site2-v2",
+                "addressing": null,
+                "requirement_refs": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "vlans": [
+      {
+        "id": "site1-v1",
+        "name": "site1 vlan 1",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 22,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site1-v2",
+        "name": "site1 vlan 2",
+        "site": "site1",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 22,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-v1",
+        "name": "site2 vlan 1",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 22,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      },
+      {
+        "id": "site2-v2",
+        "name": "site2 vlan 2",
+        "site": "site2",
+        "purpose": null,
+        "cidr": null,
+        "required_hosts": 22,
+        "dhcp": true,
+        "is_guest": false,
+        "is_management": false
+      }
+    ],
+    "servers": [],
+    "routing": {
+      "mode": "static",
+      "ospf_area": "0"
+    },
+    "internet": {
+      "access": "wan",
+      "nat": true,
+      "public_server": false
+    },
+    "wireless": [],
+    "iot": [],
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "statement": "Every host group reaches every other host group",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      },
+      {
+        "id": "REQ-002",
+        "statement": "The internet test server is reachable from the LAN",
+        "source": null,
+        "type": "connectivity",
+        "priority": "normal",
+        "status": "extracted",
+        "confidence": 1.0,
+        "dependencies": []
+      }
+    ],
+    "constraints": []
+  },
+  "expect_refusal": false,
+  "expected_behaviour": "2 site(s), 2 area(s) per site. multi VLANs, dhcp addressing, static routing. wan internet. Inter-VLAN isolation is not emitted by expander v1 (CG-1); do not claim it as verified.",
+  "why_valuable": "Fills the certified cell medium-s2-a2-multi-dhcp-wan-none at the planned language/difficulty.",
+  "research_inspiration": [],
+  "provenance": {
+    "origin": "ai_generated_candidate",
+    "author_status": "ai_generated_or_ai_assisted",
+    "owner_adoption": "pending",
+    "owner_confirmation_required": true
+  },
+  "prompt_hash": "41e727638407bd8db3d1738e526b58639d1c13b80ac2f012e4a19e865d313bfc",
+  "engine_verified": true,
+  "failure_stage": null,
+  "verified_at": "2026-10-29T10:23:28+00:00",
+  "engine_commit": "b69be22d0118647691d189da89624ac8edfef004+dirty-src"
+}
