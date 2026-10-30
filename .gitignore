@@ -104,6 +104,8 @@ hf_token.txt
 *.pem
 *.key
 
+havyn-stage5/runs/
+
 # Stage 5 runtime artifacts (Colab / Drive outputs, not source)
 havyn-stage5/artifacts/
 havyn-stage5/checkpoints/

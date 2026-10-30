@@ -1,0 +1,49 @@
+base_model: Qwen/Qwen3-8B
+role: standard-smoke
+load_in_4bit: true
+model_weight_gb: 5.0
+max_seq_length: 512
+
+lora:
+  r: 32
+  lora_alpha: 32
+  lora_dropout: 0.0
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: none
+  use_gradient_checkpointing: true
+
+train:
+  dataset: havyn-train-v1
+  dataset_dir: /data/havyn-stage5/datasets/havyn-train-v1
+  task_tags:
+    - intent
+    - prompt
+    - diagnosis
+    - enhancement
+    - clarification
+  epochs: 1
+  max_steps: 2
+  max_train_examples: 16
+  max_validation_examples: 8
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 1
+  learning_rate: 2.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  bf16: true
+  seed: 20261028
+  save_steps: 1
+  eval_steps: 1
+  save_total_limit: 3
+
+output:
+  checkpoint_dir: /data/havyn-stage5/smoke/checkpoints
+  report_dir: /data/havyn-stage5/smoke/reports

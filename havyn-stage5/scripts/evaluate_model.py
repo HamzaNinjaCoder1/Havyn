@@ -27,6 +27,7 @@ Offline scoring of a pre-generated file (also how tests drive this):
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
 from datetime import datetime, timezone
@@ -324,6 +325,7 @@ def evaluate(records: list[dict], generate: Callable[[dict], str]) -> dict[str, 
         generation = generate(rec)
         score = score_record(rec, generation)
         score["id"] = rec.get("id")
+        score["source_task"] = rec["task"]
         if rec["task"] in ("intent", "prompt"):
             results["intent_outputs"].append(score)
         elif rec["task"] == "diagnosis":
@@ -331,8 +333,11 @@ def evaluate(records: list[dict], generate: Callable[[dict], str]) -> dict[str, 
         elif rec["task"] == "clarification":
             results["clarification_scores"].append(score)
         elif rec["task"] == "enhancement":
-            results["enhancement_scores"].append(
-                score_enhancement_output(generation, rec.get("payload") or {}))
+            enhancement = score_enhancement_output(
+                generation, rec.get("payload") or {})
+            enhancement["id"] = rec.get("id")
+            enhancement["source_task"] = rec["task"]
+            results["enhancement_scores"].append(enhancement)
     return results
 
 
@@ -347,28 +352,94 @@ def load_generations(path: Path) -> dict[str, str]:
 
 # --- GPU + live halves (NOT verifiable offline - rule 10) --------------------
 
-def make_gpu_generator(model_dir: str, config_path: str) -> Callable[[dict], str]:
+def _render_generation_prompt(tokenizer: Any, messages: list[dict],
+                              disable_thinking: bool) -> str:
+    kwargs: dict[str, Any] = {
+        "tokenize": False,
+        "add_generation_prompt": True,
+    }
+    if disable_thinking:
+        kwargs["enable_thinking"] = False
     try:
-        import torch
-        from unsloth import FastLanguageModel
-    except ImportError as exc:
-        raise SystemExit(
-            f"GPU generation unavailable ({exc}); run on Colab or pass "
-            "--generations-file")
+        return tokenizer.apply_chat_template(messages, **kwargs)
+    except TypeError:
+        kwargs.pop("enable_thinking", None)
+        return tokenizer.apply_chat_template(messages, **kwargs)
+
+
+def make_gpu_generator(model_dir: str, config_path: str,
+                       adapter_dir: str | None = None,
+                       backend: str = "auto",
+                       disable_thinking: bool = False,
+                       max_new_tokens: int = 2048) -> Callable[[dict], str]:
     cfg = load_config(config_path)
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=model_dir,
-        max_seq_length=int(cfg.get("max_seq_length", 4096)),
-        load_in_4bit=True)
-    FastLanguageModel.for_inference(model)
+    selected = backend
+    if selected == "auto":
+        selected = "unsloth" if importlib.util.find_spec("unsloth") else "transformers"
+    if selected == "unsloth":
+        try:
+            import torch
+            from unsloth import FastLanguageModel
+        except ImportError as exc:
+            raise SystemExit(
+                f"GPU generation unavailable ({exc}); run on Colab or pass "
+                "--generations-file")
+        model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=adapter_dir or model_dir,
+            max_seq_length=int(cfg.get("max_seq_length", 4096)),
+            load_in_4bit=True)
+        FastLanguageModel.for_inference(model)
+    else:
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+        except ImportError as exc:
+            raise SystemExit(
+                f"GPU generation unavailable ({exc}); install the Modal "
+                "requirements or pass --generations-file")
+        from peft import PeftModel
+
+        base_model = cfg.get("base_model") or model_dir
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_dir, trust_remote_code=True)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        quant_config = None
+        if cfg.get("load_in_4bit", True) and torch.cuda.is_available():
+            from transformers import BitsAndBytesConfig
+
+            compute_dtype = (torch.bfloat16
+                             if torch.cuda.is_bf16_supported()
+                             else torch.float16)
+            quant_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=compute_dtype,
+                bnb_4bit_use_double_quant=True,
+            )
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            torch_dtype="auto",
+            device_map={"": 0},
+            quantization_config=quant_config,
+            trust_remote_code=True,
+        )
+        if adapter_dir:
+            model = PeftModel.from_pretrained(model, adapter_dir)
+        model.eval()
+        model.config.use_cache = True
+
+    device = next(model.parameters()).device
 
     def _generate(rec: dict) -> str:
-        text = tokenizer.apply_chat_template(
-            rec["messages"][:-1], tokenize=False, add_generation_prompt=True)
-        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        text = _render_generation_prompt(
+            tokenizer, rec["messages"][:-1], disable_thinking)
+        inputs = tokenizer(
+            text, return_tensors="pt", truncation=True,
+            max_length=int(cfg.get("max_seq_length", 2048))).to(device)
         with torch.no_grad():
             out = model.generate(
-                **inputs, max_new_tokens=2048, do_sample=False,
+                **inputs, max_new_tokens=int(max_new_tokens), do_sample=False,
                 pad_token_id=tokenizer.eos_token_id)
         return tokenizer.decode(out[0][inputs["input_ids"].shape[1]:],
                                 skip_special_tokens=True)
@@ -401,6 +472,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", default=None,
                         help="adapter or merged model dir (GPU path)")
+    parser.add_argument("--adapter", default=None,
+                        help="PEFT adapter dir applied to --model")
+    parser.add_argument("--backend", default="auto",
+                        choices=("auto", "unsloth", "transformers"))
+    parser.add_argument("--disable-thinking", action="store_true",
+                        help="pass enable_thinking=False to the chat template")
+    parser.add_argument("--max-new-tokens", type=int, default=2048)
     parser.add_argument("--config", default="havyn-stage5/configs/bakeoff.yaml")
     parser.add_argument("--generations-file", default=None,
                         help="score pre-generated outputs ({prompt_id, "
@@ -420,7 +498,10 @@ def main() -> None:
     per_example: list[dict] = []
 
     if args.model:
-        generate = make_gpu_generator(args.model, args.config)
+        generate = make_gpu_generator(
+            args.model, args.config, adapter_dir=args.adapter,
+            backend=args.backend, disable_thinking=args.disable_thinking,
+            max_new_tokens=args.max_new_tokens)
     elif args.generations_file:
         gens = load_generations(Path(args.generations_file))
         generate = lambda rec: gens.get(rec.get("id") or "", "")

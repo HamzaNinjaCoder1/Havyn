@@ -51,6 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+modal = ["modal==1.6.3"]
 
 [project.urls]
 Homepage = "https://github.com/HamzaNinjaCoder1/Havyn"

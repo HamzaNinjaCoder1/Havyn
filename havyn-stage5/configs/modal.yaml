@@ -1,0 +1,66 @@
+app_name: havyn-stage5-training
+volume_name: havyn-stage5
+mount_path: /data
+root: /data/havyn-stage5
+
+gpu:
+  default: A10G
+  allowed:
+    - L4
+    - A10G
+    - L40S
+    - A100-40GB
+  hourly_usd_estimate:
+    L4: 0.80
+    A10G: 1.10
+    L40S: 1.95
+    A100-40GB: 2.10
+
+runtime:
+  python_version: "3.11"
+  function_timeout_seconds: 21600
+  startup_timeout_seconds: 1800
+  tiny_train_max_steps: 2
+
+storage:
+  hf_home: /data/hf-cache
+  hf_hub_cache: /data/hf-cache/hub
+  transformers_cache: /data/hf-cache/transformers
+  datasets_cache: /data/hf-cache/datasets
+  torch_home: /data/torch
+  xdg_cache_home: /data/cache
+
+dataset:
+  name: havyn-train-v1
+  repo_dir: havyn-stage5/datasets/havyn-train-v1
+  volume_dir: /data/havyn-stage5/datasets/havyn-train-v1
+  frozen_manifest: FROZEN.json
+  expected_counts:
+    train: 1989
+    validation: 223
+    heldout: 120
+
+configs:
+  standard: havyn-stage5/configs/train-standard.yaml
+  smoke: havyn-stage5/configs/train-smoke.yaml
+  evaluate: havyn-stage5/configs/bakeoff.yaml
+
+artifacts:
+  datasets: datasets
+  models: models
+  checkpoints: checkpoints
+  runs: runs
+  reports: reports
+  manifests: manifests
+  logs: logs
+
+smoke_gate:
+  require_all: true
+  require_bf16: true
+  min_vram_gb: 20
+  expected_python: "3.11"
+
+evaluation:
+  disable_thinking: true
+  max_new_tokens: 2048
+  baseline: true

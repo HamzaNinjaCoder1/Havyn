@@ -20,10 +20,12 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 REPO = Path(__file__).resolve().parents[2]
 for p in (str(REPO), str(REPO / "havyn-stage5" / "scripts")):
@@ -45,7 +47,7 @@ def _git_pin() -> str | None:
         ).stdout.strip()
         return f"{head}+dirty-src" if dirty else head
     except Exception:
-        return None
+        return os.environ.get("HAVYN_CODE_COMMIT")
 
 
 def _sha256_file(path: Path) -> str | None:
@@ -164,7 +166,8 @@ def warmup_plan(train_size: int, batch: int, accumulation: int, epochs: int,
 
 
 def train(config_path: str, resume: bool, output_dir: str | None,
-          dataset_dir: str | None, preflight: bool = False) -> dict:
+          dataset_dir: str | None, preflight: bool = False,
+          extra_callbacks: list | None = None) -> dict:
     cfg = load_config(config_path)
     train_cfg = cfg["train"]
     seed = int(train_cfg.get("seed", 20261028))
@@ -184,6 +187,14 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         )
     freeze = _freeze_info(root)
     examples, val, stats = load_training_data(root, seed)
+    train_limit = train_cfg.get("max_train_examples")
+    val_limit = train_cfg.get("max_validation_examples")
+    if train_limit:
+        examples = examples[: int(train_limit)]
+    if val_limit:
+        val = val[: int(val_limit)]
+    stats["train_used"] = len(examples)
+    stats["validation_used"] = len(val)
 
     checkpoint_dir = Path(output_dir) if output_dir else Path(cfg["output"]["checkpoint_dir"])
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -335,6 +346,16 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         float(train_cfg.get("warmup_ratio", 0.05)),
     )
     save_steps = int(train_cfg.get("save_steps", 250))
+    eval_steps = int(train_cfg.get("eval_steps", save_steps))
+    raw_limit = train_cfg.get("save_total_limit", 3)
+    save_total_limit = int(raw_limit) if raw_limit is not None else None
+    max_steps = int(train_cfg["max_steps"]) if train_cfg.get("max_steps") else -1
+    early = train_cfg.get("early_stopping") or {}
+    early_patience = int(early.get("patience", 0) or 0)
+    if early_patience and eval_steps != save_steps:
+        raise SystemExit(
+            "early stopping requires eval_steps == save_steps so the best "
+            "checkpoint is retained")
     resume_from = None
     if resume:
         found = latest_valid_checkpoint(checkpoint_dir)
@@ -348,6 +369,7 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         "gradient_accumulation_steps": accumulation,
         "effective_batch_size": batch * accumulation,
         "epochs": epochs,
+        "max_steps": max_steps,
         "learning_rate": float(train_cfg["learning_rate"]),
         "warmup_ratio": float(train_cfg.get("warmup_ratio", 0.05)),
         "precision": report["precision"],
@@ -355,6 +377,7 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         "validation_examples": len(val_ds),
         "checkpoint_dir": str(checkpoint_dir),
         "resume_from_checkpoint": resume_from,
+        "early_stopping_patience": early_patience,
         **plan,
     }
     if not preflight:
@@ -363,6 +386,7 @@ def train(config_path: str, resume: bool, output_dir: str | None,
     sft_cfg = SFTConfig(
         output_dir=str(checkpoint_dir),
         num_train_epochs=epochs,
+        max_steps=max_steps,
         per_device_train_batch_size=batch,
         gradient_accumulation_steps=accumulation,
         per_device_eval_batch_size=1,
@@ -375,10 +399,13 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         seed=seed,
         save_strategy="steps",
         save_steps=save_steps,
-        save_total_limit=int(train_cfg.get("save_total_limit", 3)),
+        save_total_limit=save_total_limit,
         logging_steps=10,
         eval_strategy="steps",
-        eval_steps=int(train_cfg.get("eval_steps", save_steps)),
+        eval_steps=eval_steps,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
         gradient_checkpointing=not _unsloth,
         gradient_checkpointing_kwargs={"use_reentrant": False},
         optim="paged_adamw_8bit",
@@ -386,12 +413,21 @@ def train(config_path: str, resume: bool, output_dir: str | None,
         dataset_text_field="text",
         max_length=int(cfg["max_seq_length"]),
     )
+    callbacks = list(extra_callbacks or [])
+    if early_patience:
+        from transformers import EarlyStoppingCallback
+
+        callbacks.append(EarlyStoppingCallback(
+            early_stopping_patience=early_patience,
+            early_stopping_threshold=float(early.get("threshold", 0.0)),
+        ))
     trainer = SFTTrainer(
         model=model,
         args=sft_cfg,
         train_dataset=train_ds,
         eval_dataset=val_ds,
         processing_class=tokenizer,
+        callbacks=callbacks or None,
     )
     report["training_plan"] = plan
     report["precision"] = summary["precision"]
@@ -428,6 +464,12 @@ def train(config_path: str, resume: bool, output_dir: str | None,
     metrics = getattr(trainer, "state", None)
     if metrics is not None and getattr(metrics, "log_history", None):
         report["final_loss"] = metrics.log_history[-1].get("train_loss")
+        report["global_step"] = getattr(metrics, "global_step", None)
+        report["best_metric"] = getattr(metrics, "best_metric", None)
+        report["log_history"] = [
+            entry for entry in metrics.log_history
+            if "loss" in entry or "eval_loss" in entry
+        ]
     (report_dir / "training-report.json").write_text(
         json.dumps(report, indent=2), encoding="utf-8")
     return report
