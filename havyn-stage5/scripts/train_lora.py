@@ -454,8 +454,25 @@ def main() -> None:
             root, int(cfg["train"].get("seed", 20261028)))
         print(json.dumps({"dry_run": True, "dataset_stats": stats}, indent=2))
         return
-    report = train(args.config, args.resume, args.output_dir, args.dataset_dir,
-                   preflight=args.preflight)
+    try:
+        report = train(args.config, args.resume, args.output_dir,
+                       args.dataset_dir, preflight=args.preflight)
+    except BaseException as exc:  # noqa: BLE001
+        cfg = load_config(args.config)
+        report_dir = Path(cfg["output"]["report_dir"])
+        report_dir.mkdir(parents=True, exist_ok=True)
+        report_path = report_dir / "training-report.json"
+        failed = {}
+        if report_path.exists():
+            failed = json.loads(report_path.read_text(encoding="utf-8"))
+        failed.update({
+            "status": "failed",
+            "reason": f"{type(exc).__name__}: {exc}",
+            "finished": datetime.now(timezone.utc).isoformat(
+                timespec="seconds"),
+        })
+        report_path.write_text(json.dumps(failed, indent=2), encoding="utf-8")
+        raise
     print(json.dumps({"status": report["status"]}, indent=2))
     if report["status"] == "blocked":
         sys.exit(2)

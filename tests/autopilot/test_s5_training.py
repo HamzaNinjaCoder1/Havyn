@@ -20,6 +20,7 @@ for p in (str(REPO), str(SCRIPTS)):
 import export_gguf  # noqa: E402
 import freeze_dataset  # noqa: E402
 import improvement_loop  # noqa: E402
+import train_lora  # noqa: E402
 from evaluate_model import (  # noqa: E402
     apply_json_patch,
     compute_gates,
@@ -555,6 +556,31 @@ def test_warmup_plan_uses_formatted_examples_and_effective_batch() -> None:
     assert plan["warmup_steps"] == 42
     coarse = warmup_plan(4492, 1, 16, 3, 0.10)
     assert coarse["warmup_steps"] == 84
+
+
+def test_main_records_failed_status_when_gpu_half_raises(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import yaml
+
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.safe_dump({
+        "output": {"report_dir": str(tmp_path),
+                   "checkpoint_dir": str(tmp_path / "checkpoints")},
+        "train": {"dataset_dir": str(tmp_path / "dataset")},
+    }), encoding="utf-8")
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("simulated CUDA OOM")
+
+    monkeypatch.setattr(train_lora, "train", boom)
+    monkeypatch.setattr(sys, "argv", ["train_lora.py", "--config",
+                                      str(config_path)])
+    with pytest.raises(RuntimeError):
+        train_lora.main()
+    report = json.loads((tmp_path / "training-report.json").read_text(
+        encoding="utf-8"))
+    assert report["status"] == "failed"
+    assert "simulated CUDA OOM" in report["reason"]
 
 
 def test_sft_config_uses_supported_training_arguments() -> None:
