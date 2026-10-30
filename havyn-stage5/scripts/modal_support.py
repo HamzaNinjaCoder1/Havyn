@@ -105,6 +105,64 @@ def verify_dataset(dataset_dir: str | Path,
     return report
 
 
+def volume_relative_path(path: str | Path,
+                         mount_path: str = "/data") -> PurePosixPath:
+    pure = PurePosixPath(str(path))
+    mount = PurePosixPath(str(mount_path))
+    if pure == mount:
+        return PurePosixPath(".")
+    if mount not in pure.parents:
+        raise ValueError(f"path {pure} is outside the volume mount {mount}")
+    return PurePosixPath(*pure.parts[len(mount.parts):])
+
+
+def sync_local_dataset(volume: Any, local_dir: str | Path,
+                       remote_dir: str | Path,
+                       expected_counts: dict[str, int] | None = None,
+                       frozen_name: str = "FROZEN.json",
+                       mount_path: str = "/data") -> dict[str, Any]:
+    source = Path(local_dir)
+    remote_root = volume_relative_path(remote_dir, mount_path)
+    report = verify_dataset(source, expected_counts, frozen_name)
+    if not report["ok"]:
+        raise RuntimeError(
+            "local frozen dataset failed verification: "
+            + "; ".join(report["breaks"]))
+    remote_manifest = remote_root / frozen_name
+    local_manifest_sha = sha256_file(source / frozen_name)
+    remote_bytes = None
+    try:
+        remote_bytes = b"".join(volume.read_file(str(remote_manifest)))
+    except Exception:
+        remote_bytes = None
+    if remote_bytes is not None:
+        if sha256_bytes(remote_bytes) != local_manifest_sha:
+            raise RuntimeError(
+                "the Modal Volume already holds a different frozen dataset "
+                "manifest; refusing to overwrite it")
+        return {
+            "uploaded": False,
+            "local": report,
+            "container_dir": str(PurePosixPath(str(remote_dir))),
+            "volume_dir": str(remote_root),
+            "remote_manifest_sha256": local_manifest_sha,
+        }
+    with volume.batch_upload(force=False) as batch:
+        for path in sorted(source.iterdir()):
+            if path.is_file():
+                batch.put_file(str(path), str(remote_root / path.name))
+    uploaded = b"".join(volume.read_file(str(remote_manifest)))
+    if sha256_bytes(uploaded) != local_manifest_sha:
+        raise RuntimeError("dataset upload did not persist the frozen manifest")
+    return {
+        "uploaded": True,
+        "local": report,
+        "container_dir": str(PurePosixPath(str(remote_dir))),
+        "volume_dir": str(remote_root),
+        "remote_manifest_sha256": local_manifest_sha,
+    }
+
+
 def git_info(repo_root: str | Path) -> dict[str, Any]:
     import subprocess
 
@@ -242,12 +300,10 @@ def apply_config_overrides(original: dict[str, Any],
     changes = diff_config(original, used)
     changed_paths = {change["path"] for change in changes}
     requested = set(overrides)
-    if changed_paths != requested:
-        unexpected = sorted(changed_paths - requested)
-        missing = sorted(requested - changed_paths)
+    unexpected = sorted(changed_paths - requested)
+    if unexpected:
         raise ValueError(
-            f"config override mismatch: unexpected={unexpected} "
-            f"missing={missing}")
+            f"config override mismatch: unexpected={unexpected}")
     return used, changes
 
 

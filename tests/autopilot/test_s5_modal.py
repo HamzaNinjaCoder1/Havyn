@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,7 +10,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO / "havyn-stage5" / "scripts"
-for entry in (str(REPO), str(SCRIPTS)):
+for entry in (str(REPO), str(REPO / "havyn-stage5"), str(SCRIPTS)):
     if entry not in sys.path:
         sys.path.insert(0, entry)
 
@@ -104,6 +105,16 @@ def test_apply_config_overrides_changes_only_paths() -> None:
     assert used["train"]["learning_rate"] == original["train"]["learning_rate"]
     assert used["lora"] == original["lora"]
     assert used["train"]["dataset_dir"] == "/data/ds"
+
+
+def test_apply_config_overrides_allows_a_no_op_path() -> None:
+    original = support.load_yaml(
+        REPO / "havyn-stage5" / "configs" / "train-smoke.yaml")
+    used, changes = support.apply_config_overrides(original, {
+        "train.dataset_dir": original["train"]["dataset_dir"],
+    })
+    assert used == original
+    assert changes == []
 
 
 def test_apply_config_overrides_can_disable_checkpoint_deletion() -> None:
@@ -322,3 +333,239 @@ def test_training_source_keeps_best_checkpoint_and_max_steps() -> None:
     assert 'metric_for_best_model="eval_loss"' in block
     assert "max_steps=max_steps" in block
     assert "save_total_limit" in block
+
+
+class _FakeVolume:
+    def __init__(self, files: dict[str, bytes] | None = None) -> None:
+        self.files = dict(files or {})
+        self.upload_batches = 0
+        self.put_calls = 0
+
+    def read_file(self, path: str):
+        key = str(path)
+        if key not in self.files:
+            raise FileNotFoundError(key)
+        yield self.files[key]
+
+    @contextmanager
+    def batch_upload(self, force: bool = False):
+        self.upload_batches += 1
+        yield self
+
+    def put_file(self, local: str | Path, remote: str | Path) -> None:
+        self.put_calls += 1
+        self.files[str(remote)] = Path(local).read_bytes()
+
+
+def test_local_dataset_sync_uploads_without_commit(tmp_path: Path) -> None:
+    root = tmp_path / "ds"
+    _dataset(root)
+    remote = "/data/havyn-stage5/datasets/havyn-train-v1"
+    volume_prefix = "havyn-stage5/datasets/havyn-train-v1"
+    volume = _FakeVolume()
+    result = support.sync_local_dataset(
+        volume, root, remote, {"train": 2, "validation": 1, "heldout": 1})
+    assert result["uploaded"] is True
+    assert result["volume_dir"] == volume_prefix
+    assert result["container_dir"] == remote
+    assert volume.upload_batches == 1
+    assert volume.put_calls == 6
+    assert volume.files[f"{volume_prefix}/FROZEN.json"] == \
+        (root / "FROZEN.json").read_bytes()
+    assert volume.files[f"{volume_prefix}/train.jsonl"] == \
+        (root / "train.jsonl").read_bytes()
+    second = support.sync_local_dataset(
+        volume, root, remote, {"train": 2, "validation": 1, "heldout": 1})
+    assert second["uploaded"] is False
+    assert volume.upload_batches == 1
+    assert volume.put_calls == 6
+
+
+def test_local_dataset_sync_refuses_a_different_remote_manifest(
+        tmp_path: Path) -> None:
+    root = tmp_path / "ds"
+    _dataset(root)
+    remote = "/data/havyn-stage5/datasets/havyn-train-v1"
+    volume = _FakeVolume({
+        "havyn-stage5/datasets/havyn-train-v1/FROZEN.json": b"different"})
+    with pytest.raises(RuntimeError, match="different frozen dataset"):
+        support.sync_local_dataset(
+            volume, root, remote, {"train": 2, "validation": 1, "heldout": 1})
+    assert volume.upload_batches == 0
+
+
+def test_local_dataset_sync_refuses_a_tampered_local_dataset(
+        tmp_path: Path) -> None:
+    root = tmp_path / "ds"
+    _dataset(root)
+    (root / "train.jsonl").write_text('{"row": 999}\n', encoding="utf-8")
+    volume = _FakeVolume()
+    with pytest.raises(RuntimeError, match="local frozen dataset"):
+        support.sync_local_dataset(
+            volume, root,
+            "/data/havyn-stage5/datasets/havyn-train-v1",
+            {"train": 2, "validation": 1, "heldout": 1})
+    assert volume.upload_batches == 0
+
+
+def test_volume_paths_are_relative_to_the_mount() -> None:
+    assert support.volume_relative_path(
+        "/data/havyn-stage5/datasets/havyn-train-v1") == \
+        support.PurePosixPath("havyn-stage5/datasets/havyn-train-v1")
+    assert support.volume_relative_path("/data") == \
+        support.PurePosixPath(".")
+    with pytest.raises(ValueError):
+        support.volume_relative_path("/root/havyn/data")
+
+
+def test_local_orchestration_has_no_volume_commit() -> None:
+    source = (REPO / "havyn-stage5" / "modal_app.py").read_text(
+        encoding="utf-8")
+    sync_block = source[source.index("def _local_dataset_sync"):
+                        source.index("def _write_local_receipt")]
+    main_block = source[source.index("def main("):
+                        source.index('if __name__ == "__main__"')]
+    assert "VOLUME.commit()" not in sync_block
+    assert "VOLUME.commit()" not in main_block
+    assert "support.sync_local_dataset" in sync_block
+
+
+def test_full_training_is_gated_and_not_started_locally() -> None:
+    source = (REPO / "havyn-stage5" / "modal_app.py").read_text(
+        encoding="utf-8")
+    gate_block = source[source.index("def _smoke_gate"):
+                        source.index("def run_smoke")]
+    train_block = source[source.index("def run_train"):
+                         source.index("def _materialize_for_run")]
+    main_block = source[source.index("def main("):
+                        source.index('if __name__ == "__main__"')]
+    assert 'latest.get("status") != "PASS"' in gate_block
+    assert "dataset_manifest_sha256" in gate_block
+    assert train_block.index("gate = _smoke_gate()") < \
+        train_block.index("run_training(")
+    assert "run_training(" not in main_block
+    assert "run_train.with_options" in main_block
+
+
+def test_frozen_dataset_identity_and_counts_unchanged() -> None:
+    root = REPO / "havyn-stage5" / "datasets" / "havyn-train-v1"
+    counts = {"train": 1989, "validation": 223, "heldout": 120}
+    report = support.verify_dataset(root, counts)
+    assert report["ok"], report["breaks"]
+    assert report["manifest_sha256"] == (
+        "ca7ab9597f139c4f376ab14d4bc03718620b4335a38f6ead768fbe389a72c20a")
+    manifest = support.read_json(root / "FROZEN.json")
+    assert manifest["sha256"] == {
+        "train.jsonl":
+            "b1fb09ea29839e660857a6841feb4253662d8994011d8d4211dbf074ab46c499",
+        "validation.jsonl":
+            "a200cc01c5ac847f1edf3fb95a67bf1468de6dcd550aec7bf9c3d68fe6d738d0",
+        "heldout.jsonl":
+            "d065405aa46a6b3a23918a7c9ddbcf78c29a5c195c7d4ebbfa5f83724c4d4176",
+        "audit-report.json":
+            "9642b3d9e6fa00e37f89480863d5bdbe34d6890ddc0d31ccaf0422868aede5d9",
+        "dataset-card.json":
+            "fd2dfb0300a9dfd097eff2bb5b6b9dfd7cb8ec058b2f65937b8c4eac9b3ed2c8",
+    }
+    assert {name: report["rows"][name]["actual"] for name in counts} == counts
+
+
+def test_training_recipe_and_model_selection_unchanged() -> None:
+    standard = support.load_yaml(
+        REPO / "havyn-stage5" / "configs" / "train-standard.yaml")
+    smoke = support.load_yaml(
+        REPO / "havyn-stage5" / "configs" / "train-smoke.yaml")
+    registry = support.load_yaml(
+        REPO / "havyn-stage5" / "configs" / "models.yaml")
+    expected_lora = {
+        "r": 32,
+        "lora_alpha": 32,
+        "lora_dropout": 0.0,
+        "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj",
+                           "gate_proj", "up_proj", "down_proj"],
+        "bias": "none",
+        "use_gradient_checkpointing": True,
+    }
+    assert standard["base_model"] == "Qwen/Qwen3-8B"
+    assert smoke["base_model"] == "Qwen/Qwen3-8B"
+    assert standard["load_in_4bit"] is True
+    assert smoke["load_in_4bit"] is True
+    assert standard["max_seq_length"] == 2048
+    assert standard["lora"] == expected_lora
+    assert smoke["lora"] == expected_lora
+    train = standard["train"]
+    assert train["epochs"] == 3
+    assert train["per_device_train_batch_size"] == 1
+    assert train["gradient_accumulation_steps"] == 16
+    assert train["learning_rate"] == pytest.approx(2e-4)
+    assert train["lr_scheduler"] == "cosine"
+    assert train["warmup_ratio"] == pytest.approx(0.05)
+    assert train["weight_decay"] == pytest.approx(0.01)
+    assert train["bf16"] is True
+    assert train["seed"] == 20261028
+    assert train["save_steps"] == 250
+    assert train["eval_steps"] == 250
+    assert train["save_total_limit"] == 3
+    assert "max_steps" not in train
+    assert train["task_tags"] == ["intent", "prompt", "diagnosis",
+                                  "enhancement", "clarification"]
+    assert smoke["train"]["max_steps"] == 2
+    assert smoke["train"]["max_train_examples"] == 16
+    assert smoke["train"]["max_validation_examples"] == 8
+    standard_ids = [item["model_id"]
+                    for item in registry["standard_candidates"]]
+    assert "Qwen/Qwen3-8B" in standard_ids
+    assert registry["teacher"]["family"] != registry["review"]["family"]
+
+
+def test_image_env_does_not_precreate_the_data_mount() -> None:
+    pytest.importorskip("modal")
+    import modal_app
+
+    assert "XDG_CACHE_HOME" not in modal_app.CACHE_ENV
+    assert modal_app.CACHE_ENV["HF_HOME"].startswith("/data/")
+    source = (REPO / "havyn-stage5" / "modal_app.py").read_text(
+        encoding="utf-8")
+    assert "copy=False" in source
+    assert "include_source=False" in source
+
+
+def test_logical_parameter_count_uses_quant_state_shape() -> None:
+    pytest.importorskip("modal")
+    from types import SimpleNamespace
+
+    import modal_app
+
+    quantized = SimpleNamespace(
+        numel=lambda: 100,
+        quant_state=SimpleNamespace(shape=(10, 20)))
+    dense = SimpleNamespace(numel=lambda: 100, quant_state=None)
+    assert modal_app._parameter_numel(quantized) == 200
+    assert modal_app._parameter_numel(dense) == 100
+
+
+def test_modal_volume_paths_and_gpu_policy_unchanged() -> None:
+    cfg = support.load_yaml(
+        REPO / "havyn-stage5" / "configs" / "modal.yaml")
+    assert cfg["mount_path"] == "/data"
+    assert cfg["root"] == "/data/havyn-stage5"
+    assert cfg["dataset"]["volume_dir"] == \
+        "/data/havyn-stage5/datasets/havyn-train-v1"
+    assert cfg["dataset"]["expected_counts"] == {
+        "train": 1989, "validation": 223, "heldout": 120}
+    storage = cfg["storage"]
+    for key in ("hf_home", "hf_hub_cache", "transformers_cache",
+                "datasets_cache", "torch_home", "xdg_cache_home"):
+        assert storage[key].startswith("/data/")
+    resolved = support.check_cloud_cache_paths({
+        "HF_HOME": storage["hf_home"],
+        "HF_HUB_CACHE": storage["hf_hub_cache"],
+        "TRANSFORMERS_CACHE": storage["transformers_cache"],
+        "HF_DATASETS_CACHE": storage["datasets_cache"],
+        "TORCH_HOME": storage["torch_home"],
+    })
+    assert resolved["HF_HOME"] == "/data/hf-cache"
+    assert cfg["gpu"]["default"] == "A10G"
+    assert "H100" not in cfg["gpu"]["allowed"]
+    assert cfg["evaluation"]["disable_thinking"] is True
+    assert cfg["evaluation"]["baseline"] is True

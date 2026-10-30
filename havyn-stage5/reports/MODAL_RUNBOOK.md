@@ -183,6 +183,19 @@ Modal dashboard.
 | `no checkpoint met the selection criterion` | no eval loss or adapter file | inspect checkpoints; do not pick the final one by default |
 | `run ... is not promotion-eligible` | validation loss regressed, did not improve, or had fewer than two eval points | inspect `training-analysis.json`; do not ship an overfit or unmeasured adapter |
 
+## Local/container boundary
+
+The local Windows process never calls `Volume.commit()`; that API is valid only
+inside a container that mounts the Volume. Dataset synchronization uses
+`Volume.batch_upload`, whose `VolumePutFiles` call persists the files directly.
+Upload and read paths are volume-relative (`havyn-stage5/...`), not container
+paths (`/data/havyn-stage5/...`), so the files appear under the mounted `/data`
+inside the container. The app source is mounted at `/root/havyn` with
+`copy=False` and `include_source=False`, which keeps the repository's `data/`
+directory out of `/data`. `XDG_CACHE_HOME` is set inside the container after
+mount, never in the image environment, because an image-time value would create
+`/data/cache` before the Volume could mount.
+
 ## Offline verification already performed
 
 - Frozen dataset hashes pass; rows are 1,989 / 223 / 120; split validation
@@ -193,13 +206,27 @@ Modal dashboard.
   peft 0.21.2, accelerate 1.15.0, datasets 4.8.5) completed a real 2-step LoRA
   training run on a tiny Qwen3 architecture on CPU, producing checkpoint-1,
   checkpoint-2, validation losses and an adapter file.
-- New tests: 21 Modal-support tests pass. Full offline suite: 1,227-1,228
-  passed and 32 skipped across two runs. The known bridge timing flake
-  (`test_unclaimed_results_are_purged`) failed intermittently and passed on
-  every isolated rerun; it is unrelated to the Stage 5 changes.
-- `modal_preflight.py`: every check passes except `modal_authenticated`; the
-  app definition, dataset, configs, pins and cache paths are verified.
+- New tests: 33 Modal-support tests pass. Final full offline suite: 1,240
+  passed, 32 skipped. The known bridge timing flake
+  (`test_unclaimed_results_are_purged`) failed intermittently in earlier runs
+  and passes in isolation; the final run is clean.
+- `modal_preflight.py`: **PASS**, all checks including Modal authentication.
 - No Qwen weights or Hugging Face model cache were downloaded to this machine.
-- Modal GPU smoke tests are **NOT RUN**: the CLI has no token on this machine.
-  The exact error is `Token missing. Could not authenticate client.` The next
-  action is `python -m modal token new`, then `--stage smoke`.
+
+## Modal smoke result (2026-10-30)
+
+`python -m modal run havyn-stage5/modal_app.py --stage smoke` returned
+`status: PASS` on the final production code, run
+`20261030T142027Z-e8190733-smoke`, 68.7 s, estimated USD 0.021.
+
+| Test | Actual result |
+| --- | --- |
+| A GPU | NVIDIA A10, 22.06 GB total / 21.83 GB free, compute 8.6, BF16 matmul OK, CUDA 12.8, torch 2.9.1+cu128 |
+| B environment | Python 3.11.12; torch 2.9.1, transformers 4.57.6, trl 1.17.0, peft 0.21.2, accelerate 1.15.0, datasets 4.8.5, bitsandbytes 0.50.2; all caches under `/data` |
+| C dataset | 1,989 / 223 / 120 rows and all five SHA-256 hashes match `FROZEN.json`; 32-example token sample mean 1,324 tokens, max 7,525; 3 exceed the 2,048 training length and are truncated by the unchanged recipe |
+| D model | `Qwen/Qwen3-8B`, revision `b968826d9c46dd6066d109eabc6255188de91218`, model_type `qwen3`, 8,190,735,360 logical parameters (4,717,851,648 packed 4-bit), 252 quantized tensors, NF4 double-quant, BF16, cuda:0, peak 7.05 GB, tokenizer `Qwen/Qwen3-8B` |
+| E LoRA | 87,293,952 trainable of 8,278,029,312 (1.0545%), base frozen, 504 LoRA tensors, r=32/alpha=32/dropout=0, 36 matches per target module |
+| F tiny training | 2 optimizer steps, train loss 2.4997, eval loss 2.4788 -> 2.2509, checkpoint-1 and checkpoint-2 written to the Volume, best checkpoint-2 selected, 35.2 s |
+
+The full training stage was **not** started. The smoke gate is now satisfied,
+but `--stage train` remains a separate, explicitly requested action.

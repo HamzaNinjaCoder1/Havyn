@@ -42,11 +42,14 @@ CACHE_ENV = {
     "TRANSFORMERS_CACHE": CONFIG["storage"]["transformers_cache"],
     "HF_DATASETS_CACHE": CONFIG["storage"]["datasets_cache"],
     "TORCH_HOME": CONFIG["storage"]["torch_home"],
-    "XDG_CACHE_HOME": CONFIG["storage"]["xdg_cache_home"],
     "TOKENIZERS_PARALLELISM": "false",
-    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "PYTORCH_ALLOC_CONF": "expandable_segments:True",
     "HF_HUB_DISABLE_TELEMETRY": "1",
     "HAVYN_REPO_ROOT": str(REMOTE_REPO),
+    "PYTHONPATH": (
+        f"{REMOTE_REPO}:{REMOTE_REPO / 'havyn-stage5'}:"
+        f"{REMOTE_REPO / 'havyn-stage5' / 'scripts'}"
+    ),
 }
 
 VOLUME = modal.Volume.from_name(
@@ -105,10 +108,10 @@ IMAGE = (
     .env(CACHE_ENV)
     .workdir(str(REMOTE_REPO))
     .add_local_dir(
-        str(REPO), remote_path=str(REMOTE_REPO), copy=True, ignore=_ignored)
+        str(REPO), remote_path=str(REMOTE_REPO), copy=False, ignore=_ignored)
 )
 
-app = modal.App(CONFIG["app_name"])
+app = modal.App(CONFIG["app_name"], include_source=False)
 
 
 def _now() -> str:
@@ -116,6 +119,8 @@ def _now() -> str:
 
 
 def _ensure_layout() -> None:
+    os.environ.setdefault(
+        "XDG_CACHE_HOME", CONFIG["storage"]["xdg_cache_home"])
     for path in (ROOT, RUNS_ROOT, CHECKPOINTS_ROOT, MODELS_ROOT,
                  REPORTS_ROOT, MANIFESTS_ROOT, LOGS_ROOT, SMOKE_REPORTS,
                  EVAL_REPORTS, DATASET_DIR.parent):
@@ -190,14 +195,14 @@ def _environment_report() -> dict:
 
     hub_cache = str(Path(hub_constants.HF_HUB_CACHE).resolve())
     expected_hub = str(Path(CACHE_ENV["HF_HUB_CACHE"]).resolve())
-    torch_cache = str(Path(torch.hub.get_dir()).resolve())
-    expected_torch = str(Path(CACHE_ENV["TORCH_HOME"]).resolve())
+    torch_cache = Path(torch.hub.get_dir()).resolve()
+    expected_torch = Path(CACHE_ENV["TORCH_HOME"]).resolve()
     if hub_cache != expected_hub:
         raise RuntimeError(
             f"huggingface_hub resolved {hub_cache}, expected {expected_hub}")
-    if torch_cache != expected_torch:
+    if expected_torch not in (torch_cache, *torch_cache.parents):
         raise RuntimeError(
-            f"torch resolved {torch_cache}, expected {expected_torch}")
+            f"torch resolved {torch_cache}, outside {expected_torch}")
     frozen = subprocess.run(
         [sys.executable, "-m", "pip", "freeze"],
         capture_output=True, text=True, check=False).stdout.strip().splitlines()
@@ -210,7 +215,7 @@ def _environment_report() -> dict:
         "pip_freeze": sorted(frozen),
         "caches": caches,
         "resolved_hub_cache": hub_cache,
-        "resolved_torch_cache": torch_cache,
+        "resolved_torch_cache": str(torch_cache),
         "bitsandbytes_version": bitsandbytes.__version__,
         "ephemeral_disk_free_gb": round(ephemeral.free / 1024**3, 2),
         "volume_free_gb": round(volume_disk.free / 1024**3, 2),
@@ -273,6 +278,19 @@ def _dataset_report(tokenizer, max_length: int, seed: int) -> dict:
     }
 
 
+def _parameter_numel(param) -> int:
+    state = getattr(param, "quant_state", None)
+    if isinstance(state, (list, tuple)):
+        state = state[0] if state else None
+    shape = getattr(state, "shape", None)
+    if shape:
+        total = 1
+        for dim in shape:
+            total *= int(dim)
+        return total
+    return int(param.numel())
+
+
 def _load_model(cfg: dict):
     import torch
     from transformers import (AutoModelForCausalLM, AutoTokenizer,
@@ -315,7 +333,10 @@ def _model_report(model, tokenizer, cfg: dict) -> dict:
     model_type = str(getattr(config, "model_type", ""))
     model_name = str(getattr(config, "_name_or_path", "") or
                      getattr(model, "name_or_path", ""))
-    parameter_count = sum(p.numel() for p in model.parameters())
+    packed_parameter_count = sum(int(p.numel()) for p in model.parameters())
+    parameter_count = sum(_parameter_numel(p) for p in model.parameters())
+    quantized_parameters = sum(
+        1 for p in model.parameters() if getattr(p, "quant_state", None))
     quant_modules = sum(
         1 for module in model.modules()
         if module.__class__.__name__ in {"Linear4bit", "Linear8BitLt"})
@@ -342,6 +363,10 @@ def _model_report(model, tokenizer, cfg: dict) -> dict:
         "architectures": list(getattr(config, "architectures", []) or []),
         "parameter_count": parameter_count,
         "parameter_billions": round(parameter_count / 1e9, 3),
+        "packed_parameter_count": packed_parameter_count,
+        "packed_parameter_billions": round(
+            packed_parameter_count / 1e9, 3),
+        "quantized_parameter_tensors": quantized_parameters,
         "parameter_dtype": weights_dtype,
         "torch_dtype_config": str(getattr(config, "torch_dtype", "")),
         "is_quantized": is_quantized,
@@ -367,8 +392,8 @@ def _model_report(model, tokenizer, cfg: dict) -> dict:
 def _lora_report(model, cfg: dict) -> dict:
     trainable = [(name, param) for name, param in model.named_parameters()
                  if param.requires_grad]
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for _, p in trainable)
+    total_params = sum(_parameter_numel(p) for p in model.parameters())
+    trainable_params = sum(int(p.numel()) for _, p in trainable)
     unexpected = [name for name, _ in trainable if "lora_" not in name]
     if unexpected:
         raise RuntimeError(
@@ -1198,44 +1223,14 @@ def run_eval(request: dict) -> dict:
 
 
 def _local_dataset_sync() -> dict:
-    local_dir = REPO / CONFIG["dataset"]["repo_dir"]
-    report = support.verify_dataset(
-        local_dir, CONFIG["dataset"]["expected_counts"],
-        CONFIG["dataset"]["frozen_manifest"])
-    if not report["ok"]:
-        raise RuntimeError(
-            "local frozen dataset failed verification: "
-            + "; ".join(report["breaks"]))
-    remote_manifest = (PurePosixPath(CONFIG["dataset"]["volume_dir"])
-                       / CONFIG["dataset"]["frozen_manifest"])
-    local_manifest_bytes = (local_dir / CONFIG["dataset"]["frozen_manifest"]
-                            ).read_bytes()
-    local_manifest_sha = support.sha256_bytes(local_manifest_bytes)
-    remote_bytes = None
-    try:
-        remote_bytes = b"".join(VOLUME.read_file(str(remote_manifest)))
-    except Exception:
-        remote_bytes = None
-    if remote_bytes is not None:
-        if support.sha256_bytes(remote_bytes) != local_manifest_sha:
-            raise RuntimeError(
-                "the Modal Volume already holds a different frozen dataset "
-                "manifest; refusing to overwrite it")
-        return {"uploaded": False, "local": report,
-                "remote_manifest_sha256": local_manifest_sha}
-    with VOLUME.batch_upload(force=False) as batch:
-        for path in sorted(local_dir.iterdir()):
-            if path.is_file():
-                batch.put_file(
-                    str(path),
-                    str(PurePosixPath(CONFIG["dataset"]["volume_dir"])
-                        / path.name))
-    VOLUME.commit()
-    uploaded = b"".join(VOLUME.read_file(str(remote_manifest)))
-    if support.sha256_bytes(uploaded) != local_manifest_sha:
-        raise RuntimeError("dataset upload did not persist the frozen manifest")
-    return {"uploaded": True, "local": report,
-            "remote_manifest_sha256": local_manifest_sha}
+    return support.sync_local_dataset(
+        VOLUME,
+        REPO / CONFIG["dataset"]["repo_dir"],
+        CONFIG["dataset"]["volume_dir"],
+        CONFIG["dataset"]["expected_counts"],
+        CONFIG["dataset"]["frozen_manifest"],
+        CONFIG["mount_path"],
+    )
 
 
 def _write_local_receipt(run_id: str, stage: str, payload: dict) -> Path:
